@@ -41,14 +41,15 @@
     <div class="ring"></div>
     <div class="hint">در حال بارگذاری سامانه مدیریت نوبت…</div>
   </div>
-  <script src="flutter_bootstrap.js" async></script>
   <script>
+    // Register before Flutter starts: async bootstrap may emit first-frame very early.
     window.addEventListener('flutter-first-frame', function () {
       var el = document.getElementById('loading');
       if (!el) return;
       el.style.opacity = '0';
       setTimeout(function () { el.remove(); }, 400);
-    });
+    }, { once: true });
   </script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
