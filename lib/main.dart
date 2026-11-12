@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -27,8 +28,27 @@ import 'features/sms/presentation/providers/sms_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.landscapeRight]);
-  final prefs = await SharedPreferences.getInstance();
+  // Orientation locking is not needed on web and may be unsupported by its platform.
+  if (!kIsWeb) {
+    try {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } catch (error, stackTrace) {
+      debugPrint('Could not set preferred orientations: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  // Preferences are optional: a browser storage failure must not block runApp().
+  SharedPreferences? prefs;
+  try {
+    prefs = await SharedPreferences.getInstance();
+  } catch (error, stackTrace) {
+    debugPrint('SharedPreferences initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
 
   // لایه داده (در این فاز: پیاده‌سازی درون‌حافظه‌ای؛ آماده جایگزینی با Supabase).
   final database = AppDatabase();
