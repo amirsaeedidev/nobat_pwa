@@ -40,12 +40,20 @@ class SmsProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _page = await _repository.fetchMessages(query: _query, status: _statusFilter, page: _pageNumber, pageSize: 8);
-    _stats = await _repository.fetchStats();
-    _templates = await _repository.fetchTemplates();
-    _provider = await _repository.fetchProviderSettings();
-    _loading = false;
-    notifyListeners();
+    try {
+      _page = await _repository.fetchMessages(query: _query, status: _statusFilter, page: _pageNumber, pageSize: 8);
+      _stats = await _repository.fetchStats();
+      _templates = await _repository.fetchTemplates();
+      _provider = await _repository.fetchProviderSettings();
+    } catch (error) {
+      // Keep the seeded in-memory values visible if a mock read fails.
+      _page = PageResult(items: db.smsMessages, total: db.smsMessages.length, page: 1, pageSize: 8);
+      _templates = db.smsTemplates;
+      _provider = db.settings.smsProvider;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
