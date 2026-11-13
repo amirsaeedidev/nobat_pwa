@@ -93,9 +93,14 @@ class BookingProvider extends DbBoundProvider {
   Future<void> loadServices() async {
     _loading = true;
     notifyListeners();
-    _availableServices = await _services.fetchServices(onlyActive: true);
-    _loading = false;
-    notifyListeners();
+    try {
+      _availableServices = await _services.fetchServices(onlyActive: true);
+    } catch (_) {
+      _availableServices = db.services.where((service) => service.isActive).toList();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   void nextStep() {
