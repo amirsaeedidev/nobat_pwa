@@ -22,9 +22,14 @@ class EmployeesProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _items = await _repository.fetchEmployees();
-    _loading = false;
-    notifyListeners();
+    try {
+      _items = await _repository.fetchEmployees();
+    } catch (_) {
+      _items = db.employees;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
