@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../data/mock/app_database.dart';
