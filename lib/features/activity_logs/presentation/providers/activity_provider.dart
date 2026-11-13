@@ -27,10 +27,16 @@ class ActivityProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _logs = await _repository.fetchLogs(type: _type, query: _query);
-    _recent = await _repository.fetchRecent(limit: 6);
-    _loading = false;
-    notifyListeners();
+    try {
+      _logs = await _repository.fetchLogs(type: _type, query: _query);
+      _recent = await _repository.fetchRecent(limit: 6);
+    } catch (_) {
+      _logs = db.activityLogs;
+      _recent = db.activityLogs.take(6).toList();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
