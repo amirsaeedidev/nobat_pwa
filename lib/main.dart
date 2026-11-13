@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'data/mock/app_database.dart';
@@ -28,7 +27,7 @@ import 'features/sms/presentation/providers/sms_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Orientation locking is not needed on web and may be unsupported by its platform.
+
   if (!kIsWeb) {
     try {
       await SystemChrome.setPreferredOrientations([
@@ -41,16 +40,8 @@ Future<void> main() async {
     }
   }
 
-  // Preferences are optional: a browser storage failure must not block runApp().
-  SharedPreferences? prefs;
-  try {
-    prefs = await SharedPreferences.getInstance();
-  } catch (error, stackTrace) {
-    debugPrint('SharedPreferences initialization failed: $error');
-    debugPrintStack(stackTrace: stackTrace);
-  }
-
-  // لایه داده (در این فاز: پیاده‌سازی درون‌حافظه‌ای؛ آماده جایگزینی با Supabase).
+  // All application data is seeded locally in memory. Startup does not wait
+  // for browser storage, network access, or any remote service.
   final database = AppDatabase();
 
   final appointmentRepository = MockAppointmentRepository(database);
@@ -65,7 +56,6 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        // تزریق وابستگی لایه داده
         Provider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
         Provider<CustomerRepository>.value(value: customerRepository),
@@ -75,9 +65,7 @@ Future<void> main() async {
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
-
-        // وضعیت‌های برنامه
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database, prefs: prefs)),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
         ChangeNotifierProvider(
