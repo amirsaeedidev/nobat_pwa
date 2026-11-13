@@ -26,9 +26,14 @@ class ServicesProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _items = await _repository.fetchServices(onlyActive: _activeOnly);
-    _loading = false;
-    notifyListeners();
+    try {
+      _items = await _repository.fetchServices(onlyActive: _activeOnly);
+    } catch (_) {
+      _items = db.services;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
