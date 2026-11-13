@@ -46,10 +46,16 @@ class ReportsProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _revenueSeries = await _repository.fetchRevenueSeries(months: _months);
-    _serviceRevenue = await _repository.fetchServiceRevenue(limit: 5);
-    _loading = false;
-    notifyListeners();
+    try {
+      _revenueSeries = await _repository.fetchRevenueSeries(months: _months);
+      _serviceRevenue = await _repository.fetchServiceRevenue(limit: 5);
+    } catch (_) {
+      _revenueSeries = const [];
+      _serviceRevenue = const [];
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
