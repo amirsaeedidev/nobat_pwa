@@ -32,9 +32,15 @@ class CustomersProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-    _loading = false;
-    notifyListeners();
+    try {
+      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
+    } catch (_) {
+      final all = db.customers;
+      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
