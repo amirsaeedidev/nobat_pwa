@@ -33,14 +33,20 @@ class AppointmentsProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _page = await _repository.fetchAppointments(
-      filter: _filter,
-      page: _pageNumber,
-      pageSize: _pageSize,
-      ascending: _ascending,
-    );
-    _loading = false;
-    notifyListeners();
+    try {
+      _page = await _repository.fetchAppointments(
+        filter: _filter,
+        page: _pageNumber,
+        pageSize: _pageSize,
+        ascending: _ascending,
+      );
+    } catch (_) {
+      final all = db.appointments;
+      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
