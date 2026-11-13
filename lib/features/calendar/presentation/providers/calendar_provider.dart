@@ -108,11 +108,18 @@ class CalendarProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    _employeeList = await _employees.fetchEmployees();
-    _serviceList = await _services.fetchServices();
-    _rangeAppointments = await _appointments.fetchAll();
-    _loading = false;
-    notifyListeners();
+    try {
+      _employeeList = await _employees.fetchEmployees();
+      _serviceList = await _services.fetchServices();
+      _rangeAppointments = await _appointments.fetchAll();
+    } catch (_) {
+      _employeeList = db.employees;
+      _serviceList = db.services;
+      _rangeAppointments = db.appointments;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   @override
