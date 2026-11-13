@@ -29,8 +29,82 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze Dart code
-        run: flutter analyze
+      - name: Analyze Dart code and create report
+        id: analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --machine 2>&1 | tee analyze-output.txt
+          analyze_status=${PIPESTATUS[0]}
+          echo "exit_code=$analyze_status" >> "$GITHUB_OUTPUT"
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          lines = Path("analyze-output.txt").read_text(errors="replace").splitlines()
+          diagnostics = []
+          for line in lines:
+              parts = line.split("|", 7)
+              if len(parts) < 8 or parts[0] not in {"ERROR", "WARNING", "INFO"}:
+                  continue
+              severity, kind, code, file, row, col, length, message = parts
+              diagnostics.append((severity, file, row, col, code, message))
+
+          errors = sum(item[0] == "ERROR" for item in diagnostics)
+          warnings = sum(item[0] == "WARNING" for item in diagnostics)
+          infos = sum(item[0] == "INFO" for item in diagnostics)
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a") as out:
+              out.write("## Flutter Analyze report\n\n")
+              out.write("| وضعیت | خطا | هشدار | اطلاعات |\n|---|---:|---:|---:|\n")
+              status = "❌ ناموفق" if errors else "✅ بدون خطا"
+              out.write(f"| {status} | {errors} | {warnings} | {infos} |\n\n")
+              if diagnostics:
+                  out.write("### جزئیات موارد پیدا شده\n\n")
+                  out.write("| سطح | فایل | خط | ستون | کد | توضیح |\n|---|---|---:|---:|---|---|\n")
+                  for severity, file, row, col, code, message in diagnostics:
+                      safe = message.replace("|", "\\|").replace("\n", " ")
+                      out.write(f"| {severity} | `{file}` | {row} | {col} | `{code}` | {safe} |\n")
+              else:
+                  out.write("هیچ موردی توسط تحلیل‌گر Dart گزارش نشد.\n")
+          PY
+
+          exit "$analyze_status"
 
       - name: Run tests
-        run: flutter test
+        id: tests
+        if: always() && steps.analyze.outcome != 'skipped'
+        continue-on-error: true
+        run: flutter test 2>&1 | tee flutter-test-output.txt
+
+      - name: Add test result to summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f flutter-test-output.txt ]; then
+            if grep -q "All tests passed" flutter-test-output.txt; then
+              echo -e "\n## Flutter tests\n\n✅ همه تست‌ها موفق بودند." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo -e "\n## Flutter tests\n\n❌ تست‌ها ناموفق بودند یا خروجی کامل نشد. جزئیات در لاگ مرحله Run tests است." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+      - name: Upload analysis and test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-diagnostics
+          path: |
+            analyze-output.txt
+            flutter-test-output.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Fail workflow if analysis or tests failed
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.analyze.outputs.exit_code }}" != "0" ] || [ "${{ steps.tests.outcome }}" = "failure" ]; then
+            exit 1
+          fi
