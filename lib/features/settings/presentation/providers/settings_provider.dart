@@ -1,5 +1,3 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../data/mock/app_database.dart';
@@ -9,17 +7,11 @@ import '../../../../data/repositories/settings_repository.dart';
 
 /// تنظیمات ظاهری و اطلاعات مجموعه.
 class SettingsProvider extends DbBoundProvider {
-  SettingsProvider(this._repository, AppDatabase db, {SharedPreferences? prefs})
-      : _prefs = prefs,
-        super(db) {
-    _paletteId = prefs?.getString(_paletteKey) ?? 'navy';
+  SettingsProvider(this._repository, AppDatabase db) : super(db) {
     load();
   }
 
-  static const String _paletteKey = 'app_palette';
-
   final SettingsRepository _repository;
-  final SharedPreferences? _prefs;
 
   BusinessSettings? _settings;
   bool _loading = true;
@@ -46,6 +38,10 @@ class SettingsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       _settings = await _repository.fetchSettings();
+    } catch (error, stackTrace) {
+      debugPrint('Settings mock load failed; using seeded data: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _settings = db.settings;
     } finally {
       _loading = false;
       notifyListeners();
@@ -61,16 +57,18 @@ class SettingsProvider extends DbBoundProvider {
   Future<void> setPalette(String id) async {
     _paletteId = id;
     notifyListeners();
-    await _prefs?.setString(_paletteKey, id);
   }
 
   Future<void> saveBusiness(BusinessSettings settings, {String? logTitle, String? logDescription}) async {
     _saving = true;
     notifyListeners();
-    await _repository.saveSettings(settings, logTitle: logTitle, logDescription: logDescription);
-    _settings = db.settings;
-    _saving = false;
-    notifyListeners();
+    try {
+      await _repository.saveSettings(settings, logTitle: logTitle, logDescription: logDescription);
+      _settings = db.settings;
+    } finally {
+      _saving = false;
+      notifyListeners();
+    }
   }
 
   Future<void> updateRules(BookingRules rules) async {
