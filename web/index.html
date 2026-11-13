@@ -43,7 +43,22 @@
   </div>
   <script>
     // Register before Flutter starts: async bootstrap may emit first-frame very early.
+    var loadingTimeout = window.setTimeout(function () {
+      var hint = document.querySelector('#loading .hint');
+      var ring = document.querySelector('#loading .ring');
+      if (hint) {
+        hint.textContent = 'بارگذاری ناموفق بود. اتصال اینترنت یا خطای اجرای برنامه را بررسی کنید.';
+      }
+      if (ring) ring.style.display = 'none';
+      var retry = document.createElement('button');
+      retry.textContent = 'تلاش دوباره';
+      retry.style.cssText = 'padding:10px 22px;border:0;border-radius:10px;background:#38BDF8;color:#071326;font-weight:700;cursor:pointer';
+      retry.addEventListener('click', function () { window.location.reload(); });
+      document.getElementById('loading').appendChild(retry);
+    }, 15000);
+
     window.addEventListener('flutter-first-frame', function () {
+      window.clearTimeout(loadingTimeout);
       var el = document.getElementById('loading');
       if (!el) return;
       el.style.opacity = '0';
