@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="ONTIME — سامانه حرفه‌ای مدیریت نوبت‌دهی، رزرو آنلاین و CRM">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0A1227">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ONTIME">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <title>ONTIME — مدیریت نوبت‌دهی</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #0A1227; height: 100%; }
+    #loading {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      background: radial-gradient(circle at 50% 35%, #16224a 0%, #0A1227 70%);
+      font-family: Tahoma, sans-serif; color: #9FB0C9; direction: rtl;
+      transition: opacity .35s ease;
+    }
+    #loading .logo { font-size: 30px; font-weight: 800; letter-spacing: 1px; color: #fff; }
+    #loading .logo span { color: #38BDF8; }
+    #loading .ring {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid rgba(56,189,248,.2); border-top-color: #38BDF8;
+      animation: spin 900ms linear infinite;
+    }
+    #loading .hint { font-size: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="logo">ONT<span>IME</span></div>
+    <div class="ring"></div>
+    <div class="hint">در حال بارگذاری سامانه مدیریت نوبت…</div>
+  </div>
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('loading');
+      if (!el) return;
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 400);
+    });
+  </script>
+</body>
+</html>
