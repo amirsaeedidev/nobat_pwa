@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ontime/app/app.dart';
 import 'package:ontime/data/mock/app_database.dart';
 import 'package:ontime/data/repositories/appointment_repository.dart';
@@ -26,9 +25,6 @@ import 'package:ontime/features/sms/presentation/providers/sms_provider.dart';
 
 void main() {
   testWidgets('برنامه بدون خطا بالا می‌آید و پیشخوان رندر می‌شود', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-
     final db = AppDatabase();
     final appointments = MockAppointmentRepository(db);
     final customers = MockCustomerRepository(db);
@@ -44,7 +40,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AppDatabase>.value(value: db),
-          ChangeNotifierProvider(create: (_) => SettingsProvider(settings, db, prefs: prefs)),
+          ChangeNotifierProvider(create: (_) => SettingsProvider(settings, db)),
           ChangeNotifierProvider(create: (_) => DashboardProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointments, db)),
           ChangeNotifierProvider(create: (_) => CalendarProvider(appointments, employees, services, db)),
