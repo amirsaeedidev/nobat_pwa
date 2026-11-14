@@ -56,7 +56,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        Provider<AppDatabase>.value(value: database),
+        ChangeNotifierProvider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
         Provider<CustomerRepository>.value(value: customerRepository),
         Provider<ServiceRepository>.value(value: serviceRepository),
