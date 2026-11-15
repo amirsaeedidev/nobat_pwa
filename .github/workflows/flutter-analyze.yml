@@ -29,6 +29,57 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Enforce Hugeicons-only icon policy
+        id: icon_policy
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          from pathlib import Path
+
+          roots = [Path("lib"), Path("test")]
+          patterns = [
+              ("Material Icons catalog", re.compile(r"\\bIcons\\s*\\.")),
+              ("Material Icon widget", re.compile(r"(?<![A-Za-z0-9_])Icon\\s*\\(")),
+              ("Material IconData", re.compile(r"\\bIconData\\b")),
+              ("ImageIcon widget", re.compile(r"\\bImageIcon\\s*\\(")),
+              ("SVG renderer / handwritten SVG", re.compile(r"\\bSvgPicture\\s*\\.|\\bSvgPicture\\s*\\(|<svg\\b|\\bRawSvg\\b")),
+              ("custom-painted icon/path", re.compile(r"\\bCustomPaint\\s*\\(|\\bCustomPainter\\b|\\bPath\\s*\\(")),
+          ]
+          violations = []
+          scanned = 0
+          for root in roots:
+              if not root.exists():
+                  continue
+              for file in root.rglob("*.dart"):
+                  scanned += 1
+                  lines = file.read_text(encoding="utf-8", errors="replace").splitlines()
+                  for number, line in enumerate(lines, 1):
+                      stripped = line.strip()
+                      if stripped.startswith("//") or stripped.startswith("*"):
+                          continue
+                      for label, pattern in patterns:
+                          if pattern.search(line):
+                              violations.append((str(file), number, label, stripped[:220]))
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as out:
+              out.write("## Hugeicons-only policy\n\n")
+              out.write(f"- Dart files scanned: **{scanned}**\n")
+              out.write(f"- Forbidden icon patterns: **{len(violations)}**\n\n")
+              if violations:
+                  out.write("| File | Line | Violation | Source |\n|---|---:|---|---|\n")
+                  for file, line, label, source in violations:
+                      out.write(f"| `{file}` | {line} | {label} | `{source.replace('|', chr(92)+'|')}` |\n")
+              else:
+                  out.write("✅ No Material Icons, ImageIcon, handwritten SVG, or custom-painted icons found.\n")
+          if violations:
+              print("Hugeicons-only policy failed:")
+              for file, line, label, source in violations:
+                  print(f"{file}:{line}: {label}: {source}")
+              sys.exit(1)
+          print(f"Hugeicons-only policy passed ({scanned} Dart files scanned).")
+          PY
+
       - name: Analyze Dart code and create report
         id: analyze
         shell: bash
