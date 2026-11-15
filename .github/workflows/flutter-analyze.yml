@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**"
+    paths-ignore:
+      - '.github/workflows/flutter-build.yml'
   pull_request:
 
 permissions:
