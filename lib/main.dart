@@ -51,7 +51,7 @@ Future<void> main() async {
       );
 
   FlutterError.onError = (details) {
-    FlutterError.presentError(details);
+    FlutterError.dumpErrorToConsole(details);
     debugPrint('[ONTIME][FlutterError] ${details.exceptionAsString()}');
     if (details.stack != null) {
       debugPrintStack(stackTrace: details.stack);
