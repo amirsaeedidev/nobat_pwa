@@ -1,4 +1,4 @@
-name: Build PWA and APK
+name: Build Android APK
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build web PWA and Android APK
+  build-apk:
+    name: Build release APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,24 +32,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build PWA (web)
-        run: flutter build web --release --no-tree-shake-icons
+      - name: Build release APK
+        run: flutter build apk --release --android-skip-build-dependency-validation
 
-      - name: Build Android APK
-        run: flutter build apk --release
-
-      - name: Upload PWA files
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: nobat-amir-pwa
-          path: build/web/
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: nobat-amir-android-apk
+          name: nobat-amir-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
