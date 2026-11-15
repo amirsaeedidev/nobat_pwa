@@ -479,7 +479,7 @@ class _BookingLinkCard extends StatelessWidget {
 String faCount(int value) => FaNum.ofInt(value);
 
 /// آیکون‌های ناوبری با خانواده Stroke Rounded از Hugeicons.
-HugeIconData _navIcon(int index) {
+List<List> _navIcon(int index) {
   switch (index) {
     case 0:
       return HugeIcons.strokeRoundedHome01;
