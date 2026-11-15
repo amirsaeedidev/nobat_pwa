@@ -28,6 +28,36 @@ import 'features/sms/presentation/providers/sms_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Keep the fallback error UI safe even when the failure happens before
+  // MaterialApp has installed Directionality. This prevents error-widget
+  // failures from recursively producing more errors on Flutter Web.
+  ErrorWidget.builder = (details) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: ColoredBox(
+          color: const Color(0xFF0A1227),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                kDebugMode
+                    ? 'خطا در نمایش این بخش\\n${details.exceptionAsString()}'
+                    : 'خطایی در نمایش این بخش رخ داد.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[ONTIME][FlutterError] ${details.exceptionAsString()}');
+    if (details.stack != null) {
+      debugPrintStack(stackTrace: details.stack);
+    }
+  };
+
   if (!kIsWeb) {
     try {
       await SystemChrome.setPreferredOrientations([
