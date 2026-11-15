@@ -486,7 +486,7 @@ List<List> _navIcon(int index) {
     case 3:
       return HugeIcons.strokeRoundedUser;
     case 9:
-      return HugeIcons.strokeRoundedSettings;
+      return HugeIcons.strokeRoundedSettings01;
     default:
       return HugeIcons.strokeRoundedAirplaneSeat;
   }
