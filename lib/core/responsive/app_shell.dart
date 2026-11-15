@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
@@ -150,8 +151,8 @@ class MobileBottomNav extends StatelessWidget {
               color: selected ? pal.primary.withValues(alpha: 0.16) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              selected ? dest.iconResolved : dest.icon,
+            child: HugeIcon(
+              icon: _navIcon(navIndex),
               size: 21,
               color: selected ? pal.primaryBright : pal.textMuted,
             ),
@@ -194,7 +195,7 @@ class _AddButton extends StatelessWidget {
           border: Border.all(color: pal.background, width: 4),
           boxShadow: AppShadows.glow(pal.primary, opacity: 0.45, blur: 22),
         ),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+        child: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.white, size: 28),
       ),
     );
   }
@@ -244,7 +245,7 @@ class AppSidebar extends StatelessWidget {
                       gradient: pal.primaryGradient,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.schedule_rounded, color: Colors.white, size: 20),
+                    child: const HugeIcon(icon: HugeIcons.strokeRoundedHome01, color: Colors.white, size: 20),
                   ),
                   if (expanded) ...[
                     const SizedBox(width: 10),
@@ -307,7 +308,7 @@ class AppSidebar extends StatelessWidget {
                       child: IconButton(
                         tooltip: 'صفحه رزرو عمومی',
                         onPressed: () => context.push('/book'),
-                        icon: Icon(Icons.public_rounded, color: pal.primaryBright),
+                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedHome01, color: Colors.blue),
                       ),
                     ),
                 ],
@@ -476,3 +477,17 @@ class _BookingLinkCard extends StatelessWidget {
 
 /// نمایش شماره صفحه‌ها برای هدر‌ها.
 String faCount(int value) => FaNum.ofInt(value);
+
+/// آیکون‌های ناوبری با خانواده Stroke Rounded از Hugeicons.
+HugeIconData _navIcon(int index) {
+  switch (index) {
+    case 0:
+      return HugeIcons.strokeRoundedHome01;
+    case 3:
+      return HugeIcons.strokeRoundedUser;
+    case 9:
+      return HugeIcons.strokeRoundedSettings;
+    default:
+      return HugeIcons.strokeRoundedAirplaneSeat;
+  }
+}
