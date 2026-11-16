@@ -7,7 +7,7 @@ import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
 /// ریشه برنامه با پشتیبانی کامل RTL و تم پویا.
-class OnTimeApp extends StatefulWidget {
+class DateTimeApp extends StatefulWidget {
   const OnTimeApp({super.key});
 
   @override
@@ -21,7 +21,7 @@ class _OnTimeAppState extends State<OnTimeApp> {
   Widget build(BuildContext context) {
     final palette = context.watch<SettingsProvider>().palette;
     return MaterialApp.router(
-      title: 'ONTIME — مدیریت نوبت‌دهی',
+      title: 'DateTime — مدیریت نوبت‌دهی',
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
       theme: AppTheme.build(palette),
