@@ -17,7 +17,7 @@ class SettingsProvider extends DbBoundProvider {
 
   BusinessSettings? _settings;
   bool _loading = true;
-  String _paletteId = 'navy';
+  String _paletteId = 'luxury';
   bool _saving = false;
 
   BusinessSettings? get settings => _settings;
