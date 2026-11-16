@@ -19,6 +19,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check legacy brand references
+        shell: bash
+        run: |
+          if git grep -ni -I -E 'ontime' -- .; then
+            echo "::error::Legacy brand reference found. Use DateTime instead."
+            exit 1
+          fi
+          echo "No legacy brand references found."
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
