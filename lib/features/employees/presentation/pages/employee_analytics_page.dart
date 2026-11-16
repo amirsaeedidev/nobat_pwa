@@ -256,7 +256,9 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           const SizedBox(height: 12),
           _ChartCard(title: 'درآمد روزانه', points: report.dailyRevenue, color: pal.success, money: true),
           const SizedBox(height: 12),
-          _ChartCard(title: 'درآمد ماهانه', points: report.monthlyRevenue, color: pal.primaryBright, money: true),\n          const SizedBox(height: 12),\n          _TrendChartCard(points: report.monthlyRevenue, color: pal.primaryBright),
+          _ChartCard(title: 'درآمد ماهانه', points: report.monthlyRevenue, color: pal.primaryBright, money: true),
+          const SizedBox(height: 12),
+          _TrendChartCard(points: report.monthlyRevenue, color: pal.primaryBright),
           const SizedBox(height: 12),
           _ChartCard(title: 'تعداد نوبت‌ها', points: report.dailyAppointments, color: pal.info),
           const SizedBox(height: 12),
@@ -266,8 +268,11 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
             const SectionHeader(title: 'خدمات پرفروش'),
             const SizedBox(height: 8),
             if (report.services.isEmpty) const EmptyState(compact: true, title: 'داده‌ای وجود ندارد')
-            else ...[\n              _ChartCard(title: 'درآمد خدمات', points: [for (final s in report.services.take(6)) AnalyticsPoint(s.name, s.revenue)], color: pal.success, money: true),\n              for (final item in report.services.take(6))
-              ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(item.name, style: const TextStyle(fontSize: 11)), subtitle: Text('${FaNum.ofInt(item.bookings)} نوبت', style: const TextStyle(fontSize: 9)), trailing: Text(_money(item.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))),\n            ],
+            else ...[
+              _ChartCard(title: 'درآمد خدمات', points: [for (final s in report.services.take(6)) AnalyticsPoint(s.name, s.revenue)], color: pal.success, money: true),
+              for (final item in report.services.take(6))
+              ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(item.name, style: const TextStyle(fontSize: 11)), subtitle: Text('${FaNum.ofInt(item.bookings)} نوبت', style: const TextStyle(fontSize: 9)), trailing: Text(_money(item.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))),
+            ],
           ])),
         ],
         const SizedBox(height: 12),
