@@ -202,5 +202,5 @@ class AppPalette extends ThemeExtension<AppPalette> {
 }
 
 extension PaletteContext on BuildContext {
-  AppPalette get pal => Theme.of(this).extension<AppPalette>() ?? AppPalette.navy;
+  AppPalette get pal => Theme.of(this).extension<AppPalette>() ?? AppPalette.luxury;
 }
