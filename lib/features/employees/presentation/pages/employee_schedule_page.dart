@@ -36,7 +36,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     final start = await _time(const TimeOfDay(hour: 9, minute: 0));
     if (start == null || !mounted) return null;
     final end = await _time(TimeOfDay(hour: (start.hour + 1).clamp(0, 23).toInt(), minute: start.minute));
-    if (end == null) return null;
+    if (end == null || !mounted) return null;
     final shift = Shift(
       start: '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
       end: '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
@@ -90,7 +90,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     var shifts = <Shift>[];
     if (!closed) {
       final shift = await _pickShift();
-      if (shift == null) return;
+      if (shift == null || !mounted) return;
       shifts = [shift];
     }
     try {
@@ -136,7 +136,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
       final from = await _time(const TimeOfDay(hour: 9, minute: 0));
       if (from == null || !mounted) return;
       final to = await _time(const TimeOfDay(hour: 13, minute: 0));
-      if (to == null) return;
+      if (to == null || !mounted) return;
       start = DateTime(startDate.year, startDate.month, startDate.day, from.hour, from.minute);
       end = DateTime(startDate.year, startDate.month, startDate.day, to.hour, to.minute);
     }
