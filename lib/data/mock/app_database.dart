@@ -537,6 +537,30 @@ class AppDatabase extends ChangeNotifier {
       description: 'پرداخت علی‌الحساب حقوق — رسید RC-MOCK-0001',
       settlementId: settlementId,
     ));
+
+    const fullSettlementId = 'settlement-seed-zahra';
+    _employeeWalletSettlements.add(EmployeeWalletSettlement(
+      id: fullSettlementId,
+      employeeId: 'emp-zahra',
+      periodType: EmployeeWalletPeriodType.monthly,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      dueAmount: 9200000,
+      paidAmount: 9200000,
+      remainingAfter: 0,
+      createdAt: now.subtract(const Duration(days: 1)),
+      status: EmployeeWalletSettlementStatus.completed,
+      receiptNumber: 'RC-MOCK-0002',
+    ));
+    _employeeWalletTransactions.add(EmployeeWalletTransaction(
+      id: 'wallet-seed-payment-2',
+      employeeId: 'emp-zahra',
+      createdAt: now.subtract(const Duration(days: 1)),
+      amount: -9200000,
+      type: EmployeeWalletTransactionType.salaryPayment,
+      description: 'تسویه کامل حقوق و پاداش — رسید RC-MOCK-0002',
+      settlementId: fullSettlementId,
+    ));
   }
 
   void reschedule(Appointment appointment, DateTime newStart, {String actor = 'پذیرش', bool byCustomer = false}) {
