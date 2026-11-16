@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/fa_num.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
@@ -24,6 +26,8 @@ class EmployeeSchedulePage extends StatefulWidget {
 
 class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   int _tab = 0;
+  late JalaliDate _visibleMonth = JalaliDate.today();
+  JalaliDate? _selectedDate;
 
   Future<TimeOfDay?> _time(TimeOfDay? initial) => showTimePicker(
     context: context,
@@ -151,6 +155,81 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     }
   }
 
+  Widget _buildMonthlyCalendar(Employee employee, AppDatabase db, AppPalette pal) {
+    final first = JalaliDate(_visibleMonth.year, _visibleMonth.month, 1);
+    final days = List.generate(42, (index) => first.addDays(index - first.weekday));
+    final selected = _selectedDate ?? JalaliDate.today();
+    final selectedStart = selected.toDateTime();
+    final selectedEnd = selectedStart.add(const Duration(days: 1));
+    final selectedShifts = db.employeeShiftsForDate(employee.id, selectedStart);
+    final selectedLeave = db.leavesForEmployee(employee.id).where((leave) => leave.overlaps(selectedStart, selectedEnd)).toList();
+
+    return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        const Expanded(child: SectionHeader(title: 'تقویم کاری ماهانه')),
+        IconButton(onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(-1)), icon: const Icon(Icons.chevron_right_rounded)),
+        Text(_visibleMonth.monthName + ' ' + FaNum.ofInt(_visibleMonth.year), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+        IconButton(onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(1)), icon: const Icon(Icons.chevron_left_rounded)),
+      ]),
+      const SizedBox(height: 8),
+      Row(children: [
+        for (final name in WeekDay.shortNames)
+          Expanded(child: Center(child: Text(name, style: TextStyle(fontSize: 10, color: pal.textMuted, fontWeight: FontWeight.w700)))),
+      ]),
+      const SizedBox(height: 6),
+      GridView.count(
+        crossAxisCount: 7,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: 1.2,
+        children: [
+          for (final day in days)
+            Builder(builder: (context) {
+              final inMonth = day.month == _visibleMonth.month;
+              final dateStart = day.toDateTime();
+              final dateEnd = dateStart.add(const Duration(days: 1));
+              final exception = db.employeeScheduleException(employee.id, dateStart);
+              final onLeave = db.leavesForEmployee(employee.id).any((leave) => leave.overlaps(dateStart, dateEnd));
+              final hasShift = db.employeeShiftsForDate(employee.id, dateStart).isNotEmpty;
+              final selectedDay = day.year == selected.year && day.month == selected.month && day.day == selected.day;
+              final tint = onLeave ? pal.danger : (exception?.isClosed ?? false) ? pal.warning : hasShift ? pal.success : pal.textMuted;
+              return InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: inMonth ? () => setState(() => _selectedDate = day) : null,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: selectedDay ? pal.primary.withValues(alpha: 0.14) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: selectedDay ? pal.primary : pal.border.withValues(alpha: inMonth ? 0.65 : 0.25)),
+                  ),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text(FaNum.ofInt(day.day), style: TextStyle(fontSize: 11, color: inMonth ? pal.textPrimary : pal.textMuted.withValues(alpha: 0.45), fontWeight: selectedDay ? FontWeight.w800 : FontWeight.w500)),
+                    const SizedBox(height: 3),
+                    if (inMonth && (hasShift || onLeave || exception != null))
+                      Container(width: 5, height: 5, decoration: BoxDecoration(color: tint, shape: BoxShape.circle)),
+                  ]),
+                ),
+              );
+            }),
+        ],
+      ),
+      const Divider(height: 20),
+      Text(Fmt.jalaliDate(selectedStart), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+      const SizedBox(height: 6),
+      if (selectedShifts.isEmpty)
+        Text('برای این روز شیفت کاری ثبت نشده است.', style: TextStyle(fontSize: 11, color: pal.textMuted))
+      else
+        Wrap(spacing: 6, runSpacing: 6, children: [for (final shift in selectedShifts) StatusBadge(label: shift.label, color: pal.success, dense: true)]),
+      if (selectedLeave.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        for (final leave in selectedLeave)
+          Text(leave.type.label + ' • ' + Fmt.time(leave.startAt.hour, leave.startAt.minute) + ' تا ' + Fmt.time(leave.endAt.hour, leave.endAt.minute), style: TextStyle(fontSize: 10.5, color: pal.danger)),
+      ],
+    ]));
+  }
+
   @override
   Widget build(BuildContext context) {
     final employee = context.watch<EmployeesProvider>().byIdSync(widget.employeeId);
@@ -172,6 +251,8 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
         ]),
         const SizedBox(height: 12),
         if (_tab == 0) ...[
+          _buildMonthlyCalendar(employee, db, pal),
+          const SizedBox(height: 10),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SectionHeader(title: 'تنظیمات برنامه'),
             SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled, onChanged: (value) => db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: value, bufferMinutes: employee.bufferMinutes)),
