@@ -46,12 +46,13 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   }
 
   Future<void> _save() async {
+    final settingsProvider = context.read<SettingsProvider>();
     setState(() => _saving = true);
-    await context.read<SettingsProvider>().updateWorkingHours(
+    await settingsProvider.updateWorkingHours(
           Map<int, List<Shift>>.from(_schedules.map((k, v) => MapEntry(k, [...v]))),
           holidays: _holidays,
         );
-    await context.read<SettingsProvider>().updateScheduleExceptions(_exceptions);
+    await settingsProvider.updateScheduleExceptions(_exceptions);
     if (!mounted) return;
     setState(() => _saving = false);
     AppToast.show(context, 'تغییرات با موفقیت ذخیره شد');
@@ -241,7 +242,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
     }
     setState(() {
       _exceptions.removeWhere((e) => e.dateKey == dateKey);
-      _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی ${dateKey}' : 'ساعات ویژه ${dateKey}', isClosed: closed, shifts: specialShifts));
+      _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی $dateKey' : 'ساعات ویژه $dateKey', isClosed: closed, shifts: specialShifts));
     });
   }
 

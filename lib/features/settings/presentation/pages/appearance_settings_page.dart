@@ -13,12 +13,6 @@ import '../providers/settings_provider.dart';
 class AppearanceSettingsPage extends StatelessWidget {
   const AppearanceSettingsPage({super.key});
 
-  static const _formColors = <Color>[
-    Color(0xFFE6A1BF), Color(0xFF8632E6), Color(0xFF8B5E3C),
-    Color(0xFF64748B), Color(0xFF3B82F6), Color(0xFF14A38B),
-    Color(0xFFE58B45), Color(0xFFD94A70),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
