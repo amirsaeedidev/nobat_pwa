@@ -194,6 +194,7 @@ class AppDatabase extends ChangeNotifier {
       undoAction: 'appointment_restore',
       undoData: previous.toJson(),
     );
+    if (status == AppointmentStatus.completed) finalizeCompletedAppointment(appointment.id);
     _commit();
   }
 
