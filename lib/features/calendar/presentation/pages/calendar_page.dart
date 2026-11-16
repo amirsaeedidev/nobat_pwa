@@ -75,46 +75,32 @@ class CalendarPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: provider.serviceId,
-                    isExpanded: true,
-                    isDense: true,
-                    dropdownColor: pal.surfaceAlt,
-                    style: TextStyle(fontSize: 11.5, color: pal.textPrimary, fontFamily: 'Vazirmatn'),
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: pal.textMuted),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('همه خدمات')),
-                      for (final service in provider.services)
-                        DropdownMenuItem<String?>(value: service.id, child: Text(service.title)),
-                    ],
-                    onChanged: provider.setService,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: provider.employeeId,
-                    isExpanded: true,
-                    isDense: true,
-                    dropdownColor: pal.surfaceAlt,
-                    style: TextStyle(fontSize: 11.5, color: pal.textPrimary, fontFamily: 'Vazirmatn'),
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: pal.textMuted),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('همه متخصصان')),
-                      for (final employee in provider.employees)
-                        DropdownMenuItem<String?>(value: employee.id, child: Text(employee.fullName)),
-                    ],
-                    onChanged: provider.setEmployee,
-                  ),
-                ),
-              ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              ChoiceChip(label: const Text('همه خدمات'), selected: provider.serviceId == null, onSelected: (_) => provider.setService(null)),
+              for (final service in provider.services) ...[
+                const SizedBox(width: 6),
+                ChoiceChip(label: Text(service.title), selected: provider.serviceId == service.id, onSelected: (_) => provider.setService(service.id)),
+              ],
+            ]),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: provider.employeeId,
+              isExpanded: true,
+              isDense: true,
+              dropdownColor: pal.surfaceAlt,
+              style: TextStyle(fontSize: 11.5, color: pal.textPrimary),
+              icon: Icon(Icons.filter_list_rounded, size: 16, color: pal.textMuted),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('فیلتر پرسنل: همه متخصصان')),
+                for (final employee in provider.employees)
+                  DropdownMenuItem<String?>(value: employee.id, child: Text(employee.fullName)),
+              ],
+              onChanged: provider.setEmployee,
+            ),
           ),
         ],
       ),

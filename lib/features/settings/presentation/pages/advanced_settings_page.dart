@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/settings_provider.dart';
 

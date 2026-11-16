@@ -459,7 +459,13 @@ class DayTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final visible = slots.where((s) => s.minute == 0 || s.isBooked).toList();
+    final visible = slots.where((s) => s.isBooked).toList();
+    if (visible.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: Text('نوبتی نیست', style: TextStyle(fontSize: 12, color: pal.textMuted, fontWeight: FontWeight.w600))),
+      );
+    }
     return Column(
       children: [
         for (final slot in visible)

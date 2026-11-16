@@ -2,6 +2,7 @@ import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
+import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/repositories/appointment_repository.dart';
