@@ -427,7 +427,7 @@ class AppDatabase extends ChangeNotifier {
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
     if (periodEnd.isBefore(periodStart)) throw ArgumentError('بازه تسویه معتبر نیست.');
     if (paidAmount <= 0) throw ArgumentError('مبلغ پرداخت باید بیشتر از صفر باشد.');
-    if (idempotencyKey != null && _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
+    if (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
       throw StateError('این پرداخت قبلاً ثبت شده است.');
     }
     final due = walletPeriodDue(employeeId, periodStart, periodEnd);
