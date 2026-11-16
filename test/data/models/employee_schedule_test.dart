@@ -71,6 +71,15 @@ void main() {
       expect(db.isEmployeeAvailableAt(employeeId: employee.id, startAt: atNine, durationMinutes: 30), isFalse);
     });
 
+    test('future schedule edits never rewrite existing appointment snapshots', () {
+      final appointment = db.appointments.first;
+      final before = appointment.toJson();
+      final future = DateTime.now().add(const Duration(days: 60));
+      final weekday = JalaliDate.fromDateTime(future).weekday;
+      db.saveEmployeeWeeklySchedule(employee.id, {weekday: const [Shift(start: '11:00', end: '16:00')]});
+      expect(db.appointmentById(appointment.id)!.toJson(), before);
+    });
+
     test('leave data round-trips without losing approval metadata', () {
       final leave = EmployeeLeave(
         id: 'leave-roundtrip', employeeId: employee.id,
