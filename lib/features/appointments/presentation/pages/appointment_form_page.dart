@@ -86,7 +86,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
 
   AppDatabase get _db => context.read<AppDatabase>();
   Employee? get _pricingEmployee {
-    if (_employee != null) return _employee;
+    if (_employee != null && _services.every((service) => _db.employeeOffersService(_employee!.id, service.id))) return _employee;
     if (_services.isEmpty) return null;
     for (final employee in _db.eligibleEmployeesForService(_services.first.id)) {
       if (_services.every((service) => _db.employeeOffersService(employee.id, service.id))) return employee;

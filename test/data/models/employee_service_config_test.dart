@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/employee_service_config.dart';
-import 'package:datetime/data/models/appointment.dart';
 import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/models/service.dart';
 
