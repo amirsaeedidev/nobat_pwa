@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/fa_num.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
@@ -120,7 +121,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                   '${entry.amount > 0 ? '+' : ''}${Fmt.money(entry.amount)}',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: entry.amount >= 0 ? pal.success : pal.danger),
                 ),
-                onTap: () => _showTransaction(entry),
+                onTap: () => _showTransaction(db, entry),
               ),
           ])),
           const SizedBox(height: 12),
@@ -310,7 +311,9 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     }
   }
 
-  void _showTransaction(EmployeeWalletTransaction entry) {
+  void _showTransaction(AppDatabase db, EmployeeWalletTransaction entry) {
+    final canCorrect = entry.status == EmployeeWalletTransactionStatus.posted &&
+        !db.employeeWalletTransactions.any((item) => item.reversalOfId == entry.id);
     showDialog<void>(context: context, builder: (context) => AlertDialog(
       title: Text(entry.type.label),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -322,8 +325,51 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
         if (entry.sourceFinanceEntryId != null) _DetailLine(label: 'سند پورسانت', value: entry.sourceFinanceEntryId!),
         if (entry.reversalOfId != null) _DetailLine(label: 'سند مرجع', value: entry.reversalOfId!),
       ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن'))],
+      actions: [
+        if (canCorrect)
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _correctTransaction(db, entry);
+            },
+            child: const Text('اصلاح سند'),
+          ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن')),
+      ],
     ));
+  }
+
+  Future<void> _correctTransaction(AppDatabase db, EmployeeWalletTransaction entry) async {
+    final amount = TextEditingController(text: entry.amount.toString());
+    final description = TextEditingController(text: 'اصلاح سند ${entry.id}');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('اصلاح تراکنش مالی'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('سند قبلی حذف نمی‌شود؛ یک سند معکوس و یک اصلاحیه جدید ثبت خواهد شد.', style: TextStyle(fontSize: 11)),
+          TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'مبلغ نهایی با علامت مثبت یا منفی')),
+          TextField(controller: description, decoration: const InputDecoration(labelText: 'علت اصلاح')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ثبت اصلاحیه')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) { amount.dispose(); description.dispose(); return; }
+    final parsed = int.tryParse(FaNum.toLatin(amount.text).replaceAll(',', '').trim());
+    if (parsed == null || parsed == 0 || description.text.trim().isEmpty) {
+      AppToast.show(context, 'مبلغ نهایی و علت اصلاح را بررسی کنید.', success: false);
+      amount.dispose(); description.dispose(); return;
+    }
+    try {
+      db.correctWalletTransaction(transactionId: entry.id, correctedAmount: parsed, description: description.text.trim());
+      if (mounted) AppToast.show(context, 'سند معکوس و اصلاحیه ثبت شد.');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'اصلاح سند انجام نشد: $error', success: false);
+    }
+    amount.dispose(); description.dispose();
   }
 
   void _showReceipt(EmployeeWalletSettlement settlement) {
