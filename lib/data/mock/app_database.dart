@@ -47,6 +47,9 @@ class AppDatabase extends ChangeNotifier {
     _customers.addAll(MockSeed.customers());
     _services.addAll(MockSeed.services());
     _employees.addAll(MockSeed.employees());
+    for (final employee in _employees) {
+      _syncEmployeeServiceLinks(employee);
+    }
     _appointments.addAll(MockSeed.appointments());
     _sms.addAll(MockSeed.smsMessages());
     _logs.addAll(MockSeed.activityLogs());
