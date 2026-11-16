@@ -135,6 +135,28 @@ class AppPalette extends ThemeExtension<AppPalette> {
   }
 }
 
+
+/// تم مستقل فرم‌ها؛ از تم کلی برنامه جدا ذخیره و اعمال می‌شود.
+@immutable
+class AppFormTheme {
+  const AppFormTheme({required this.id, required this.label, required this.description,
+    required this.accent, required this.soft});
+  final String id, label, description;
+  final Color accent, soft;
+
+  static const pastelPink = AppFormTheme(id: 'pastel_pink', label: 'صورتی پاستیلی',
+    description: 'صورتی ملایم با تأکید رز', accent: Color(0xFFC45C87), soft: Color(0xFFFFEDF3));
+  static const creamBrown = AppFormTheme(id: 'cream_brown', label: 'کرم و قهوه‌ای',
+    description: 'قهوه‌ای گرم و کرم روشن', accent: Color(0xFF8B5E3C), soft: Color(0xFFF5EBDD));
+  static const white = AppFormTheme(id: 'white', label: 'سفید مینیمال',
+    description: 'خاکستری و آبی ملایم', accent: Color(0xFF52657D), soft: Color(0xFFF1F5F9));
+  static const purple = AppFormTheme(id: 'purple', label: 'بنفش',
+    description: 'بنفش شاخص و روشن', accent: Color(0xFF8632E6), soft: Color(0xFFF1E7FF));
+  static const List<AppFormTheme> all = [pastelPink, creamBrown, white, purple];
+  static AppFormTheme byId(String id) =>
+      all.firstWhere((theme) => theme.id == id, orElse: () => pastelPink);
+}
+
 extension PaletteContext on BuildContext {
   AppPalette get pal => Theme.of(this).extension<AppPalette>() ?? AppPalette.pastelPink;
 }

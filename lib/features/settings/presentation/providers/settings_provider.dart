@@ -20,14 +20,14 @@ class SettingsProvider extends DbBoundProvider {
   BusinessSettings? _settings;
   bool _loading = true;
   String _paletteId = 'pastel_pink';
-  Color _formAccentColor = AppPalette.pastelPink.primary;
+  String _formThemeId = 'pastel_pink';
   bool _saving = false;
 
   BusinessSettings? get settings => _settings;
   bool get loading => _loading;
   bool get saving => _saving;
   AppPalette get palette => AppPalette.byId(_paletteId);
-  Color get formAccentColor => _formAccentColor;
+  AppFormTheme get formTheme => AppFormTheme.byId(_formThemeId);\n  Color get formAccentColor => formTheme.accent;\n  String get formThemeId => _formThemeId;
   String get paletteId => _paletteId;
   String get ownerName => 'فاطمه رضایی';
   String get ownerRole => 'مدیر مجموعه';
@@ -45,7 +45,7 @@ class SettingsProvider extends DbBoundProvider {
     try {
       final prefs = await SharedPreferences.getInstance();
       _paletteId = AppPalette.byId(prefs.getString('datetime_palette') ?? 'pastel_pink').id;
-      _formAccentColor = Color(prefs.getInt('datetime_form_accent') ?? palette.primary.value);
+      _formThemeId = AppFormTheme.byId(prefs.getString('datetime_form_theme') ?? 'pastel_pink').id;
       _settings = await _repository.fetchSettings();
     } catch (error, stackTrace) {
       debugPrint('Settings mock load failed; using seeded data: $error');
@@ -70,11 +70,11 @@ class SettingsProvider extends DbBoundProvider {
     await prefs.setString('datetime_palette', _paletteId);
   }
 
-  Future<void> setFormAccent(Color color) async {
-    _formAccentColor = color;
+  Future<void> setFormTheme(String id) async {
+    _formThemeId = AppFormTheme.byId(id).id;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('datetime_form_accent', color.toARGB32());
+    await prefs.setString('datetime_form_theme', _formThemeId);
   }
 
   Future<void> saveBusiness(BusinessSettings settings, {String? logTitle, String? logDescription}) async {

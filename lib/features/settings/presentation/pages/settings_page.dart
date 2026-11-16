@@ -23,7 +23,7 @@ class SettingsPage extends StatelessWidget {
     final business = settings.settings;
 
     final items = <_SettingEntry>[
-      _SettingEntry('اطلاعات مجموعه', 'نام، تماس، آدرس و شبکه‌های اجتماعی', Icons.storefront_rounded, pal.primaryBright, '/settings/business'),
+      _SettingEntry('تعویض تم', 'انتخاب تم کلی برنامه و تم مستقل فرم‌ها', Icons.palette_rounded, pal.primaryBright, '/settings/appearance'),\n      _SettingEntry('اطلاعات مجموعه', 'نام، تماس، آدرس و شبکه‌های اجتماعی', Icons.storefront_rounded, pal.primaryBright, '/settings/business'),
       _SettingEntry('ساعات کاری و تعطیلات', 'مدیریت شیفت‌ها و روزهای تعطیل', Icons.schedule_rounded, pal.accentGlow, '/settings/hours'),
       _SettingEntry('قواعد رزرو و لغو', 'محدودیت لغو، جابه‌جایی و تداخل', Icons.rule_rounded, pal.success, '/settings/rules'),
       _SettingEntry('تنظیمات پیامک', 'پنل پیامک، قالب‌ها و یادآوری', Icons.sms_rounded, pal.purple, '/sms/settings'),
