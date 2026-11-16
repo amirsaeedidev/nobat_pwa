@@ -18,6 +18,7 @@ import '../../features/customers/presentation/pages/customers_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/employees/presentation/pages/employee_form_page.dart';
 import '../../features/employees/presentation/pages/employee_finance_page.dart';
+import '../../features/employees/presentation/pages/employee_wallet_page.dart';
 import '../../features/employees/presentation/pages/employee_analytics_page.dart';
 import '../../features/employees/presentation/pages/employee_profile_page.dart';
 import '../../features/employees/presentation/pages/employee_schedule_page.dart';
@@ -110,6 +111,7 @@ GoRouter buildRouter() {
                     builder: (context, state) => EmployeeFormPage(employeeId: state.pathParameters['id']),
                   ),
                   GoRoute(path: 'finance', builder: (context, state) => EmployeeFinancePage(employeeId: state.pathParameters['id']!)),
+                  GoRoute(path: 'wallet', builder: (context, state) => EmployeeWalletPage(employeeId: state.pathParameters['id']!)),
                   GoRoute(path: 'schedule', builder: (context, state) => EmployeeSchedulePage(employeeId: state.pathParameters['id']!)),
                   GoRoute(path: 'analytics', builder: (context, state) => EmployeeAnalyticsPage(employeeId: state.pathParameters['id']!)),
                 ],

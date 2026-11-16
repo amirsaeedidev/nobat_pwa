@@ -10,6 +10,7 @@ import '../models/customer.dart';
 import '../models/employee.dart';
 import '../models/enums.dart';
 import '../models/employee_finance.dart';
+import '../models/employee_wallet.dart';
 import '../models/employee_service_config.dart';
 import '../models/employee_schedule.dart';
 import '../models/service.dart';
@@ -32,6 +33,8 @@ class AppDatabase extends ChangeNotifier {
   final List<SmsTemplate> _templates = [];
   final Map<String, EmployeePayProfile> _employeePayProfiles = {};
   final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
+  final List<EmployeeWalletTransaction> _employeeWalletTransactions = [];
+  final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
   final Map<String, EmployeeScheduleException> _employeeScheduleExceptions = {};
   final List<EmployeeLeave> _employeeLeaves = [];
@@ -48,6 +51,8 @@ class AppDatabase extends ChangeNotifier {
   List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
   List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
   List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
+  List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(_employeeWalletTransactions);
+  List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(_employeeWalletSettlements);
   List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
   List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values);
   EmployeePayProfile payProfileFor(String employeeId) => _employeePayProfiles[employeeId] ?? EmployeePayProfile(employeeId: employeeId);
@@ -68,6 +73,8 @@ class AppDatabase extends ChangeNotifier {
     _appointments.addAll(MockSeed.appointments());
     for (var index = 0; index < _employees.length; index++) { final employee = _employees[index]; _employeePayProfiles[employee.id] = EmployeePayProfile(employeeId: employee.id, method: index == 0 ? EmployeePaymentMethod.fixedPlusCommission : EmployeePaymentMethod.commissionOnly, monthlySalary: index == 0 ? 12000000 : 0, generalRateBps: 3000, basis: CommissionBasis.afterDiscount); }
     for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) { _createCommissionEntries(appointment); }
+    for (final entry in List<EmployeeFinanceEntry>.of(_employeeFinanceEntries)) { _mirrorFinanceEntryToWallet(entry); }
+    _seedWalletHistory();
     _sms.addAll(MockSeed.smsMessages());
     _logs.addAll(MockSeed.activityLogs());
     _templates.addAll(MockSeed.smsTemplates());
@@ -267,7 +274,9 @@ class AppDatabase extends ChangeNotifier {
       }
       final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
       final commission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
-      _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission));
+      final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
+      _employeeFinanceEntries.add(financeEntry);
+      _mirrorFinanceEntryToWallet(financeEntry);
     }
     log(ActivityType.appointmentCompleted, 'ثبت پورسانت نوبت', 'سند پورسانت برای نوبت تکمیل‌شده ایجاد شد.', entity: 'دفتر مالی پرسنل');
     _commit();
@@ -281,7 +290,9 @@ class AppDatabase extends ChangeNotifier {
     final refunded = _employeeFinanceEntries.where((entry) => entry.type == FinanceEntryType.refund && entry.reversesEntryId == entryId).fold<int>(0, (sum, entry) => sum - entry.receivedAmount);
     if (refunded + refundAmount > original.receivedAmount) throw ArgumentError('مبلغ برگشت از دریافتی این خدمت بیشتر است.');
     final commissionRefund = original.receivedAmount == 0 ? 0 : (original.commissionAmount * refundAmount + original.receivedAmount ~/ 2) ~/ original.receivedAmount;
-    _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: original.employeeId, appointmentId: original.appointmentId, serviceId: original.serviceId, createdAt: DateTime.now(), type: FinanceEntryType.refund, methodSnapshot: original.methodSnapshot, basisSnapshot: original.basisSnapshot, grossAmount: -refundAmount, discountAmount: 0, receivedAmount: -refundAmount, calculationBase: -refundAmount, rateBps: original.rateBps, fixedAmount: 0, commissionAmount: -commissionRefund, companyShare: -(refundAmount - commissionRefund), reversesEntryId: entryId));
+    final refundEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: original.employeeId, appointmentId: original.appointmentId, serviceId: original.serviceId, createdAt: DateTime.now(), type: FinanceEntryType.refund, methodSnapshot: original.methodSnapshot, basisSnapshot: original.basisSnapshot, grossAmount: -refundAmount, discountAmount: 0, receivedAmount: -refundAmount, calculationBase: -refundAmount, rateBps: original.rateBps, fixedAmount: 0, commissionAmount: -commissionRefund, companyShare: -(refundAmount - commissionRefund), reversesEntryId: entryId);
+    _employeeFinanceEntries.add(refundEntry);
+    _mirrorFinanceEntryToWallet(refundEntry);
     log(ActivityType.settingsChanged, 'ثبت برگشت وجه پورسانت', 'سند اصلاحی برگشت وجه ثبت شد.', entity: 'دفتر مالی پرسنل');
     _commit();
     return true;
@@ -301,6 +312,231 @@ class AppDatabase extends ChangeNotifier {
       final commission = profile.method == EmployeePaymentMethod.fixedMonthly ? 0 : profile.method == EmployeePaymentMethod.fixedPerService ? fixed : CommissionCalculator.commission(baseAmount: amount, rateBps: rate, fixedAmount: fixed);
       _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: appointment.updatedAt ?? appointment.startAt, type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: amount, discountAmount: 0, receivedAmount: amount, calculationBase: amount, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: amount - commission));
     }
+  }
+
+  // کیف پول و دفتر کل مالی پرسنل — تمام ارقام از تراکنش‌های ثبت‌شده محاسبه می‌شوند.
+  List<EmployeeWalletTransaction> walletTransactionsFor(String employeeId, {DateTime? from, DateTime? to}) =>
+      _employeeWalletTransactions.where((entry) {
+        if (entry.employeeId != employeeId) return false;
+        if (from != null && entry.createdAt.isBefore(from)) return false;
+        if (to != null && entry.createdAt.isAfter(to)) return false;
+        return true;
+      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  List<EmployeeWalletSettlement> walletSettlementsFor(String employeeId) =>
+      _employeeWalletSettlements.where((entry) => entry.employeeId == employeeId).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  EmployeeWalletSummary walletSummaryFor(String employeeId) =>
+      EmployeeWalletSummary.fromTransactions(walletTransactionsFor(employeeId));
+
+  int walletBalanceFor(String employeeId) => walletSummaryFor(employeeId).balance;
+
+  int walletPeriodDue(String employeeId, DateTime periodStart, DateTime periodEnd) {
+    if (periodEnd.isBefore(periodStart)) throw ArgumentError('بازه تسویه معتبر نیست.');
+    final accrued = _employeeWalletTransactions.where((entry) =>
+      entry.employeeId == employeeId &&
+      entry.status == EmployeeWalletTransactionStatus.posted &&
+      entry.type != EmployeeWalletTransactionType.salaryPayment &&
+      !entry.createdAt.isBefore(periodStart) &&
+      !entry.createdAt.isAfter(periodEnd),
+    ).fold<int>(0, (sum, entry) => sum + entry.amount);
+    final alreadyPaid = _employeeWalletSettlements.where((entry) =>
+      entry.employeeId == employeeId &&
+      entry.periodStart == periodStart &&
+      entry.periodEnd == periodEnd,
+    ).fold<int>(0, (sum, entry) => sum + entry.paidAmount);
+    return accrued - alreadyPaid;
+  }
+
+  EmployeeWalletTransaction addWalletTransaction({
+    required String employeeId,
+    required int amount,
+    required EmployeeWalletTransactionType type,
+    required String description,
+    DateTime? createdAt,
+    String? idempotencyKey,
+  }) {
+    if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
+    if (amount == 0) throw ArgumentError('مبلغ تراکنش نمی‌تواند صفر باشد.');
+    if (description.trim().isEmpty) throw ArgumentError('توضیحات تراکنش الزامی است.');
+    final creditOnly = type == EmployeeWalletTransactionType.fixedSalary || type == EmployeeWalletTransactionType.bonus || type == EmployeeWalletTransactionType.commission;
+    final debitOnly = type == EmployeeWalletTransactionType.advance || type == EmployeeWalletTransactionType.penalty || type == EmployeeWalletTransactionType.deduction || type == EmployeeWalletTransactionType.refund || type == EmployeeWalletTransactionType.salaryPayment;
+    if ((creditOnly && amount < 0) || (debitOnly && amount > 0)) throw ArgumentError('جهت مبلغ با نوع تراکنش هم‌خوانی ندارد.');
+    if (idempotencyKey != null && _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
+      throw StateError('این عملیات مالی قبلاً ثبت شده است.');
+    }
+    final entry = EmployeeWalletTransaction(
+      id: nextId('wallet'),
+      employeeId: employeeId,
+      createdAt: createdAt ?? DateTime.now(),
+      amount: amount,
+      type: type,
+      description: description.trim(),
+      idempotencyKey: idempotencyKey,
+    );
+    _employeeWalletTransactions.add(entry);
+    log(ActivityType.settingsChanged, 'ثبت تراکنش کیف پول', 'تراکنش «${type.label}» برای پرسنل ثبت شد.', entity: 'کیف پول پرسنل');
+    _commit();
+    return entry;
+  }
+
+  /// اصلاح سند فقط با دو سند تازه (معکوس و اصلاحیه) انجام می‌شود؛ سند اصلی دست‌نخورده می‌ماند.
+  List<EmployeeWalletTransaction> correctWalletTransaction({
+    required String transactionId,
+    required int correctedAmount,
+    required String description,
+  }) {
+    final matches = _employeeWalletTransactions.where((entry) => entry.id == transactionId).toList();
+    if (matches.isEmpty || matches.first.status != EmployeeWalletTransactionStatus.posted) throw StateError('تراکنش قابل اصلاح پیدا نشد.');
+    final original = matches.first;
+    if (_employeeWalletTransactions.any((entry) => entry.reversalOfId == transactionId)) throw StateError('این تراکنش قبلاً اصلاح شده است.');
+    if (correctedAmount == 0 || description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات اصلاحیه معتبر نیست.');
+    final reversal = EmployeeWalletTransaction(
+      id: nextId('wallet'),
+      employeeId: original.employeeId,
+      createdAt: DateTime.now(),
+      amount: -original.amount,
+      type: EmployeeWalletTransactionType.adjustment,
+      description: 'سند معکوس تراکنش ${original.id}',
+      reversalOfId: original.id,
+    );
+    final correction = EmployeeWalletTransaction(
+      id: nextId('wallet'),
+      employeeId: original.employeeId,
+      createdAt: DateTime.now(),
+      amount: correctedAmount,
+      type: EmployeeWalletTransactionType.adjustment,
+      description: description.trim(),
+      reversalOfId: original.id,
+    );
+    _employeeWalletTransactions.addAll([reversal, correction]);
+    log(ActivityType.settingsChanged, 'اصلاح سند مالی', 'تراکنش ${original.id} با سند معکوس و اصلاحیه جایگزین شد.', entity: 'کیف پول پرسنل');
+    _commit();
+    return [reversal, correction];
+  }
+
+  EmployeeWalletSettlement settleEmployeeWallet({
+    required String employeeId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    required EmployeeWalletPeriodType periodType,
+    required int paidAmount,
+    String? idempotencyKey,
+  }) {
+    if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
+    if (periodEnd.isBefore(periodStart)) throw ArgumentError('بازه تسویه معتبر نیست.');
+    if (paidAmount <= 0) throw ArgumentError('مبلغ پرداخت باید بیشتر از صفر باشد.');
+    if (idempotencyKey != null && _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
+      throw StateError('این پرداخت قبلاً ثبت شده است.');
+    }
+    final due = walletPeriodDue(employeeId, periodStart, periodEnd);
+    if (due <= 0) throw StateError('در این بازه مبلغ قابل پرداختی وجود ندارد.');
+    if (paidAmount > due) throw ArgumentError('مبلغ پرداخت از مانده قابل تسویه بیشتر است.');
+    final settlementId = nextId('settlement');
+    final remaining = due - paidAmount;
+    final now = DateTime.now();
+    final settlement = EmployeeWalletSettlement(
+      id: settlementId,
+      employeeId: employeeId,
+      periodType: periodType,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      dueAmount: due,
+      paidAmount: paidAmount,
+      remainingAfter: remaining,
+      createdAt: now,
+      status: remaining == 0 ? EmployeeWalletSettlementStatus.completed : EmployeeWalletSettlementStatus.partial,
+      receiptNumber: 'RC-${now.microsecondsSinceEpoch}',
+    );
+    _employeeWalletSettlements.add(settlement);
+    _employeeWalletTransactions.add(EmployeeWalletTransaction(
+      id: nextId('wallet'),
+      employeeId: employeeId,
+      createdAt: now,
+      amount: -paidAmount,
+      type: EmployeeWalletTransactionType.salaryPayment,
+      description: 'پرداخت تسویه ${settlement.receiptNumber}',
+      settlementId: settlementId,
+      idempotencyKey: idempotencyKey,
+    ));
+    log(ActivityType.settingsChanged, 'ثبت تسویه پرسنل', 'پرداخت ${paidAmount} تومان برای تسویه پرسنل ثبت شد.', entity: 'تسویه حساب');
+    _commit();
+    return settlement;
+  }
+
+  void _mirrorFinanceEntryToWallet(EmployeeFinanceEntry entry) {
+    if (entry.commissionAmount == 0 ||
+        _employeeWalletTransactions.any((walletEntry) => walletEntry.sourceFinanceEntryId == entry.id)) return;
+    _employeeWalletTransactions.add(EmployeeWalletTransaction(
+      id: nextId('wallet'),
+      employeeId: entry.employeeId,
+      createdAt: entry.createdAt,
+      amount: entry.commissionAmount,
+      type: entry.type == FinanceEntryType.refund
+          ? EmployeeWalletTransactionType.refund
+          : EmployeeWalletTransactionType.commission,
+      description: entry.type == FinanceEntryType.refund
+          ? 'برگشت پورسانت نوبت ${entry.appointmentId}'
+          : 'پورسانت نوبت ${entry.appointmentId}',
+      sourceFinanceEntryId: entry.id,
+    ));
+  }
+
+  void _seedWalletHistory() {
+    final now = DateTime.now();
+    final examples = <(String, EmployeeWalletTransactionType, int, int, String)>[
+      ('emp-fateme', EmployeeWalletTransactionType.fixedSalary, 12000000, 2, 'حقوق ثابت ماهانه'),
+      ('emp-fateme', EmployeeWalletTransactionType.advance, -2000000, 12, 'مساعده پرسنل'),
+      ('emp-fateme', EmployeeWalletTransactionType.bonus, 1500000, 8, 'پاداش عملکرد'),
+      ('emp-shima', EmployeeWalletTransactionType.fixedSalary, 9000000, 2, 'حقوق ثابت ماهانه'),
+      ('emp-shima', EmployeeWalletTransactionType.advance, -1000000, 10, 'مساعده علی‌الحساب'),
+      ('emp-shima', EmployeeWalletTransactionType.deduction, -350000, 6, 'کسورات توافق‌شده'),
+      ('emp-zahra', EmployeeWalletTransactionType.fixedSalary, 8500000, 2, 'حقوق ثابت ماهانه'),
+      ('emp-zahra', EmployeeWalletTransactionType.bonus, 700000, 7, 'پاداش رضایت مشتری'),
+      ('emp-elham', EmployeeWalletTransactionType.fixedSalary, 10000000, 2, 'حقوق ثابت ماهانه'),
+      ('emp-elham', EmployeeWalletTransactionType.penalty, -250000, 5, 'جریمه ثبت آزمایشی'),
+      ('emp-amir', EmployeeWalletTransactionType.fixedSalary, 11000000, 2, 'حقوق ثابت ماهانه'),
+      ('emp-amir', EmployeeWalletTransactionType.advance, -1500000, 4, 'مساعده'),
+    ];
+    for (var index = 0; index < examples.length; index++) {
+      final item = examples[index];
+      if (!_employees.any((employee) => employee.id == item.$1)) continue;
+      _employeeWalletTransactions.add(EmployeeWalletTransaction(
+        id: 'wallet-seed-${index + 1}',
+        employeeId: item.$1,
+        createdAt: now.subtract(Duration(days: item.$4)),
+        amount: item.$3,
+        type: item.$2,
+        description: item.$5,
+      ));
+    }
+    final periodStart = DateTime(now.year, now.month, 1);
+    final periodEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+    const paid = 4000000;
+    const settlementId = 'settlement-seed-fateme';
+    _employeeWalletSettlements.add(EmployeeWalletSettlement(
+      id: settlementId,
+      employeeId: 'emp-fateme',
+      periodType: EmployeeWalletPeriodType.monthly,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      dueAmount: 12000000,
+      paidAmount: paid,
+      remainingAfter: 8000000,
+      createdAt: now.subtract(const Duration(days: 2)),
+      status: EmployeeWalletSettlementStatus.partial,
+      receiptNumber: 'RC-MOCK-0001',
+    ));
+    _employeeWalletTransactions.add(EmployeeWalletTransaction(
+      id: 'wallet-seed-payment-1',
+      employeeId: 'emp-fateme',
+      createdAt: now.subtract(const Duration(days: 2)),
+      amount: -paid,
+      type: EmployeeWalletTransactionType.salaryPayment,
+      description: 'پرداخت علی‌الحساب حقوق — رسید RC-MOCK-0001',
+      settlementId: settlementId,
+    ));
   }
 
   void reschedule(Appointment appointment, DateTime newStart, {String actor = 'پذیرش', bool byCustomer = false}) {

@@ -264,11 +264,14 @@ class EmployeeProfilePage extends StatelessWidget {
                   label: const Text('گزارش‌های مجموعه'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('مدیریت حقوق و پورسانت در فاز دوم توسعه پرسنل فعال می‌شود.')),
-                  ),
-                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
-                  label: const Text('حقوق و پورسانت'),
+                  onPressed: () => context.push('/employees/${employee.id}/finance'),
+                  icon: const Icon(Icons.percent_rounded, size: 16),
+                  label: const Text('قرارداد و پورسانت'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/employees/${employee.id}/wallet'),
+                  icon: const Icon(Icons.account_balance_wallet_rounded, size: 16),
+                  label: const Text('کیف پول و تسویه'),
                 ),
               ]),
             ]),
