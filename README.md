@@ -139,7 +139,7 @@ Page  →  Provider (ChangeNotifier)  →  Repository (Interface)  →  AppDatab
 | پاستلی | `#FFB8DE` / `#FFDDE1` |
 | متن اصلی | `#38251F` |
 
-تم در کل برنامه از `AppPalette.luxury` و `context.pal` تأمین می‌شود؛ پالت‌های زمردی قدیمی دیگر بخشی از تم فعال نیستند.
+تم در کل برنامه از `AppPalette.luxury` و `context.pal` تأمین می‌شود؛ رنگ‌های تأکیدی از پالت صورتی و بنفش تأمین می‌شوند.
 
 ### نکات RTL و ارقام فارسی
 - تمام رشته‌های عددی حاوی جداکننده (ساعت، مبلغ، تلفن) با `Fmt.ltr()` در نشانگر `U+202A…U+202C` محصور می‌شوند تا ترتیب ارقام در متن راست‌به‌چپ به‌هم نریزد.
@@ -195,7 +195,7 @@ flutter test
 - ۷ خدمت (`srv-gelish`, `srv-tarmim`, `srv-keratin`, `srv-style`, `srv-skin`, `srv-color`, `srv-massage` غیرفعال)
 - ۵ متخصص (`emp-fateme` مدیر، `emp-shima`, `emp-zahra`, `emp-elham`, `emp-amir` غیرفعال)
 - ۱۴ مشتری (`cus-ali`, `cus-reza`, `cus-amin`, `cus-maryam`, `cus-sara`, `cus-nazanin`, `cus-hanieh`, …)
-- کسب‌وکار «سالن زیبایی اُن‌تایم»، اسلاگ `datetime-salon`، استان تهران / کرج
+- کسب‌وکار «سالن زیبایی DateTime»، اسلاگ `datetime-salon`، استان تهران / کرج
 - پنل پیامک کاوه‌نگار (شماره فرستنده ۱۰۰۰۴۳۴۱، اعتبار ۱۵۰)، یادآوری ۲۴h و ۲h
 - تعطیلات هفتگی: پنجشنبه و جمعه، طول اسلات ۱۵ دقیقه
 
