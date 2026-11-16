@@ -203,7 +203,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                   AppTextField(
                     controller: _email,
                     label: 'ایمیل',
-                    hint: 'name@ontime.app',
+                    hint: 'name@datetime.app',
                     icon: Icons.mail_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
                   ),
