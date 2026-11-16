@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
@@ -263,12 +264,21 @@ class EmployeeProfilePage extends StatelessWidget {
                   icon: const Icon(Icons.query_stats_rounded, size: 16),
                   label: const Text('گزارش‌های مجموعه'),
                 ),
-                OutlinedButton.icon(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('مدیریت حقوق و پورسانت در فاز دوم توسعه پرسنل فعال می‌شود.')),
-                  ),
-                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
-                  label: const Text('حقوق و پورسانت'),
+                OutlinedButton(
+                  onPressed: () => context.push('/employees/${employee.id}/finance'),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    HugeIcon(icon: HugeIcons.strokeRoundedPercent, size: 16),
+                    SizedBox(width: 6),
+                    Text('قرارداد و پورسانت'),
+                  ]),
+                ),
+                OutlinedButton(
+                  onPressed: () => context.push('/employees/${employee.id}/wallet'),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    HugeIcon(icon: HugeIcons.strokeRoundedWallet01, size: 16),
+                    SizedBox(width: 6),
+                    Text('کیف پول و تسویه'),
+                  ]),
                 ),
               ]),
             ]),
