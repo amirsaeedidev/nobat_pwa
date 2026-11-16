@@ -1,9 +1,7 @@
-import '../models/appointment.dart';
 import '../models/employee.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_schedule.dart';
 import '../models/enums.dart';
-import '../models/service.dart';
 import '../mock/app_database.dart';
 
 class EmployeeAnalyticsFilter {
@@ -50,6 +48,11 @@ class EmployeeAnalytics {
   double get revenueChange => previousRevenue == 0 ? (netRevenue == 0 ? 0 : 100) : (netRevenue - previousRevenue) * 100 / previousRevenue;
 }
 
+T? _firstOrNull<T>(Iterable<T> items) {
+  final iterator = items.iterator;
+  return iterator.moveNext() ? iterator.current : null;
+}
+
 class EmployeeAnalyticsCalculator {
   const EmployeeAnalyticsCalculator._();
 
@@ -64,7 +67,7 @@ class EmployeeAnalyticsCalculator {
     final cancelled = appointments.where((a) => a.status == AppointmentStatus.cancelled).length;
     final noShow = appointments.where((a) => a.status == AppointmentStatus.noShow).length;
     final completedIds = completed.map((a) => a.id).toSet();
-    final ledger = db.employeeFinanceEntries.where((e) => e.employeeId == employee.id && completedIds.contains(e.appointmentId) && e.type != FinanceEntryType.salary).toList();
+    final ledger = db.employeeFinanceEntries.where((e) => e.employeeId == employee.id && completedIds.contains(e.appointmentId) && e.type != FinanceEntryType.salary && (filter.serviceId == null || e.serviceId == filter.serviceId)).toList();
     final byAppointment = <String, List<EmployeeFinanceEntry>>{};
     for (final entry in ledger) { byAppointment.putIfAbsent(entry.appointmentId, () => []).add(entry); }
 
@@ -85,7 +88,7 @@ class EmployeeAnalyticsCalculator {
       final entries = byAppointment[a.id] ?? const <EmployeeFinanceEntry>[];
       if (entries.isNotEmpty) {
         for (final e in entries) {
-          final service = db.services.where((s) => s.id == e.serviceId).firstOrNull;
+          final service = _firstOrNull(db.services.where((s) => s.id == e.serviceId));
           final key = e.serviceId.isEmpty ? a.serviceName : e.serviceId;
           final old = serviceMap[key];
           serviceMap[key] = ServiceAnalytics(serviceId: key, name: service?.title ?? a.serviceName, bookings: (old?.bookings ?? 0) + 1, revenue: (old?.revenue ?? 0) + e.receivedAmount);
@@ -94,7 +97,7 @@ class EmployeeAnalyticsCalculator {
         final ids = a.serviceIds.isEmpty ? <String>[''] : a.serviceIds;
         final part = a.price.round() ~/ ids.length;
         for (final id in ids) {
-          final service = db.services.where((s) => s.id == id).firstOrNull;
+          final service = _firstOrNull(db.services.where((s) => s.id == id));
           final key = id.isEmpty ? a.serviceName : id;
           final old = serviceMap[key];
           serviceMap[key] = ServiceAnalytics(serviceId: key, name: service?.title ?? a.serviceName, bookings: (old?.bookings ?? 0) + 1, revenue: (old?.revenue ?? 0) + part);
@@ -113,7 +116,7 @@ class EmployeeAnalyticsCalculator {
         return s + (entries.isEmpty ? a.price.round() : entries.fold<int>(0, (v, e) => v + e.receivedAmount));
       });
       final dayCommission = ledger.where((e) {
-        final a = completed.where((item) => item.id == e.appointmentId).firstOrNull;
+        final a = _firstOrNull(completed.where((item) => item.id == e.appointmentId));
         return a != null && !a.startAt.isBefore(day) && a.startAt.isBefore(next);
       }).fold<int>(0, (s, e) => s + e.commissionAmount);
       final label = '${day.month}/${day.day}';
@@ -157,7 +160,6 @@ class EmployeeAnalyticsCalculator {
     final duration = filter.to.difference(filter.from);
     final previousFrom = filter.from.subtract(duration);
     final previous = db.appointments.where((a) => a.employeeId == employee.id && !a.startAt.isBefore(previousFrom) && a.startAt.isBefore(filter.from) && a.status == AppointmentStatus.completed && (filter.serviceId == null || a.serviceIds.contains(filter.serviceId))).toList();
-    final previousIds = previous.map((a) => a.id).toSet();
     final previousRevenue = previous.fold<int>(0, (s, a) {
       final entries = db.employeeFinanceEntries.where((e) => e.employeeId == employee.id && e.appointmentId == a.id && e.type != FinanceEntryType.salary).toList();
       return s + (entries.isEmpty ? a.price.round() : entries.fold<int>(0, (v, e) => v + e.receivedAmount));
