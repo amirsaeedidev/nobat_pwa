@@ -6,10 +6,38 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
+import '../../data/mock/app_database.dart';
 import '../utils/fa_num.dart';
 import '../widgets/app_card.dart';
 import '../widgets/badges.dart';
 import 'nav_destinations.dart';
+
+void _showMockAccountPicker(BuildContext context, AppDatabase database) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('حساب‌های آزمایشی Datamonck', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          for (final account in database.accessAccounts)
+            ListTile(
+              leading: Icon(account.id == database.currentAccessAccount.id ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded),
+              title: Text(account.name),
+              subtitle: Text(database.accessRoleById(account.roleId)?.name ?? 'نقش نامشخص'),
+              onTap: () {
+                database.switchMockAccount(account.id);
+                Navigator.pop(sheetContext);
+              },
+            ),
+        ],
+      ),
+    ),
+  );
+}
 
 /// پوسته اصلی برنامه: سایدبار در دسکتاپ/تبلت بزرگ، ناوبری پایین در موبایل.
 class AppShell extends StatelessWidget {
@@ -17,13 +45,6 @@ class AppShell extends StatelessWidget {
 
   final Widget child;
   final String location;
-
-  int get _index {
-    for (var i = 0; i < appDestinations.length; i++) {
-      if (location.startsWith(appDestinations[i].route)) return i;
-    }
-    return 0;
-  }
 
   void _navigate(BuildContext context, String route) {
     if (location == route) return;
@@ -33,6 +54,9 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
+    final database = context.watch<AppDatabase>();
+    final destinations = appDestinations.where((item) => database.canOpenNavigation(item.route)).toList();
+    final selectedIndex = destinations.indexWhere((item) => location.startsWith(item.route));
     final useSidebar = width >= Breakpoints.tablet;
 
     if (!useSidebar) {
@@ -40,8 +64,10 @@ class AppShell extends StatelessWidget {
         backgroundColor: context.pal.background,
         body: child,
         bottomNavigationBar: MobileBottomNav(
-          currentIndex: _index,
-          onSelect: (i) => _navigate(context, appDestinations[i].route),
+          destinations: destinations,
+          currentIndex: selectedIndex < 0 ? 0 : selectedIndex,
+          showAdd: database.hasPermission('appointments.create'),
+          onSelect: (i) => _navigate(context, destinations[i].route),
           onAdd: () => context.push('/appointments/new'),
         ),
       );
@@ -52,9 +78,10 @@ class AppShell extends StatelessWidget {
       body: Row(
         children: [
           AppSidebar(
-            currentIndex: _index,
+            destinations: destinations,
+            currentIndex: selectedIndex < 0 ? 0 : selectedIndex,
             expanded: width >= Breakpoints.desktop,
-            onSelect: (i) => _navigate(context, appDestinations[i].route),
+            onSelect: (i) => _navigate(context, destinations[i].route),
             onAdd: () => context.push('/appointments/new'),
           ),
           Expanded(child: child),
@@ -71,14 +98,15 @@ class MobileBottomNav extends StatelessWidget {
     required this.currentIndex,
     required this.onSelect,
     required this.onAdd,
+    required this.destinations,
+    required this.showAdd,
   });
 
   final int currentIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onAdd;
-
-  // نقشه به تب‌های موبایل: پیشخوان، نوبت‌ها، مشتریان، تنظیمات
-  static const List<int> _map = [0, 1, 3, 9];
+  final List<NavDestination> destinations;
+  final bool showAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -122,10 +150,7 @@ class MobileBottomNav extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                bottom: 36,
-                child: _AddButton(onTap: onAdd),
-              ),
+              if (showAdd) Positioned(bottom: 36, child: _AddButton(onTap: onAdd)),
             ],
           ),
         ),
@@ -136,8 +161,9 @@ class MobileBottomNav extends StatelessWidget {
   Widget _buildSlot(BuildContext context, int slot) {
     final pal = context.pal;
     if (slot == 2) return const SizedBox.shrink();
-    final navIndex = _map[slot < 2 ? slot : slot - 1];
-    final dest = appDestinations[navIndex];
+    final navIndex = slot < 2 ? slot : slot - 1;
+    if (navIndex >= destinations.length) return const SizedBox.shrink();
+    final dest = destinations[navIndex];
     final selected = currentIndex == navIndex;
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -209,17 +235,20 @@ class AppSidebar extends StatelessWidget {
     required this.onSelect,
     required this.expanded,
     required this.onAdd,
+    required this.destinations,
   });
 
   final int currentIndex;
   final ValueChanged<int> onSelect;
   final bool expanded;
   final VoidCallback onAdd;
+  final List<NavDestination> destinations;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
     final settings = context.watch<SettingsProvider>();
+    final database = context.watch<AppDatabase>();
     final width = expanded ? 246.0 : 84.0;
 
     return AnimatedContainer(
@@ -292,9 +321,9 @@ class AppSidebar extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.symmetric(horizontal: expanded ? 12 : 8, vertical: 4),
                 children: [
-                  for (var i = 0; i < appDestinations.length; i++)
+                  for (var i = 0; i < destinations.length; i++)
                     _SidebarItem(
-                      destination: appDestinations[i],
+                      destination: destinations[i],
                       selected: currentIndex == i,
                       expanded: expanded,
                       onTap: () => onSelect(i),
@@ -318,34 +347,37 @@ class AppSidebar extends StatelessWidget {
             Padding(
               padding: EdgeInsets.all(expanded ? 12 : 8),
               child: expanded
-                  ? Row(
-                      children: [
-                        AvatarBadge(name: settings.ownerName, size: 36, color: pal.primaryBright),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                settings.ownerName,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: pal.textPrimary,
+                  ? InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _showMockAccountPicker(context, database),
+                      child: Row(
+                        children: [
+                          AvatarBadge(name: database.currentAccessAccount.name, size: 36, color: pal.primaryBright),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  database.currentAccessAccount.name,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                settings.ownerRole,
-                                style: TextStyle(fontSize: 10, color: pal.textMuted),
-                              ),
-                            ],
+                                Text(database.currentAccessRoleName, style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                              ],
+                            ),
                           ),
-                        ),
-                        CountPill(value: settings.totalUnread, icon: Icons.notifications_none_rounded),
-                      ],
+                          CountPill(value: settings.totalUnread, icon: Icons.notifications_none_rounded),
+                        ],
+                      ),
                     )
-                  : Center(child: AvatarBadge(name: settings.ownerName, size: 34, color: pal.primaryBright)),
+                  : Center(
+                      child: IconButton(
+                        tooltip: 'تغییر حساب آزمایشی',
+                        onPressed: () => _showMockAccountPicker(context, database),
+                        icon: AvatarBadge(name: database.currentAccessAccount.name, size: 34, color: pal.primaryBright),
+                      ),
+                    ),
             ),
           ],
         ),

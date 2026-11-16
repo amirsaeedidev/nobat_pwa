@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_palette.dart';
+import '../../data/mock/app_database.dart';
 import '../../core/responsive/app_shell.dart';
 import '../../core/widgets/app_buttons.dart';
 import '../../core/widgets/badges.dart';
@@ -42,10 +43,12 @@ import '../../features/sms/presentation/pages/sms_templates_page.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// مسیرهای برنامه؛ ناوبری مستقل از منطق کسب‌وکار.
-GoRouter buildRouter() {
+GoRouter buildRouter(AppDatabase database) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
+    refreshListenable: database,
+    redirect: (context, state) => database.canOpenRoute(state.uri.path) ? null : '/access-denied',
     routes: [
       ShellRoute(
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
@@ -145,6 +148,36 @@ GoRouter buildRouter() {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/access-denied',
+        builder: (context, state) => Scaffold(
+          backgroundColor: context.pal.background,
+          body: Center(child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Padding(padding: const EdgeInsets.all(24), child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline_rounded, size: 58, color: context.pal.primaryBright),
+                const SizedBox(height: 16),
+                Text('دسترسی به این بخش مجاز نیست', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+                const SizedBox(height: 8),
+                Text('نقش فعال شما اجازه مشاهده یا انجام این عملیات را ندارد. برای آزمایش حالت‌های دیگر، حساب Mock را تغییر دهید.',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: context.pal.textMuted)),
+                const SizedBox(height: 18),
+                DropdownButtonFormField<String>(
+                  value: database.currentAccessAccount.id,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'حساب آزمایشی'),
+                  items: database.accessAccounts.map((account) => DropdownMenuItem(value: account.id, child: Text(account.name))).toList(),
+                  onChanged: (id) { if (id != null) { database.switchMockAccount(id); context.go('/dashboard'); } },
+                ),
+                const SizedBox(height: 12),
+                SolidButton(label: 'بازگشت به پیشخوان', icon: Icons.dashboard_rounded, gradient: true, onPressed: () => context.go('/dashboard')),
+              ],
+            )),
+          )),
+        ),
       ),
       // تجربه مشتری (بدون پوسته مدیریتی)
       GoRoute(path: '/book', builder: (context, state) => const BookingFlowPage()),

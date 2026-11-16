@@ -43,6 +43,14 @@ class MockAppointmentRepository implements AppointmentRepository {
 
   final AppDatabase _db;
 
+  bool _canSee(Appointment appointment) => _db.hasPermission('appointments.view_all') ||
+      (_db.hasPermission('appointments.view_self') && _db.currentAccessAccount.employeeId == appointment.employeeId);
+
+  List<Appointment> _visible(List<Appointment> source) {
+    if (!_db.hasPermission('appointments.view_all') && !_db.hasPermission('appointments.view_self')) _db.requirePermission('appointments.view_all');
+    return source.where(_canSee).toList();
+  }
+
   @override
   Future<PageResult<Appointment>> fetchAppointments({
     AppointmentFilter filter = const AppointmentFilter(),
@@ -51,7 +59,7 @@ class MockAppointmentRepository implements AppointmentRepository {
     bool ascending = true,
   }) async {
     await _db.delay(180);
-    final filtered = _db.appointments.where(filter.matches).toList()
+    final filtered = _visible(_db.appointments).where(filter.matches).toList()
       ..sort((a, b) => ascending ? a.startAt.compareTo(b.startAt) : b.startAt.compareTo(a.startAt));
     final start = (page - 1) * pageSize;
     if (start >= filtered.length) {
@@ -64,12 +72,12 @@ class MockAppointmentRepository implements AppointmentRepository {
   @override
   Future<List<Appointment>> fetchAll({AppointmentFilter filter = const AppointmentFilter()}) async {
     await _db.delay(120);
-    return _db.appointments.where(filter.matches).toList()..sort((a, b) => a.startAt.compareTo(b.startAt));
+    return _visible(_db.appointments).where(filter.matches).toList()..sort((a, b) => a.startAt.compareTo(b.startAt));
   }
 
   @override
   Future<List<Appointment>> fetchForDay(DateTime day, {String? employeeId, String? serviceId}) async {
-    final list = _db.appointments.where((a) {
+    final list = _visible(_db.appointments).where((a) {
       final sameDay = a.startAt.year == day.year && a.startAt.month == day.month && a.startAt.day == day.day;
       if (!sameDay) return false;
       if (employeeId != null && a.employeeId != employeeId) return false;
@@ -82,13 +90,16 @@ class MockAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<List<Appointment>> fetchForCustomer(String customerId) async {
-    final list = _db.appointments.where((a) => a.customerId == customerId).toList()
+    final list = _visible(_db.appointments).where((a) => a.customerId == customerId).toList()
       ..sort((a, b) => b.startAt.compareTo(a.startAt));
     return list;
   }
 
   @override
-  Future<Appointment?> findById(String id) async => _db.appointmentById(id);
+  Future<Appointment?> findById(String id) async {
+    final appointment = _db.appointmentById(id);
+    return appointment != null && _canSee(appointment) ? appointment : null;
+  }
 
   @override
   Future<Appointment?> findConflict({
@@ -119,12 +130,14 @@ class MockAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<void> reschedule(Appointment appointment, DateTime newStart, {bool byCustomer = false}) async {
+    if (!byCustomer) _db.requirePermission('appointments.edit');
     await _db.delay(200);
     _db.reschedule(appointment, newStart, byCustomer: byCustomer);
   }
 
   @override
   Future<void> delete(String id) async {
+    _db.requirePermission('appointments.cancel');
     await _db.delay(160);
     _db.deleteAppointment(id);
   }

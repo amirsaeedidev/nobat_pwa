@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../features/settings/presentation/providers/settings_provider.dart';
+import '../data/mock/app_database.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -15,7 +16,7 @@ class DateTimeApp extends StatefulWidget {
 }
 
 class _DateTimeAppState extends State<DateTimeApp> {
-  late final _router = buildRouter();
+  late final _router = buildRouter(context.read<AppDatabase>());
 
   @override
   Widget build(BuildContext context) {

@@ -153,7 +153,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
   @override
   Widget build(BuildContext context) {
     final db = context.watch<AppDatabase>();
-    final employees = db.employees;
+    final employees = db.employees.where((employee) => db.canViewEmployee(employee.id) && db.canViewEmployeeIncome(employee.id)).toList();
     final selected = employees.where((e) => e.id == (_employeeId ?? widget.employeeId)).firstOrNull ??
         (employees.isEmpty ? null : employees.first);
     final pal = context.pal;

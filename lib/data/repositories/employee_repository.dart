@@ -21,7 +21,11 @@ class MockEmployeeRepository implements EmployeeRepository {
   @override
   Future<List<Employee>> fetchEmployees({bool onlyActive = false, String? serviceId}) async {
     await _db.delay(140);
+    final canList = _db.hasPermission('employees.view_list');
+    if (!canList && !_db.hasPermission('employees.view_profile')) _db.requirePermission('employees.view_list');
     return _db.employees.where((e) {
+      if (canList && !_db.canViewEmployee(e.id)) return false;
+      if (!canList && e.id != _db.currentAccessAccount.employeeId) return false;
       if (onlyActive && !e.isAvailableForBooking) return false;
       if (serviceId != null && !e.serviceIds.contains(serviceId)) return false;
       return true;
@@ -29,7 +33,10 @@ class MockEmployeeRepository implements EmployeeRepository {
   }
 
   @override
-  Future<Employee?> findById(String id) async => _db.employeeById(id);
+  Future<Employee?> findById(String id) async {
+    if (!_db.canViewEmployee(id) || (!_db.hasPermission('employees.view_list') && !_db.hasPermission('employees.view_profile'))) return null;
+    return _db.employeeById(id);
+  }
 
   @override
   Future<void> create(Employee employee) async {

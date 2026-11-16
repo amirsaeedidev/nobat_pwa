@@ -27,6 +27,7 @@ class MockCustomerRepository implements CustomerRepository {
   final AppDatabase _db;
 
   List<Customer> _filtered(String query) {
+    _db.requirePermission('customers.view');
     final q = query.trim();
     List<Customer> list;
     if (q.isEmpty) {
