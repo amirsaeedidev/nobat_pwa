@@ -22,7 +22,8 @@ jobs:
       - name: Check legacy brand references
         shell: bash
         run: |
-          if git grep -ni -I -E 'ontime' -- .; then
+          legacy_brand="$(printf 'on%s' 'time')"
+          if git grep -ni -I -E "$legacy_brand" -- .; then
             echo "::error::Legacy brand reference found. Use DateTime instead."
             exit 1
           fi
