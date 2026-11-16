@@ -78,7 +78,7 @@ class RevenueBarChart extends StatelessWidget {
                 barRods: [
                   BarChartRodData(
                     toY: data[i].value.toDouble(),
-                    width: 16,
+                    width: 24,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                     gradient: LinearGradient(
                       colors: [pal.primary, pal.primaryBright],
@@ -95,6 +95,8 @@ class RevenueBarChart extends StatelessWidget {
               ),
           ],
         ),
+        duration: const Duration(milliseconds: 850),
+        curve: Curves.easeOutCubic,
       ),
     );
   }
