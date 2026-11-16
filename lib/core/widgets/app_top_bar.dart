@@ -166,9 +166,9 @@ class AppTopBar extends StatelessWidget {
   }
 }
 
-/// لوگوی متنی ONTIME (بخش سفید + بخش آبی).
-class _OnTimeLogo extends StatelessWidget {
-  const _OnTimeLogo();
+/// جایگاه لوگوی DateTime؛ تصویر برند بعداً در assets جایگزین می‌شود.
+class _DateTimeLogo extends StatelessWidget {
+  const _DateTimeLogo();
 
   @override
   Widget build(BuildContext context) {
