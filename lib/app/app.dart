@@ -24,7 +24,7 @@ class _DateTimeAppState extends State<DateTimeApp> {
       title: 'DateTime — مدیریت نوبت‌دهی',
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
-      theme: AppTheme.build(palette),
+      theme: AppTheme.build(palette, formAccentColor: context.watch<SettingsProvider>().formAccentColor),
       locale: const Locale('fa', 'IR'),
       supportedLocales: const [Locale('fa', 'IR'), Locale('en', 'US')],
       localizationsDelegates: const [
