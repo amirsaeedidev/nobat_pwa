@@ -45,6 +45,10 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       subtitle: employee.fullName,
       icon: Icons.account_balance_wallet_rounded,
       showBackButton: true,
+      mobileActions: [
+        IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const Icon(Icons.add_card_rounded)),
+        IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const Icon(Icons.payments_rounded)),
+      ],
       actions: [
         SoftButton(label: 'ثبت تراکنش', icon: Icons.add_card_rounded, onTap: () => _addTransaction(db, employee.id)),
         SolidButton(label: 'ثبت تسویه', icon: Icons.payments_rounded, onPressed: () => _settle(db, employee.id)),
