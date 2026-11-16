@@ -254,9 +254,14 @@ class EmployeeProfilePage extends StatelessWidget {
                   label: const Text('خدمات'),
                 ),
                 OutlinedButton.icon(
+                  onPressed: () => context.push('/employees/${employee.id}/analytics'),
+                  icon: const Icon(Icons.analytics_outlined, size: 16),
+                  label: const Text('داشبورد عملکرد'),
+                ),
+                OutlinedButton.icon(
                   onPressed: () => context.push('/reports'),
                   icon: const Icon(Icons.query_stats_rounded, size: 16),
-                  label: const Text('گزارش عملکرد'),
+                  label: const Text('گزارش‌های مجموعه'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
