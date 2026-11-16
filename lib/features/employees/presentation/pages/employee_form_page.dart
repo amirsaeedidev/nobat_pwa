@@ -75,7 +75,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
         _title.text = employee.title;
         _email.text = employee.email;
         _role = employee.role;
-        _isActive = employee.isActive;
+        _status = employee.employmentStatus;
         _serviceIds = [...employee.serviceIds];
         _permissions = [...employee.permissions];
         _schedule

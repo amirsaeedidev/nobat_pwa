@@ -22,7 +22,7 @@ class MockEmployeeRepository implements EmployeeRepository {
   Future<List<Employee>> fetchEmployees({bool onlyActive = false, String? serviceId}) async {
     await _db.delay(140);
     return _db.employees.where((e) {
-      if (onlyActive && !e.isActive) return false;
+      if (onlyActive && !e.isAvailableForBooking) return false;
       if (serviceId != null && !e.serviceIds.contains(serviceId)) return false;
       return true;
     }).toList();
