@@ -9,6 +9,7 @@ import '../models/business_settings.dart';
 import '../models/customer.dart';
 import '../models/employee.dart';
 import '../models/enums.dart';
+import '../models/employee_finance.dart';
 import '../models/service.dart';
 import '../models/sms_message.dart';
 import 'mock_seed.dart';
@@ -27,6 +28,8 @@ class AppDatabase extends ChangeNotifier {
   final List<SmsMessage> _sms = [];
   final List<ActivityLog> _logs = [];
   final List<SmsTemplate> _templates = [];
+  final Map<String, EmployeePayProfile> _employeePayProfiles = {};
+  final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
   BusinessSettings _settings = const BusinessSettings();
 
   int _idCounter = 5000;
@@ -39,6 +42,8 @@ class AppDatabase extends ChangeNotifier {
   List<SmsMessage> get smsMessages => List.unmodifiable(_sms);
   List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
   List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
+  List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
+  EmployeePayProfile payProfileFor(String employeeId) => _employeePayProfiles[employeeId] ?? EmployeePayProfile(employeeId: employeeId);
   BusinessSettings get settings => _settings;
 
   String nextId(String prefix) => '$prefix-${++_idCounter}';
@@ -51,6 +56,8 @@ class AppDatabase extends ChangeNotifier {
       _syncEmployeeServiceLinks(employee);
     }
     _appointments.addAll(MockSeed.appointments());
+    for (var index = 0; index < _employees.length; index++) { final employee = _employees[index]; _employeePayProfiles[employee.id] = EmployeePayProfile(employeeId: employee.id, method: index == 0 ? EmployeePaymentMethod.fixedPlusCommission : EmployeePaymentMethod.commissionOnly, monthlySalary: index == 0 ? 12000000 : 0, generalRateBps: 3000, basis: CommissionBasis.afterDiscount); }
+    for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) { _createCommissionEntries(appointment); }
     _sms.addAll(MockSeed.smsMessages());
     _logs.addAll(MockSeed.activityLogs());
     _templates.addAll(MockSeed.smsTemplates());
@@ -188,6 +195,72 @@ class AppDatabase extends ChangeNotifier {
       undoData: previous.toJson(),
     );
     _commit();
+  }
+
+  // حقوق و پورسانت پرسنل — دفتر مالی محلی و قابل ردیابی
+  void savePayProfile(EmployeePayProfile profile) {
+    if (!_employees.any((employee) => employee.id == profile.employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
+    if (profile.monthlySalary < 0 || profile.generalRateBps < 0 || profile.generalRateBps > 10000) throw ArgumentError('حقوق یا درصد پورسانت معتبر نیست.');
+    for (final rule in profile.rules) { if (rule.rateBps < 0 || rule.rateBps > 10000 || rule.fixedAmount < 0) throw ArgumentError('قانون پورسانت معتبر نیست.'); }
+    _employeePayProfiles[profile.employeeId] = profile;
+    log(ActivityType.settingsChanged, 'تغییر قرارداد مالی پرسنل', 'قواعد حقوق و پورسانت ذخیره شد.', entity: 'امور مالی پرسنل');
+    _commit();
+  }
+  List<EmployeeFinanceEntry> financeEntriesFor(String employeeId) => _employeeFinanceEntries.where((entry) => entry.employeeId == employeeId).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  bool hasCommissionForAppointment(String appointmentId) => _employeeFinanceEntries.any((entry) => entry.appointmentId == appointmentId && entry.type == FinanceEntryType.commission);
+  bool finalizeCompletedAppointment(String appointmentId, {int discountAmount = 0, int? finalPaidAmount}) {
+    final appointment = appointmentById(appointmentId);
+    if (appointment == null || appointment.status != AppointmentStatus.completed || hasCommissionForAppointment(appointmentId)) return false;
+    final profile = payProfileFor(appointment.employeeId);
+    final grossTotal = appointment.price.round();
+    final receivedTotal = finalPaidAmount ?? (grossTotal - discountAmount);
+    if (grossTotal < 0 || discountAmount < 0 || discountAmount > grossTotal || receivedTotal < 0 || receivedTotal > grossTotal) throw ArgumentError('مبلغ خدمت، تخفیف یا دریافتی معتبر نیست.');
+    final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
+    for (var index = 0; index < ids.length; index++) {
+      final serviceId = ids[index];
+      final gross = grossTotal ~/ ids.length + (index == 0 ? grossTotal % ids.length : 0);
+      final discount = discountAmount ~/ ids.length + (index == 0 ? discountAmount % ids.length : 0);
+      final received = receivedTotal ~/ ids.length + (index == 0 ? receivedTotal % ids.length : 0);
+      final service = serviceById(serviceId);
+      final rule = profile.ruleFor(serviceId: serviceId, category: service?.category ?? '', date: appointment.startAt);
+      final rate = rule?.rateBps ?? profile.generalRateBps;
+      final fixed = rule?.fixedAmount ?? 0;
+      final base = CommissionCalculator.base(basis: profile.basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
+      final commission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
+      _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission));
+    }
+    log(ActivityType.appointmentCompleted, 'ثبت پورسانت نوبت', 'سند پورسانت برای نوبت تکمیل‌شده ایجاد شد.', entity: 'دفتر مالی پرسنل');
+    _commit();
+    return true;
+  }
+  bool recordCommissionRefund(String entryId, int refundAmount) {
+    if (refundAmount <= 0) throw ArgumentError('مبلغ برگشت باید بیشتر از صفر باشد.');
+    EmployeeFinanceEntry? original;
+    for (final entry in _employeeFinanceEntries) { if (entry.id == entryId && entry.type == FinanceEntryType.commission) { original = entry; break; } }
+    if (original == null) return false;
+    final refunded = _employeeFinanceEntries.where((entry) => entry.type == FinanceEntryType.refund && entry.reversesEntryId == entryId).fold<int>(0, (sum, entry) => sum - entry.receivedAmount);
+    if (refunded + refundAmount > original.receivedAmount) throw ArgumentError('مبلغ برگشت از دریافتی این خدمت بیشتر است.');
+    final commissionRefund = original.receivedAmount == 0 ? 0 : (original.commissionAmount * refundAmount + original.receivedAmount ~/ 2) ~/ original.receivedAmount;
+    _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: original.employeeId, appointmentId: original.appointmentId, serviceId: original.serviceId, createdAt: DateTime.now(), type: FinanceEntryType.refund, methodSnapshot: original.methodSnapshot, basisSnapshot: original.basisSnapshot, grossAmount: -refundAmount, discountAmount: 0, receivedAmount: -refundAmount, calculationBase: -refundAmount, rateBps: original.rateBps, fixedAmount: 0, commissionAmount: -commissionRefund, companyShare: -(refundAmount - commissionRefund), reversesEntryId: entryId));
+    log(ActivityType.settingsChanged, 'ثبت برگشت وجه پورسانت', 'سند اصلاحی برگشت وجه ثبت شد.', entity: 'دفتر مالی پرسنل');
+    _commit();
+    return true;
+  }
+  void _createCommissionEntries(Appointment appointment) {
+    if (appointment.status != AppointmentStatus.completed || hasCommissionForAppointment(appointment.id)) return;
+    final profile = payProfileFor(appointment.employeeId);
+    final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
+    final total = appointment.price.round();
+    for (var index = 0; index < ids.length; index++) {
+      final serviceId = ids[index];
+      final amount = total ~/ ids.length + (index == 0 ? total % ids.length : 0);
+      final service = serviceById(serviceId);
+      final rule = profile.ruleFor(serviceId: serviceId, category: service?.category ?? '', date: appointment.startAt);
+      final rate = rule?.rateBps ?? profile.generalRateBps;
+      final fixed = rule?.fixedAmount ?? 0;
+      final commission = profile.method == EmployeePaymentMethod.fixedMonthly ? 0 : profile.method == EmployeePaymentMethod.fixedPerService ? fixed : CommissionCalculator.commission(baseAmount: amount, rateBps: rate, fixedAmount: fixed);
+      _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: appointment.updatedAt ?? appointment.startAt, type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: amount, discountAmount: 0, receivedAmount: amount, calculationBase: amount, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: amount - commission));
+    }
   }
 
   void reschedule(Appointment appointment, DateTime newStart, {String actor = 'پذیرش', bool byCustomer = false}) {

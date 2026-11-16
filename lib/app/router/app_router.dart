@@ -17,6 +17,7 @@ import '../../features/customers/presentation/pages/customer_profile_page.dart';
 import '../../features/customers/presentation/pages/customers_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/employees/presentation/pages/employee_form_page.dart';
+import '../../features/employees/presentation/pages/employee_finance_page.dart';
 import '../../features/employees/presentation/pages/employee_profile_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
@@ -106,6 +107,7 @@ GoRouter buildRouter() {
                     path: 'edit',
                     builder: (context, state) => EmployeeFormPage(employeeId: state.pathParameters['id']),
                   ),
+                  GoRoute(path: 'finance', builder: (context, state) => EmployeeFinancePage(employeeId: state.pathParameters['id']!)),
                 ],
               ),
             ],

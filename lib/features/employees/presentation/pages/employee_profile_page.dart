@@ -92,6 +92,7 @@ class EmployeeProfilePage extends StatelessWidget {
       showBackButton: true,
       actions: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
+        SoftButton(label: 'حقوق و پورسانت', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
