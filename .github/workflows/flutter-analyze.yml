@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate app icons from Iconapp asset
+        run: dart run flutter_launcher_icons
+
       - name: Enforce Hugeicons-only icon policy
         id: icon_policy
         continue-on-error: true

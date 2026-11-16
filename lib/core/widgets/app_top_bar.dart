@@ -166,44 +166,21 @@ class AppTopBar extends StatelessWidget {
   }
 }
 
-/// جایگاه لوگوی DateTime؛ تصویر برند بعداً در assets جایگزین می‌شود.
+/// لوگوی تصویری برند در نوار بالای برنامه.
 class _DateTimeLogo extends StatelessWidget {
   const _DateTimeLogo();
 
   @override
   Widget build(BuildContext context) {
-    final pal = context.pal;
-    return Row(
-      textDirection: TextDirection.ltr,
-      children: [
-        Text(
-          'Date',
-          style: TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.w800,
-            color: pal.textPrimary,
-            letterSpacing: 0.5,
-            height: 1.1,
-          ),
-        ),
-        ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
-            colors: [pal.primary, pal.primaryBright],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ).createShader(bounds),
-          child: const Text(
-            'Time',
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: 0.5,
-              height: 1.1,
-            ),
-          ),
-        ),
-      ],
+    return SizedBox(
+      width: 116,
+      height: 40,
+      child: Image.asset(
+        'assets/image/Logotopbar.png',
+        fit: BoxFit.contain,
+        alignment: Alignment.centerLeft,
+        semanticLabel: 'DateTime',
+      ),
     );
   }
 }
