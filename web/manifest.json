@@ -1,9 +1,9 @@
 {
-  "name": "ONTIME — مدیریت نوبت‌دهی",
-  "short_name": "ONTIME",
+  "name": "DateTime — مدیریت نوبت‌دهی",
+  "short_name": "DateTime",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0A1227",
+  "background_color": "#FFF8F3",
   "theme_color": "#0A1227",
   "description": "سامانه حرفه‌ای مدیریت نوبت، رزرو آنلاین و CRM مجموعه‌های خدماتی",
   "orientation": "portrait-primary",
