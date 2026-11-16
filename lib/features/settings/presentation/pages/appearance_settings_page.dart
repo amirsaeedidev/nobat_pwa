@@ -20,7 +20,7 @@ class AppearanceSettingsPage extends StatelessWidget {
 
     return PageScaffold(
       title: 'ظاهر برنامه',
-      subtitle: 'پالت رنگ و حالت نمایش',
+      subtitle: 'تم لوکس صورتی و کرمی',
       icon: Icons.palette_rounded,
       showBackButton: true,
       child: Column(
@@ -152,20 +152,7 @@ class AppearanceSettingsPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SectionHeader(title: 'تنظیمات نمایش'),
-                const SizedBox(height: 6),
-                InfoRow(label: 'جهت متن', value: 'راست به چپ (RTL)', icon: Icons.format_textdirection_r_to_l_rounded),
-                InfoRow(label: 'قلم', value: 'وزیرمتن (Vazirmatn)', icon: Icons.text_fields_rounded),
-                InfoRow(label: 'ارقام', value: 'فارسی', icon: Icons.pin_rounded),
-                InfoRow(label: 'تقویم', value: 'شمسی (جلالی)', icon: Icons.calendar_month_rounded),
-              ],
-            ),
-          ),
+          const SizedBox(height: 12)
         ],
       ),
     );
