@@ -12,6 +12,7 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_schedule.dart';
+import '../../../../data/models/enums.dart';
 import '../providers/employees_provider.dart';
 
 class EmployeeSchedulePage extends StatefulWidget {
@@ -34,7 +35,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   Future<Shift?> _pickShift() async {
     final start = await _time(const TimeOfDay(hour: 9, minute: 0));
     if (start == null || !mounted) return null;
-    final end = await _time(TimeOfDay(hour: (start.hour + 1).clamp(0, 23), minute: start.minute));
+    final end = await _time(TimeOfDay(hour: (start.hour + 1).clamp(0, 23).toInt(), minute: start.minute));
     if (end == null) return null;
     final shift = Shift(
       start: '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
