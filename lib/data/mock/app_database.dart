@@ -372,7 +372,17 @@ class AppDatabase extends ChangeNotifier {
     _commit();
   }
 
-  bool canUndoLog(String id) => !_undoneLogIds.contains(id) && _logs.any((l) => l.id == id && l.undoAction != null && l.undoData != null);
+  bool canUndoLog(String id) {
+    if (_undoneLogIds.contains(id)) return false;
+    final target = _logs.where((l) => l.id == id).firstOrNull;
+    if (target == null || target.undoAction == null || target.undoData == null) return false;
+    final targetEntityId = target.undoData!['id'];
+    return !_logs.any((other) {
+      if (other.id == id || !other.createdAt.isAfter(target.createdAt)) return false;
+      if (target.undoAction == 'settings_hours') return other.undoAction == 'settings_hours';
+      return targetEntityId != null && other.undoData?['id'] == targetEntityId;
+    });
+  }
   bool undoLog(String id) {
     if (!canUndoLog(id)) return false;
     final entry = _logs.firstWhere((l) => l.id == id);
