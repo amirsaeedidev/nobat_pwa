@@ -73,99 +73,39 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   Color get onPrimary => Colors.white;
 
-  /// پالت اصلی: آبی حرفه‌ای ONTIME (تصویر مرجع پیشخوان).
-  static const AppPalette navy = AppPalette(
-    id: 'navy',
-    label: 'آبی حرفه‌ای',
-    isDark: true,
-    background: Color(0xFF0A1227),
-    backgroundAlt: Color(0xFF101729),
-    surface: Color(0xFF111A2B),
-    surfaceAlt: Color(0xFF16203A),
-    surfaceHigh: Color(0xFF1C2A4A),
-    border: Color(0xFF1E2A47),
-    borderStrong: Color(0xFF2A3A5F),
-    primary: Color(0xFF2563EB),
-    primaryBright: Color(0xFF38BDF8),
-    primaryDeep: Color(0xFF1D4ED8),
-    accentGlow: Color(0xFF00E5FF),
-    success: Color(0xFF10B981),
-    warning: Color(0xFFF59E0B),
-    danger: Color(0xFFEF4444),
-    purple: Color(0xFF8B5CF6),
-    info: Color(0xFF3B82F6),
-    textPrimary: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFF9FB0C9),
-    textMuted: Color(0xFF6B7C99),
-    heroGradient: [Color(0xFF1D4ED8), Color(0xFF2563EB), Color(0xFF4FC3F7)],
-    successSoft: Color(0xFF0B2033),
-    dangerSoft: Color(0xFF2A1522),
-    purpleSoft: Color(0xFF1E1738),
-  );
-
-  /// پالت گرافیتی/زمردی (تصاویر مرجع ثبت نوبت، مشتریان، خدمات).
-  static const AppPalette emerald = AppPalette(
-    id: 'emerald',
-    label: 'گرافیتی زمردی',
-    isDark: true,
-    background: Color(0xFF1E222B),
-    backgroundAlt: Color(0xFF191D26),
-    surface: Color(0xFF1A1E27),
-    surfaceAlt: Color(0xFF31343B),
-    surfaceHigh: Color(0xFF3A3D45),
-    border: Color(0xFF31343B),
-    borderStrong: Color(0xFF454952),
-    primary: Color(0xFF00B175),
-    primaryBright: Color(0xFF10D68E),
-    primaryDeep: Color(0xFF00905F),
-    accentGlow: Color(0xFF34D399),
-    success: Color(0xFF00B175),
-    warning: Color(0xFFF59E0B),
-    danger: Color(0xFFEF4444),
-    purple: Color(0xFFA21CFA),
-    info: Color(0xFF2563EB),
-    textPrimary: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFFA9AFB8),
-    textMuted: Color(0xFF7A828E),
-    heroGradient: [Color(0xFF00B175), Color(0xFF10D68E), Color(0xFF34D399)],
-    successSoft: Color(0xFF13292A),
-    dangerSoft: Color(0xFF2A1418),
-    purpleSoft: Color(0xFF241634),
-  );
-
-  /// پالت روشن (گزینه ظاهری).
-  static const AppPalette light = AppPalette(
-    id: 'light',
-    label: 'روشن',
+  /// تم ثابت لوکس با زمینه کرمی و تأکیدهای صورتی/بنفش.
+  static const AppPalette luxury = AppPalette(
+    id: 'luxury',
+    label: 'لوکس صورتی',
     isDark: false,
-    background: Color(0xFFF4F7FC),
-    backgroundAlt: Color(0xFFFFFFFF),
+    background: Color(0xFFFFF8F3),
+    backgroundAlt: Color(0xFFFFFDFC),
     surface: Color(0xFFFFFFFF),
-    surfaceAlt: Color(0xFFF1F5FB),
-    surfaceHigh: Color(0xFFE8EFFA),
-    border: Color(0xFFE2E8F0),
-    borderStrong: Color(0xFFCBD5E1),
-    primary: Color(0xFF2563EB),
-    primaryBright: Color(0xFF3B82F6),
-    primaryDeep: Color(0xFF1D4ED8),
-    accentGlow: Color(0xFF0891B2),
-    success: Color(0xFF059669),
-    warning: Color(0xFFD97706),
-    danger: Color(0xFFDC2626),
-    purple: Color(0xFF7C3AED),
-    info: Color(0xFF2563EB),
-    textPrimary: Color(0xFF0F172A),
-    textSecondary: Color(0xFF475569),
-    textMuted: Color(0xFF94A3B8),
-    heroGradient: [Color(0xFF1D4ED8), Color(0xFF2563EB), Color(0xFF3B82F6)],
-    successSoft: Color(0xFFECFDF5),
-    dangerSoft: Color(0xFFFEF2F2),
-    purpleSoft: Color(0xFFF5F3FF),
+    surfaceAlt: Color(0xFFF7EEE7),
+    surfaceHigh: Color(0xFFEEDFD4),
+    border: Color(0xFFE8D8CD),
+    borderStrong: Color(0xFFD5BFAF),
+    primary: Color(0xFF642CA9),
+    primaryBright: Color(0xFFFF36AB),
+    primaryDeep: Color(0xFF4E2188),
+    accentGlow: Color(0xFFFF74D4),
+    success: Color(0xFF8C624B),
+    warning: Color(0xFFB88655),
+    danger: Color(0xFFD94A70),
+    purple: Color(0xFF642CA9),
+    info: Color(0xFFFF74D4),
+    textPrimary: Color(0xFF38251F),
+    textSecondary: Color(0xFF765C50),
+    textMuted: Color(0xFFA58D80),
+    heroGradient: [Color(0xFF642CA9), Color(0xFFFF36AB), Color(0xFFFF74D4)],
+    successSoft: Color(0xFFF2E8E0),
+    dangerSoft: Color(0xFFFFE9EF),
+    purpleSoft: Color(0xFFF4E8F8),
   );
 
-  static const List<AppPalette> all = [navy, emerald, light];
+  static const List<AppPalette> all = [luxury];
 
-  static AppPalette byId(String id) => all.firstWhere((p) => p.id == id, orElse: () => navy);
+  static AppPalette byId(String id) => luxury;
 
   @override
   AppPalette copyWith({
