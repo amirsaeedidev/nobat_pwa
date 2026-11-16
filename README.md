@@ -76,7 +76,7 @@ lib/
 │   ├── app.dart              # MaterialApp.router + تم Material 3 + لوکال فارسی
 │   ├── router/app_router.dart# همه مسیرها، ShellRoute، errorBuilder
 │   └── theme/
-│       ├── app_palette.dart  # ۳ پالت (luxury (کرم، قهوه‌ای، صورتی)) + دسترسی context.pal
+│       ├── app_palette.dart  # یک پالت ثابت luxury (کرم، قهوه‌ای، صورتی) + دسترسی context.pal
 │       └── app_tokens.dart   # فاصله‌ها، شعاع‌ها، سایه‌ها، انیمیشن‌ها، Breakpoints
 ├── core/
 │   ├── models/page_result.dart   # صفحه‌بندی سازگار با Supabase (range/limit)
@@ -126,19 +126,20 @@ Page  →  Provider (ChangeNotifier)  →  Repository (Interface)  →  AppDatab
 
 ## ۴) طراحی و پیکسل-فیت بودن
 
-پالت پیش‌فرض از تصویر مرجع پیشخوان استخراج شده است:
+تم ثابت DateTime با زمینه کرمی و قهوه‌ای و تأکیدهای صورتی/بنفش:
 
 | توکن | مقدار |
 |---|---|
-| background | `#0A1227` |
-| surface / surfaceAlt | `#111A2B` / `#16203A` |
-| border / borderStrong | `#1E2A47` / `#2A3A5F` |
-| primary / primaryBright | `#2563EB` / `#38BDF8` |
-| accentGlow | `#00E5FF` |
-| success / warning / danger / purple | `#10B981` / `#F59E0B` / `#EF4444` / `#8B5CF6` |
-| text | `#FFFFFF` / `#9FB0C9` / `#6B7C99` |
+| background | `#FFF8F3` |
+| surface / surfaceAlt | `#FFFFFF` / `#F7EEE7` |
+| border / borderStrong | `#E8D8CD` / `#D5BFAF` |
+| primary | `#642CA9` |
+| primaryBright | `#FF36AB` |
+| accentGlow | `#FF74D4` |
+| پاستلی | `#FFB8DE` / `#FFDDE1` |
+| متن اصلی | `#38251F` |
 
-پالت دوم (**گرافیتی زمردی** — برگرفته از تصاویر مرجع ثبت نوبت/مشتریان/خدمات/تنظیمات پیشرفته): `#1E222B` پس‌زمینه، `#1A1E27` سطح، `#31343B` مرز، `#00B175` / `#10D68E` سبز اصلی، `#A21CFA` بنفش. هر سه پالت از مسیر `/settings/appearance` قابل تعویض زنده هستند.
+تم در کل برنامه از `AppPalette.luxury` و `context.pal` تأمین می‌شود؛ پالت‌های زمردی قدیمی دیگر بخشی از تم فعال نیستند.
 
 ### نکات RTL و ارقام فارسی
 - تمام رشته‌های عددی حاوی جداکننده (ساعت، مبلغ، تلفن) با `Fmt.ltr()` در نشانگر `U+202A…U+202C` محصور می‌شوند تا ترتیب ارقام در متن راست‌به‌چپ به‌هم نریزد.
