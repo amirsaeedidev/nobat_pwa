@@ -1,4 +1,4 @@
-package com.ontime.ontime
+package com.datetime.datetime
 
 import io.flutter.embedding.android.FlutterActivity
 
