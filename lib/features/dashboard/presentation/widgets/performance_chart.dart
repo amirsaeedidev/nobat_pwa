@@ -177,8 +177,6 @@ class _PerformancePainter extends CustomPainter {
         weight: data[i].isPeak ? FontWeight.w700 : FontWeight.w500,
       );
     }
-  }
-
     canvas.restore();
   }
 
