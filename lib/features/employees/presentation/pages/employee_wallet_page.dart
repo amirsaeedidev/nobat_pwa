@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/formatters.dart';
@@ -43,15 +44,14 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     return PageScaffold(
       title: 'کیف پول و تسویه',
       subtitle: employee.fullName,
-      icon: Icons.account_balance_wallet_rounded,
       showBackButton: true,
       mobileActions: [
-        IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const Icon(Icons.add_card_rounded)),
-        IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const Icon(Icons.payments_rounded)),
+        IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 21)),
+        IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
       ],
       actions: [
-        SoftButton(label: 'ثبت تراکنش', icon: Icons.add_card_rounded, onTap: () => _addTransaction(db, employee.id)),
-        SolidButton(label: 'ثبت تسویه', icon: Icons.payments_rounded, onPressed: () => _settle(db, employee.id)),
+        SoftButton(label: 'ثبت تراکنش', onTap: () => _addTransaction(db, employee.id)),
+        SolidButton(label: 'ثبت تسویه', onPressed: () => _settle(db, employee.id)),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -87,10 +87,13 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 items: [for (final item in EmployeeWalletPeriodType.values) DropdownMenuItem(value: item, child: Text(item.label))],
                 onChanged: (value) { if (value != null) _selectPeriod(value); },
               ),
-              OutlinedButton.icon(
+              OutlinedButton(
                 onPressed: _chooseRange,
-                icon: const Icon(Icons.date_range_rounded, size: 16),
-                label: Text('${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_to)}'),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const HugeIcon(icon: HugeIcons.strokeRoundedCalendarRange, size: 17),
+                  const SizedBox(width: 6),
+                  Text('${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_to)}'),
+                ]),
               ),
             ]),
             const SizedBox(height: 8),
@@ -101,7 +104,6 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             const SizedBox(height: 10),
             SolidButton(
               label: periodDue > 0 ? 'تسویه این بازه' : 'مبلغی برای تسویه وجود ندارد',
-              icon: Icons.receipt_long_rounded,
               onPressed: periodDue > 0 ? () => _settle(db, employee.id) : null,
             ),
           ])),
@@ -116,7 +118,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   backgroundColor: (entry.amount >= 0 ? pal.success : pal.danger).withValues(alpha: 0.12),
-                  child: Icon(_transactionIcon(entry.type), color: entry.amount >= 0 ? pal.success : pal.danger, size: 19),
+                  child: _transactionIcon(entry.type, color: entry.amount >= 0 ? pal.success : pal.danger),
                 ),
                 title: Text(entry.type.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 subtitle: Text('${entry.description}\n${Fmt.jalaliDate(entry.createdAt)} • ${entry.id}', style: TextStyle(fontSize: 10, color: pal.textMuted)),
@@ -137,7 +139,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             for (final settlement in settlements)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.receipt_rounded, color: pal.primaryBright),
+                leading: const HugeIcon(icon: HugeIcons.strokeRoundedInvoice01, size: 22),
                 title: Text('رسید ${settlement.receiptNumber}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 subtitle: Text('${settlement.periodType.label} • ${Fmt.jalaliDate(settlement.createdAt)}\nپرداخت: ${Fmt.money(settlement.paidAmount)} • مانده: ${Fmt.money(settlement.remainingAfter)}', style: TextStyle(fontSize: 10, color: pal.textMuted)),
                 isThreeLine: true,
@@ -378,7 +380,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
 
   void _showReceipt(EmployeeWalletSettlement settlement) {
     showDialog<void>(context: context, builder: (context) => AlertDialog(
-      title: const Row(children: [Icon(Icons.receipt_long_rounded), SizedBox(width: 8), Text('رسید تسویه')]),
+      title: const Row(children: [HugeIcon(icon: HugeIcons.strokeRoundedInvoice01, size: 22), SizedBox(width: 8), Text('رسید تسویه')]),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         _DetailLine(label: 'شماره رسید', value: settlement.receiptNumber),
         _DetailLine(label: 'شناسه تسویه', value: settlement.id),
@@ -393,17 +395,20 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     ));
   }
 
-  IconData _transactionIcon(EmployeeWalletTransactionType type) => switch (type) {
-    EmployeeWalletTransactionType.commission => Icons.percent_rounded,
-    EmployeeWalletTransactionType.fixedSalary => Icons.account_balance_rounded,
-    EmployeeWalletTransactionType.salaryPayment => Icons.payments_rounded,
-    EmployeeWalletTransactionType.advance => Icons.request_quote_rounded,
-    EmployeeWalletTransactionType.bonus => Icons.stars_rounded,
-    EmployeeWalletTransactionType.penalty => Icons.warning_amber_rounded,
-    EmployeeWalletTransactionType.deduction => Icons.remove_circle_outline,
-    EmployeeWalletTransactionType.refund => Icons.reply_rounded,
-    EmployeeWalletTransactionType.adjustment => Icons.edit_note_rounded,
-  };
+  Widget _transactionIcon(EmployeeWalletTransactionType type, {required Color color}) {
+    final icon = switch (type) {
+      EmployeeWalletTransactionType.commission => HugeIcons.strokeRoundedPercent,
+      EmployeeWalletTransactionType.fixedSalary => HugeIcons.strokeRoundedMoney01,
+      EmployeeWalletTransactionType.salaryPayment => HugeIcons.strokeRoundedPayment01,
+      EmployeeWalletTransactionType.advance => HugeIcons.strokeRoundedCash01,
+      EmployeeWalletTransactionType.bonus => HugeIcons.strokeRoundedAward01,
+      EmployeeWalletTransactionType.penalty => HugeIcons.strokeRoundedAlert01,
+      EmployeeWalletTransactionType.deduction => HugeIcons.strokeRoundedArrowDown01,
+      EmployeeWalletTransactionType.refund => HugeIcons.strokeRoundedArrowDown01,
+      EmployeeWalletTransactionType.adjustment => HugeIcons.strokeRoundedFileEdit,
+    };
+    return HugeIcon(icon: icon, color: color, size: 19);
+  }
 }
 
 class _WalletMetric extends StatelessWidget {
@@ -460,7 +465,7 @@ class _RuleLine extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 7),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(Icons.verified_user_outlined, size: 15, color: context.pal.success),
+      const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, size: 15),
       const SizedBox(width: 8),
       Expanded(child: Text(text, style: const TextStyle(fontSize: 11))),
     ]),
