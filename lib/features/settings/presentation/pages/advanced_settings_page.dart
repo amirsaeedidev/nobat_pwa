@@ -224,7 +224,25 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
       actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('ساعات ویژه')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تعطیلی کامل'))],
     ));
     if (closed == null || !mounted) return;
-    setState(() { _exceptions.removeWhere((e) => e.dateKey == dateKey); _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی ${dateKey}' : 'ساعات ویژه ${dateKey}', isClosed: closed, shifts: closed ? const [] : const [Shift(start: '10:00', end: '14:00'), Shift(start: '16:00', end: '20:00')])); });
+    var specialShifts = const <Shift>[];
+    if (!closed) {
+      final start = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 10, minute: 0), helpText: 'شروع ساعت ویژه');
+      if (start == null || !mounted) return;
+      final end = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 14, minute: 0), helpText: 'پایان ساعت ویژه');
+      if (end == null || !mounted) return;
+      final startMinutes = start.hour * 60 + start.minute;
+      final endMinutes = end.hour * 60 + end.minute;
+      if (endMinutes <= startMinutes) {
+        AppToast.show(context, 'ساعت پایان باید بعد از ساعت شروع باشد');
+        return;
+      }
+      String key(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+      specialShifts = [Shift(start: key(start), end: key(end))];
+    }
+    setState(() {
+      _exceptions.removeWhere((e) => e.dateKey == dateKey);
+      _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی ${dateKey}' : 'ساعات ویژه ${dateKey}', isClosed: closed, shifts: specialShifts));
+    });
   }
 
   Widget _buildDayShifts(BuildContext context, int day) {
