@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/providers/db_bound_provider.dart';
@@ -17,13 +19,15 @@ class SettingsProvider extends DbBoundProvider {
 
   BusinessSettings? _settings;
   bool _loading = true;
-  String _paletteId = 'luxury';
+  String _paletteId = 'pastel_pink';
+  Color _formAccentColor = AppPalette.pastelPink.primary;
   bool _saving = false;
 
   BusinessSettings? get settings => _settings;
   bool get loading => _loading;
   bool get saving => _saving;
   AppPalette get palette => AppPalette.byId(_paletteId);
+  Color get formAccentColor => _formAccentColor;
   String get paletteId => _paletteId;
   String get ownerName => 'فاطمه رضایی';
   String get ownerRole => 'مدیر مجموعه';
