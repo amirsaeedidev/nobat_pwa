@@ -247,7 +247,7 @@ class BusinessSettings {
   final NotificationSettings notifications;
   final BookingRules bookingRules;
 
-  String get publicUrl => 'ontime.app/book/$publicSlug';
+  String get publicUrl => 'datetime.app/book/$publicSlug';
   String get fullUrl => 'https://datetime.app/book/$publicSlug';
 
   BusinessSettings copyWith({
