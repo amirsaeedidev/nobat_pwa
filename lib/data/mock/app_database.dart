@@ -11,6 +11,7 @@ import '../models/employee.dart';
 import '../models/enums.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_service_config.dart';
+import '../models/employee_schedule.dart';
 import '../models/service.dart';
 import '../models/sms_message.dart';
 import 'mock_seed.dart';
@@ -32,6 +33,8 @@ class AppDatabase extends ChangeNotifier {
   final Map<String, EmployeePayProfile> _employeePayProfiles = {};
   final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
+  final Map<String, EmployeeScheduleException> _employeeScheduleExceptions = {};
+  final List<EmployeeLeave> _employeeLeaves = [];
   BusinessSettings _settings = const BusinessSettings();
 
   int _idCounter = 5000;
@@ -45,6 +48,8 @@ class AppDatabase extends ChangeNotifier {
   List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
   List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
   List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
+  List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
+  List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values);
   EmployeePayProfile payProfileFor(String employeeId) => _employeePayProfiles[employeeId] ?? EmployeePayProfile(employeeId: employeeId);
   BusinessSettings get settings => _settings;
 
@@ -460,6 +465,104 @@ class AppDatabase extends ChangeNotifier {
     }
     log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل');
     _commit();
+  }
+
+  // برنامه کاری اختصاصی پرسنل، استثناهای تاریخ‌دار و مرخصی
+  String _employeeScheduleKey(String employeeId, String dateKey) => employeeId + '::' + dateKey;
+
+  List<EmployeeLeave> leavesForEmployee(String employeeId) =>
+      _employeeLeaves.where((leave) => leave.employeeId == employeeId).toList()
+        ..sort((a, b) => a.startAt.compareTo(b.startAt));
+
+  EmployeeScheduleException? employeeScheduleException(String employeeId, DateTime date) =>
+      _employeeScheduleExceptions[_employeeScheduleKey(employeeId, EmployeeScheduleRules.dateKey(date))];
+
+  List<Shift> employeeShiftsForDate(String employeeId, DateTime date) {
+    final employee = employeeById(employeeId);
+    if (employee == null || !employee.scheduleEnabled || !employee.isAvailableForBooking) return const [];
+    final exception = employeeScheduleException(employeeId, date);
+    if (exception != null) return exception.isClosed ? const [] : exception.shifts;
+    final key = EmployeeScheduleRules.dateKey(date);
+    if (employee.daysOff.contains(key)) return const [];
+    return employee.shiftsFor(JalaliDate.fromDateTime(date).weekday);
+  }
+
+  void saveEmployeeWeeklySchedule(String employeeId, Map<int, List<Shift>> schedule, {bool enabled = true, int bufferMinutes = 0}) {
+    final employee = employeeById(employeeId);
+    if (employee == null) throw StateError('پرسنل یافت نشد.');
+    if (bufferMinutes < 0 || bufferMinutes > 240) throw ArgumentError('فاصله بین نوبت‌ها معتبر نیست.');
+    for (final shifts in schedule.values) { EmployeeScheduleRules.validateShifts(shifts); }
+    if (schedule.keys.any((day) => day < 0 || day > 6)) throw ArgumentError('روز هفته معتبر نیست.');
+    updateEmployee(employee.copyWith(schedule: schedule, scheduleEnabled: enabled, bufferMinutes: bufferMinutes));
+    log(ActivityType.settingsChanged, 'به‌روزرسانی برنامه پرسنل', 'برنامه کاری ' + employee.fullName + ' تغییر کرد.', entity: 'برنامه پرسنل');
+    _commit();
+  }
+
+  void saveEmployeeScheduleException(EmployeeScheduleException exception) {
+    final employee = employeeById(exception.employeeId);
+    if (employee == null) throw StateError('پرسنل یافت نشد.');
+    final parsed = DateTime.tryParse(exception.dateKey);
+    if (parsed == null || EmployeeScheduleRules.dateKey(parsed) != exception.dateKey) throw ArgumentError('تاریخ استثنا معتبر نیست.');
+    EmployeeScheduleRules.validateShifts(exception.shifts);
+    if (!exception.isClosed && exception.shifts.isEmpty) throw ArgumentError('برای ساعات ویژه حداقل یک شیفت تعریف کنید.');
+    _employeeScheduleExceptions[_employeeScheduleKey(exception.employeeId, exception.dateKey)] = exception;
+    log(ActivityType.settingsChanged, 'ثبت ساعات ویژه پرسنل', exception.dateKey + ' برای ' + employee.fullName + ' ثبت شد.', entity: 'برنامه پرسنل');
+    _commit();
+  }
+
+  void deleteEmployeeScheduleException(String employeeId, String dateKey) {
+    _employeeScheduleExceptions.remove(_employeeScheduleKey(employeeId, dateKey));
+    _commit();
+  }
+
+  void addEmployeeLeave(EmployeeLeave leave) {
+    final employee = employeeById(leave.employeeId);
+    if (employee == null) throw StateError('پرسنل یافت نشد.');
+    if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
+    if (_employeeLeaves.any((item) => item.id == leave.id)) throw StateError('شناسه مرخصی تکراری است.');
+    if (_employeeLeaves.any((item) => item.employeeId == leave.employeeId && item.status != EmployeeLeaveStatus.rejected && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt))) {
+      throw ArgumentError('این مرخصی با درخواست دیگری هم‌پوشانی دارد.');
+    }
+    _employeeLeaves.add(leave);
+    log(ActivityType.settingsChanged, 'ثبت مرخصی پرسنل', 'مرخصی جدید برای ' + employee.fullName + ' ثبت شد.', entity: 'مرخصی پرسنل');
+    _commit();
+  }
+
+  void updateEmployeeLeave(EmployeeLeave leave) {
+    final index = _employeeLeaves.indexWhere((item) => item.id == leave.id && item.employeeId == leave.employeeId);
+    if (index < 0) throw StateError('مرخصی یافت نشد.');
+    if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
+    if (leave.status == EmployeeLeaveStatus.approved) {
+      final conflict = _employeeLeaves.any((item) => item.id != leave.id && item.employeeId == leave.employeeId && item.status == EmployeeLeaveStatus.approved && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt));
+      if (conflict) throw ArgumentError('مرخصی با مرخصی تأییدشده دیگری هم‌پوشانی دارد.');
+    }
+    _employeeLeaves[index] = leave;
+    log(ActivityType.settingsChanged, 'به‌روزرسانی مرخصی پرسنل', 'وضعیت مرخصی ' + leave.id + ' تغییر کرد.', entity: 'مرخصی پرسنل');
+    _commit();
+  }
+
+  void deleteEmployeeLeave(String id) {
+    _employeeLeaves.removeWhere((leave) => leave.id == id);
+    _commit();
+  }
+
+  bool isEmployeeAvailableAt({required String employeeId, required DateTime startAt, required int durationMinutes, String? ignoreAppointmentId}) {
+    final employee = employeeById(employeeId);
+    if (employee == null || !employee.isAvailableForBooking || durationMinutes <= 0) return false;
+    final endAt = startAt.add(Duration(minutes: durationMinutes));
+    final shifts = employeeShiftsForDate(employeeId, startAt);
+    final startMinute = startAt.hour * 60 + startAt.minute;
+    final endMinute = endAt.hour * 60 + endAt.minute + (endAt.day != startAt.day ? 24 * 60 : 0);
+    if (!shifts.any((shift) => startMinute >= shift.startMinutes && endMinute <= shift.endMinutes)) return false;
+    if (_employeeLeaves.any((leave) => leave.employeeId == employeeId && leave.overlaps(startAt, endAt))) return false;
+    final buffer = Duration(minutes: employee.bufferMinutes);
+    for (final appointment in _appointments) {
+      if (appointment.id == ignoreAppointmentId || appointment.employeeId != employeeId || appointment.status == AppointmentStatus.cancelled) continue;
+      final bufferedStart = appointment.startAt.subtract(buffer);
+      final bufferedEnd = appointment.endAt.add(buffer);
+      if (startAt.isBefore(bufferedEnd) && bufferedStart.isBefore(endAt)) return false;
+    }
+    return true;
   }
 
   String _serviceConfigKey(String employeeId, String serviceId) => '$employeeId::$serviceId';
