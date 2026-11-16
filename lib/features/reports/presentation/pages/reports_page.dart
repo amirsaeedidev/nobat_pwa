@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
@@ -29,6 +30,7 @@ class ReportsPage extends StatelessWidget {
       subtitle: 'عملکرد مالی و آماری مجموعه',
       icon: Icons.insights_rounded,
       actions: [
+        SoftButton(label: 'تحلیل پرسنل', icon: Icons.groups_2_rounded, onTap: () => context.push('/reports/personnel')),
         PillToggle(
           options: const ['۳ ماه', '۶ ماه', '۱۲ ماه'],
           selectedIndex: switch (provider.months) {
