@@ -46,7 +46,7 @@ void main() {
         throwsStateError,
       );
       expect(
-        () => db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 200000),
+        () => db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 200000, idempotencyKey: 'overpayment-attempt'),
         throwsArgumentError,
       );
     });
