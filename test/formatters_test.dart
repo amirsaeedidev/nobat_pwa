@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ontime/core/utils/fa_num.dart';
-import 'package:ontime/core/utils/formatters.dart';
+import 'package:datetime/core/utils/fa_num.dart';
+import 'package:datetime/core/utils/formatters.dart';
 
 String strip(String s) => s.replaceAll('\u202A', '').replaceAll('\u202C', '');
 
