@@ -1,4 +1,4 @@
-# ONTIME — سامانه مدیریت نوبت‌دهی و رزرو آنلاین
+# DateTime — سامانه مدیریت نوبت‌دهی و رزرو آنلاین
 
 اپلیکیشن کامل مدیریت نوبت برای سالن‌های زیبایی/کلینیک‌ها، با رابط کاربری **فارسی و راست‌به‌چپ**، تقویم شمسی، معماری تمیز Provider + GoRouter، و آمادگی مهاجرت به Supabase.
 
@@ -6,7 +6,7 @@
 - **مدیریت وضعیت:** Provider (`ChangeNotifierProvider` + `DbBoundProvider`)
 - **مسیریابی:** GoRouter 14 (ShellRoute + مسیرهای مستقل)
 - **داده:** Repository Pattern با پیاده‌سازی Mock درون‌حافظه‌ای (بدون بک‌اند/فایربیس)
-- **فونت:** Vazirmatn (400–800) — بسته‌بندی‌شده در `assets/fonts`
+- **فونت:** Lalezar (در حال آماده‌سازی فایل فونت) — بسته‌بندی‌شده در `assets/fonts`
 - **خروجی وب:** PWA کامل (manifest، آیکون‌ها، اسپلش، عنوان فارسی)
 
 ---
@@ -63,7 +63,7 @@ cd build/web && python3 -m http.server 8080
 | `/book` | **فرم عمومی رزرو مشتری** (بدون پوسته پنل) |
 | `/book/manage` | پیگیری/لغو/جابه‌جایی نوبت توسط مشتری |
 
-لینک عمومی نمونه: `ontime.app/book/ontime-salon`
+لینک عمومی نمونه: `datetime.app/book/datetime-salon`
 
 ---
 
@@ -76,7 +76,7 @@ lib/
 │   ├── app.dart              # MaterialApp.router + تم Material 3 + لوکال فارسی
 │   ├── router/app_router.dart# همه مسیرها، ShellRoute، errorBuilder
 │   └── theme/
-│       ├── app_palette.dart  # ۳ پالت (navy، emerald، light) + دسترسی context.pal
+│       ├── app_palette.dart  # ۳ پالت (luxury (کرم، قهوه‌ای، صورتی)) + دسترسی context.pal
 │       └── app_tokens.dart   # فاصله‌ها، شعاع‌ها، سایه‌ها، انیمیشن‌ها، Breakpoints
 ├── core/
 │   ├── models/page_result.dart   # صفحه‌بندی سازگار با Supabase (range/limit)
@@ -194,7 +194,7 @@ flutter test
 - ۷ خدمت (`srv-gelish`, `srv-tarmim`, `srv-keratin`, `srv-style`, `srv-skin`, `srv-color`, `srv-massage` غیرفعال)
 - ۵ متخصص (`emp-fateme` مدیر، `emp-shima`, `emp-zahra`, `emp-elham`, `emp-amir` غیرفعال)
 - ۱۴ مشتری (`cus-ali`, `cus-reza`, `cus-amin`, `cus-maryam`, `cus-sara`, `cus-nazanin`, `cus-hanieh`, …)
-- کسب‌وکار «سالن زیبایی اُن‌تایم»، اسلاگ `ontime-salon`، استان تهران / کرج
+- کسب‌وکار «سالن زیبایی اُن‌تایم»، اسلاگ `datetime-salon`، استان تهران / کرج
 - پنل پیامک کاوه‌نگار (شماره فرستنده ۱۰۰۰۴۳۴۱، اعتبار ۱۵۰)، یادآوری ۲۴h و ۲h
 - تعطیلات هفتگی: پنجشنبه و جمعه، طول اسلات ۱۵ دقیقه
 
