@@ -27,7 +27,9 @@ class SettingsProvider extends DbBoundProvider {
   bool get loading => _loading;
   bool get saving => _saving;
   AppPalette get palette => AppPalette.byId(_paletteId);
-  AppFormTheme get formTheme => AppFormTheme.byId(_formThemeId);\n  Color get formAccentColor => formTheme.accent;\n  String get formThemeId => _formThemeId;
+  AppFormTheme get formTheme => AppFormTheme.byId(_formThemeId);
+  Color get formAccentColor => formTheme.accent;
+  String get formThemeId => _formThemeId;
   String get paletteId => _paletteId;
   String get ownerName => 'فاطمه رضایی';
   String get ownerRole => 'مدیر مجموعه';
