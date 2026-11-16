@@ -1,5 +1,5 @@
-name: ontime
-description: "ONTIME — سامانه مدیریت نوبت‌دهی و رزرو آنلاین"
+name: datetime
+description: "DateTime — سامانه مدیریت نوبت‌دهی و رزرو آنلاین"
 publish_to: 'none'
 version: 1.0.0+1
 
