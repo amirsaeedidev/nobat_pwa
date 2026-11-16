@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ontime/data/mock/app_database.dart';
-import 'package:ontime/data/repositories/appointment_repository.dart';
-import 'package:ontime/data/repositories/customer_repository.dart';
-import 'package:ontime/data/repositories/employee_repository.dart';
-import 'package:ontime/data/repositories/service_repository.dart';
-import 'package:ontime/features/booking/presentation/providers/booking_provider.dart';
+import 'package:datetime/data/mock/app_database.dart';
+import 'package:datetime/data/repositories/appointment_repository.dart';
+import 'package:datetime/data/repositories/customer_repository.dart';
+import 'package:datetime/data/repositories/employee_repository.dart';
+import 'package:datetime/data/repositories/service_repository.dart';
+import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
 
 void main() {
   late AppDatabase db;
