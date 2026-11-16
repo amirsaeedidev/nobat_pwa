@@ -30,6 +30,7 @@ class AppDatabase extends ChangeNotifier {
   BusinessSettings _settings = const BusinessSettings();
 
   int _idCounter = 5000;
+  final Set<String> _undoneLogIds = {};
 
   List<Customer> get customers => List.unmodifiable(_customers);
   List<Appointment> get appointments => List.unmodifiable(_appointments);
@@ -89,7 +90,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   /// ثبت رویداد با عنوان و توضیح.
-  void log(ActivityType type, String title, String description, {String actor = 'مدیر سیستم', String entity = ''}) {
+  void log(ActivityType type, String title, String description, {String actor = 'مدیر سیستم', String entity = '', String? undoAction, Map<String, dynamic>? undoData}) {
     _logs.insert(
       0,
       ActivityLog(
@@ -100,6 +101,8 @@ class AppDatabase extends ChangeNotifier {
         actor: actor,
         createdAt: DateTime.now(),
         entityName: entity,
+        undoAction: undoAction,
+        undoData: undoData,
       ),
     );
   }
@@ -139,6 +142,8 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.serviceName} برای ${appointment.customerName} در ${appointment.jalali.long} ساعت ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')} ثبت شد.',
       actor: actor,
       entity: 'نوبت',
+      undoAction: 'appointment_created',
+      undoData: appointment.toJson(),
     );
     _commit();
   }
@@ -146,6 +151,7 @@ class AppDatabase extends ChangeNotifier {
   void updateAppointment(Appointment appointment, {String actor = 'پذیرش'}) {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
+    final previous = _appointments[index];
     _appointments[index] = appointment.copyWith(updatedAt: DateTime.now());
     log(
       ActivityType.appointmentUpdated,
@@ -153,6 +159,8 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.customerName} به‌روزرسانی شد.',
       actor: actor,
       entity: 'نوبت',
+      undoAction: 'appointment_restore',
+      undoData: previous.toJson(),
     );
     _commit();
   }
@@ -160,6 +168,7 @@ class AppDatabase extends ChangeNotifier {
   void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String actor = 'پذیرش'}) {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
+    final previous = _appointments[index];
     _appointments[index] = appointment.copyWith(status: status, cancelReason: reason, updatedAt: DateTime.now());
     final type = switch (status) {
       AppointmentStatus.cancelled => ActivityType.appointmentCancelled,
@@ -172,6 +181,8 @@ class AppDatabase extends ChangeNotifier {
       'وضعیت نوبت ${appointment.customerName} به «${status.label}» تغییر کرد.${reason != null ? ' دلیل: $reason' : ''}',
       actor: actor,
       entity: 'نوبت',
+      undoAction: 'appointment_restore',
+      undoData: previous.toJson(),
     );
     _commit();
   }
@@ -179,6 +190,7 @@ class AppDatabase extends ChangeNotifier {
   void reschedule(Appointment appointment, DateTime newStart, {String actor = 'پذیرش', bool byCustomer = false}) {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
+    final previous = _appointments[index];
     _appointments[index] = appointment.copyWith(
       startAt: newStart,
       rescheduleCount: appointment.rescheduleCount + 1,
@@ -191,6 +203,8 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.customerName} به ${JalaliDate.fromDateTime(newStart).long} ساعت ${newStart.hour.toString().padLeft(2, '0')}:${newStart.minute.toString().padLeft(2, '0')} منتقل شد.',
       actor: byCustomer ? 'مشتری' : actor,
       entity: 'نوبت',
+      undoAction: 'appointment_restore',
+      undoData: previous.toJson(),
     );
     _commit();
   }
@@ -199,7 +213,7 @@ class AppDatabase extends ChangeNotifier {
     final appointment = appointmentById(id);
     _appointments.removeWhere((a) => a.id == id);
     if (appointment != null) {
-      log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت');
+      log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت', undoAction: 'appointment_deleted', undoData: appointment.toJson());
     }
     _commit();
   }
@@ -344,16 +358,50 @@ class AppDatabase extends ChangeNotifier {
   // تنظیمات
   // ---------------------------------------------------------------------------
   void updateSettings(BusinessSettings settings, {String? logTitle, String? logDescription}) {
+    final previous = _settings;
     _settings = settings;
-    log(
-      ActivityType.settingsChanged,
-      logTitle ?? 'تغییر تنظیمات',
-      logDescription ?? 'تنظیمات مجموعه به‌روزرسانی شد.',
-      entity: 'تنظیمات',
-    );
+    final undoSchedule = logTitle == 'تغییر ساعت کاری' || logTitle == 'تغییر محدودیت‌های تقویم';
+    log(ActivityType.settingsChanged, logTitle ?? 'تغییر تنظیمات', logDescription ?? 'تنظیمات مجموعه به‌روزرسانی شد.', entity: 'تنظیمات',
+      undoAction: undoSchedule ? 'settings_hours' : null,
+      undoData: undoSchedule ? {
+        'working_hours': previous.workingHours.map((k, v) => MapEntry(k.toString(), v.map((s) => s.toJson()).toList())),
+        'work_schedules': previous.workSchedules.map((k, v) => MapEntry(k.toString(), v.map((s) => s.toJson()).toList())),
+        'holidays': previous.holidays,
+        'schedule_exceptions': previous.scheduleExceptions.map((e) => {'date_key': e.dateKey, 'title': e.title, 'is_closed': e.isClosed, 'shifts': e.shifts.map((s) => s.toJson()).toList()}).toList(),
+      } : null);
     _commit();
   }
 
+  bool canUndoLog(String id) => !_undoneLogIds.contains(id) && _logs.any((l) => l.id == id && l.undoAction != null && l.undoData != null);
+  bool undoLog(String id) {
+    if (!canUndoLog(id)) return false;
+    final entry = _logs.firstWhere((l) => l.id == id);
+    final data = entry.undoData!;
+    switch (entry.undoAction) {
+      case 'appointment_created': _appointments.removeWhere((a) => a.id == data['id']); break;
+      case 'appointment_restore':
+        final restored = Appointment.fromJson(data);
+        final index = _appointments.indexWhere((a) => a.id == restored.id);
+        if (index < 0) return false;
+        _appointments[index] = restored;
+        break;
+      case 'appointment_deleted':
+        final restored = Appointment.fromJson(data);
+        if (_appointments.any((a) => a.id == restored.id)) return false;
+        _appointments.add(restored);
+        break;
+      case 'settings_hours':
+        Map<int, List<Shift>> parseShifts(dynamic raw) => (raw as Map? ?? {}).map((k, v) => MapEntry(int.parse(k.toString()), (v as List).map((e) => Shift.fromJson(Map<String, dynamic>.from(e as Map))).toList()));
+        final exceptions = (data['schedule_exceptions'] as List? ?? []).map((raw) { final e = Map<String, dynamic>.from(raw as Map); return ScheduleException(dateKey: e['date_key'] as String, title: e['title'] as String? ?? '', isClosed: e['is_closed'] as bool? ?? true, shifts: (e['shifts'] as List? ?? []).map((s) => Shift.fromJson(Map<String, dynamic>.from(s as Map))).toList()); }).toList();
+        _settings = _settings.copyWith(workingHours: parseShifts(data['working_hours']), workSchedules: parseShifts(data['work_schedules']), holidays: (data['holidays'] as List? ?? []).cast<int>(), scheduleExceptions: exceptions);
+        break;
+      default: return false;
+    }
+    _undoneLogIds.add(id);
+    log(ActivityType.settingsChanged, 'بازگردانی تغییر', 'تغییر «' + entry.title + '» به حالت قبلی بازگردانده شد.', actor: 'مدیر سیستم', entity: entry.entityName);
+    _commit();
+    return true;
+  }
   /// شبیه‌سازی تأخیر شبکه برای حالت‌های بارگذاری.
   Future<void> delay([int ms = 260]) => Future<void>.delayed(Duration(milliseconds: ms));
 }

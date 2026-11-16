@@ -113,7 +113,15 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                     ),
                     const SizedBox(height: 8),
                     for (final log in entry.value) ...[
-                      ActivityTile(log: log),
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(child: ActivityTile(log: log)),
+                        if (provider.canUndo(log)) IconButton(tooltip: 'بازگردانی این تغییر', icon: Icon(Icons.undo_rounded, color: pal.primaryBright, size: 19), onPressed: () async {
+                          final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('بازگردانی تغییر؟'), content: Text('این تغییر به وضعیت قبل برمی‌گردد: ' + log.title), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('بازگردانی'))]));
+                          if (confirmed != true || !context.mounted) return;
+                          final success = await provider.undo(log);
+                          if (context.mounted) AppToast.show(context, success ? 'تغییر بازگردانی شد' : 'بازگردانی امکان‌پذیر نیست');
+                        }),
+                      ]),
                       if (log != entry.value.last)
                         Divider(color: pal.border.withValues(alpha: 0.5), height: 1),
                     ],

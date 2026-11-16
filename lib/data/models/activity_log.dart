@@ -11,6 +11,8 @@ class ActivityLog {
     required this.createdAt,
     this.entityName = '',
     this.entityId = '',
+    this.undoAction,
+    this.undoData,
   });
 
   final String id;
@@ -21,6 +23,8 @@ class ActivityLog {
   final DateTime createdAt;
   final String entityName;
   final String entityId;
+  final String? undoAction;
+  final Map<String, dynamic>? undoData;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -31,6 +35,8 @@ class ActivityLog {
         'created_at': createdAt.toUtc().toIso8601String(),
         'entity_name': entityName,
         'entity_id': entityId,
+        'undo_action': undoAction,
+        'undo_data': undoData,
       };
 
   factory ActivityLog.fromJson(Map<String, dynamic> json) => ActivityLog(
@@ -42,5 +48,7 @@ class ActivityLog {
         createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
         entityName: json['entity_name'] as String? ?? '',
         entityId: json['entity_id'] as String? ?? '',
+        undoAction: json['undo_action'] as String?,
+        undoData: json['undo_data'] == null ? null : Map<String, dynamic>.from(json['undo_data'] as Map),
       );
 }
