@@ -80,7 +80,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
               DropdownButton<EmployeeWalletPeriodType>(
                 value: _period,
                 items: [for (final item in EmployeeWalletPeriodType.values) DropdownMenuItem(value: item, child: Text(item.label))],
-                onChanged: (value) => value == null ? null : _selectPeriod(value),
+                onChanged: (value) { if (value != null) _selectPeriod(value); },
               ),
               OutlinedButton.icon(
                 onPressed: _chooseRange,
@@ -95,7 +95,6 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             ]),
             const SizedBox(height: 10),
             SolidButton(
-              block: true,
               label: periodDue > 0 ? 'تسویه این بازه' : 'مبلغی برای تسویه وجود ندارد',
               icon: Icons.receipt_long_rounded,
               onPressed: periodDue > 0 ? () => _settle(db, employee.id) : null,
@@ -163,13 +162,16 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
         case EmployeeWalletPeriodType.daily:
           _from = DateTime(now.year, now.month, now.day);
           _to = now;
+          break;
         case EmployeeWalletPeriodType.weekly:
           final weekday = now.weekday;
           _from = DateTime(now.year, now.month, now.day).subtract(Duration(days: weekday - 1));
           _to = now;
+          break;
         case EmployeeWalletPeriodType.monthly:
           _from = DateTime(now.year, now.month, 1);
           _to = now;
+          break;
         case EmployeeWalletPeriodType.manual:
           break;
       }
