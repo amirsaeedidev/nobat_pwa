@@ -54,10 +54,6 @@ class AppTopBar extends StatelessWidget {
                   textDirection: TextDirection.ltr,
                   child: Row(
                     children: [
-                      if (onClose != null) ...[
-                        const _DateTimeLogo(),
-                        const SizedBox(width: 10),
-                      ],
                       const _DateTimeLogo(),
                       const Spacer(),
                       ...actions,
