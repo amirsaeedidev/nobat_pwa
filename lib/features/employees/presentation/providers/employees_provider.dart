@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/utils/fa_num.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/employee_repository.dart';
@@ -57,9 +58,9 @@ class EmployeesProvider extends DbBoundProvider {
   }
 
   bool phoneExists(String phone, {String? excludingId}) {
-    final normalized = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final normalized = FaNum.toLatin(phone).replaceAll(RegExp(r'[^0-9]'), '');
     return _items.any((employee) =>
-      employee.id != excludingId && employee.phone.replaceAll(RegExp(r'[^0-9]'), '') == normalized);
+      employee.id != excludingId && FaNum.toLatin(employee.phone).replaceAll(RegExp(r'[^0-9]'), '') == normalized);
   }
 
   Future<bool> create(Employee employee) async {

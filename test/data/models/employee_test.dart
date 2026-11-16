@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/models/employee.dart';
-import 'package:datetime/data/models/enums.dart';
 
 void main() {
   group('Employee profile model', () {

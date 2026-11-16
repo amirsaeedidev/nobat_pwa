@@ -105,10 +105,19 @@ class EmployeeProfilePage extends StatelessWidget {
                   height: 60,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-                  child: Text(
-                    employee.initials,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
-                  ),
+                  child: employee.avatarAsset.isEmpty
+                      ? Text(employee.initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white))
+                      : ClipOval(
+                          child: Image.asset(
+                            employee.avatarAsset,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stack) => Center(
+                              child: Text(employee.initials, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

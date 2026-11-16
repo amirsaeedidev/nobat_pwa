@@ -262,7 +262,19 @@ class EmployeeCard extends StatelessWidget {
         Row(children: [
           Container(width: 48, height: 48, alignment: Alignment.center,
             decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.6)])),
-            child: Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+            child: employee.avatarAsset.isEmpty
+                ? Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))
+                : ClipOval(
+                    child: Image.asset(
+                      employee.avatarAsset,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stack) => Center(
+                        child: Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                      ),
+                    ),
+                  )),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(employee.fullName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary)),
