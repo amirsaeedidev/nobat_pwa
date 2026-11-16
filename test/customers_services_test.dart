@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ontime/data/mock/app_database.dart';
-import 'package:ontime/data/models/customer.dart';
-import 'package:ontime/data/models/service.dart';
-import 'package:ontime/data/repositories/customer_repository.dart';
-import 'package:ontime/data/repositories/service_repository.dart';
-import 'package:ontime/features/customers/presentation/providers/customers_provider.dart';
-import 'package:ontime/features/services/presentation/providers/services_provider.dart';
+import 'package:datetime/data/mock/app_database.dart';
+import 'package:datetime/data/models/customer.dart';
+import 'package:datetime/data/models/service.dart';
+import 'package:datetime/data/repositories/customer_repository.dart';
+import 'package:datetime/data/repositories/service_repository.dart';
+import 'package:datetime/features/customers/presentation/providers/customers_provider.dart';
+import 'package:datetime/features/services/presentation/providers/services_provider.dart';
 
 void main() {
   group('مشتریان', () {
