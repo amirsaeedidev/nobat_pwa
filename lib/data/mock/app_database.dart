@@ -380,7 +380,7 @@ class AppDatabase extends ChangeNotifier {
     if (resolvedTarget == null || resolvedTarget.undoAction == null || resolvedTarget.undoData == null) return false;
     final targetEntityId = resolvedTarget.undoData!['id'];
     return !_logs.any((other) {
-      if (other.id == id || !other.createdAt.isAfter(target.createdAt)) return false;
+      if (other.id == id || !other.createdAt.isAfter(resolvedTarget.createdAt)) return false;
       if (resolvedTarget.undoAction == 'settings_hours') return other.undoAction == 'settings_hours';
       return targetEntityId != null && other.undoData?['id'] == targetEntityId;
     });
