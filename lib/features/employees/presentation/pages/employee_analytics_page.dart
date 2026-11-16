@@ -10,7 +10,6 @@ import '../../../../core/utils/report_export.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
-import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_analytics.dart';
@@ -107,7 +106,10 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
       ...report.services.map((s) => ['خدمت: ${s.name}', s.revenue.toString(), 'تومان']),
     ];
     final csv = '\uFEFF' + rows.map((row) => row.map((cell) => '"${cell.replaceAll('"', '""')}"').join(',')).join('\r\n');
-    await downloadCsv('employee-analytics-${employee.id}.csv', csv);
+    final exported = await downloadCsv('employee-analytics-${employee.id}.csv', csv);
+    if (!exported && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خروجی فایل در نسخه وب فعال است.')));
+    }
   }
 
   String _escapeHtml(String value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -143,7 +145,10 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
 <table><thead><tr><th>شاخص</th><th>مقدار</th></tr></thead><tbody>$table</tbody></table>
 <div class="footer">این گزارش به‌صورت آفلاین از داده‌های محلی Datamonck تهیه شده است.</div>
 <script>window.onload=function(){window.print();};</script></body></html>''';
-    await printReport(html);
+    final exported = await printReport(html);
+    if (!exported && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ذخیره PDF از طریق نسخه وب و پنجره چاپ انجام می‌شود.')));
+    }
   }
 
   @override
