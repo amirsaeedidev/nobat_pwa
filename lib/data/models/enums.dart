@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 /// وضعیت نوبت با برچسب و رنگ فارسی.
 enum AppointmentStatus {
-  pending('در انتظار', Color(0xFF3B82F6)),
+  pending('در انتظار', Color(0xFFF59E0B)),
   confirmed('تأیید شده', Color(0xFF2563EB)),
   completed('تکمیل شده', Color(0xFF22C55E)),
   cancelled('لغو شده', Color(0xFFEF4444)),
-  noShow('عدم حضور', Color(0xFFF59E0B));
+  noShow('عدم حضور', Color(0xFF9CA3AF));
 
   const AppointmentStatus(this.label, this.color);
 
