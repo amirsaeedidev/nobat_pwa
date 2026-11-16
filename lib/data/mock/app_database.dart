@@ -302,6 +302,7 @@ class AppDatabase extends ChangeNotifier {
 
   void addEmployee(Employee employee) {
     _employees.add(employee);
+    _syncEmployeeServiceLinks(employee);
     log(ActivityType.employeeAdded, 'افزودن پرسنل', '${employee.fullName} به تیم اضافه شد.', entity: 'پرسنل');
     _commit();
   }
@@ -310,17 +311,42 @@ class AppDatabase extends ChangeNotifier {
     final index = _employees.indexWhere((e) => e.id == employee.id);
     if (index == -1) return;
     _employees[index] = employee;
+    _syncEmployeeServiceLinks(employee);
     log(ActivityType.employeeAdded, 'ویرایش پرسنل', 'پروفایل ${employee.fullName} به‌روزرسانی شد.', entity: 'پرسنل');
     _commit();
   }
 
+  /// در صورت وجود سابقه نوبت، پروفایل بایگانی می‌شود تا ارجاعات تاریخی حفظ شوند.
   void deleteEmployee(String id) {
     final employee = employeeById(id);
-    _employees.removeWhere((e) => e.id == id);
-    if (employee != null) {
-      log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل');
+    if (employee == null) return;
+    final hasHistory = _appointments.any((appointment) => appointment.employeeId == id);
+    if (hasHistory) {
+      final archived = employee.copyWith(isActive: false, status: EmployeeStatus.inactive);
+      updateEmployee(archived);
+      log(ActivityType.employeeAdded, 'بایگانی پرسنل', 'پروفایل ${employee.fullName} به دلیل وجود سوابق نوبت بایگانی شد.', entity: 'پرسنل');
+      _commit();
+      return;
     }
+    _employees.removeWhere((item) => item.id == id);
+    for (var index = 0; index < _services.length; index++) {
+      final service = _services[index];
+      if (service.employeeIds.contains(id)) {
+        _services[index] = service.copyWith(employeeIds: service.employeeIds.where((employeeId) => employeeId != id).toList());
+      }
+    }
+    log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل');
     _commit();
+  }
+
+  void _syncEmployeeServiceLinks(Employee employee) {
+    for (var index = 0; index < _services.length; index++) {
+      final service = _services[index];
+      final assigned = employee.serviceIds.contains(service.id);
+      final ids = service.employeeIds.where((id) => id != employee.id).toList();
+      if (assigned) ids.add(employee.id);
+      _services[index] = service.copyWith(employeeIds: ids);
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -32,9 +32,15 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   final _phone = TextEditingController();
   final _title = TextEditingController();
   final _email = TextEditingController();
+  final _specialties = TextEditingController();
+  final _notes = TextEditingController();
+  final _emergencyName = TextEditingController();
+  final _emergencyPhone = TextEditingController();
+  final _avatarAsset = TextEditingController();
 
   StaffRole _role = StaffRole.specialist;
-  bool _isActive = true;
+  EmployeeStatus _status = EmployeeStatus.active;
+  DateTime? _startedAt;
   List<String> _serviceIds = [];
   List<String> _permissions = ['appointments', 'customers'];
   final Map<int, List<Shift>> _schedule = {};
@@ -74,6 +80,13 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
         _phone.text = employee.phone;
         _title.text = employee.title;
         _email.text = employee.email;
+        _specialties.text = employee.specialties.join('، ');
+        _notes.text = employee.notes;
+        _emergencyName.text = employee.emergencyContactName;
+        _emergencyPhone.text = employee.emergencyContactPhone;
+        _avatarAsset.text = employee.avatarAsset;
+        _status = employee.employmentStatus;
+        _startedAt = employee.startedAt;
         _role = employee.role;
         _status = employee.employmentStatus;
         _serviceIds = [...employee.serviceIds];
@@ -91,6 +104,11 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
     _phone.dispose();
     _title.dispose();
     _email.dispose();
+    _specialties.dispose();
+    _notes.dispose();
+    _emergencyName.dispose();
+    _emergencyPhone.dispose();
+    _avatarAsset.dispose();
     super.dispose();
   }
 
@@ -111,16 +129,25 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
       title: _title.text.trim(),
       email: _email.text.trim(),
       role: _role,
-      isActive: _isActive,
+      isActive: _status == EmployeeStatus.active,
+      status: _status,
+      specialties: _specialties.text.split(RegExp(r'[,،]')).map((value) => value.trim()).where((value) => value.isNotEmpty).toSet().toList(),
+      notes: _notes.text.trim(),
+      emergencyContactName: _emergencyName.text.trim(),
+      emergencyContactPhone: _emergencyPhone.text.trim(),
+      avatarAsset: _avatarAsset.text.trim(),
       serviceIds: _serviceIds,
       permissions: _permissions,
       schedule: _schedule,
-      startedAt: _existing?.startedAt ?? DateTime.now(),
+      startedAt: _startedAt ?? _existing?.startedAt ?? DateTime.now(),
     );
-    if (_existing != null) {
-      await provider.update(employee);
-    } else {
-      await provider.create(employee);
+    final saved = _existing != null ? await provider.update(employee) : await provider.create(employee);
+    if (!saved) {
+      if (mounted) {
+        setState(() => _saving = false);
+        AppToast.show(context, 'این شماره موبایل قبلاً برای پرسنل دیگری ثبت شده است.', success: false);
+      }
+      return;
     }
     if (!mounted) return;
     setState(() => _saving = false);
@@ -207,13 +234,40 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     icon: Icons.mail_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
                   ),
+                  const SizedBox(height: 12),
+                  AppTextField(controller: _avatarAsset, label: 'مسیر تصویر محلی (اختیاری)', hint: 'assets/image/personnel/sample.png', icon: Icons.image_outlined),
+                  const SizedBox(height: 12),
+                  AppTextField(controller: _specialties, label: 'تخصص‌ها و مهارت‌ها', hint: 'مثلاً رنگ و مش، کراتین، مشاوره', icon: Icons.workspace_premium_outlined),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(child: AppTextField(controller: _emergencyName, label: 'نام تماس اضطراری', icon: Icons.contact_emergency_outlined)),
+                    const SizedBox(width: 10),
+                    Expanded(child: AppTextField(controller: _emergencyPhone, label: 'شماره تماس اضطراری', icon: Icons.phone_in_talk_outlined, keyboardType: TextInputType.phone, numericFa: true)),
+                  ]),
+                  const SizedBox(height: 12),
+                  AppTextField(controller: _notes, label: 'یادداشت مدیریتی', hint: 'توضیحات داخلی درباره همکاری و مهارت‌ها', icon: Icons.notes_rounded, maxLines: 3),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final selected = await showDatePicker(
+                        context: context,
+                        initialDate: _startedAt ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now(),
+                        helpText: 'تاریخ شروع همکاری',
+                      );
+                      if (selected != null && mounted) setState(() => _startedAt = selected);
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: Text(_startedAt == null ? 'انتخاب تاریخ شروع همکاری' : 'شروع همکاری: ${FaNum.convert('${_startedAt!.year}/${_startedAt!.month}/${_startedAt!.day}')}'),
+                  ),
                   const SizedBox(height: 14),
-                  AppSwitchRow(
-                    title: 'فعال',
-                    description: 'پرسنل غیرفعال در صفحه رزرو نمایش داده نمی‌شود.',
-                    value: _isActive,
-                    onChanged: (v) => setState(() => _isActive = v),
-                    icon: Icons.toggle_on_outlined,
+                  AppDropdown<EmployeeStatus>(
+                    label: 'وضعیت همکاری',
+                    items: EmployeeStatus.values,
+                    value: _status,
+                    itemLabel: (status) => status.label,
+                    onChanged: (status) => setState(() => _status = status ?? _status),
                   ),
                 ],
               ),

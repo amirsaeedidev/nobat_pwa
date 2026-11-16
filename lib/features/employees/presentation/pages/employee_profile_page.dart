@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../data/models/employee.dart';
 import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
@@ -17,6 +18,34 @@ import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/employees_provider.dart';
 
 /// پروفایل پرسنل با برنامه کاری و نوبت‌های آینده.
+class _ProfileInfo extends StatelessWidget {
+  const _ProfileInfo({required this.icon, required this.label, required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 9),
+    child: Row(children: [
+      Icon(icon, size: 15, color: context.pal.textMuted),
+      const SizedBox(width: 8),
+      SizedBox(width: 105, child: Text(label, style: TextStyle(fontSize: 10.5, color: context.pal.textMuted))),
+      Expanded(child: Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.pal.textPrimary))),
+    ]),
+  );
+}
+
+class _ProfileStat extends StatelessWidget {
+  const _ProfileStat({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+    Text(label, style: TextStyle(fontSize: 9.5, color: context.pal.textMuted)),
+  ]);
+}
+
 class EmployeeProfilePage extends StatelessWidget {
   const EmployeeProfilePage({super.key, required this.employeeId});
 
@@ -44,6 +73,13 @@ class EmployeeProfilePage extends StatelessWidget {
         .toList()
       ..sort((a, b) => a.startAt.compareTo(b.startAt));
     final color = Color(employee.colorValue);
+    final statusColor = switch (employee.employmentStatus) {
+      EmployeeStatus.active => pal.success,
+      EmployeeStatus.onLeave => pal.warning,
+      EmployeeStatus.suspended => pal.danger,
+      EmployeeStatus.inactive => pal.textMuted,
+    };
+    final completedCount = appointments.allAppointments.where((a) => a.employeeId == employee.id && a.status == AppointmentStatus.completed).length;
 
     return PageScaffold(
       title: 'پروفایل پرسنل',
@@ -101,13 +137,52 @@ class EmployeeProfilePage extends StatelessWidget {
                   ),
                 ),
                 StatusBadge(
-                  label: employee.isActive ? 'فعال' : 'غیرفعال',
-                  color: employee.isActive ? pal.success : pal.textMuted,
+                  label: employee.employmentStatus.label,
+                  color: statusColor,
                   dense: true,
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SectionHeader(title: 'اطلاعات تماس و همکاری'),
+              const SizedBox(height: 10),
+              _ProfileInfo(icon: Icons.badge_outlined, label: 'شناسه پرسنلی', value: employee.id),
+              _ProfileInfo(icon: Icons.phone_outlined, label: 'موبایل', value: Fmt.phone(employee.phone)),
+              if (employee.email.isNotEmpty) _ProfileInfo(icon: Icons.mail_outline, label: 'ایمیل', value: employee.email),
+              _ProfileInfo(icon: Icons.calendar_month_outlined, label: 'شروع همکاری', value: employee.startedAt == null ? 'ثبت نشده' : Fmt.jalaliDate(employee.startedAt!)),
+              _ProfileInfo(icon: Icons.work_outline, label: 'عنوان شغلی', value: employee.title.isEmpty ? 'ثبت نشده' : employee.title),
+              if (employee.emergencyContactName.isNotEmpty)
+                _ProfileInfo(icon: Icons.contact_emergency_outlined, label: 'تماس اضطراری', value: '${employee.emergencyContactName} • ${Fmt.phone(employee.emergencyContactPhone)}'),
+              const Divider(height: 22),
+              Text('تخصص‌ها و مهارت‌ها', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+              const SizedBox(height: 8),
+              if (employee.specialties.isEmpty)
+                Text('تخصصی ثبت نشده است.', style: TextStyle(fontSize: 10.5, color: pal.textMuted))
+              else
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  for (final skill in employee.specialties) StatusBadge(label: skill, color: pal.primaryBright),
+                ]),
+              if (employee.notes.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text('یادداشت مدیریتی', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+                const SizedBox(height: 5),
+                Text(employee.notes, style: TextStyle(fontSize: 11, height: 1.8, color: pal.textSecondary)),
+              ],
+            ]),
+          ),
+          const SizedBox(height: 12),
+          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SectionHeader(title: 'خلاصه عملکرد'),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: _ProfileStat(label: 'کل نوبت‌ها', value: employee.bookedCount.toString())),
+              Expanded(child: _ProfileStat(label: 'تکمیل‌شده', value: completedCount.toString())),
+              Expanded(child: _ProfileStat(label: 'امتیاز', value: employee.rating.toStringAsFixed(1))),
+            ]),
+          ])),
           const SizedBox(height: 12),
           AppCard(
             child: Column(
