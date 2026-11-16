@@ -374,7 +374,7 @@ class ChipSelector extends StatelessWidget {
   }
 }
 
-/// انتخاب ساعت با منوی کشویی (برای شیفت‌های کاری).
+/// انتخابگر ساعت با دو چرخ اسکرول نرم برای ساعت و دقیقه.
 class TimeDropdown extends StatelessWidget {
   const TimeDropdown({
     super.key,
@@ -397,31 +397,112 @@ class TimeDropdown extends StatelessWidget {
     final pal = context.pal;
     final options = times ?? defaultTimes();
     final normalized = options.contains(value) ? value : options.first;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(
-        color: pal.backgroundAlt,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: pal.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: normalized,
-          isExpanded: true,
-          dropdownColor: pal.surfaceAlt,
-          borderRadius: AppRadius.brMd,
-          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: pal.textMuted),
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: pal.textPrimary),
-          items: [
-            for (final t in options)
-              DropdownMenuItem(
-                value: t,
-                child: Text(FaNum.convert(t), style: TextStyle(fontSize: 13, color: pal.textPrimary)),
-              ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      onTap: () async {
+        final picked = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: pal.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (_) => _TimeWheelSheet(initial: normalized, options: options),
+        );
+        if (picked != null) onChanged(picked);
+      },
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: pal.backgroundAlt,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: pal.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(FaNum.convert(normalized), textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary))),
+            Icon(Icons.unfold_more_rounded, size: 18, color: pal.primaryBright),
           ],
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TimeWheelSheet extends StatefulWidget {
+  const _TimeWheelSheet({required this.initial, required this.options});
+
+  final String initial;
+  final List<String> options;
+
+  @override
+  State<_TimeWheelSheet> createState() => _TimeWheelSheetState();
+}
+
+class _TimeWheelSheetState extends State<_TimeWheelSheet> {
+  late final List<int> _hours = widget.options.map((v) => int.parse(v.split(':').first)).toSet().toList()..sort();
+  late final List<int> _minutes = widget.options.map((v) => int.parse(v.split(':').last)).toSet().toList()..sort();
+  late int _hour = int.parse(widget.initial.split(':').first);
+  late int _minute = int.parse(widget.initial.split(':').last);
+  late final FixedExtentScrollController _hourController = FixedExtentScrollController(initialItem: _hours.indexOf(_hour));
+  late final FixedExtentScrollController _minuteController = FixedExtentScrollController(initialItem: _minutes.indexOf(_minute));
+
+  @override
+  void dispose() {
+    _hourController.dispose();
+    _minuteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('انتخاب ساعت کاری', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+          const SizedBox(height: 16),
+          SizedBox(height: 176, child: Row(children: [
+            Expanded(child: _wheel(_hourController, _hours, (v) => setState(() => _hour = v))),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(':', style: TextStyle(fontSize: 24, color: pal.primaryBright, fontWeight: FontWeight.w800))),
+            Expanded(child: _wheel(_minuteController, _minutes, (v) => setState(() => _minute = v))),
+          ])),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: FilledButton(
+            onPressed: () {
+              final value = '${_hour.toString().padLeft(2, '0')}:${_minute.toString().padLeft(2, '0')}';
+              if (widget.options.contains(value)) Navigator.pop(context, value);
+              else {
+                final nearest = widget.options.reduce((a, b) {
+                  int distance(String x) => (int.parse(x.substring(0, 2)) * 60 + int.parse(x.substring(3))) - (_hour * 60 + _minute);
+                  return distance(a).abs() <= distance(b).abs() ? a : b;
+                });
+                Navigator.pop(context, nearest);
+              }
+            },
+            child: const Text('ثبت ساعت'),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  Widget _wheel(FixedExtentScrollController controller, List<int> values, ValueChanged<int> onSelected) {
+    final pal = context.pal;
+    return ListWheelScrollView.useDelegate(
+      controller: controller,
+      itemExtent: 44,
+      diameterRatio: 1.5,
+      physics: const FixedExtentScrollPhysics(),
+      overAndUnderCenterOpacity: 0.38,
+      onSelectedItemChanged: (index) => onSelected(values[index]),
+      childDelegate: ListWheelChildBuilderDelegate(
+        childCount: values.length,
+        builder: (context, index) => Center(
+          child: Text(values[index].toString().padLeft(2, '0'),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: pal.textPrimary)),
         ),
       ),
     );
