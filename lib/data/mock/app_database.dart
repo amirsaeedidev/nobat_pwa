@@ -374,7 +374,8 @@ class AppDatabase extends ChangeNotifier {
 
   bool canUndoLog(String id) {
     if (_undoneLogIds.contains(id)) return false;
-    final target = _logs.where((l) => l.id == id).firstOrNull;
+    ActivityLog? target;
+    for (final entry in _logs) { if (entry.id == id) { target = entry; break; } }
     if (target == null || target.undoAction == null || target.undoData == null) return false;
     final targetEntityId = target.undoData!['id'];
     return !_logs.any((other) {
