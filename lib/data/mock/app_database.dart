@@ -513,6 +513,15 @@ class AppDatabase extends ChangeNotifier {
     }
     final periodStart = DateTime(now.year, now.month, 1);
     final periodEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+    int periodCreditsAndDebits(String employeeId) => _employeeWalletTransactions.where((entry) =>
+      entry.employeeId == employeeId &&
+      entry.status == EmployeeWalletTransactionStatus.posted &&
+      entry.type != EmployeeWalletTransactionType.salaryPayment &&
+      !entry.createdAt.isBefore(periodStart) &&
+      !entry.createdAt.isAfter(periodEnd),
+    ).fold<int>(0, (sum, entry) => sum + entry.amount);
+    final fatemeDue = periodCreditsAndDebits('emp-fateme');
+    final zahraDue = periodCreditsAndDebits('emp-zahra');
     const paid = 4000000;
     const settlementId = 'settlement-seed-fateme';
     _employeeWalletSettlements.add(EmployeeWalletSettlement(
@@ -521,9 +530,9 @@ class AppDatabase extends ChangeNotifier {
       periodType: EmployeeWalletPeriodType.monthly,
       periodStart: periodStart,
       periodEnd: periodEnd,
-      dueAmount: 12000000,
+      dueAmount: fatemeDue,
       paidAmount: paid,
-      remainingAfter: 8000000,
+      remainingAfter: fatemeDue - paid,
       createdAt: now.subtract(const Duration(days: 2)),
       status: EmployeeWalletSettlementStatus.partial,
       receiptNumber: 'RC-MOCK-0001',
@@ -545,8 +554,8 @@ class AppDatabase extends ChangeNotifier {
       periodType: EmployeeWalletPeriodType.monthly,
       periodStart: periodStart,
       periodEnd: periodEnd,
-      dueAmount: 9200000,
-      paidAmount: 9200000,
+      dueAmount: zahraDue,
+      paidAmount: zahraDue,
       remainingAfter: 0,
       createdAt: now.subtract(const Duration(days: 1)),
       status: EmployeeWalletSettlementStatus.completed,
@@ -556,7 +565,7 @@ class AppDatabase extends ChangeNotifier {
       id: 'wallet-seed-payment-2',
       employeeId: 'emp-zahra',
       createdAt: now.subtract(const Duration(days: 1)),
-      amount: -9200000,
+      amount: -zahraDue,
       type: EmployeeWalletTransactionType.salaryPayment,
       description: 'تسویه کامل حقوق و پاداش — رسید RC-MOCK-0002',
       settlementId: fullSettlementId,
