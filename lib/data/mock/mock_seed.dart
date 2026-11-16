@@ -443,7 +443,7 @@ class MockSeed {
               .replaceAll('{کد پیگیری}', 'OT-${1450 + i}')
               .replaceAll('{تاریخ نوبت}', today.addDays(i % 5 - 2).long)
               .replaceAll('{ساعت نوبت}', '${(9 + i % 8).toString().padLeft(2, '0')}:۳۰')
-              .replaceAll('{نام مجموعه}', 'سالن زیبایی اُنتایم'),
+              .replaceAll('{نام مجموعه}', 'سالن زیبایی DateTime'),
           status: status,
           createdAt: createdAt,
           sentAt: status == SmsStatus.pending ? null : createdAt.add(const Duration(seconds: 8)),
