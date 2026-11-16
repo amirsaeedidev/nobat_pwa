@@ -175,7 +175,8 @@ class CalendarProvider extends DbBoundProvider {
   }
 
   /// خانه‌های زمانی یک روز بر اساس ساعات کاری و نوبت‌های ثبت‌شده.
-  List<TimeSlot> slotsFor(JalaliDate date, {int intervalMinutes = 30, String? employee}) {
+  List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
+    final stepMinutes = intervalMinutes ?? db.settings.bookingRules.slotIntervalMinutes;
     final dayAppointments = appointmentsOn(date)
         .where((a) => employee == null || a.employeeId == employee)
         .toList();
@@ -183,7 +184,7 @@ class CalendarProvider extends DbBoundProvider {
     final shifts = exception != null ? (exception.isClosed ? const <Shift>[] : exception.shifts) : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
     final slots = <TimeSlot>[];
     for (final shift in shifts) {
-      for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += intervalMinutes) {
+      for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
       final hour = minutes ~/ 60;
       final minute = minutes % 60;
       final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));

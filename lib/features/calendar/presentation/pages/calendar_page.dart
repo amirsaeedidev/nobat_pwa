@@ -265,7 +265,7 @@ class _AgendaView extends StatelessWidget {
                 const SizedBox(height: 10),
                 if (provider.appointmentsOn(provider.selected).isEmpty)
                   Text(
-                    'برای این روز نوبتی ثبت نشده است.',
+                    'نوبتی نیست',
                     style: TextStyle(fontSize: 11.5, color: pal.textMuted),
                   )
                 else
