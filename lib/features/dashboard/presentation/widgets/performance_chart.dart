@@ -16,7 +16,11 @@ class PerformanceChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return SizedBox(
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (context, progress, _) => SizedBox(
       height: height,
       width: double.infinity,
       child: CustomPaint(
@@ -28,9 +32,10 @@ class PerformanceChart extends StatelessWidget {
           labelColor: pal.textSecondary,
           gridColor: pal.textPrimary.withValues(alpha: 0.05),
           dotFill: pal.isDark ? Colors.white : pal.surface,
+          revealProgress: progress,
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -43,6 +48,7 @@ class _PerformancePainter extends CustomPainter {
     required this.labelColor,
     required this.gridColor,
     required this.dotFill,
+    required this.revealProgress,
   });
 
   final List<WeekdayPerformance> data;
@@ -52,6 +58,7 @@ class _PerformancePainter extends CustomPainter {
   final Color labelColor;
   final Color gridColor;
   final Color dotFill;
+  final double revealProgress;
 
   static const double _topPad = 30;
   static const double _bottomPad = 24;
@@ -64,7 +71,10 @@ class _PerformancePainter extends CustomPainter {
     final chartHeight = chartBottom - chartTop;
     final columnWidth = (size.width - 8) / data.length;
     const leftInset = 4.0;
-    final barWidth = math.min(26.0, columnWidth * 0.44);
+    final barWidth = math.min(34.0, columnWidth * 0.58);
+
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width * revealProgress.clamp(0.0, 1.0), size.height));
 
     // خطوط راهنمای افقی
     final gridPaint = Paint()
@@ -169,6 +179,9 @@ class _PerformancePainter extends CustomPainter {
     }
   }
 
+    canvas.restore();
+  }
+
   String _shortLabel(String label) {
     const map = {
       'شنبه': 'شنبه',
@@ -207,5 +220,5 @@ class _PerformancePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PerformancePainter oldDelegate) => oldDelegate.data != data;
+  bool shouldRepaint(covariant _PerformancePainter oldDelegate) => oldDelegate.data != data || oldDelegate.revealProgress != revealProgress;
 }
