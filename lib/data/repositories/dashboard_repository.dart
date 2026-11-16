@@ -139,22 +139,6 @@ class MockDashboardRepository implements DashboardRepository {
       );
     }
 
-    // ماه‌های گذشته در داده نمونه نوبتی ندارند؛ برای نمایش واقع‌گرایانه نمودار،
-    // تاریخچه با ضریب ثابت نسبت به درآمد ماه جاری بازسازی می‌شود.
-    final currentRevenue = result.isEmpty ? 0 : result.last.value;
-    if (currentRevenue > 0) {
-      const factors = [0.58, 0.72, 0.65, 0.84, 0.76, 0.91, 0.69, 0.88, 0.63, 0.94, 0.8];
-      for (var i = 0; i < result.length - 1; i++) {
-        if (result[i].value < currentRevenue * 0.4) {
-          final point = result[i];
-          result[i] = RevenuePoint(
-            label: point.label,
-            value: (currentRevenue * factors[i % factors.length]).round(),
-            secondary: point.secondary == 0 ? (18 + i * 3) : point.secondary,
-          );
-        }
-      }
-    }
     return result;
   }
 
