@@ -212,6 +212,7 @@ class BusinessSettings {
     this.notifications = const NotificationSettings(),
     this.bookingRules = const BookingRules(),
     this.workSchedules = const {},
+    this.scheduleExceptions = const [],
   });
 
   final String name;
@@ -243,6 +244,9 @@ class BusinessSettings {
   /// شیفت‌های کاری قابل مدیریت (برای صفحه تنظیمات پیشرفته).
   final Map<int, List<Shift>> workSchedules;
 
+  /// محدودیت‌های تاریخ‌دار؛ کلید تاریخ به قالب yyyy-MM-dd میلادی است.
+  final List<ScheduleException> scheduleExceptions;
+
   final SmsProviderSettings smsProvider;
   final NotificationSettings notifications;
   final BookingRules bookingRules;
@@ -273,6 +277,7 @@ class BusinessSettings {
     Map<int, List<Shift>>? workingHours,
     List<int>? holidays,
     Map<int, List<Shift>>? workSchedules,
+    List<ScheduleException>? scheduleExceptions,
     SmsProviderSettings? smsProvider,
     NotificationSettings? notifications,
     BookingRules? bookingRules,
@@ -300,9 +305,22 @@ class BusinessSettings {
       workingHours: workingHours ?? this.workingHours,
       holidays: holidays ?? this.holidays,
       workSchedules: workSchedules ?? this.workSchedules,
+      scheduleExceptions: scheduleExceptions ?? this.scheduleExceptions,
       smsProvider: smsProvider ?? this.smsProvider,
       notifications: notifications ?? this.notifications,
       bookingRules: bookingRules ?? this.bookingRules,
     );
   }
+}
+
+/// استثنای ساعت کاری برای یک تاریخ مشخص (تعطیلی یا ساعات ویژه).
+class ScheduleException {
+  const ScheduleException({required this.dateKey, this.title = '', this.isClosed = true, this.shifts = const []});
+  final String dateKey;
+  final String title;
+  final bool isClosed;
+  final List<Shift> shifts;
+  ScheduleException copyWith({String? dateKey, String? title, bool? isClosed, List<Shift>? shifts}) => ScheduleException(
+    dateKey: dateKey ?? this.dateKey, title: title ?? this.title, isClosed: isClosed ?? this.isClosed, shifts: shifts ?? this.shifts,
+  );
 }

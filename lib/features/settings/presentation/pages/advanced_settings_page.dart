@@ -24,6 +24,7 @@ class AdvancedSettingsPage extends StatefulWidget {
 class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   final Map<int, List<Shift>> _schedules = {};
   List<int> _holidays = [];
+  List<ScheduleException> _exceptions = [];
   bool _scheduleExpanded = true;
   bool _holidaysExpanded = true;
   bool _saving = false;
@@ -40,6 +41,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
       _schedules[day] = settings.workingHours[day] ?? const [];
     }
     _holidays = [...settings.holidays];
+    _exceptions = [...settings.scheduleExceptions];
   }
 
   Future<void> _save() async {
@@ -48,6 +50,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
           Map<int, List<Shift>>.from(_schedules.map((k, v) => MapEntry(k, [...v]))),
           holidays: _holidays,
         );
+    await context.read<SettingsProvider>().updateScheduleExceptions(_exceptions);
     if (!mounted) return;
     setState(() => _saving = false);
     AppToast.show(context, 'تغییرات با موفقیت ذخیره شد');
@@ -177,6 +180,22 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          _ExpandablePanel(
+            title: 'تعطیلات و ساعات ویژه', subtitle: 'بستن روز یا تعریف ساعت کاری متفاوت برای یک تاریخ',
+            icon: Icons.event_available_rounded, accent: pal.warning,
+            gradient: [pal.warning.withValues(alpha: 0.16), pal.backgroundAlt], expanded: true, onToggle: () {},
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              OutlinedButton.icon(onPressed: _addScheduleException, icon: const Icon(Icons.add_rounded), label: const Text('افزودن محدودیت تاریخ‌دار')),
+              if (_exceptions.isEmpty) Text('محدودیت تاریخ‌داری ثبت نشده است.', style: TextStyle(fontSize: 10, color: pal.textMuted))
+              else for (final item in _exceptions) ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                leading: Icon(item.isClosed ? Icons.event_busy_rounded : Icons.schedule_rounded, color: item.isClosed ? pal.danger : pal.warning),
+                title: Text(item.title.isEmpty ? item.dateKey : item.title, style: TextStyle(fontSize: 11, color: pal.textPrimary)),
+                subtitle: Text(item.isClosed ? 'تعطیل کامل' : item.shifts.map((s) => s.label).join(' • '), style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
+                trailing: IconButton(tooltip: 'حذف محدودیت', icon: Icon(Icons.delete_outline_rounded, color: pal.danger, size: 19), onPressed: () => setState(() => _exceptions.remove(item))),
+              ),
+            ]),
+          ),
           const SizedBox(height: 14),
           GradientCta(
             title: 'تأیید و ثبت تغییرات',
@@ -193,6 +212,18 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _addScheduleException() async {
+    final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2024), lastDate: DateTime(2035), helpText: 'انتخاب تاریخ محدودیت');
+    if (picked == null || !mounted) return;
+    final dateKey = '\${picked.year.toString().padLeft(4, '0')}-\${picked.month.toString().padLeft(2, '0')}-\${picked.day.toString().padLeft(2, '0')}';
+    final closed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('نوع محدودیت'), content: const Text('برای این تاریخ چه برنامه‌ای ثبت شود؟'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('ساعات ویژه')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تعطیلی کامل'))],
+    ));
+    if (closed == null || !mounted) return;
+    setState(() { _exceptions.removeWhere((e) => e.dateKey == dateKey); _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی \${dateKey}' : 'ساعات ویژه \${dateKey}', isClosed: closed, shifts: closed ? const [] : const [Shift(start: '10:00', end: '14:00'), Shift(start: '16:00', end: '20:00')])); });
   }
 
   Widget _buildDayShifts(BuildContext context, int day) {

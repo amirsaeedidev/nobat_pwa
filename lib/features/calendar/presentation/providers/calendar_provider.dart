@@ -178,28 +178,35 @@ class CalendarProvider extends DbBoundProvider {
     final dayAppointments = appointmentsOn(date)
         .where((a) => employee == null || a.employeeId == employee)
         .toList();
+    final exception = exceptionFor(date);
+    final shifts = exception != null ? (exception.isClosed ? const <Shift>[] : exception.shifts) : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
     final slots = <TimeSlot>[];
-    for (var minutes = 9 * 60; minutes <= 19 * 60; minutes += intervalMinutes) {
+    for (final shift in shifts) {
+      for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += intervalMinutes) {
       final hour = minutes ~/ 60;
       final minute = minutes % 60;
       final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
       final busy = dayAppointments.where((a) {
         return !start.isBefore(a.startAt) && start.isBefore(a.endAt);
       }).toList();
-      slots.add(
-        TimeSlot(
-          hour: hour,
-          minute: minute,
-          appointment: busy.isEmpty ? null : busy.first,
-          isPast: date.sameDay(today) && DateTime.now().isAfter(start),
-        ),
-      );
+        slots.add(TimeSlot(hour: hour, minute: minute, appointment: busy.isEmpty ? null : busy.first, isPast: date.sameDay(today) && DateTime.now().isAfter(start)));
+      }
     }
     return slots;
   }
 
   /// آیا روز تعطیل است؟
-  bool isHoliday(JalaliDate date) => date.weekday == 6 || db.settings.holidays.contains(date.weekday);
+  ScheduleException? exceptionFor(JalaliDate date) {
+    final key = date.toDateTime().toIso8601String().substring(0, 10);
+    for (final exception in db.settings.scheduleExceptions) { if (exception.dateKey == key) return exception; }
+    return null;
+  }
+
+  bool isHoliday(JalaliDate date) {
+    final exception = exceptionFor(date);
+    if (exception != null) return exception.isClosed;
+    return date.weekday == 6 || db.settings.holidays.contains(date.weekday);
+  }
 
   int get monthlyAppointmentsCount => _rangeAppointments
       .where((a) => a.jalali.month == _anchor.month && a.jalali.year == _anchor.year)

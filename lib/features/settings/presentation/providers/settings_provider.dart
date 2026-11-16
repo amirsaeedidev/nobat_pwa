@@ -36,6 +36,7 @@ class SettingsProvider extends DbBoundProvider {
   BookingRules get rules => _settings?.bookingRules ?? const BookingRules();
   Map<int, List<Shift>> get workingHours => _settings?.workingHours ?? const {};
   List<int> get holidays => _settings?.holidays ?? const [];
+  List<ScheduleException> get scheduleExceptions => _settings?.scheduleExceptions ?? const [];
   SmsProviderSettings get smsProvider => _settings?.smsProvider ?? const SmsProviderSettings();
   NotificationSettings get notifications => _settings?.notifications ?? const NotificationSettings();
 
@@ -121,6 +122,14 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر ساعت کاری',
       logDescription: 'شیفت‌های کاری و روزهای تعطیل به‌روزرسانی شد.',
     );
+    _settings = db.settings;
+    notifyListeners();
+  }
+
+  Future<void> updateScheduleExceptions(List<ScheduleException> exceptions) async {
+    final current = _settings;
+    if (current == null) return;
+    await _repository.saveSettings(current.copyWith(scheduleExceptions: List.unmodifiable(exceptions)), logTitle: 'تغییر محدودیت‌های تقویم', logDescription: 'تعطیلات و ساعات ویژه تاریخ‌دار به‌روزرسانی شد.');
     _settings = db.settings;
     notifyListeners();
   }
