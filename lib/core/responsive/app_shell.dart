@@ -256,7 +256,7 @@ class AppSidebar extends StatelessWidget {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'ONT',
+                                text: 'Date',
                                 style: TextStyle(
                                   fontFamily: 'Vazirmatn',
                                   fontSize: 17,
@@ -265,7 +265,7 @@ class AppSidebar extends StatelessWidget {
                                 ),
                               ),
                               TextSpan(
-                                text: 'IME',
+                                text: 'Time',
                                 style: TextStyle(
                                   fontFamily: 'Vazirmatn',
                                   fontSize: 17,
@@ -459,7 +459,7 @@ class _BookingLinkCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'ontime.app/book',
+              'datetime.app/book',
               textDirection: TextDirection.ltr,
               style: TextStyle(fontSize: 10, color: pal.textMuted),
             ),
