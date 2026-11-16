@@ -124,8 +124,9 @@ GoRouter buildRouter() {
               GoRoute(path: 'templates', builder: (context, state) => const SmsTemplatesPage()),
             ],
           ),
-          GoRoute(path: '/reports', pageBuilder: (context, state) => const NoTransitionPage(child: ReportsPage())),
-      GoRoute(path: '/reports/personnel', builder: (context, state) => const EmployeeAnalyticsPage()),
+          GoRoute(path: '/reports', pageBuilder: (context, state) => const NoTransitionPage(child: ReportsPage()), routes: [
+            GoRoute(path: 'personnel', builder: (context, state) => const EmployeeAnalyticsPage()),
+          ]),
           GoRoute(path: '/activity', pageBuilder: (context, state) => const NoTransitionPage(child: ActivityLogsPage())),
           GoRoute(
             path: '/settings',
