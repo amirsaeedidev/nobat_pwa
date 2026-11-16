@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ontime/core/utils/jalali.dart';
-import 'package:ontime/data/mock/app_database.dart';
-import 'package:ontime/data/models/appointment.dart';
-import 'package:ontime/data/models/enums.dart';
-import 'package:ontime/data/repositories/appointment_repository.dart';
-import 'package:ontime/features/appointments/presentation/providers/appointments_provider.dart';
+import 'package:datetime/core/utils/jalali.dart';
+import 'package:datetime/data/mock/app_database.dart';
+import 'package:datetime/data/models/appointment.dart';
+import 'package:datetime/data/models/enums.dart';
+import 'package:datetime/data/repositories/appointment_repository.dart';
+import 'package:datetime/features/appointments/presentation/providers/appointments_provider.dart';
 
 void main() {
   late AppDatabase db;
