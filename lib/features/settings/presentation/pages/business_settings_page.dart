@@ -261,7 +261,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                     controller: _slug,
                     label: 'شناسه صفحه رزرو (slug)',
                     icon: Icons.link_rounded,
-                    helper: 'مثال: ontime.app/book/ontime-salon',
+                    helper: 'مثال: datetime.app/book/datetime-salon',
                   ),
                 ],
               ),
