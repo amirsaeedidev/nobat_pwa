@@ -363,7 +363,7 @@ class AppDatabase extends ChangeNotifier {
     final creditOnly = type == EmployeeWalletTransactionType.fixedSalary || type == EmployeeWalletTransactionType.bonus || type == EmployeeWalletTransactionType.commission;
     final debitOnly = type == EmployeeWalletTransactionType.advance || type == EmployeeWalletTransactionType.penalty || type == EmployeeWalletTransactionType.deduction || type == EmployeeWalletTransactionType.refund || type == EmployeeWalletTransactionType.salaryPayment;
     if ((creditOnly && amount < 0) || (debitOnly && amount > 0)) throw ArgumentError('جهت مبلغ با نوع تراکنش هم‌خوانی ندارد.');
-    if (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
+    if (idempotencyKey != null && (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey))) {
       throw StateError('این عملیات مالی قبلاً ثبت شده است.');
     }
     final entry = EmployeeWalletTransaction(
