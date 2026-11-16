@@ -98,8 +98,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textSecondary: Color(0xFF765C50),
     textMuted: Color(0xFFA58D80),
     heroGradient: [Color(0xFF642CA9), Color(0xFFFF36AB), Color(0xFFFF74D4)],
-    successSoft: Color(0xFFF2E8E0),
-    dangerSoft: Color(0xFFFFE9EF),
+    successSoft: Color(0xFFFFB8DE),
+    dangerSoft: Color(0xFFFFDDE1),
     purpleSoft: Color(0xFFF4E8F8),
   );
 
