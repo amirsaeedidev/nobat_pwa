@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// وضعیت نوبت با برچسب و رنگ فارسی.
 enum AppointmentStatus {
   pending('در انتظار', Color(0xFF3B82F6)),
-  confirmed('تأیید شده', Color(0xFF10B981)),
+  confirmed('تأیید شده', Color(0xFF8C624B)),
   completed('تکمیل شده', Color(0xFF22D3EE)),
   cancelled('لغو شده', Color(0xFFEF4444)),
   noShow('عدم حضور', Color(0xFFF59E0B));
@@ -33,7 +33,7 @@ enum AppointmentStatus {
 enum SmsStatus {
   pending('در صف ارسال', Color(0xFFF59E0B)),
   sent('ارسال شده', Color(0xFF3B82F6)),
-  delivered('تحویل شده', Color(0xFF10B981)),
+  delivered('تحویل شده', Color(0xFF8C624B)),
   failed('ناموفق', Color(0xFFEF4444));
 
   const SmsStatus(this.label, this.color);
@@ -52,11 +52,11 @@ enum ActivityType {
   appointmentCreated('ثبت نوبت', Icons.event_available_rounded, Color(0xFF3B82F6)),
   appointmentUpdated('ویرایش نوبت', Icons.edit_calendar_rounded, Color(0xFF8B5CF6)),
   appointmentCancelled('لغو نوبت', Icons.event_busy_rounded, Color(0xFFEF4444)),
-  appointmentCompleted('تکمیل نوبت', Icons.task_alt_rounded, Color(0xFF10B981)),
+  appointmentCompleted('تکمیل نوبت', Icons.task_alt_rounded, Color(0xFF8C624B)),
   customerRegistered('ثبت مشتری', Icons.person_add_alt_rounded, Color(0xFF22D3EE)),
   serviceModified('تغییر خدمت', Icons.content_cut_rounded, Color(0xFFF59E0B)),
   employeeAdded('افزودن پرسنل', Icons.badge_rounded, Color(0xFF3B82F6)),
-  smsSent('ارسال پیامک', Icons.sms_rounded, Color(0xFF10B981)),
+  smsSent('ارسال پیامک', Icons.sms_rounded, Color(0xFF8C624B)),
   smsFailed('پیامک ناموفق', Icons.sms_failed_rounded, Color(0xFFEF4444)),
   settingsChanged('تغییر تنظیمات', Icons.settings_rounded, Color(0xFF94A3B8));
 
