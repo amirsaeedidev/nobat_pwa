@@ -8,13 +8,13 @@ import 'theme/app_theme.dart';
 
 /// ریشه برنامه با پشتیبانی کامل RTL و تم پویا.
 class DateTimeApp extends StatefulWidget {
-  const OnTimeApp({super.key});
+  const DateTimeApp({super.key});
 
   @override
-  State<OnTimeApp> createState() => _OnTimeAppState();
+  State<DateTimeApp> createState() => _DateTimeAppState();
 }
 
-class _OnTimeAppState extends State<OnTimeApp> {
+class _DateTimeAppState extends State<DateTimeApp> {
   late final _router = buildRouter();
 
   @override
