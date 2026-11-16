@@ -17,6 +17,6 @@ Future<bool> downloadCsv(String filename, String csv) async {
 Future<bool> printReport(String reportHtml) async {
   final blob = html.Blob([reportHtml], 'text/html;charset=utf-8');
   final url = html.Url.createObjectUrlFromBlob(blob);
-  final opened = html.window.open(url, '_blank');
-  return opened != null;
+  html.window.open(url, '_blank');
+  return true;
 }
