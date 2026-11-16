@@ -218,13 +218,13 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   Future<void> _addScheduleException() async {
     final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2024), lastDate: DateTime(2035), helpText: 'انتخاب تاریخ محدودیت');
     if (picked == null || !mounted) return;
-    final dateKey = '\${picked.year.toString().padLeft(4, '0')}-\${picked.month.toString().padLeft(2, '0')}-\${picked.day.toString().padLeft(2, '0')}';
+    final dateKey = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
     final closed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
       title: const Text('نوع محدودیت'), content: const Text('برای این تاریخ چه برنامه‌ای ثبت شود؟'),
       actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('ساعات ویژه')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تعطیلی کامل'))],
     ));
     if (closed == null || !mounted) return;
-    setState(() { _exceptions.removeWhere((e) => e.dateKey == dateKey); _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی \${dateKey}' : 'ساعات ویژه \${dateKey}', isClosed: closed, shifts: closed ? const [] : const [Shift(start: '10:00', end: '14:00'), Shift(start: '16:00', end: '20:00')])); });
+    setState(() { _exceptions.removeWhere((e) => e.dateKey == dateKey); _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی ${dateKey}' : 'ساعات ویژه ${dateKey}', isClosed: closed, shifts: closed ? const [] : const [Shift(start: '10:00', end: '14:00'), Shift(start: '16:00', end: '20:00')])); });
   }
 
   Widget _buildDayShifts(BuildContext context, int day) {
