@@ -19,7 +19,7 @@ import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_sections.dart';
 import '../widgets/performance_chart.dart';
 
-/// پیشخوان مدیریت — بازسازی صفحه مرجع ONTIME.
+/// پیشخوان مدیریت — بازسازی صفحه مرجع DateTime.
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
@@ -74,7 +74,7 @@ class DashboardPage extends StatelessWidget {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    'صفحه رزرو عمومی: ontime.app/book/ontime-salon',
+                    'صفحه رزرو عمومی: datetime.app/book/datetime-salon',
                     textDirection: TextDirection.ltr,
                     style: TextStyle(fontSize: 10, color: pal.textMuted),
                   ),
