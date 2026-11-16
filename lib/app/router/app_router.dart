@@ -125,6 +125,7 @@ GoRouter buildRouter() {
             ],
           ),
           GoRoute(path: '/reports', pageBuilder: (context, state) => const NoTransitionPage(child: ReportsPage())),
+      GoRoute(path: '/reports/personnel', builder: (context, state) => const EmployeeAnalyticsPage()),
           GoRoute(path: '/activity', pageBuilder: (context, state) => const NoTransitionPage(child: ActivityLogsPage())),
           GoRoute(
             path: '/settings',
