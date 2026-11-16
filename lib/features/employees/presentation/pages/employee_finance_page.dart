@@ -46,8 +46,8 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
     final earned = filtered.fold<int>(0, (sum, e) => sum + e.commissionAmount);
     final company = filtered.fold<int>(0, (sum, e) => sum + e.companyShare);
     final gross = value(price);
-    final off = value(discount).clamp(0, gross);
-    final rateBps = ((double.tryParse(FaNum.toLatin(rate.text).replaceAll(',', '.')) ?? 0) * 100).round().clamp(0, 10000);
+    final off = value(discount).clamp(0, gross).toInt();
+    final rateBps = ((double.tryParse(FaNum.toLatin(rate.text).replaceAll(',', '.')) ?? 0) * 100).round().clamp(0, 10000).toInt();
     final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: off, receivedAmount: gross - off);
     final share = method == EmployeePaymentMethod.fixedMonthly ? 0 : CommissionCalculator.commission(baseAmount: base, rateBps: rateBps);
     final pal = context.pal;
