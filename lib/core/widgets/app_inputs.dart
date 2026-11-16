@@ -389,7 +389,7 @@ class TimeDropdown extends StatelessWidget {
 
   static List<String> defaultTimes({int fromHour = 7, int toHour = 23}) => [
         for (var h = fromHour; h <= toHour; h++)
-          for (final m in [0, 30]) '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}',
+          for (var m = 0; m < 60; m++) '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}',
       ];
 
   @override
