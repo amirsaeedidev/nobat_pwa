@@ -52,7 +52,7 @@ Future<void> main() async {
 
   FlutterError.onError = (details) {
     FlutterError.dumpErrorToConsole(details);
-    debugPrint('[ONTIME][FlutterError] ${details.exceptionAsString()}');
+    debugPrint('[DateTime][FlutterError] ${details.exceptionAsString()}');
     if (details.stack != null) {
       debugPrintStack(stackTrace: details.stack);
     }
@@ -117,7 +117,7 @@ Future<void> main() async {
           ),
         ),
       ],
-      child: const OnTimeApp(),
+      child: const DateTimeApp(),
     ),
   );
 }
