@@ -72,6 +72,10 @@ class EmployeeProfilePage extends StatelessWidget {
         .where((a) => a.employeeId == employee.id && a.startAt.isAfter(today) && a.status.isActive)
         .toList()
       ..sort((a, b) => a.startAt.compareTo(b.startAt));
+    final history = appointments.allAppointments
+        .where((a) => a.employeeId == employee.id && a.startAt.isBefore(today))
+        .toList()
+      ..sort((a, b) => b.startAt.compareTo(a.startAt));
     final color = Color(employee.colorValue);
     final statusColor = switch (employee.employmentStatus) {
       EmployeeStatus.active => pal.success,
@@ -269,6 +273,25 @@ class EmployeeProfilePage extends StatelessWidget {
                   label: const Text('حقوق و پورسانت'),
                 ),
               ]),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SectionHeader(title: 'آخرین سوابق نوبت', subtitle: '${FaNum.ofInt(history.length)} سابقه'),
+              const SizedBox(height: 10),
+              if (history.isEmpty)
+                const EmptyState(compact: true, title: 'سابقه‌ای ثبت نشده', description: '')
+              else
+                for (final appointment in history.take(6))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: CompactAppointmentRow(
+                      appointment: appointment,
+                      showDate: true,
+                      onTap: () => context.push('/appointments/${appointment.id}'),
+                    ),
+                  ),
             ]),
           ),
           const SizedBox(height: 12),
