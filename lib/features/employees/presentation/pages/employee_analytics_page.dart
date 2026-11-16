@@ -280,6 +280,8 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           ]),
           if (comparisonReports.isNotEmpty) ...[
             const Divider(height: 20),
+            _ChartCard(title: 'مقایسه درآمد پرسنل', points: [for (final item in comparisonReports) AnalyticsPoint(item.employee.fullName, item.report.netRevenue)], color: pal.primaryBright, money: true),
+            const SizedBox(height: 8),
             for (var i = 0; i < comparisonReports.length; i++)
               _CompareRow(rank: i + 1, employee: comparisonReports[i].employee, report: comparisonReports[i].report),
           ] else
