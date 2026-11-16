@@ -14,8 +14,8 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
-import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/employees_provider.dart';
+import '../widgets/employee_services_panel.dart';
 
 /// پروفایل پرسنل با برنامه کاری و نوبت‌های آینده.
 class _ProfileInfo extends StatelessWidget {
@@ -54,7 +54,6 @@ class EmployeeProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
-    final services = context.watch<ServicesProvider>();
     final appointments = context.watch<AppointmentsProvider>();
     final pal = context.pal;
     final employee = provider.byIdSync(employeeId);
@@ -232,16 +231,9 @@ class EmployeeProfilePage extends StatelessWidget {
                     ),
                   ),
                 const Divider(height: 20),
-                const SectionHeader(title: 'خدمات'),
+                const SectionHeader(title: 'خدمات و تخصص‌ها'),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final service in services.items.where((s) => employee.serviceIds.contains(s.id)))
-                      StatusBadge(label: service.title, color: pal.success, dense: true),
-                  ],
-                ),
+                EmployeeServicesPanel(employee: employee),
               ],
             ),
           ),

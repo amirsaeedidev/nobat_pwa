@@ -10,6 +10,7 @@ import '../models/customer.dart';
 import '../models/employee.dart';
 import '../models/enums.dart';
 import '../models/employee_finance.dart';
+import '../models/employee_service_config.dart';
 import '../models/service.dart';
 import '../models/sms_message.dart';
 import 'mock_seed.dart';
@@ -30,6 +31,7 @@ class AppDatabase extends ChangeNotifier {
   final List<SmsTemplate> _templates = [];
   final Map<String, EmployeePayProfile> _employeePayProfiles = {};
   final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
+  final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
   BusinessSettings _settings = const BusinessSettings();
 
   int _idCounter = 5000;
@@ -54,6 +56,9 @@ class AppDatabase extends ChangeNotifier {
     _employees.addAll(MockSeed.employees());
     for (final employee in _employees) {
       _syncEmployeeServiceLinks(employee);
+      for (final serviceId in employee.serviceIds) {
+        _employeeServiceConfigs[_serviceConfigKey(employee.id, serviceId)] = EmployeeServiceConfig(employeeId: employee.id, serviceId: serviceId);
+      }
     }
     _appointments.addAll(MockSeed.appointments());
     for (var index = 0; index < _employees.length; index++) { final employee = _employees[index]; _employeePayProfiles[employee.id] = EmployeePayProfile(employeeId: employee.id, method: index == 0 ? EmployeePaymentMethod.fixedPlusCommission : EmployeePaymentMethod.commissionOnly, monthlySalary: index == 0 ? 12000000 : 0, generalRateBps: 3000, basis: CommissionBasis.afterDiscount); }
@@ -217,16 +222,45 @@ class AppDatabase extends ChangeNotifier {
     final receivedTotal = finalPaidAmount ?? (grossTotal - discountAmount);
     if (grossTotal < 0 || discountAmount < 0 || discountAmount > grossTotal || receivedTotal < 0 || receivedTotal > grossTotal) throw ArgumentError('مبلغ خدمت، تخفیف یا دریافتی معتبر نیست.');
     final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
+    final snapshots = appointment.serviceSnapshots;
+    final grossParts = <int>[];
+    for (var index = 0; index < ids.length; index++) {
+      Map<String, dynamic>? item;
+      for (final snapshot in snapshots) {
+        if (snapshot['service_id'] == ids[index]) { item = snapshot; break; }
+      }
+      final savedPrice = (item?['price'] as num?)?.toInt();
+      grossParts.add(savedPrice ?? (grossTotal ~/ ids.length + (index == 0 ? grossTotal % ids.length : 0)));
+    }
+    final snapshotGrossTotal = grossParts.fold<int>(0, (sum, amount) => sum + amount);
+    var allocatedDiscount = 0;
+    var allocatedReceived = 0;
     for (var index = 0; index < ids.length; index++) {
       final serviceId = ids[index];
-      final gross = grossTotal ~/ ids.length + (index == 0 ? grossTotal % ids.length : 0);
-      final discount = discountAmount ~/ ids.length + (index == 0 ? discountAmount % ids.length : 0);
-      final received = receivedTotal ~/ ids.length + (index == 0 ? receivedTotal % ids.length : 0);
+      final gross = grossParts[index];
+      final isLast = index == ids.length - 1;
+      final discount = isLast
+          ? discountAmount - allocatedDiscount
+          : (snapshotGrossTotal == 0 ? discountAmount ~/ ids.length : (discountAmount * gross) ~/ snapshotGrossTotal);
+      final received = isLast
+          ? receivedTotal - allocatedReceived
+          : (snapshotGrossTotal == 0 ? receivedTotal ~/ ids.length : (receivedTotal * gross) ~/ snapshotGrossTotal);
+      allocatedDiscount += discount;
+      allocatedReceived += received;
       final service = serviceById(serviceId);
       final rule = profile.ruleFor(serviceId: serviceId, category: service?.category ?? '', date: appointment.startAt);
-      final rate = rule?.rateBps ?? profile.generalRateBps;
-      final fixed = rule?.fixedAmount ?? 0;
-      final base = CommissionCalculator.base(basis: profile.basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
+      Map<String, dynamic>? snapshot;
+      for (final item in appointment.serviceSnapshots) {
+        if (item['service_id'] == serviceId) { snapshot = item; break; }
+      }
+      final rate = (snapshot?['commission_rate_bps'] as num?)?.toInt() ?? rule?.rateBps ?? profile.generalRateBps;
+      final fixed = (snapshot?['fixed_commission_amount'] as num?)?.toInt() ?? rule?.fixedAmount ?? 0;
+      final basisKey = snapshot?['commission_basis'] as String?;
+      var basis = profile.basis;
+      for (final item in CommissionBasis.values) {
+        if (item.name == basisKey) { basis = item; break; }
+      }
+      final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
       final commission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
       _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission));
     }
@@ -354,10 +388,22 @@ class AppDatabase extends ChangeNotifier {
 
   void deleteService(String id) {
     final service = serviceById(id);
-    _services.removeWhere((s) => s.id == id);
-    if (service != null) {
-      log(ActivityType.serviceModified, 'حذف خدمت', 'خدمت «${service.title}» حذف شد.', entity: 'خدمت');
+    if (service == null) return;
+    final hasHistory = _appointments.any((appointment) => appointment.serviceIds.contains(id));
+    if (hasHistory) {
+      updateService(service.copyWith(isActive: false, employeeIds: const []));
+      log(ActivityType.serviceModified, 'بایگانی خدمت', 'خدمت «${service.title}» به دلیل وجود سابقه نوبت غیرفعال شد؛ سوابق حفظ شدند.', entity: 'خدمت');
+      return;
     }
+    _services.removeWhere((item) => item.id == id);
+    _employeeServiceConfigs.removeWhere((key, value) => value.serviceId == id);
+    for (var index = 0; index < _employees.length; index++) {
+      final employee = _employees[index];
+      if (employee.serviceIds.contains(id)) {
+        _employees[index] = employee.copyWith(serviceIds: employee.serviceIds.where((serviceId) => serviceId != id).toList());
+      }
+    }
+    log(ActivityType.serviceModified, 'حذف خدمت', 'خدمت «${service.title}» حذف شد.', entity: 'خدمت');
     _commit();
   }
 
@@ -413,6 +459,67 @@ class AppDatabase extends ChangeNotifier {
       }
     }
     log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل');
+    _commit();
+  }
+
+  String _serviceConfigKey(String employeeId, String serviceId) => '$employeeId::$serviceId';
+
+  List<EmployeeServiceConfig> employeeServiceConfigsFor(String employeeId) =>
+      _employeeServiceConfigs.values.where((item) => item.employeeId == employeeId).toList();
+
+  EmployeeServiceConfig? employeeServiceConfig(String employeeId, String serviceId) =>
+      _employeeServiceConfigs[_serviceConfigKey(employeeId, serviceId)];
+
+  bool employeeOffersService(String employeeId, String serviceId) {
+    final employee = employeeById(employeeId);
+    final service = serviceById(serviceId);
+    if (employee == null || service == null || !employee.isAvailableForBooking || !service.isActive) return false;
+    final config = employeeServiceConfig(employeeId, serviceId);
+    return config == null ? employee.serviceIds.contains(serviceId) && service.employeeIds.contains(employeeId) : config.active;
+  }
+
+  List<Employee> eligibleEmployeesForService(String serviceId) =>
+      _employees.where((employee) => employeeOffersService(employee.id, serviceId)).toList();
+
+  int effectiveServicePrice(String employeeId, String serviceId) {
+    final service = serviceById(serviceId);
+    if (service == null) return 0;
+    return employeeServiceConfig(employeeId, serviceId)?.customPrice ?? service.price.round();
+  }
+
+  int effectiveServiceDuration(String employeeId, String serviceId) {
+    final service = serviceById(serviceId);
+    if (service == null) return 0;
+    return employeeServiceConfig(employeeId, serviceId)?.customDurationMinutes ?? service.totalMinutes;
+  }
+
+  void saveEmployeeServiceConfig(EmployeeServiceConfig config) {
+    final employee = employeeById(config.employeeId);
+    final service = serviceById(config.serviceId);
+    if (employee == null || service == null) throw StateError('پرسنل یا خدمت انتخاب‌شده وجود ندارد.');
+    if (config.customPrice != null && config.customPrice! < 0) throw ArgumentError('قیمت اختصاصی نمی‌تواند منفی باشد.');
+    if (config.customDurationMinutes != null && config.customDurationMinutes! <= 0) throw ArgumentError('مدت‌زمان باید بیشتر از صفر باشد.');
+    if (config.commissionRateBps != null && (config.commissionRateBps! < 0 || config.commissionRateBps! > 10000)) throw ArgumentError('درصد پورسانت باید بین صفر تا صد باشد.');
+    if (config.fixedCommissionAmount != null && config.fixedCommissionAmount! < 0) throw ArgumentError('مبلغ پورسانت نمی‌تواند منفی باشد.');
+    _employeeServiceConfigs[_serviceConfigKey(config.employeeId, config.serviceId)] = config;
+    final ids = employee.serviceIds.where((id) => id != config.serviceId).toList();
+    if (config.active) ids.add(config.serviceId);
+    final updated = employee.copyWith(serviceIds: ids);
+    final employeeIndex = _employees.indexWhere((item) => item.id == employee.id);
+    _employees[employeeIndex] = updated;
+    _syncEmployeeServiceLinks(updated);
+    log(ActivityType.serviceModified, 'تنظیم خدمت پرسنل', 'تنظیم خدمت «\${service.title}» برای \${employee.fullName} ذخیره شد.', entity: 'پرسنل و خدمات');
+    _commit();
+  }
+
+  void removeEmployeeServiceConfig(String employeeId, String serviceId) {
+    final employee = employeeById(employeeId);
+    if (employee == null) return;
+    _employeeServiceConfigs.remove(_serviceConfigKey(employeeId, serviceId));
+    final updated = employee.copyWith(serviceIds: employee.serviceIds.where((id) => id != serviceId).toList());
+    final index = _employees.indexWhere((item) => item.id == employeeId);
+    _employees[index] = updated;
+    _syncEmployeeServiceLinks(updated);
     _commit();
   }
 

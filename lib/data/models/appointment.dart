@@ -24,6 +24,7 @@ class Appointment {
     this.cancelReason,
     this.totalChanges = 0,
     this.createdBy = 'پذیرش',
+    this.serviceSnapshots = const [],
   });
 
   final String id;
@@ -46,6 +47,8 @@ class Appointment {
   final String? cancelReason;
   final int totalChanges;
   final String createdBy;
+  /// قیمت، زمان و قواعد پورسانت هر خدمت در لحظه ثبت نوبت.
+  final List<Map<String, dynamic>> serviceSnapshots;
 
   DateTime get endAt => startAt.add(Duration(minutes: durationMinutes));
 
@@ -92,6 +95,7 @@ class Appointment {
     String? cancelReason,
     int? totalChanges,
     String? createdBy,
+    List<Map<String, dynamic>>? serviceSnapshots,
   }) {
     return Appointment(
       id: id ?? this.id,
@@ -114,6 +118,7 @@ class Appointment {
       cancelReason: cancelReason ?? this.cancelReason,
       totalChanges: totalChanges ?? this.totalChanges,
       createdBy: createdBy ?? this.createdBy,
+      serviceSnapshots: serviceSnapshots ?? this.serviceSnapshots,
     );
   }
 
@@ -138,6 +143,7 @@ class Appointment {
         'cancel_reason': cancelReason,
         'total_changes': totalChanges,
         'created_by': createdBy,
+        'service_snapshots': serviceSnapshots,
       };
 
   factory Appointment.fromJson(Map<String, dynamic> json) => Appointment(
@@ -161,6 +167,7 @@ class Appointment {
         cancelReason: json['cancel_reason'] as String?,
         totalChanges: (json['total_changes'] as num?)?.toInt() ?? 0,
         createdBy: json['created_by'] as String? ?? 'پذیرش',
+        serviceSnapshots: (json['service_snapshots'] as List? ?? []).map((item) => Map<String, dynamic>.from(item as Map)).toList(),
       );
 }
 

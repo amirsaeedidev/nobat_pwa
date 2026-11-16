@@ -18,6 +18,7 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../customers/presentation/providers/customers_provider.dart';
@@ -83,8 +84,35 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     super.dispose();
   }
 
-  num get _totalPrice => _services.fold<num>(0, (sum, s) => sum + s.price);
-  int get _totalDuration => _services.fold<int>(0, (sum, s) => sum + s.totalMinutes);
+  AppDatabase get _db => context.read<AppDatabase>();
+  Employee? get _pricingEmployee {
+    if (_employee != null) return _employee;
+    if (_services.isEmpty) return null;
+    for (final employee in _db.eligibleEmployeesForService(_services.first.id)) {
+      if (_services.every((service) => _db.employeeOffersService(employee.id, service.id))) return employee;
+    }
+    return null;
+  }
+  num get _totalPrice => _services.fold<num>(0, (sum, service) => sum + (_pricingEmployee == null ? service.price : _db.effectiveServicePrice(_pricingEmployee!.id, service.id)));
+  int get _totalDuration => _services.fold<int>(0, (sum, service) => sum + (_pricingEmployee == null ? service.totalMinutes : _db.effectiveServiceDuration(_pricingEmployee!.id, service.id)));
+
+  List<Map<String, dynamic>> _buildServiceSnapshots(Employee employee) {
+    final payProfile = _db.payProfileFor(employee.id);
+    return _services.map((service) {
+      final config = _db.employeeServiceConfig(employee.id, service.id);
+      final rule = payProfile.ruleFor(serviceId: service.id, category: service.category, date: _date.toDateTime());
+      return <String, dynamic>{
+        'service_id': service.id,
+        'title': service.title,
+        'category': service.category,
+        'price': _db.effectiveServicePrice(employee.id, service.id),
+        'duration_minutes': _db.effectiveServiceDuration(employee.id, service.id),
+        'commission_rate_bps': config?.commissionRateBps ?? rule?.rateBps ?? payProfile.generalRateBps,
+        'fixed_commission_amount': config?.fixedCommissionAmount ?? rule?.fixedAmount ?? 0,
+        'commission_basis': payProfile.basis.name,
+      };
+    }).toList();
+  }
 
   Future<void> _pickCustomer() async {
     final customers = context.read<CustomersProvider>().all;
@@ -112,7 +140,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     if (selected != null) {
       setState(() {
         _services = selected;
-        if (_employee != null && !_employee!.serviceIds.any((id) => selected.map((s) => s.id).contains(id))) {
+        if (_employee != null && !selected.every((service) => _db.employeeOffersService(_employee!.id, service.id))) {
           _employee = null;
         }
       });
@@ -145,11 +173,14 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       return;
     }
     final employees = context.read<EmployeesProvider>().items;
-    final employee = _employee ??
-        employees.firstWhere(
-          (e) => e.isActive && e.serviceIds.any((id) => _services.map((s) => s.id).contains(id)),
-          orElse: () => employees.first,
-        );
+    final eligibleEmployees = employees.where((person) => _services.every((service) => _db.employeeOffersService(person.id, service.id))).toList();
+    final employee = _employee != null && eligibleEmployees.any((person) => person.id == _employee!.id)
+        ? _employee
+        : (eligibleEmployees.isEmpty ? null : eligibleEmployees.first);
+    if (employee == null) {
+      AppToast.show(context, 'برای تمام خدمات انتخاب‌شده متخصص واجد شرایطی وجود ندارد.', success: false);
+      return;
+    }
 
     setState(() => _saving = true);
     final provider = context.read<AppointmentsProvider>();
@@ -208,6 +239,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       status: _existing?.status ?? AppointmentStatus.confirmed,
       note: _noteController.text.trim(),
       price: _totalPrice,
+      serviceSnapshots: _buildServiceSnapshots(employee),
       createdAt: _existing?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       createdBy: 'پذیرش',
@@ -245,10 +277,10 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
-    final employees = context.watch<EmployeesProvider>().items.where((e) => e.isActive).toList();
+    final employees = context.watch<EmployeesProvider>().items.where((e) => e.isAvailableForBooking).toList();
     final eligible = _services.isEmpty
         ? employees
-        : employees.where((e) => e.serviceIds.any((id) => _services.map((s) => s.id).contains(id))).toList();
+        : employees.where((employee) => _services.every((service) => _db.employeeOffersService(employee.id, service.id))).toList();
 
     final form = Form(
       key: _formKey,
