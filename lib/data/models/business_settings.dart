@@ -187,25 +187,25 @@ class BookingRules {
 /// تنظیمات هویت و اطلاعات مجموعه.
 class BusinessSettings {
   const BusinessSettings({
-    this.name = 'سالن زیبایی اُنتایم',
+    this.name = 'سالن زیبایی DateTime',
     this.slogan = 'مدیریت هوشمند نوبت‌ها',
     this.description = 'مجموعه تخصصی زیبایی و آرایش با تیمی از متخصصان حرفه‌ای.',
     this.phone = '02188776655',
     this.mobile = '09121234567',
-    this.email = 'info@ontime.app',
+    this.email = 'info@datetime.app',
     this.province = 'تهران',
     this.city = 'تهران',
     this.address = 'خیابان ولیعصر، بالاتر از پارک ساعی، پلاک ۱۲۴، طبقه ۳',
     this.postalCode = '1968913751',
     this.latitude = 35.7448,
     this.longitude = 51.4099,
-    this.instagram = 'https://instagram.com/ontime.salon',
-    this.telegram = 'https://t.me/ontimesalon',
+    this.instagram = 'https://instagram.com/datetime.salon',
+    this.telegram = 'https://t.me/datetime_salon',
     this.whatsapp = 'https://wa.me/989121234567',
-    this.website = 'https://ontime.app',
-    this.publicSlug = 'ontime-salon',
+    this.website = 'https://datetime.app',
+    this.publicSlug = 'datetime-salon',
     this.currency = 'تومان',
-    this.logoText = 'OT',
+    this.logoText = 'DT',
     this.workingHours = const {},
     this.holidays = const [],
     this.smsProvider = const SmsProviderSettings(),
@@ -248,7 +248,7 @@ class BusinessSettings {
   final BookingRules bookingRules;
 
   String get publicUrl => 'ontime.app/book/$publicSlug';
-  String get fullUrl => 'https://ontime.app/book/$publicSlug';
+  String get fullUrl => 'https://datetime.app/book/$publicSlug';
 
   BusinessSettings copyWith({
     String? name,
