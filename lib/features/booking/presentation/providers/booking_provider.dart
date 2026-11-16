@@ -161,12 +161,8 @@ class BookingProvider extends DbBoundProvider {
   }
 
   bool isDateEnabled(JalaliDate date) {
-    if (db.settings.holidays.contains(date.weekday)) return false;
-    if (_employee != null) {
-      if (_employee!.daysOff.contains(date.iso)) return false;
-      if (!_employee!.worksOn(date.weekday)) return false;
-    }
-    return true;
+    if (_employee != null) return db.employeeShiftsForDate(_employee!.id, date.toDateTime()).isNotEmpty;
+    return !db.settings.holidays.contains(date.weekday);
   }
 
   Future<void> _loadSlots() async {
@@ -179,7 +175,7 @@ class BookingProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     final existing = await _appointments.fetchForDay(_date.toDateTime(), employeeId: employee.id);
-    final shifts = employee.shiftsFor(_date.weekday);
+    final shifts = db.employeeShiftsForDate(employee.id, _date.toDateTime());
     final interval = db.settings.bookingRules.slotIntervalMinutes.clamp(15, 60);
     final slots = <BookingSlot>[];
     for (final shift in shifts) {
@@ -194,11 +190,17 @@ class BookingProvider extends DbBoundProvider {
           final end = start.add(Duration(minutes: service.durationMinutes + service.bufferMinutes));
           return a.startAt.isBefore(end) && start.isBefore(a.endAt);
         });
+        final scheduleAvailable = db.isEmployeeAvailableAt(
+          employeeId: employee.id,
+          startAt: start,
+          durationMinutes: service.totalMinutes,
+        );
+        final available = !conflict && scheduleAvailable;
         slots.add(
           BookingSlot(
             start: start,
-            isAvailable: !conflict,
-            reason: conflict ? 'رزرو شده' : null,
+            isAvailable: available,
+            reason: conflict ? 'رزرو شده' : (scheduleAvailable ? null : 'مرخصی یا فاصله بین نوبت‌ها'),
           ),
         );
       }
@@ -244,6 +246,12 @@ class BookingProvider extends DbBoundProvider {
       );
       if (conflict != null) {
         _error = 'این زمان هم‌اکنون رزرو شده است. لطفاً زمان دیگری انتخاب کنید.';
+        _submitting = false;
+        notifyListeners();
+        return false;
+      }
+      if (!db.isEmployeeAvailableAt(employeeId: employee.id, startAt: slot.start, durationMinutes: service.totalMinutes)) {
+        _error = 'این زمان خارج از برنامه کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.';
         _submitting = false;
         notifyListeners();
         return false;

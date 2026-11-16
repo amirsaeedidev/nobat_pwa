@@ -75,6 +75,8 @@ class Employee {
     this.notes = '',
     this.emergencyContactName = '',
     this.emergencyContactPhone = '',
+    this.scheduleEnabled = true,
+    this.bufferMinutes = 0,
   });
 
   final String id;
@@ -99,6 +101,8 @@ class Employee {
   final String notes;
   final String emergencyContactName;
   final String emergencyContactPhone;
+  final bool scheduleEnabled;
+  final int bufferMinutes;
 
   EmployeeStatus get employmentStatus => status ?? (isActive ? EmployeeStatus.active : EmployeeStatus.inactive);
   bool get isAvailableForBooking => isActive && employmentStatus == EmployeeStatus.active;
@@ -129,6 +133,8 @@ class Employee {
     String? notes,
     String? emergencyContactName,
     String? emergencyContactPhone,
+    bool? scheduleEnabled,
+    int? bufferMinutes,
   }) {
     final nextStatus = status ?? (isActive == null ? this.status : (isActive ? EmployeeStatus.active : EmployeeStatus.inactive));
     final nextActive = isActive ?? (status == null ? this.isActive : status == EmployeeStatus.active);
@@ -154,6 +160,8 @@ class Employee {
       notes: notes ?? this.notes,
       emergencyContactName: emergencyContactName ?? this.emergencyContactName,
       emergencyContactPhone: emergencyContactPhone ?? this.emergencyContactPhone,
+      scheduleEnabled: scheduleEnabled ?? this.scheduleEnabled,
+      bufferMinutes: bufferMinutes ?? this.bufferMinutes,
     );
   }
 
@@ -179,6 +187,8 @@ class Employee {
     'notes': notes,
     'emergency_contact_name': emergencyContactName,
     'emergency_contact_phone': emergencyContactPhone,
+    'schedule_enabled': scheduleEnabled,
+    'buffer_minutes': bufferMinutes,
   };
 
   factory Employee.fromJson(Map<String, dynamic> json) {
@@ -208,6 +218,8 @@ class Employee {
       notes: json['notes'] as String? ?? '',
       emergencyContactName: json['emergency_contact_name'] as String? ?? '',
       emergencyContactPhone: json['emergency_contact_phone'] as String? ?? '',
+      scheduleEnabled: json['schedule_enabled'] as bool? ?? true,
+      bufferMinutes: (json['buffer_minutes'] as num?)?.toInt() ?? 0,
     );
   }
 }

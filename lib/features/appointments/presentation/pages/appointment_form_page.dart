@@ -192,6 +192,18 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       durationMinutes: _totalDuration,
       ignoreId: _existing?.id,
     );
+    if (!_db.isEmployeeAvailableAt(
+      employeeId: employee.id,
+      startAt: start,
+      durationMinutes: _totalDuration,
+      ignoreAppointmentId: _existing?.id,
+    )) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, 'این زمان خارج از شیفت کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.', success: false);
+      return;
+    }
+
     if (conflict != null) {
       if (!mounted) return;
       setState(() => _saving = false);

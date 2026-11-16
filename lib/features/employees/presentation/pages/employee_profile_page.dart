@@ -244,7 +244,7 @@ class EmployeeProfilePage extends StatelessWidget {
               const SizedBox(height: 10),
               Wrap(spacing: 8, runSpacing: 8, children: [
                 OutlinedButton.icon(
-                  onPressed: () => context.push('/settings/hours'),
+                  onPressed: () => context.push('/employees/${employee.id}/schedule'),
                   icon: const Icon(Icons.schedule_rounded, size: 16),
                   label: const Text('ساعت کاری'),
                 ),

@@ -181,7 +181,11 @@ class CalendarProvider extends DbBoundProvider {
         .where((a) => employee == null || a.employeeId == employee)
         .toList();
     final exception = exceptionFor(date);
-    final shifts = exception != null ? (exception.isClosed ? const <Shift>[] : exception.shifts) : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
+    final shifts = employee != null
+        ? db.employeeShiftsForDate(employee, date.toDateTime())
+        : exception != null
+            ? (exception.isClosed ? const <Shift>[] : exception.shifts)
+            : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
     final slots = <TimeSlot>[];
     for (final shift in shifts) {
       for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
@@ -204,7 +208,8 @@ class CalendarProvider extends DbBoundProvider {
     return null;
   }
 
-  bool isHoliday(JalaliDate date) {
+  bool isHoliday(JalaliDate date, {String? employeeId}) {
+    if (employeeId != null) return db.employeeShiftsForDate(employeeId, date.toDateTime()).isEmpty;
     final exception = exceptionFor(date);
     if (exception != null) return exception.isClosed;
     return date.weekday == 6 || db.settings.holidays.contains(date.weekday);
