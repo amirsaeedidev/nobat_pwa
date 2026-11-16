@@ -376,11 +376,12 @@ class AppDatabase extends ChangeNotifier {
     if (_undoneLogIds.contains(id)) return false;
     ActivityLog? target;
     for (final entry in _logs) { if (entry.id == id) { target = entry; break; } }
-    if (target == null || target.undoAction == null || target.undoData == null) return false;
-    final targetEntityId = target.undoData!['id'];
+    final resolvedTarget = target;
+    if (resolvedTarget == null || resolvedTarget.undoAction == null || resolvedTarget.undoData == null) return false;
+    final targetEntityId = resolvedTarget.undoData!['id'];
     return !_logs.any((other) {
       if (other.id == id || !other.createdAt.isAfter(target.createdAt)) return false;
-      if (target.undoAction == 'settings_hours') return other.undoAction == 'settings_hours';
+      if (resolvedTarget.undoAction == 'settings_hours') return other.undoAction == 'settings_hours';
       return targetEntityId != null && other.undoData?['id'] == targetEntityId;
     });
   }
