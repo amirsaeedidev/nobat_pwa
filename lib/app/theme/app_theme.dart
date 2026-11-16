@@ -9,7 +9,8 @@ class AppTheme {
 
   static const String fontFamily = 'Vazirmatn';
 
-  static ThemeData build(AppPalette palette) {
+  static ThemeData build(AppPalette palette, {Color? formAccentColor}) {
+    final formAccent = formAccentColor ?? palette.primary;
     final base = ThemeData(
       useMaterial3: true,
       brightness: palette.isDark ? Brightness.dark : Brightness.light,
@@ -59,7 +60,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: palette.surfaceAlt,
+        fillColor: formAccent.withValues(alpha: palette.isDark ? 0.12 : 0.08),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         hintStyle: TextStyle(
@@ -69,7 +70,7 @@ class AppTheme {
           fontWeight: FontWeight.w400,
         ),
         labelStyle: TextStyle(fontFamily: fontFamily, color: palette.textSecondary, fontSize: 13),
-        floatingLabelStyle: TextStyle(fontFamily: fontFamily, color: palette.primaryBright, fontSize: 13),
+        floatingLabelStyle: TextStyle(fontFamily: fontFamily, color: formAccent, fontSize: 13),
         border: OutlineInputBorder(
           borderRadius: AppRadius.brMd,
           borderSide: BorderSide(color: palette.border),
@@ -80,7 +81,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadius.brMd,
-          borderSide: BorderSide(color: palette.primary, width: 1.4),
+          borderSide: BorderSide(color: formAccent, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: AppRadius.brMd,
@@ -99,7 +100,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: palette.primary,
+          backgroundColor: formAccent,
           foregroundColor: palette.onPrimary,
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -141,7 +142,7 @@ class AppTheme {
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected) ? palette.primary : Colors.transparent,
+          (states) => states.contains(WidgetState.selected) ? formAccent : Colors.transparent,
         ),
         side: BorderSide(color: palette.borderStrong),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(6))),
