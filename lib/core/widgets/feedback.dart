@@ -62,9 +62,9 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// حالت بارگذاری.
+/// اسکلتون بارگذاری با حفظ ابعاد کارت‌ها تا زمان آماده‌شدن داده‌ها.
 class LoadingState extends StatelessWidget {
-  const LoadingState({super.key, this.label = 'در حال دریافت اطلاعات...', this.compact = false});
+  const LoadingState({super.key, this.label = 'در حال آماده‌سازی...', this.compact = false});
 
   final String label;
   final bool compact;
@@ -72,21 +72,43 @@ class LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: compact ? 24 : 56),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 26,
-              height: 26,
-              child: CircularProgressIndicator(strokeWidth: 2.4, color: pal.primaryBright),
+    final count = compact ? 2 : 3;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: compact ? 12 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < count; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.55, end: 1),
+                duration: Duration(milliseconds: 650 + i * 120),
+                curve: Curves.easeInOut,
+                builder: (context, opacity, child) => Opacity(opacity: opacity, child: child),
+                child: Container(
+                  height: compact ? 54 : 76,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: pal.surfaceAlt,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: pal.border),
+                  ),
+                  child: Row(children: [
+                    Container(width: 42, height: 42, decoration: BoxDecoration(color: pal.surfaceHigh, borderRadius: BorderRadius.circular(12))),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Container(height: 10, width: 120, decoration: BoxDecoration(color: pal.surfaceHigh, borderRadius: BorderRadius.circular(8))),
+                      const SizedBox(height: 9),
+                      Container(height: 8, width: 190, decoration: BoxDecoration(color: pal.surfaceHigh.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(8))),
+                    ])),
+                    Container(width: 26, height: 26, decoration: BoxDecoration(color: pal.surfaceHigh, shape: BoxShape.circle)),
+                  ]),
+                ),
+              ),
             ),
-            const SizedBox(height: 14),
-            Text(label, style: TextStyle(fontSize: 12, color: pal.textMuted)),
-          ],
-        ),
+          if (!compact) Center(child: Text(label, style: TextStyle(fontSize: 11, color: pal.textMuted))),
+        ],
       ),
     );
   }
