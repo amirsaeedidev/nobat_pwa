@@ -4,7 +4,7 @@ import '../../app/theme/app_palette.dart';
 import 'app_buttons.dart';
 import 'badges.dart';
 
-/// نوار بالای صفحه؛ دو حالت: لوگوی ONTIME (پیشخوان) و عنوان ساده.
+/// نوار بالای صفحه؛ دو حالت: لوگوی DateTime و عنوان ساده.
 class AppTopBar extends StatelessWidget {
   const AppTopBar({
     super.key,
@@ -55,10 +55,10 @@ class AppTopBar extends StatelessWidget {
                   child: Row(
                     children: [
                       if (onClose != null) ...[
-                        CircleIconButton(icon: Icons.close_rounded, size: 40, onTap: onClose),
+                        const _DateTimeLogo(),
                         const SizedBox(width: 10),
                       ],
-                      const _OnTimeLogo(),
+                      const _DateTimeLogo(),
                       const Spacer(),
                       ...actions,
                       if (actions.isNotEmpty) const SizedBox(width: 8),
@@ -181,7 +181,7 @@ class _OnTimeLogo extends StatelessWidget {
       textDirection: TextDirection.ltr,
       children: [
         Text(
-          'ONT',
+          'Date',
           style: TextStyle(
             fontSize: 21,
             fontWeight: FontWeight.w800,
@@ -197,7 +197,7 @@ class _OnTimeLogo extends StatelessWidget {
             end: Alignment.centerLeft,
           ).createShader(bounds),
           child: const Text(
-            'IME',
+            'Time',
             style: TextStyle(
               fontSize: 21,
               fontWeight: FontWeight.w800,
