@@ -70,9 +70,11 @@ class SettingsProvider extends DbBoundProvider {
     await prefs.setString('datetime_palette', _paletteId);
   }
 
-  void setFormAccent(Color color) {
+  Future<void> setFormAccent(Color color) async {
     _formAccentColor = color;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('datetime_form_accent', color.toARGB32());
   }
 
   Future<void> saveBusiness(BusinessSettings settings, {String? logTitle, String? logDescription}) async {
