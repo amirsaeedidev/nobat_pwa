@@ -43,6 +43,9 @@ class SettingsProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     try {
+      final prefs = await SharedPreferences.getInstance();
+      _paletteId = AppPalette.byId(prefs.getString('datetime_palette') ?? 'pastel_pink').id;
+      _formAccentColor = Color(prefs.getInt('datetime_form_accent') ?? palette.primary.value);
       _settings = await _repository.fetchSettings();
     } catch (error, stackTrace) {
       debugPrint('Settings mock load failed; using seeded data: $error');
@@ -61,7 +64,14 @@ class SettingsProvider extends DbBoundProvider {
   }
 
   Future<void> setPalette(String id) async {
-    _paletteId = id;
+    _paletteId = AppPalette.byId(id).id;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('datetime_palette', _paletteId);
+  }
+
+  void setFormAccent(Color color) {
+    _formAccentColor = color;
     notifyListeners();
   }
 
