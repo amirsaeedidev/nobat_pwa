@@ -33,7 +33,7 @@ class AppearanceSettingsPage extends StatelessWidget {
                 const SectionHeader(title: 'پالت رنگی'),
                 const SizedBox(height: 6),
                 Text(
-                  'دو پالت تیره (هم‌راستا با تصاویر مرجع) و یک پالت روشن در دسترس است.',
+                  'تم ثابت لوکس با زمینه کرمی و تأکیدهای صورتی و بنفش در سراسر برنامه فعال است.',
                   style: TextStyle(fontSize: 11, color: pal.textMuted, height: 1.7),
                 ),
                 const SizedBox(height: 14),
