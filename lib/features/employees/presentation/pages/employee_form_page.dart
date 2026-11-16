@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../app/theme/app_palette.dart';
 import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/utils/fa_num.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -242,7 +243,14 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                   Row(children: [
                     Expanded(child: AppTextField(controller: _emergencyName, label: 'نام تماس اضطراری', icon: Icons.contact_emergency_outlined)),
                     const SizedBox(width: 10),
-                    Expanded(child: AppTextField(controller: _emergencyPhone, label: 'شماره تماس اضطراری', icon: Icons.phone_in_talk_outlined, keyboardType: TextInputType.phone, numericFa: true)),
+                    Expanded(child: AppTextField(
+                      controller: _emergencyPhone,
+                      label: 'شماره تماس اضطراری',
+                      icon: Icons.phone_in_talk_outlined,
+                      keyboardType: TextInputType.phone,
+                      numericFa: true,
+                      validator: (value) => value == null || value.trim().isEmpty ? null : Validators.mobile(value),
+                    )),
                   ]),
                   const SizedBox(height: 12),
                   AppTextField(controller: _notes, label: 'یادداشت مدیریتی', hint: 'توضیحات داخلی درباره همکاری و مهارت‌ها', icon: Icons.notes_rounded, maxLines: 3),
@@ -259,7 +267,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                       if (selected != null && mounted) setState(() => _startedAt = selected);
                     },
                     icon: const Icon(Icons.calendar_month_outlined),
-                    label: Text(_startedAt == null ? 'انتخاب تاریخ شروع همکاری' : 'شروع همکاری: ${FaNum.convert('${_startedAt!.year}/${_startedAt!.month}/${_startedAt!.day}')}'),
+                    label: Text(_startedAt == null ? 'انتخاب تاریخ شروع همکاری' : 'شروع همکاری: ${Fmt.jalaliDate(_startedAt!)}'),
                   ),
                   const SizedBox(height: 14),
                   AppDropdown<EmployeeStatus>(

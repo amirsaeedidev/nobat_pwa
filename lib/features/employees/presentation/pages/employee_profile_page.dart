@@ -242,6 +242,37 @@ class EmployeeProfilePage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           AppCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SectionHeader(title: 'میانبرهای مدیریت'),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/settings/hours'),
+                  icon: const Icon(Icons.schedule_rounded, size: 16),
+                  label: const Text('ساعت کاری'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/services'),
+                  icon: const Icon(Icons.design_services_rounded, size: 16),
+                  label: const Text('خدمات'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/reports'),
+                  icon: const Icon(Icons.query_stats_rounded, size: 16),
+                  label: const Text('گزارش عملکرد'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('مدیریت حقوق و پورسانت در فاز دوم توسعه پرسنل فعال می‌شود.')),
+                  ),
+                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                  label: const Text('حقوق و پورسانت'),
+                ),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
