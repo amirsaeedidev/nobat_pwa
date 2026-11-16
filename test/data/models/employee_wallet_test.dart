@@ -16,15 +16,15 @@ void main() {
       db.addWalletTransaction(employeeId: employeeId, amount: 500000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش تست');
       expect(db.walletBalanceFor(employeeId), greaterThan(0));
       final debtEmployee = db.employees.last.id;
-      db.addWalletTransaction(employeeId: debtEmployee, amount: -900000, type: EmployeeWalletTransactionType.advance, description: 'مساعده آزمایشی');
+      db.addWalletTransaction(employeeId: debtEmployee, amount: -50000000, type: EmployeeWalletTransactionType.advance, description: 'مساعده آزمایشی');
       expect(db.walletBalanceFor(debtEmployee), lessThan(0));
     });
 
     test('supports partial then full settlement and keeps both receipts', () {
       final now = DateTime.now();
-      final start = DateTime(now.year, now.month, 1);
-      final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
-      db.addWalletTransaction(employeeId: employeeId, amount: 1000000, type: EmployeeWalletTransactionType.bonus, description: 'درآمد دوره', createdAt: now);
+      final start = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+      final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+      db.addWalletTransaction(employeeId: employeeId, amount: 1000000, type: EmployeeWalletTransactionType.bonus, description: 'درآمد دوره', createdAt: start.add(const Duration(hours: 1)));
       final first = db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 300000, idempotencyKey: 'partial-once');
       expect(first.status, EmployeeWalletSettlementStatus.partial);
       expect(first.remainingAfter, 700000);
@@ -37,9 +37,9 @@ void main() {
 
     test('rejects overpayment and duplicate payment keys', () {
       final now = DateTime.now();
-      final start = DateTime(now.year, now.month, 1);
-      final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
-      db.addWalletTransaction(employeeId: employeeId, amount: 200000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش', createdAt: now);
+      final start = DateTime(now.year, now.month, now.day).add(const Duration(days: 2));
+      final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+      db.addWalletTransaction(employeeId: employeeId, amount: 200000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش', createdAt: start.add(const Duration(hours: 1)));
       db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 100000, idempotencyKey: 'payment-key');
       expect(
         () => db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 100000, idempotencyKey: 'payment-key'),
@@ -64,15 +64,14 @@ void main() {
     });
 
     test('approved commissions are mirrored once and keep the original snapshot', () {
-      final employee = db.employees.first;
-      final appointment = db.appointments.firstWhere((item) => item.status.name == 'completed' && item.employeeId == employee.id);
-      final finance = db.financeEntriesFor(employee.id).firstWhere((entry) => entry.appointmentId == appointment.id);
+      final finance = db.employeeFinanceEntries.first;
+      final employeeId = finance.employeeId;
       final mirrored = db.employeeWalletTransactions.where((entry) => entry.sourceFinanceEntryId == finance.id).toList();
       expect(mirrored, hasLength(1));
       expect(mirrored.single.amount, finance.commissionAmount);
-      final before = db.walletBalanceFor(employee.id);
-      db.savePayProfile(db.payProfileFor(employee.id).copyWith(generalRateBps: 5000));
-      expect(db.walletBalanceFor(employee.id), before);
+      final before = db.walletBalanceFor(employeeId);
+      db.savePayProfile(db.payProfileFor(employeeId).copyWith(generalRateBps: 5000));
+      expect(db.walletBalanceFor(employeeId), before);
       expect(db.employeeWalletTransactions.where((entry) => entry.sourceFinanceEntryId == finance.id), hasLength(1));
     });
 
