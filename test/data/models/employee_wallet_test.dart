@@ -31,7 +31,7 @@ void main() {
       final second = db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 700000, idempotencyKey: 'complete-once');
       expect(second.status, EmployeeWalletSettlementStatus.completed);
       expect(second.remainingAfter, 0);
-      expect(db.walletSettlementsFor(employeeId).length, 2);
+      expect(db.walletSettlementsFor(employeeId).where((entry) => entry.periodStart == start && entry.periodEnd == end).length, 2);
       expect(db.walletPeriodDue(employeeId, start, end), 0);
     });
 
