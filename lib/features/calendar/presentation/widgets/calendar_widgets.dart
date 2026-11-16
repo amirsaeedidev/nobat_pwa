@@ -574,7 +574,7 @@ class PublicBookingHint extends StatelessWidget {
               children: [
                 Text('لینک رزرو اختصاصی شما',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-                Text('ontime.app/book/ontime-salon',
+                Text('datetime.app/book/datetime-salon',
                     textDirection: TextDirection.ltr,
                     style: TextStyle(fontSize: 10, color: pal.textMuted)),
               ],
