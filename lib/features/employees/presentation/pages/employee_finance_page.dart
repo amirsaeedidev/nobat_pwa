@@ -94,10 +94,10 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
             padding: const EdgeInsets.symmetric(vertical: 7),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [Expanded(child: Text(target.type.name == 'monthlyRevenue' ? 'هدف درآمد ماهانه' : target.type.name, style: const TextStyle(fontSize: 11))),
-                Text('${(target.progress(0) * 100).toStringAsFixed(0)}٪', style: const TextStyle(fontSize: 10))]),
+                Text('${(target.progress(_actualForTarget(db, target)) * 100).toStringAsFixed(0)}٪', style: const TextStyle(fontSize: 10))]),
               const SizedBox(height: 5),
-              LinearProgressIndicator(value: target.progress(0)),
-              Text('هدف: ${Fmt.money(target.targetValue)}', style: TextStyle(fontSize: 9, color: pal.textMuted)),
+              LinearProgressIndicator(value: target.progress(_actualForTarget(db, target))),
+              Text('عملکرد: ${_actualForTarget(db, target)} از ${target.targetValue}', style: TextStyle(fontSize: 9, color: pal.textMuted)),
             ]),
           ),
           const Divider(height: 18),
@@ -155,6 +155,20 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
         ])),
       ]),
     );
+  }
+
+  int _actualForTarget(AppDatabase db, EmployeePerformanceTarget target) {
+    final completed = db.appointments.where((appointment) =>
+      appointment.employeeId == target.employeeId &&
+      appointment.status == AppointmentStatus.completed &&
+      !appointment.startAt.isBefore(target.periodStart) &&
+      !appointment.startAt.isAfter(target.periodEnd));
+    return switch (target.type) {
+      PerformanceTargetType.monthlyRevenue => completed.fold<int>(0, (sum, item) => sum + item.price.round()),
+      PerformanceTargetType.appointmentCount => completed.length,
+      PerformanceTargetType.serviceSales => completed.where((item) => item.serviceIds.contains(target.serviceId)).length,
+      PerformanceTargetType.newCustomers => completed.map((item) => item.customerId).toSet().length,
+    };
   }
 
   void _save(AppDatabase db, String employeeId) {
