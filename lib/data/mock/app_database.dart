@@ -14,6 +14,7 @@ import '../models/employee_payroll.dart';
 import '../models/employee_wallet.dart';
 import '../models/employee_service_config.dart';
 import '../models/employee_schedule.dart';
+import '../models/employee_hr.dart';
 import '../models/access_control.dart';
 import '../models/service.dart';
 import '../models/sms_message.dart';
@@ -46,6 +47,9 @@ class AppDatabase extends ChangeNotifier {
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
   final Map<String, EmployeeScheduleException> _employeeScheduleExceptions = {};
   final List<EmployeeLeave> _employeeLeaves = [];
+  final List<AttendanceRecord> _attendanceRecords = [];
+  final List<EmployeeDocument> _employeeDocuments = [];
+  final List<EmployeeNotice> _employeeNotices = [];
   final Map<String, AccessRole> _accessRoles = {};
   final Map<String, AccessAssignment> _accessAssignments = {};
   final List<AccessAccount> _accessAccounts = [];
@@ -69,6 +73,9 @@ class AppDatabase extends ChangeNotifier {
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(_employeeWalletTransactions);
   List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(_employeeWalletSettlements);
   List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
+  List<AttendanceRecord> get attendanceRecords => List.unmodifiable(_attendanceRecords);
+  List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments);
+  List<EmployeeNotice> get employeeNotices => List.unmodifiable(_employeeNotices);
   List<AccessRole> get accessRoles => List.unmodifiable(_accessRoles.values);
   List<AccessAccount> get accessAccounts => List.unmodifiable(_accessAccounts);
   AccessAccount get currentAccessAccount => _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
@@ -99,6 +106,7 @@ class AppDatabase extends ChangeNotifier {
     for (final entry in List<EmployeeFinanceEntry>.of(_employeeFinanceEntries)) { _mirrorFinanceEntryToWallet(entry); }
     _seedWalletHistory();
     _seedPayrollData();
+    _seedEmployeeHr();
     _sms.addAll(MockSeed.smsMessages());
     _logs.addAll(MockSeed.activityLogs());
     _templates.addAll(MockSeed.smsTemplates());
@@ -1092,6 +1100,69 @@ class AppDatabase extends ChangeNotifier {
     _commit();
   }
 
+  // حضور و غیاب، پرونده دیجیتال و اعلان‌های آفلاین.
+  List<AttendanceRecord> attendanceFor(String employeeId, {DateTime? from, DateTime? to}) =>
+    _attendanceRecords.where((item) => item.employeeId == employeeId &&
+      (from == null || !item.at.isBefore(from)) && (to == null || !item.at.isAfter(to))).toList()
+      ..sort((a,b)=>b.at.compareTo(a.at));
+
+  void recordAttendance(AttendanceRecord record) {
+    requirePermission('employees.edit', employeeId: record.employeeId);
+    if (employeeById(record.employeeId) == null) throw StateError('پرسنل یافت نشد.');
+    if (_attendanceRecords.any((item)=>item.id==record.id)) throw StateError('شناسه حضور تکراری است.');
+    if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('ورود امروز قبلاً ثبت شده است.');
+    if (record.type == AttendanceEventType.checkOut) {
+      final hasOpen = _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day);
+      final closed = _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkOut && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day);
+      if (!hasOpen || closed) throw StateError('ورود ثبت‌نشده یا خروج تکراری است.');
+    }
+    _attendanceRecords.add(record);
+    final employee=employeeById(record.employeeId)!;
+    log(ActivityType.settingsChanged,'ثبت حضور و غیاب','رویداد حضور برای ${employee.fullName} ثبت شد.',entity:'حضور و غیاب');
+    _commit();
+  }
+
+  AttendanceSummary attendanceSummary(String employeeId,{required DateTime from,required DateTime to}) {
+    final rows=attendanceFor(employeeId,from:from,to:to);
+    final present=rows.where((r)=>r.type==AttendanceEventType.checkIn).map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
+    final absent=rows.where((r)=>r.type==AttendanceEventType.absence).map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
+    var worked=0, overtime=0, late=0;
+    for(final checkIn in rows.where((r)=>r.type==AttendanceEventType.checkIn)){
+      final checkout=rows.where((r)=>r.type==AttendanceEventType.checkOut && r.date.year==checkIn.date.year && r.date.month==checkIn.date.month && r.date.day==checkIn.date.day).toList();
+      if(checkout.isNotEmpty) worked+=checkout.first.at.difference(checkIn.at).inMinutes;
+    }
+    for(final row in rows){overtime+=row.overtimeMinutes;late+=row.lateMinutes;}
+    return AttendanceSummary(presentDays:present.length,absentDays:absent.length,workedMinutes:worked,overtimeMinutes:overtime,lateMinutes:late);
+  }
+
+  List<EmployeeDocument> documentsFor(String employeeId)=>_employeeDocuments.where((d)=>d.employeeId==employeeId).toList()..sort((a,b)=>b.addedAt.compareTo(a.addedAt));
+  void addEmployeeDocument(EmployeeDocument document){
+    requirePermission('employees.edit',employeeId:document.employeeId);
+    if(employeeById(document.employeeId)==null) throw StateError('پرسنل یافت نشد.');
+    if(_employeeDocuments.any((d)=>d.id==document.id)) throw StateError('شناسه سند تکراری است.');
+    if(document.title.trim().isEmpty || document.fileName.trim().isEmpty) throw ArgumentError('عنوان و نام فایل الزامی است.');
+    _employeeDocuments.add(document); _commit();
+  }
+  List<EmployeeNotice> noticesFor(String employeeId)=>_employeeNotices.where((n)=>n.employeeId==employeeId).toList()..sort((a,b)=>b.createdAt.compareTo(a.createdAt));
+  void addEmployeeNotice(EmployeeNotice notice){_employeeNotices.insert(0,notice);_commit();}
+  void markEmployeeNoticeRead(String id){
+    final i=_employeeNotices.indexWhere((n)=>n.id==id); if(i<0)return;
+    final n=_employeeNotices[i]; _employeeNotices[i]=n.markRead(); _commit();
+  }
+  void _notifyEmployee(String employeeId,EmployeeNoticeType type,String title,String message){
+    _employeeNotices.insert(0,EmployeeNotice(id:nextId('notice'),employeeId:employeeId,type:type,title:title,message:message,createdAt:DateTime.now()));
+  }
+  void _seedEmployeeHr(){
+    final now=DateTime.now();
+    for(var i=0;i<_employees.length && i<5;i++){
+      final e=_employees[i]; final day=DateTime(now.year,now.month,now.day);
+      _attendanceRecords.add(AttendanceRecord(id:'att-in-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkIn,at:day.add(Duration(hours:8,minutes:i*7)),lateMinutes:i*7));
+      _attendanceRecords.add(AttendanceRecord(id:'att-out-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkOut,at:day.add(Duration(hours:16,minutes:i*7)),overtimeMinutes:i*10));
+      _employeeDocuments.add(EmployeeDocument(id:'doc-contract-${e.id}',employeeId:e.id,title:'قرارداد همکاری',type:EmployeeDocumentType.contract,fileName:'contract-demo.pdf',addedAt:day,expiresAt:day.add(Duration(days:20+i*10)),note:'فایل نمایشی آفلاین'));
+      _notifyEmployee(e.id,EmployeeNoticeType.scheduleChanged,'برنامه کاری به‌روزرسانی شد.','برنامه کاری نمونه برای بررسی رابط کاربری ثبت شده است.');
+    }
+  }
+
   // برنامه کاری اختصاصی پرسنل، استثناهای تاریخ‌دار و مرخصی
   String _employeeScheduleKey(String employeeId, String dateKey) => employeeId + '::' + dateKey;
 
@@ -1149,6 +1220,7 @@ class AppDatabase extends ChangeNotifier {
       throw ArgumentError('این مرخصی با درخواست دیگری هم‌پوشانی دارد.');
     }
     _employeeLeaves.add(leave);
+    _notifyEmployee(leave.employeeId,EmployeeNoticeType.leaveRequested,'درخواست مرخصی ثبت شد.','درخواست مرخصی شما در انتظار بررسی است.');
     log(ActivityType.settingsChanged, 'ثبت مرخصی پرسنل', 'مرخصی جدید برای ' + employee.fullName + ' ثبت شد.', entity: 'مرخصی پرسنل');
     _commit();
   }
@@ -1162,6 +1234,7 @@ class AppDatabase extends ChangeNotifier {
       if (conflict) throw ArgumentError('مرخصی با مرخصی تأییدشده دیگری هم‌پوشانی دارد.');
     }
     _employeeLeaves[index] = leave;
+    _notifyEmployee(leave.employeeId,leave.status==EmployeeLeaveStatus.approved?EmployeeNoticeType.leaveApproved:EmployeeNoticeType.leaveRejected,'وضعیت مرخصی تغییر کرد.','درخواست مرخصی شما ${leave.status.label} شد.');
     log(ActivityType.settingsChanged, 'به‌روزرسانی مرخصی پرسنل', 'وضعیت مرخصی ' + leave.id + ' تغییر کرد.', entity: 'مرخصی پرسنل');
     _commit();
   }
