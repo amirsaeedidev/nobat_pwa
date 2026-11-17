@@ -50,6 +50,8 @@ class AppDatabase extends ChangeNotifier {
   final List<AttendanceRecord> _attendanceRecords = [];
   final List<EmployeeDocument> _employeeDocuments = [];
   final List<EmployeeNotice> _employeeNotices = [];
+  AttendancePayrollPolicy _attendancePayrollPolicy = const AttendancePayrollPolicy();
+  AttendancePayrollPolicy get attendancePayrollPolicy => _attendancePayrollPolicy;
   final Map<String, AccessRole> _accessRoles = {};
   final Map<String, AccessAssignment> _accessAssignments = {};
   final List<AccessAccount> _accessAccounts = [];
@@ -1133,6 +1135,25 @@ class AppDatabase extends ChangeNotifier {
     }
     for(final row in rows){overtime+=row.overtimeMinutes;late+=row.lateMinutes;}
     return AttendanceSummary(presentDays:present.length,absentDays:absent.length,workedMinutes:worked,overtimeMinutes:overtime,lateMinutes:late);
+  }
+
+  void saveAttendancePayrollPolicy(AttendancePayrollPolicy policy) {
+    requirePermission('employees.edit');
+    if (policy.lateDeductionPerMinute < 0 || policy.absenceDeductionPerDay < 0 || policy.overtimePaymentPerMinute < 0) {
+      throw ArgumentError('مقادیر قانون مالی نمی‌توانند منفی باشند.');
+    }
+    _attendancePayrollPolicy = policy;
+    _commit();
+  }
+
+  AttendancePayrollPreview attendancePayrollPreview(String employeeId,{required DateTime from,required DateTime to}) {
+    final summary = attendanceSummary(employeeId,from:from,to:to);
+    final policy = _attendancePayrollPolicy;
+    if (!policy.enabled) return const AttendancePayrollPreview(lateDeduction:0,absenceDeduction:0,overtimePayment:0,netAdjustment:0);
+    final late = summary.lateMinutes * policy.lateDeductionPerMinute;
+    final absence = summary.absentDays * policy.absenceDeductionPerDay;
+    final overtime = summary.overtimeMinutes * policy.overtimePaymentPerMinute;
+    return AttendancePayrollPreview(lateDeduction:late,absenceDeduction:absence,overtimePayment:overtime,netAdjustment:overtime-late-absence);
   }
 
   List<EmployeeDocument> documentsFor(String employeeId)=>_employeeDocuments.where((d)=>d.employeeId==employeeId).toList()..sort((a,b)=>b.addedAt.compareTo(a.addedAt));
