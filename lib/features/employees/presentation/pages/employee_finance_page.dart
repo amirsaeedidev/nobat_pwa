@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
+import '../../../../data/models/appointment.dart';
 import '../../../../data/models/employee_finance.dart';
 import '../../../../data/models/employee_payroll.dart';
 
