@@ -10,6 +10,7 @@ import '../models/customer.dart';
 import '../models/employee.dart';
 import '../models/enums.dart';
 import '../models/employee_finance.dart';
+import '../models/employee_payroll.dart';
 import '../models/employee_wallet.dart';
 import '../models/employee_service_config.dart';
 import '../models/employee_schedule.dart';
@@ -35,6 +36,10 @@ class AppDatabase extends ChangeNotifier {
   final List<ActivityLog> _logs = [];
   final List<SmsTemplate> _templates = [];
   final Map<String, EmployeePayProfile> _employeePayProfiles = {};
+  final Map<String, List<SalaryContract>> _salaryContracts = {};
+  final List<PayrollAdjustment> _payrollAdjustments = [];
+  final List<PayrollAdvance> _payrollAdvances = [];
+  final List<EmployeePerformanceTarget> _performanceTargets = [];
   final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
   final List<EmployeeWalletTransaction> _employeeWalletTransactions = [];
   final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
@@ -58,6 +63,9 @@ class AppDatabase extends ChangeNotifier {
   List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
   List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
   List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
+  List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments);
+  List<PayrollAdvance> get payrollAdvances => List.unmodifiable(_payrollAdvances);
+  List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(_employeeWalletTransactions);
   List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(_employeeWalletSettlements);
   List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
@@ -90,6 +98,7 @@ class AppDatabase extends ChangeNotifier {
     for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) { _createCommissionEntries(appointment); }
     for (final entry in List<EmployeeFinanceEntry>.of(_employeeFinanceEntries)) { _mirrorFinanceEntryToWallet(entry); }
     _seedWalletHistory();
+    _seedPayrollData();
     _sms.addAll(MockSeed.smsMessages());
     _logs.addAll(MockSeed.activityLogs());
     _templates.addAll(MockSeed.smsTemplates());
@@ -447,6 +456,108 @@ class AppDatabase extends ChangeNotifier {
     log(ActivityType.settingsChanged, 'تغییر قرارداد مالی پرسنل', 'قواعد حقوق و پورسانت ذخیره شد.', entity: 'امور مالی پرسنل');
     _commit();
   }
+  // حقوق ثابت، پاداش، کسورات، مساعده و اهداف عملکردی (کاملاً Mock/آفلاین).
+  List<SalaryContract> salaryContractsFor(String employeeId) {
+    requirePermission('finance.salary.view', employeeId: employeeId);
+    return List.unmodifiable(_salaryContracts[employeeId] ?? const []);
+  }
+
+  void saveSalaryContract(SalaryContract contract) {
+    requirePermission('employees.edit');
+    if (!_employees.any((item) => item.id == contract.employeeId)) throw StateError('پرسنل پیدا نشد.');
+    if (contract.monthlyBase < 0 || (contract.effectiveTo != null && contract.effectiveTo!.isBefore(contract.effectiveFrom))) {
+      throw ArgumentError('مبلغ یا بازه اعتبار حقوق معتبر نیست.');
+    }
+    final history = _salaryContracts.putIfAbsent(contract.employeeId, () => []);
+    history.add(contract);
+    log(ActivityType.settingsChanged, 'ثبت سابقه حقوق ثابت', 'قرارداد حقوق ثابت جدید ثبت شد.', entity: 'حقوق پرسنل');
+    _commit();
+  }
+
+  void addPayrollAdjustment(PayrollAdjustment adjustment) {
+    requirePermission('finance.payment.create');
+    if (!_employees.any((item) => item.id == adjustment.employeeId)) throw StateError('پرسنل پیدا نشد.');
+    if (adjustment.amount <= 0 || adjustment.description.trim().isEmpty || adjustment.createdBy.trim().isEmpty) {
+      throw ArgumentError('مبلغ، دلیل و ثبت‌کننده الزامی است.');
+    }
+    if (_payrollAdjustments.any((item) => item.id == adjustment.id)) throw StateError('شناسه تکراری است.');
+    _payrollAdjustments.add(adjustment);
+    log(ActivityType.settingsChanged, 'ثبت آیتم حقوق', 'پاداش یا کسورات پرسنل ثبت شد.', entity: 'حقوق پرسنل');
+    _commit();
+  }
+
+  void addPayrollAdvance(PayrollAdvance advance) {
+    requirePermission('finance.advance.create');
+    if (!_employees.any((item) => item.id == advance.employeeId)) throw StateError('پرسنل پیدا نشد.');
+    if (advance.amount <= 0 || advance.description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات مساعده الزامی است.');
+    if (_payrollAdvances.any((item) => item.id == advance.id)) throw StateError('شناسه مساعده تکراری است.');
+    _payrollAdvances.add(advance);
+    _commit();
+  }
+
+  void addPerformanceTarget(EmployeePerformanceTarget target) {
+    requirePermission('employees.edit');
+    if (!_employees.any((item) => item.id == target.employeeId)) throw StateError('پرسنل پیدا نشد.');
+    if (target.targetValue <= 0 || target.periodEnd.isBefore(target.periodStart)) throw ArgumentError('هدف یا بازه آن معتبر نیست.');
+    _performanceTargets.removeWhere((item) => item.employeeId == target.employeeId && item.type == target.type && item.serviceId == target.serviceId && item.periodStart == target.periodStart);
+    _performanceTargets.add(target);
+    _commit();
+  }
+
+  PayrollCalculation payrollFor(String employeeId, {DateTime? at}) {
+    requirePermission('finance.salary.view', employeeId: employeeId);
+    final date = at ?? DateTime.now();
+    final contracts = _salaryContracts[employeeId] ?? const <SalaryContract>[];
+    SalaryContract? contract;
+    for (final item in contracts) {
+      if (item.appliesAt(date) && (contract == null || item.effectiveFrom.isAfter(contract.effectiveFrom))) contract = item;
+    }
+    final commission = _employeeFinanceEntries.where((entry) =>
+      entry.employeeId == employeeId && entry.type == FinanceEntryType.commission &&
+      entry.createdAt.year == date.year && entry.createdAt.month == date.month)
+      .fold<int>(0, (sum, entry) => sum + entry.commissionAmount);
+    final adjustments = _payrollAdjustments.where((item) =>
+      item.employeeId == employeeId && item.date.year == date.year && item.date.month == date.month);
+    final advances = _payrollAdvances.where((item) =>
+      item.employeeId == employeeId && item.requestedAt.year == date.year && item.requestedAt.month == date.month);
+    final paid = _employeeWalletTransactions.where((item) =>
+      item.employeeId == employeeId && item.type == EmployeeWalletTransactionType.salaryPayment &&
+      item.createdAt.year == date.year && item.createdAt.month == date.month)
+      .fold<int>(0, (sum, item) => sum + item.amount.abs());
+    return EmployeePayrollCalculator.calculate(contract: contract, at: date,
+      approvedCommission: commission, adjustments: adjustments, advances: advances, previousPayments: paid);
+  }
+
+  void _seedPayrollData() {
+    final now = DateTime.now();
+    for (var index = 0; index < _employees.length && index < 5; index++) {
+      final employee = _employees[index];
+      _salaryContracts[employee.id] = [SalaryContract(
+        id: 'salary-seed-${employee.id}', employeeId: employee.id,
+        monthlyBase: index == 0 ? 18000000 : 8000000 + index * 1000000,
+        effectiveFrom: DateTime(now.year, now.month, 1), period: SalaryPeriod.monthly,
+      )];
+      _payrollAdjustments.add(PayrollAdjustment(
+        id: 'bonus-seed-${employee.id}', employeeId: employee.id, amount: 500000 + index * 100000,
+        date: now, description: 'پاداش عملکرد آزمایشی', createdBy: 'مدیر سیستم',
+        status: PayrollRecordStatus.approved, bonusType: PayrollBonusType.performance,
+      ));
+      if (index.isOdd) {
+        _payrollAdjustments.add(PayrollAdjustment(
+          id: 'deduction-seed-${employee.id}', employeeId: employee.id, amount: 150000,
+          date: now, description: 'کسورات نمونه', createdBy: 'مدیر سیستم',
+          status: PayrollRecordStatus.approved, deductionType: PayrollDeductionType.agreed,
+        ));
+      }
+      _performanceTargets.add(EmployeePerformanceTarget(
+        id: 'target-seed-${employee.id}', employeeId: employee.id,
+        type: PerformanceTargetType.monthlyRevenue, targetValue: 30000000,
+        periodStart: DateTime(now.year, now.month, 1),
+        periodEnd: DateTime(now.year, now.month + 1, 0),
+      ));
+    }
+  }
+
   List<EmployeeFinanceEntry> financeEntriesFor(String employeeId) {
     requirePermission('finance.commission.view', employeeId: employeeId);
     return _employeeFinanceEntries.where((entry) => entry.employeeId == employeeId).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
