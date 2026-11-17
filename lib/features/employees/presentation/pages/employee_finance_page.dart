@@ -10,6 +10,7 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/employee_finance.dart';
+import '../../../../data/models/enums.dart';
 import '../../../../data/models/employee_payroll.dart';
 
 class EmployeeFinancePage extends StatefulWidget {
