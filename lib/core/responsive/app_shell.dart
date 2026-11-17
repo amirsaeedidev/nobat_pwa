@@ -161,6 +161,35 @@ class MobileBottomNav extends StatelessWidget {
   Widget _buildSlot(BuildContext context, int slot) {
     final pal = context.pal;
     if (slot == 2) return const SizedBox.shrink();
+    if (slot == 4 && destinations.length > 4) {
+      final selected = currentIndex >= 3;
+      return InkWell(
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          showDragHandle: true,
+          builder: (sheetContext) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(12),
+              children: [
+                const Padding(padding: EdgeInsets.all(12), child: Text('بخش‌های بیشتر', style: TextStyle(fontWeight: FontWeight.w800))),
+                for (var i = 3; i < destinations.length; i++)
+                  ListTile(
+                    title: Text(destinations[i].label),
+                    selected: currentIndex == i,
+                    onTap: () { Navigator.pop(sheetContext); onSelect(i); },
+                  ),
+              ],
+            ),
+          ),
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.more_horiz_rounded, size: 22, color: selected ? pal.primaryBright : pal.textMuted),
+          const SizedBox(height: 2),
+          Text('بیشتر', style: TextStyle(fontSize: 10, color: selected ? pal.primaryBright : pal.textMuted)),
+        ]),
+      );
+    }
     final navIndex = slot < 2 ? slot : slot - 1;
     if (navIndex >= destinations.length) return const SizedBox.shrink();
     final dest = destinations[navIndex];
