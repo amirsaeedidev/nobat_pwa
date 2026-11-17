@@ -93,6 +93,10 @@ class EmployeeProfilePage extends StatelessWidget {
       actions: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
         SoftButton(label: 'حقوق و پورسانت', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
+        SoftButton(label: 'حضور و غیاب', icon: Icons.access_time_rounded, onTap: () => context.push('/employees/${employee.id}/attendance')),
+        SoftButton(label: 'پرونده اسناد', icon: Icons.folder_open_rounded, onTap: () => context.push('/employees/${employee.id}/records')),
+        SoftButton(label: 'مرخصی‌ها', icon: Icons.event_busy_rounded, onTap: () => context.push('/employees/${employee.id}/leaves')),
+        SoftButton(label: 'اعلان‌ها', icon: Icons.notifications_none_rounded, onTap: () => context.push('/employees/${employee.id}/notices')),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
