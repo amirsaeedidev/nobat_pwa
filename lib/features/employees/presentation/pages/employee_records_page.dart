@@ -11,14 +11,14 @@ class EmployeeRecordsPage extends StatelessWidget{
  const EmployeeRecordsPage({super.key,required this.employeeId});final String employeeId;
  @override Widget build(BuildContext context){
   final db=context.watch<AppDatabase>();final e=db.employeeById(employeeId);
-  if(e==null)return PageScaffold(title:'پرونده دیجیتال',showBackButton:true,child:const EmptyState(title:'پرسنل یافت نشد'));
+  if(e==null)return PageScaffold(title:'پرونده دیجیتال',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
   final docs=db.documentsFor(employeeId);
   return PageScaffold(title:'پرونده دیجیتال',subtitle:e.fullName,showBackButton:true,
    actions:[SolidButton(label:'افزودن سند نمونه',icon:Icons.add,onPressed:()=>_add(context,db,employeeId))],
    child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
      const SectionHeader(title:'مدارک و اسناد'),
-     if(docs.isEmpty)const EmptyState(title:'سندی ثبت نشده'),
+     if(docs.isEmpty)EmptyState(title:'سندی ثبت نشده'),
      for(final d in docs)ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.description_outlined),title:Text(d.title),subtitle:Text('${d.fileName} · ${d.type.name}'),trailing:Icon(d.isExpired?Icons.error_outline:d.isExpiringSoon?Icons.warning_amber:Icons.verified_outlined,color:d.isExpired?Colors.red:d.isExpiringSoon?Colors.orange:Colors.green),onTap:()=>showDialog<void>(context:context,builder:(c)=>AlertDialog(title:Text(d.title),content:Text('پیش‌نمایش فایل آزمایشی\n${d.mockPreview}\n\nنام فایل: ${d.fileName}\nتوضیحات: ${d.note}\nاعتبار: ${d.expiresAt?.toString().split(' ').first??'بدون تاریخ پایان'}'),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('بستن'))]))),
     ])),
     const SizedBox(height:8),const Text('فایل‌ها نمونه نمایشی هستند؛ هیچ آپلود یا سرویس آنلاین لازم نیست.',style:TextStyle(fontSize:11)),

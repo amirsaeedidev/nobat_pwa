@@ -11,11 +11,11 @@ class EmployeeLeaveRequestsPage extends StatelessWidget{
  const EmployeeLeaveRequestsPage({super.key,required this.employeeId});final String employeeId;
  @override Widget build(BuildContext context){
   final db=context.watch<AppDatabase>();final e=db.employeeById(employeeId);
-  if(e==null)return PageScaffold(title:'درخواست‌های مرخصی',showBackButton:true,child:const EmptyState(title:'پرسنل یافت نشد'));
+  if(e==null)return PageScaffold(title:'درخواست‌های مرخصی',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
   final leaves=db.leavesForEmployee(employeeId);
   return PageScaffold(title:'درخواست‌های مرخصی',subtitle:e.fullName,showBackButton:true,actions:[SolidButton(label:'ثبت درخواست',icon:Icons.add,onPressed:()=>_request(context,db,employeeId))],
    child:AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const SectionHeader(title:'تاریخچه درخواست‌ها'),
-    if(leaves.isEmpty)const EmptyState(title:'درخواستی وجود ندارد'),
+    if(leaves.isEmpty)EmptyState(title:'درخواستی وجود ندارد'),
     for(final l in leaves)ListTile(contentPadding:EdgeInsets.zero,title:Text(l.type.label),subtitle:Text('${l.startAt.toString().split(' ').first} تا ${l.endAt.toString().split(' ').first}\n${l.description}'),trailing:Column(mainAxisSize:MainAxisSize.min,children:[Text(l.status.label,style:const TextStyle(fontSize:10)),if(l.status==EmployeeLeaveStatus.pending)Wrap(children:[IconButton(tooltip:'تأیید',onPressed:()=>_decide(context,db,l,EmployeeLeaveStatus.approved),icon:const Icon(Icons.check_circle_outline,color:Colors.green)),IconButton(tooltip:'رد',onPressed:()=>_decide(context,db,l,EmployeeLeaveStatus.rejected),icon:const Icon(Icons.cancel_outlined,color:Colors.red))])])) ,
    ])));
  }

@@ -13,7 +13,7 @@ class EmployeeAttendancePage extends StatelessWidget {
  final String employeeId;
  @override Widget build(BuildContext context){
   final db=context.watch<AppDatabase>(); final e=db.employeeById(employeeId);
-  if(e==null)return PageScaffold(title:'حضور و غیاب',showBackButton:true,child:const EmptyState(title:'پرسنل یافت نشد'));
+  if(e==null)return PageScaffold(title:'حضور و غیاب',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
   final now=DateTime.now(),from=DateTime(now.year,now.month,1),to=DateTime(now.year,now.month+1,0,23,59);
   final rows=db.attendanceFor(employeeId,from:from,to:to); final sum=db.attendanceSummary(employeeId,from:from,to:to);
   final today=DateTime(now.year,now.month,now.day);
@@ -31,7 +31,7 @@ class EmployeeAttendancePage extends StatelessWidget {
    const SizedBox(height:12),
    AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const SectionHeader(title:'سوابق ماه جاری'),
-    if(rows.isEmpty) const EmptyState(title:'سابقه‌ای ثبت نشده'),
+    if(rows.isEmpty) EmptyState(title:'سابقه‌ای ثبت نشده'),
     for(final row in rows) ListTile(contentPadding:EdgeInsets.zero,
      leading:Icon(_icon(row.type)),title:Text(_label(row.type)),
      subtitle:Text('${row.at.hour.toString().padLeft(2,'0')}:${row.at.minute.toString().padLeft(2,'0')} · ${row.note}'),
