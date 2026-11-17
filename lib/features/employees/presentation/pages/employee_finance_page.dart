@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_finance.dart';
+import '../../../../data/models/employee_payroll.dart';
 
 class EmployeeFinancePage extends StatefulWidget {
   const EmployeeFinancePage({super.key, required this.employeeId});
@@ -35,6 +36,11 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
     final employee = db.employeeById(widget.employeeId);
     if (employee == null) return PageScaffold(title: 'حقوق و پورسانت', showBackButton: true, child: const EmptyState(title: 'پرسنل یافت نشد'));
     final profile = db.payProfileFor(employee.id);
+    final payroll = db.payrollFor(employee.id);
+    final salaryHistory = db.salaryContractsFor(employee.id);
+    final payrollTargets = db.performanceTargets.where((target) => target.employeeId == employee.id).toList();
+    final payrollItems = db.payrollAdjustments.where((item) => item.employeeId == employee.id).toList();
+    final payrollAdvances = db.payrollAdvances.where((item) => item.employeeId == employee.id).toList();
     if (!initialized) {
       initialized = true; method = profile.method; basis = profile.basis;
       salary.text = profile.monthlySalary.toString(); rate.text = (profile.generalRateBps / 100).toStringAsFixed(2);
@@ -63,6 +69,40 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
           ]),
           const Divider(height: 24),
           _Metric(label: 'حقوق پایه ماهانه', value: Fmt.money(profile.monthlySalary), color: pal.textPrimary),
+        ])),
+        const SizedBox(height: 12),
+        AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SectionHeader(title: 'پیش‌نمایش فیش حقوقی ماه جاری'),
+          const SizedBox(height: 10),
+          _MoneyLine(label: 'حقوق پایه معتبر', amount: payroll.baseSalary),
+          _MoneyLine(label: 'پورسانت تأییدشده', amount: payroll.approvedCommission),
+          _MoneyLine(label: 'پاداش تأییدشده', amount: payroll.approvedBonuses),
+          _MoneyLine(label: 'کسورات', amount: -payroll.deductions),
+          _MoneyLine(label: 'مساعده کسرشده', amount: -payroll.advanceDeducted),
+          _MoneyLine(label: 'پرداخت‌های قبلی', amount: -payroll.previousPayments),
+          const Divider(height: 20),
+          _MoneyLine(label: payroll.payable < 0 ? 'بدهی پرسنل' : 'مانده قابل پرداخت',
+            amount: payroll.payable.abs(), highlight: true),
+          if (salaryHistory.isNotEmpty)
+            Text('تاریخچه حقوق: ${salaryHistory.length} قرارداد ثبت‌شده', style: TextStyle(fontSize: 10, color: pal.textMuted)),
+        ])),
+        const SizedBox(height: 12),
+        AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SectionHeader(title: 'اهداف عملکردی'),
+          if (payrollTargets.isEmpty) const Text('هدفی برای این پرسنل تعریف نشده.', style: TextStyle(fontSize: 11)),
+          for (final target in payrollTargets) Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [Expanded(child: Text(target.type.name == 'monthlyRevenue' ? 'هدف درآمد ماهانه' : target.type.name, style: const TextStyle(fontSize: 11))),
+                Text('${(target.progress(0) * 100).toStringAsFixed(0)}٪', style: const TextStyle(fontSize: 10))]),
+              const SizedBox(height: 5),
+              LinearProgressIndicator(value: target.progress(0)),
+              Text('هدف: ${Fmt.money(target.targetValue)}', style: TextStyle(fontSize: 9, color: pal.textMuted)),
+            ]),
+          ),
+          const Divider(height: 18),
+          Text('آیتم‌های پاداش و کسورات: ${payrollItems.length} مورد', style: const TextStyle(fontSize: 11)),
+          Text('سوابق مساعده: ${payrollAdvances.length} مورد', style: const TextStyle(fontSize: 11)),
         ])),
         const SizedBox(height: 12),
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
