@@ -90,6 +90,14 @@ class EmployeeProfilePage extends StatelessWidget {
       subtitle: employee.title,
       icon: Icons.badge_rounded,
       showBackButton: true,
+      mobileHeader: Wrap(spacing: 8, runSpacing: 8, children: [
+        SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
+        SoftButton(label: 'حقوق', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
+        SoftButton(label: 'حضور', icon: Icons.access_time_rounded, onTap: () => context.push('/employees/${employee.id}/attendance')),
+        SoftButton(label: 'اسناد', icon: Icons.folder_open_rounded, onTap: () => context.push('/employees/${employee.id}/records')),
+        SoftButton(label: 'مرخصی', icon: Icons.event_busy_rounded, onTap: () => context.push('/employees/${employee.id}/leaves')),
+        SoftButton(label: 'اعلان‌ها', icon: Icons.notifications_none_rounded, onTap: () => context.push('/employees/${employee.id}/notices')),
+      ]),
       actions: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
         SoftButton(label: 'حقوق و پورسانت', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
