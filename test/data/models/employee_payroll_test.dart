@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/models/employee_payroll.dart';
+import 'package:datetime/data/mock/app_database.dart';
 void main() {
  final date=DateTime(2026,11,18);
  test('approved payroll items only; salary, commission, bonus, deductions, advance and payments', () {
@@ -24,6 +25,29 @@ void main() {
   expect(t.progress(750),0.75);
   final a=PayrollAdvance(id:'a',employeeId:'e',amount:500,requestedAt:date,description:'مساعده',status:AdvanceStatus.paid,deductedAmount:200);
   expect(a.outstanding,300);
+ });
+ test('Datamonck seeds payroll records for at least five employees', () {
+  final db=AppDatabase();
+  expect(db.employees.length, greaterThanOrEqualTo(5));
+  for (final employee in db.employees.take(5)) {
+   expect(db.salaryContractsFor(employee.id), isNotEmpty);
+   expect(db.performanceTargets.any((target)=>target.employeeId==employee.id), isTrue);
+  }
+ });
+ test('salary changes append history and payroll reads the active contract', () {
+  final db=AppDatabase(); final employee=db.employees.first;
+  final first=db.salaryContractsFor(employee.id).first;
+  db.saveSalaryContract(SalaryContract(id:'salary-next',employeeId:employee.id,monthlyBase:25000000,effectiveFrom:date));
+  expect(db.salaryContractsFor(employee.id),hasLength(2));
+  expect(db.payrollFor(employee.id,at:date).baseSalary,25000000);
+  expect(first.monthlyBase,isNot(25000000));
+ });
+ test('rejects duplicate payroll adjustment identifiers', () {
+  final db=AppDatabase(); final employee=db.employees.first;
+  final item=PayrollAdjustment(id:'unique-adjustment',employeeId:employee.id,amount:100,date:date,
+    description:'پاداش',createdBy:'مدیر',status:PayrollRecordStatus.approved,bonusType:PayrollBonusType.manual);
+  db.addPayrollAdjustment(item);
+  expect(()=>db.addPayrollAdjustment(item),throwsStateError);
  });
  test('rejects negative commission', () => expect(() => EmployeePayrollCalculator.calculate(contract:null,at:date,approvedCommission:-1,adjustments:const[],advances:const[],previousPayments:0),throwsArgumentError));
 }
