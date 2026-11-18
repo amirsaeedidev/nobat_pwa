@@ -42,7 +42,7 @@ void main() {
       db.switchMockAccount('demo-operator');
       final repository = MockDashboardRepository(db);
       final range = ReportDateRange.preset(ReportPeriod.thisMonth);
-      expect(() => repository.fetchReportAnalytics(range: range), throwsA(isA<AccessDeniedException>()));
+      await expectLater(repository.fetchReportAnalytics(range: range), throwsA(isA<AccessDeniedException>()));
     });
   });
 }
