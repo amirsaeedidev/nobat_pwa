@@ -267,7 +267,7 @@ class MockDashboardRepository implements DashboardRepository {
         final serviceMatches = _db.services.where((item) => item.id == serviceId).toList();
         final serviceName = serviceMatches.isEmpty
             ? (snapshot?['service_name'] as String? ?? serviceId)
-            : serviceMatches.first.name;
+            : serviceMatches.first.title;
         parts.add((name: serviceName, weight: savedPrice ?? 1));
       }
       final weightTotal = parts.fold<num>(0, (sum, item) => sum + item.weight);
