@@ -35,7 +35,7 @@ class ReportInsightEngine {
         'جاری: ${current.revenue.round()} · مقایسه: ${previous.revenue.round()} · کاهش: ${drop.toStringAsFixed(1)}٪',
         drop >= 40 ? ReportAlertLevel.critical : ReportAlertLevel.warning));
     }
-    if (current.completedAppointments >= 10 && services.length >= 3) {
+    if (current.filter.isEmpty && current.completedAppointments >= 10 && services.length >= 3) {
       final counts = <String, int>{};
       for (final item in current.operationalAppointments.where((a) => a.status == AppointmentStatus.completed)) {
         for (final id in item.serviceIds) { counts[id] = (counts[id] ?? 0) + 1; }
@@ -52,7 +52,7 @@ class ReportInsightEngine {
       }
     }
     final hours = current.hourlyDemand.where((h) => h.scheduledMinutes >= 60).toList();
-    if (current.capacityMinutes >= 240 && hours.length >= 3) {
+    if (current.filter.isEmpty && current.capacityMinutes >= 240 && hours.length >= 3) {
       final low = hours.where((h) => h.appointments == 0 && h.bookedMinutes <= h.scheduledMinutes * .1).toList();
       if (low.isNotEmpty) {
         result.add(ReportInsight('low-hours', 'ساعت‌های کم‌تقاضا',
@@ -61,8 +61,8 @@ class ReportInsightEngine {
           ReportAlertLevel.info));
       }
     }
-    final currentStaff = _staffCounts(current.operationalAppointments);
-    final previousStaff = _staffCounts(previous.operationalAppointments);
+    final currentStaff = current.filter.isEmpty ? _staffCounts(current.operationalAppointments) : <String, int>{};
+    final previousStaff = current.filter.isEmpty ? _staffCounts(previous.operationalAppointments) : <String, int>{};
     for (final entry in previousStaff.entries) {
       if (entry.value < 3 || (currentStaff[entry.key] ?? 0) > entry.value * .7) continue;
       final names = previous.operationalAppointments.where((a) => a.employeeId == entry.key);
