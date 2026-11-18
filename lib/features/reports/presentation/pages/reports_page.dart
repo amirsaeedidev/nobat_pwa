@@ -16,6 +16,7 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
+import '../../../../data/models/business_finance.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/enums.dart';
@@ -132,6 +133,81 @@ class ReportsPage extends StatelessWidget {
                       RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true),
                     ])),
                     const SizedBox(height: 12),
+                    AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const SectionHeader(title: 'تحلیل مالی و سود و زیان', subtitle: 'درآمد شناسایی‌شده، مبالغ وصولی و هزینه‌های ثبت‌شده از هم تفکیک شده‌اند'),
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 9, runSpacing: 9, children: [
+                        GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد ناخالص', [
+                          'مبلغ ناخالص خدمات تکمیل‌شده: ${Fmt.compactMoney(provider.analytics.grossRevenue)}',
+                          'تخفیف و برگشت ثبت‌شده: ${Fmt.compactMoney(provider.analytics.discounts)}',
+                        ]), child: _MetricCard(label: 'درآمد ناخالص', value: provider.analytics.grossRevenue, money: true, icon: HugeIcons.strokeRoundedMoneyBag02, color: pal.primaryBright)),
+                        GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
+                          for (final item in provider.analytics.recentAppointments) '${item.customerName} · ${item.serviceName} · ${Fmt.compactMoney(item.price)}',
+                        ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
+                        GestureDetector(onTap: () => _showFinanceSheet(context, 'رسیدهای دریافت', [
+                          for (final item in provider.analytics.paymentTransactions) '${item.description} · ${item.method.label} · ${Fmt.compactMoney(item.signedAmount)}',
+                        ]), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
+                        GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
+                          for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
+                        ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedInvoice03, color: pal.warning)),
+                        _MetricCard(label: 'حاشیه سود', value: provider.analytics.profitMarginPercent, icon: HugeIcons.strokeRoundedChartLineData01, color: pal.success),
+                        GestureDetector(onTap: () => _showFinanceSheet(context, 'مانده پرداخت پرسنل', [
+                          'مانده قابل پرداخت: ${Fmt.compactMoney(provider.analytics.staffPayable)}',
+                          'پرداخت‌شده در بازه: ${Fmt.compactMoney(provider.analytics.staffPaid)}',
+                          'مساعده باز: ${Fmt.compactMoney(provider.analytics.advancesOutstanding)}',
+                          for (final item in provider.analytics.settlements) '${item.receiptNumber} · ${Fmt.compactMoney(item.paidAmount)} · ${item.status.name}',
+                        ]), child: _MetricCard(label: 'مانده پرسنل', value: provider.analytics.staffPayable, money: true, icon: HugeIcons.strokeRoundedUserGroup, color: pal.purple)),
+                      ]),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(builder: (context, constraints) {
+                        final methodEntries = provider.analytics.paymentsByMethod.entries.toList();
+                        final methodChart = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const SectionHeader(title: 'ترکیب روش‌های پرداخت', subtitle: 'مبالغ خالص دریافتی پس از کسر برگشت وجه'),
+                          const SizedBox(height: 8),
+                          Row(children: [
+                            StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(children: [
+                              for (final item in methodEntries)
+                                InkWell(
+                                  onTap: () => _showFinanceSheet(context, 'پرداخت‌های ${item.key}', [
+                                    for (final payment in provider.analytics.paymentTransactions.where((p) => p.method.label == item.key)) '${payment.description} · ${Fmt.compactMoney(payment.signedAmount)}',
+                                  ]),
+                                  child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
+                                    Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
+                                    Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+                                  ])),
+                                ),
+                            ])),
+                          ]),
+                        ]));
+                        final expenseCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const SectionHeader(title: 'ترکیب هزینه‌ها', subtitle: 'هر قلم فقط از منبع اصلی خودش شمرده شده است'),
+                          const SizedBox(height: 8),
+                          for (final item in provider.analytics.expensesByCategory.entries.where((item) => item.value != 0))
+                            InkWell(
+                              onTap: () => _showFinanceSheet(context, item.key, [
+                                for (final expense in provider.analytics.businessExpenses.where((expense) => expense.category.label == item.key)) '${expense.description} · سند ${expense.sourceDocumentId} · ${Fmt.compactMoney(expense.amount)}',
+                                if (item.key == 'کمیسیون پرسنل') 'جمع کمیسیون و برگشت کمیسیون: ${Fmt.compactMoney(item.value)}',
+                                if (item.key == 'حقوق و مزایا') 'جمع حقوق، پاداش و کسورات ثبت‌شده: ${Fmt.compactMoney(item.value)}',
+                              ]),
+                              child: Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [
+                                Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
+                                Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+                              ])),
+                            ),
+                        ]));
+                        if (constraints.maxWidth < 760) return Column(children: [methodChart, const SizedBox(height: 10), expenseCard]);
+                        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Expanded(child: methodChart), const SizedBox(width: 10), Expanded(child: expenseCard),
+                        ]);
+                      }),
+                      const SizedBox(height: 10),
+                      Text('دوره قبل · درآمد: ${Fmt.compactMoney(provider.analytics.previousPeriodRevenue)} · هزینه: ${Fmt.compactMoney(provider.analytics.previousPeriodCost)} · سود: ${Fmt.compactMoney(provider.analytics.previousPeriodRevenue - provider.analytics.previousPeriodCost)}', style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
+                      const SizedBox(height: 5),
+                      Text('بهای تمام‌شده خدمات هنوز در مدل Datamonck تعریف نشده؛ سود ناخالص کالا/خدمت در این نسخه قابل محاسبه نیست.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                    ])),
+                    const SizedBox(height: 12),
                     LayoutBuilder(builder: (context, constraints) {
                       final wide = constraints.maxWidth >= 900;
                       final statusCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -183,6 +259,37 @@ class ReportsPage extends StatelessWidget {
                 ),
     );
   }
+}
+
+
+void _showFinanceSheet(BuildContext context, String title, List<String> details) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: context.pal.surface,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.55,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            SectionHeader(title: title, subtitle: 'اسناد مرتبط با بازه انتخاب‌شده'),
+            const SizedBox(height: 10),
+            Expanded(child: details.isEmpty
+              ? const EmptyState(title: 'سندی برای نمایش وجود ندارد', compact: true)
+              : ListView.separated(
+                  itemCount: details.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Text(details[index], style: TextStyle(fontSize: 12, color: context.pal.textPrimary)),
+                  ),
+                )),
+          ]),
+        ),
+      ),
+    ),
+  );
 }
 
 class _ChartLegend extends StatelessWidget {
