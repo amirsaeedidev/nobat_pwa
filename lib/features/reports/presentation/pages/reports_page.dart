@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
@@ -11,6 +12,8 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../data/mock/app_database.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/reports_provider.dart';
@@ -24,6 +27,12 @@ class ReportsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<ReportsProvider>();
     final pal = context.pal;
+    final db = context.watch<AppDatabase>();
+    final dayIso = GoRouterState.of(context).uri.queryParameters['date'];
+    final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
+    final dayAppointments = selectedDay == null ? const [] : db.appointments.where((a) => a.jalali.sameDay(selectedDay)).toList();
+    final dayCompleted = dayAppointments.where((a) => a.status == AppointmentStatus.completed);
+    final dayRevenue = dayCompleted.fold<num>(0, (sum, a) => sum + a.price);
 
     return PageScaffold(
       title: 'گزارش‌ها و تحلیل',
@@ -47,6 +56,32 @@ class ReportsPage extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (selectedDay != null) ...[
+                  AppCard(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      SectionHeader(title: 'گزارش روز ' + selectedDay.long, subtitle: 'جزئیات همان روز انتخاب‌شده از نمودار'),
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        _MetricCard(label: 'کل نوبت‌ها', value: FaNum.ofInt(dayAppointments.length), icon: Icons.event_note_rounded, color: pal.primaryBright),
+                        _MetricCard(label: 'تکمیل‌شده', value: FaNum.ofInt(dayCompleted.length), icon: Icons.task_alt_rounded, color: pal.success),
+                        _MetricCard(label: 'درآمد روز', value: Fmt.compactMoney(dayRevenue), icon: Icons.payments_rounded, color: pal.success),
+                      ]),
+                      const SizedBox(height: 8),
+                      if (dayAppointments.isEmpty)
+                        const EmptyState(title: 'برای این روز نوبتی ثبت نشده', compact: true)
+                      else
+                        for (final appointment in dayAppointments)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(appointment.status.icon, color: appointment.status.color),
+                            title: Text(appointment.customerName),
+                            subtitle: Text(appointment.serviceName + ' · ' + appointment.startAt.hour.toString().padLeft(2, '0') + ':' + appointment.startAt.minute.toString().padLeft(2, '0')),
+                            trailing: StatusBadge.appointment(appointment.status, dense: true),
+                          ),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
