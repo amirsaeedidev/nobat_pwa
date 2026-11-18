@@ -41,7 +41,7 @@ class RevenueBarChart extends StatelessWidget {
               tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
                 '${data[group.x].label}\n${Fmt.compactMoney(rod.toY)}',
-                TextStyle(color: pal.textPrimary, fontSize: 11, fontWeight: FontWeight.w600, fontFamily: 'Vazirmatn'),
+                TextStyle(color: pal.textPrimary, fontSize: 11, fontWeight: FontWeight.w600, fontFamily: 'Lalezar'),
               ),
             ),
           ),
@@ -70,7 +70,7 @@ class RevenueBarChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       data[index].label,
-                      style: TextStyle(fontSize: 9.5, color: pal.textMuted, fontFamily: 'Vazirmatn'),
+                      style: TextStyle(fontSize: 9.5, color: pal.textMuted, fontFamily: 'Lalezar'),
                     ),
                   );
                 },
@@ -158,7 +158,7 @@ class RevenueLineChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       data[index].label,
-                      style: TextStyle(fontSize: 9.5, color: pal.textMuted, fontFamily: 'Vazirmatn'),
+                      style: TextStyle(fontSize: 9.5, color: pal.textMuted, fontFamily: 'Lalezar'),
                     ),
                   );
                 },
@@ -179,7 +179,7 @@ class RevenueLineChart extends StatelessWidget {
                 for (final spot in spots)
                   LineTooltipItem(
                     data[spot.spotIndex].label + '\n' + Fmt.compactMoney(spot.y),
-                    TextStyle(color: pal.textPrimary, fontSize: 10, fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600),
+                    TextStyle(color: pal.textPrimary, fontSize: 10, fontFamily: 'Lalezar', fontWeight: FontWeight.w600),
                   ),
               ],
             ),
