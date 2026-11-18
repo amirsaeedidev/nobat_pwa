@@ -275,7 +275,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
             else ...[
               _ChartCard(title: 'درآمد خدمات', points: [for (final s in report.services.take(6)) AnalyticsPoint(s.name, s.revenue)], color: pal.success, money: true),
               for (final item in report.services.take(6))
-              ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(item.name, style: const TextStyle(fontSize: 11)), subtitle: Text('${FaNum.ofInt(item.bookings)} نوبت', style: const TextStyle(fontSize: 9)), trailing: Text(_money(item.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))),
+              Material(color: Colors.transparent, child: ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(item.name, style: const TextStyle(fontSize: 11)), subtitle: Text('${FaNum.ofInt(item.bookings)} نوبت', style: const TextStyle(fontSize: 9)), trailing: Text(_money(item.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)))),
             ],
           ])),
         ],
