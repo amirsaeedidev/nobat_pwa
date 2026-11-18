@@ -197,6 +197,10 @@ class MockDashboardRepository implements DashboardRepository {
 
     final canViewCommission = _db.hasPermission('finance.commission.view');
     final canViewSalary = _db.hasPermission('finance.salary.view');
+    final hasFullCommissionScope = _db.employees.every((item) =>
+      _db.hasPermission('finance.commission.view', employeeId: item.id));
+    final hasFullSalaryScope = _db.employees.every((item) =>
+      _db.hasPermission('finance.salary.view', employeeId: item.id));
     final revenueEntries = _db.employeeFinanceEntries.where((entry) =>
       range.contains(entry.createdAt) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
@@ -708,7 +712,7 @@ class MockDashboardRepository implements DashboardRepository {
       )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
-      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!canViewCommission || !canViewSalary ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
+      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!hasFullCommissionScope || !hasFullSalaryScope ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
       grossRevenue: grossRevenue,
       collectedRevenue: collectedRevenue,
       receivables: receivables,
