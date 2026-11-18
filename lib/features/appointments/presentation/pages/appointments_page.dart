@@ -142,8 +142,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               children: [
                 Row(
                   children: [
-                    const SectionHeader(title: 'فهرست نوبت‌ها'),
-                    const Spacer(),
+                    const Expanded(child: SectionHeader(title: 'فهرست نوبت‌ها')),
                     CountPill(value: provider.page.total, icon: Icons.event_available_rounded),
                   ],
                 ),
