@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:datetime/core/utils/jalali.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
 import 'package:datetime/data/models/employee.dart';
@@ -109,18 +110,19 @@ void main() {
         active: true,
         commissionRateBps: 4000,
       ));
+      final appointmentDay = now.add(const Duration(days: 60));
+      final appointmentStart = DateTime(appointmentDay.year, appointmentDay.month, appointmentDay.day, 10);
       db.saveEmployeeWeeklySchedule(employee.id, {
-        now.weekday: const [Shift(start: '09:00', end: '18:00')],
+        JalaliDate.fromDateTime(appointmentDay).weekday: const [Shift(start: '09:00', end: '18:00')],
       });
       expect(db.employeeOffersService(employee.id, service.id), isTrue);
       expect(db.isEmployeeAvailableAt(
         employeeId: employee.id,
-        startAt: DateTime(now.year, now.month, now.day, 10),
+        startAt: appointmentStart,
         durationMinutes: service.totalMinutes,
       ), isTrue);
 
       final customer = db.customers.first;
-      final appointmentStart = DateTime(now.year, now.month, now.day, 10);
       final appointment = Appointment(
         id: 'phase10-integration-appointment',
         reference: 'PHASE10-001',
