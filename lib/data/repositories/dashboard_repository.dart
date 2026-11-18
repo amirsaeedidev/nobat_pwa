@@ -55,7 +55,6 @@ class MockDashboardRepository implements DashboardRepository {
         .where((a) => a.status == AppointmentStatus.completed)
         .fold<num>(0, (sum, a) => sum + a.price);
 
-    final monthStart = JalaliDate(today.year, today.month, 1);
     final monthRevenue = all
         .where((a) => a.status == AppointmentStatus.completed && !a.jalali.isBefore(monthStart))
         .fold<num>(0, (sum, a) => sum + a.price);
