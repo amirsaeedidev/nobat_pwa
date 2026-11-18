@@ -17,6 +17,7 @@ class ReportsProvider extends DbBoundProvider {
   ReportDateRange? _customComparisonRange;
   ReportAnalytics? _analytics;
   ReportAnalytics? _comparisonAnalytics;
+  int _loadGeneration = 0;
   ReportServiceSort _serviceSort = ReportServiceSort.revenue;
   bool _loading = true;
   String? _error;
@@ -92,25 +93,37 @@ class ReportsProvider extends DbBoundProvider {
   }
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _analytics = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
+      final current = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
+      if (generation != _loadGeneration) return;
+      _analytics = current;
+      _loading = false;
+      notifyListeners();
+
       try {
-        _comparisonAnalytics = await _repository.fetchReportAnalytics(
+        final comparison = await _repository.fetchReportAnalytics(
           range: comparisonRange, filter: _filter,
         );
+        if (generation != _loadGeneration) return;
+        _comparisonAnalytics = comparison;
       } catch (_) {
-        _comparisonAnalytics = null;
+        if (generation == _loadGeneration) _comparisonAnalytics = null;
       }
+      if (generation == _loadGeneration) notifyListeners();
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _analytics = ReportAnalytics.empty(_range);
       _comparisonAnalytics = null;
       _error = error.toString();
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
