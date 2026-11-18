@@ -57,7 +57,7 @@ enum ActivityType {
   serviceModified('تغییر خدمت', Icons.content_cut_rounded, Color(0xFFF59E0B)),
   employeeAdded('افزودن پرسنل', Icons.badge_rounded, Color(0xFF3B82F6)),
   smsSent('ارسال پیامک', Icons.sms_rounded, Color(0xFF8C624B)),
-  smsFailed('پیامک ناموفق', Icons.sms_failed_rounded, Color(0xFFEF4444)),
+  smsFailed('پیامک ناموفق', Icons.sms_rounded, Color(0xFFEF4444)),
   settingsChanged('تغییر تنظیمات', Icons.settings_rounded, Color(0xFF94A3B8));
 
   const ActivityType(this.label, this.icon, this.color);
