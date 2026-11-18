@@ -16,8 +16,8 @@ class PayrollAdjustment {
   bool get isBonus => bonusType != null;
 }
 class PayrollAdvance {
-  const PayrollAdvance({required this.id, required this.employeeId, required this.amount, required this.requestedAt, required this.description, required this.status, this.paidAt, this.deductedAmount = 0});
-  final String id, employeeId, description; final int amount, deductedAmount; final DateTime requestedAt; final DateTime? paidAt; final AdvanceStatus status;
+  const PayrollAdvance({required this.id, required this.employeeId, required this.amount, required this.requestedAt, required this.description, required this.status, this.paidAt, this.deductedAmount = 0, this.sourceWalletTransactionId});
+  final String id, employeeId, description; final int amount, deductedAmount; final DateTime requestedAt; final DateTime? paidAt; final AdvanceStatus status; final String? sourceWalletTransactionId;
   int get outstanding => (amount - deductedAmount).clamp(0, amount);
 }
 class EmployeePerformanceTarget {
