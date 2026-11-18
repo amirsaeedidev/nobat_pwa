@@ -70,7 +70,17 @@ class EmployeeLeaveRequestsPage extends StatelessWidget {
   if(ok==true&&context.mounted) {
    try {
     if(note.text.trim().isEmpty)throw ArgumentError('توضیحات درخواست الزامی است.');
-    db.addEmployeeLeave(EmployeeLeave(id:db.nextId('leave'),employeeId:id,startAt:DateTime(start.year,start.month,start.day),endAt:DateTime(end.year,end.month,end.day,23,59),type:type,status:EmployeeLeaveStatus.pending,description:note.text.trim(),createdAt:now));
+    var leaveStart=DateTime(start.year,start.month,start.day);
+    var leaveEnd=DateTime(end.year,end.month,end.day,23,59);
+    if(type==EmployeeLeaveType.hourly){
+     final fromTime=await showTimePicker(context:context,initialTime:const TimeOfDay(hour:9,minute:0));
+     if(fromTime==null||!context.mounted){note.dispose();return;}
+     final toTime=await showTimePicker(context:context,initialTime:const TimeOfDay(hour:10,minute:0));
+     if(toTime==null||!context.mounted){note.dispose();return;}
+     leaveStart=DateTime(start.year,start.month,start.day,fromTime.hour,fromTime.minute);
+     leaveEnd=DateTime(end.year,end.month,end.day,toTime.hour,toTime.minute);
+    }
+    db.addEmployeeLeave(EmployeeLeave(id:db.nextId('leave'),employeeId:id,startAt:leaveStart,endAt:leaveEnd,type:type,status:EmployeeLeaveStatus.pending,description:note.text.trim(),createdAt:now));
     AppToast.show(context,'درخواست مرخصی ثبت شد.');
    } catch(e){AppToast.show(context,e.toString(),success:false);}
   }

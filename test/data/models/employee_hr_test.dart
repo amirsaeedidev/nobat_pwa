@@ -70,6 +70,22 @@ void main(){
   db.addEmployeeLeave(leave);
   expect(()=>db.updateEmployeeLeave(leave.copyWith(status:EmployeeLeaveStatus.approved)),throwsArgumentError);
  });
+ test('new leave request notifies the manager and the employee',(){
+  final db=AppDatabase();final employee=db.employees.first;final start=DateTime(2026,12,10);
+  db.addEmployeeLeave(EmployeeLeave(id:'leave-notice-manager',employeeId:employee.id,startAt:start,endAt:start.add(const Duration(hours:8)),type:EmployeeLeaveType.hourly,status:EmployeeLeaveStatus.pending,description:'قرار پزشکی',createdAt:date));
+  expect(db.noticesFor(employee.id).any((n)=>n.type==EmployeeNoticeType.leaveRequested),true);
+  expect(db.noticesFor('emp-shima').any((n)=>n.type==EmployeeNoticeType.leaveRequested),true);
+ });
+ test('attendance rejects checkout before check-in and duplicate absence',(){
+  final db=AppDatabase();final employee=db.employees.first;final day=DateTime(2026,1,9);
+  db.recordAttendance(AttendanceRecord(id:'validation-in',employeeId:employee.id,date:day,type:AttendanceEventType.checkIn,at:day.add(const Duration(hours:9))));
+  expect(()=>db.recordAttendance(AttendanceRecord(id:'validation-out',employeeId:employee.id,date:day,type:AttendanceEventType.checkOut,at:day.add(const Duration(hours:8)))),throwsStateError);
+  expect(()=>db.recordAttendance(AttendanceRecord(id:'validation-absence',employeeId:employee.id,date:day,type:AttendanceEventType.absence,at:day.add(const Duration(hours:8)))),throwsStateError);
+ });
+ test('manual attendance correction requires manager permission',(){
+  final db=AppDatabase();final staff=db.accessAccounts.firstWhere((a)=>a.id=='demo-staff');db.switchMockAccount(staff.id);
+  expect(()=>db.recordAttendance(AttendanceRecord(id:'staff-manual',employeeId:staff.employeeId!,date:date,type:AttendanceEventType.checkIn,at:date,createdBy:staff.name,isManualCorrection:true)),throwsA(isA<Exception>()));
+ });
  test('mock notice can be marked read',(){
   final notice=EmployeeNotice(id:'1',employeeId:'e',title:'مرخصی',message:'درخواست جدید',type:EmployeeNoticeType.leaveRequested,createdAt:date);
   expect(notice.markRead().read,true);
