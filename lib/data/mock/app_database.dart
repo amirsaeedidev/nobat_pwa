@@ -98,16 +98,17 @@ class AppDatabase extends ChangeNotifier {
   void _seedBusinessFinance() {
     var index = 0;
     for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) {
-      final received = _employeeFinanceEntries
+      final revenueDocuments = _employeeFinanceEntries
           .where((entry) => entry.appointmentId == appointment.id && entry.type == FinanceEntryType.commission)
-          .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
-      if (received <= 0) continue;
+          .toList();
+      final received = revenueDocuments.fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      if (received <= 0 || revenueDocuments.isEmpty) continue;
       final methods = BusinessPaymentMethod.values;
       _appointmentPayments.add(AppointmentPayment(
         id: 'payment-seed-${appointment.id}',
         appointmentId: appointment.id,
         customerId: appointment.customerId,
-        createdAt: appointment.startAt,
+        createdAt: revenueDocuments.first.createdAt,
         amount: received,
         method: methods[index++ % methods.length],
         type: BusinessPaymentType.receipt,
@@ -838,7 +839,7 @@ class AppDatabase extends ChangeNotifier {
       final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
       final calculatedCommission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
       final commission = calculatedCommission.clamp(0, received).toInt();
-      final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: appointment.startAt, type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
+      final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
       _employeeFinanceEntries.add(financeEntry);
       _mirrorFinanceEntryToWallet(financeEntry);
     }
