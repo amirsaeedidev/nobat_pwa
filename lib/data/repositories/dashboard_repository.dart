@@ -269,7 +269,13 @@ class MockDashboardRepository implements DashboardRepository {
     final operatingExpense = businessExpenses.fold<int>(0, (sum, item) => sum + item.amount);
     final cost = commissionCost + payrollCost + operatingExpense;
 
-    final payments = _db.appointmentPayments.where((item) => range.contains(item.createdAt)).toList()
+    final allVisiblePayments = _db.appointmentPayments.where((item) {
+      final appointment = _db.appointmentById(item.appointmentId);
+      return appointment != null &&
+        (canViewAll || employeeId == appointment.employeeId) &&
+        _db.hasPermission('finance.income.view', employeeId: appointment.employeeId);
+    }).toList();
+    final payments = allVisiblePayments.where((item) => range.contains(item.createdAt)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final collectedRevenue = payments.fold<int>(0, (sum, item) => sum + item.signedAmount);
     final paymentsByMethod = <String, num>{
@@ -291,7 +297,7 @@ class MockDashboardRepository implements DashboardRepository {
           (recognizedByAppointment[entry.appointmentId] ?? 0) + entry.receivedAmount;
     }
     final paidByAppointment = <String, int>{};
-    for (final payment in _db.appointmentPayments) {
+    for (final payment in allVisiblePayments) {
       paidByAppointment[payment.appointmentId] =
           (paidByAppointment[payment.appointmentId] ?? 0) + payment.signedAmount;
     }
@@ -300,7 +306,8 @@ class MockDashboardRepository implements DashboardRepository {
     final debtAppointments = <String, int>{};
     final partialPayments = <AppointmentPayment>[];
     var receivables = 0;
-    for (final appointment in completed) {
+    for (final appointment in completed.where((item) =>
+      _db.hasPermission('finance.income.view', employeeId: item.employeeId))) {
       final due = (recognizedByAppointment[appointment.id] ?? appointment.price.round()) -
           (paidByAppointment[appointment.id] ?? 0);
       if (due > 0) {
@@ -309,7 +316,7 @@ class MockDashboardRepository implements DashboardRepository {
         debtNameByCustomer[appointment.customerId] = appointment.customerName;
         debtAppointments[appointment.customerId] = (debtAppointments[appointment.customerId] ?? 0) + 1;
         if ((paidByAppointment[appointment.id] ?? 0) > 0) {
-          partialPayments.addAll(_db.appointmentPayments.where((payment) =>
+          partialPayments.addAll(allVisiblePayments.where((payment) =>
             payment.appointmentId == appointment.id && payment.type == BusinessPaymentType.receipt));
         }
       }
