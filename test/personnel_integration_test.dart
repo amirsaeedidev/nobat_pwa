@@ -192,18 +192,6 @@ void main() {
       final due = db.walletPeriodDue(employee.id, monthStart, periodEnd);
       expect(due, payroll.payable);
 
-      final settlement = db.settleEmployeeWallet(
-        employeeId: employee.id,
-        periodStart: monthStart,
-        periodEnd: periodEnd,
-        periodType: EmployeeWalletPeriodType.monthly,
-        paidAmount: due,
-        idempotencyKey: 'phase10-settlement-once',
-      );
-      expect(settlement.remainingAfter, 0);
-      expect(db.walletBalanceFor(employee.id), 0);
-      expect(db.payrollFor(employee.id, at: now).payable, 0);
-
       final analyticsRange = EmployeeAnalyticsFilter(
         from: monthStart,
         to: appointmentDay.add(const Duration(days: 1)),
@@ -220,6 +208,19 @@ void main() {
       expect(beforeSettlement.deductionAmount, 50000);
       expect(beforeSettlement.actualWorkedMinutes, 540);
       expect(beforeSettlement.completedAppointments, hasLength(1));
+
+      expect(beforeSettlement.salaryBalance, due);
+      final settlement = db.settleEmployeeWallet(
+        employeeId: employee.id,
+        periodStart: monthStart,
+        periodEnd: periodEnd,
+        periodType: EmployeeWalletPeriodType.monthly,
+        paidAmount: due,
+        idempotencyKey: 'phase10-settlement-once',
+      );
+      expect(settlement.remainingAfter, 0);
+      expect(db.walletBalanceFor(employee.id), 0);
+      expect(db.payrollFor(employee.id, at: now).payable, 0);
 
       final afterSettlement = EmployeeAnalyticsCalculator.calculate(
         db: db, employee: employee, filter: analyticsRange,
