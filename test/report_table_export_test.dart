@@ -12,7 +12,7 @@ void main() {
       expect(csv, contains('"علی، رضایی"'));
       expect(csv, contains('"\'=1+1"'));
       expect(csv, contains('"گفت ""سلام"""'));
-      expect(ReportTableExport.csvBytes(['نام'], [['امیر']]).take(3), [0xEF, 0xBB, 0xBF]);
+      expect(ReportTableExport.csvBytes(['نام'], [['امیر']]).take(3).toList(), [0xEF, 0xBB, 0xBF]);
     });
 
     test('XLSX workbook contains headers and data rows', () {
