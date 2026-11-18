@@ -13,7 +13,7 @@ class EmployeeNoticesPage extends StatelessWidget{
   return PageScaffold(title:'اعلان‌های پرسنل',subtitle:e.fullName,showBackButton:true,child:AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
    SectionHeader(title:'اعلان‌های آفلاین',subtitle:'$unread خوانده‌نشده'),
    if(notices.isEmpty)EmptyState(title:'اعلانی وجود ندارد'),
-   for(final n in notices)ListTile(contentPadding:EdgeInsets.zero,leading:Icon(n.read?Icons.notifications_none:Icons.notifications_active_outlined),title:Text(n.title),subtitle:Text('${n.message}\n${n.createdAt.toString().split('.').first}'),trailing:n.read?const Icon(Icons.done,color:Colors.green):TextButton(onPressed:()=>db.markEmployeeNoticeRead(n.id),child:const Text('خواندم'))),
+   for(final n in notices)Material(color:Colors.transparent,child:ListTile(contentPadding:EdgeInsets.zero,leading:Icon(n.read?Icons.notifications_none:Icons.notifications_active_outlined),title:Text(n.title),subtitle:Text('${n.message}\n${n.createdAt.toString().split('.').first}'),trailing:n.read?const Icon(Icons.done,color:Colors.green):TextButton(onPressed:()=>db.markEmployeeNoticeRead(n.id),child:const Text('خواندم')))),
   ])));
  }
 }
