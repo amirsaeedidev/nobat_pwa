@@ -146,7 +146,7 @@ jobs:
           flutter test 2>&1 | tee flutter-test-output.txt
 
       - name: Build offline Flutter Web app
-        if: always() && steps.tests.outcome == 'success'
+        if: always() && steps.analyze.outcome == 'success'
         run: flutter build web --release
 
       - name: Add test result to summary
