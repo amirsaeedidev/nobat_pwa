@@ -166,11 +166,12 @@ class ReportsPage extends StatelessWidget {
                           'تخفیف و برگشت ثبت‌شده: ${Fmt.compactMoney(provider.analytics.discounts)}',
                         ]), child: _MetricCard(label: 'درآمد ناخالص', value: provider.analytics.grossRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.primaryBright)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
-                          for (final item in provider.analytics.recentAppointments) '${item.customerName} · ${item.serviceName} · ${Fmt.compactMoney(item.price)}',
+                          for (final item in provider.analytics.services) '${item.name} · ${item.count} نوبت · ${Fmt.compactMoney(item.revenue)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
                         GestureDetector(onTap: () => _showPaymentSheet(context, db, provider), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
+                          for (final item in provider.analytics.partialPayments) 'پرداخت ناقص: ${item.description} · ${Fmt.compactMoney(item.signedAmount)}',
                         ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedAppointment01, color: pal.warning)),
                         _MetricCard(label: 'حاشیه سود', value: provider.analytics.profitMarginPercent, icon: HugeIcons.strokeRoundedChartLineData01, color: pal.success),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مانده پرداخت پرسنل', [
