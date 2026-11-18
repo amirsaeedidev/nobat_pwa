@@ -493,6 +493,26 @@ class AppDatabase extends ChangeNotifier {
     }
     if (_payrollAdjustments.any((item) => item.id == adjustment.id)) throw StateError('شناسه تکراری است.');
     _payrollAdjustments.add(adjustment);
+    if (adjustment.status == PayrollRecordStatus.approved && adjustment.sourceWalletTransactionId == null) {
+      final walletType = adjustment.isBonus
+          ? EmployeeWalletTransactionType.bonus
+          : (adjustment.deductionType == PayrollDeductionType.absence || adjustment.deductionType == PayrollDeductionType.lateness
+              ? EmployeeWalletTransactionType.penalty
+              : EmployeeWalletTransactionType.deduction);
+      final walletAmount = adjustment.isBonus ? adjustment.amount : -adjustment.amount;
+      final walletEntry = EmployeeWalletTransaction(
+        id: nextId('wallet'), employeeId: adjustment.employeeId, createdAt: adjustment.date,
+        amount: walletAmount, type: walletType, description: adjustment.description,
+        idempotencyKey: 'payroll-adjustment-${adjustment.id}',
+      );
+      _employeeWalletTransactions.add(walletEntry);
+      _payrollAdjustments[_payrollAdjustments.length - 1] = PayrollAdjustment(
+        id: adjustment.id, employeeId: adjustment.employeeId, amount: adjustment.amount,
+        date: adjustment.date, description: adjustment.description, createdBy: adjustment.createdBy,
+        status: adjustment.status, bonusType: adjustment.bonusType, deductionType: adjustment.deductionType,
+        relatedAdvanceId: adjustment.relatedAdvanceId, sourceWalletTransactionId: walletEntry.id,
+      );
+    }
     log(ActivityType.settingsChanged, 'ثبت آیتم حقوق', 'پاداش یا کسورات پرسنل ثبت شد.', entity: 'حقوق پرسنل');
     _commit();
   }
@@ -502,7 +522,22 @@ class AppDatabase extends ChangeNotifier {
     if (!_employees.any((item) => item.id == advance.employeeId)) throw StateError('پرسنل پیدا نشد.');
     if (advance.amount <= 0 || advance.description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات مساعده الزامی است.');
     if (_payrollAdvances.any((item) => item.id == advance.id)) throw StateError('شناسه مساعده تکراری است.');
-    _payrollAdvances.add(advance);
+    var savedAdvance = advance;
+    if (advance.status == AdvanceStatus.paid && advance.sourceWalletTransactionId == null) {
+      final walletEntry = EmployeeWalletTransaction(
+        id: nextId('wallet'), employeeId: advance.employeeId, createdAt: advance.paidAt ?? DateTime.now(),
+        amount: -advance.amount, type: EmployeeWalletTransactionType.advance,
+        description: advance.description, idempotencyKey: 'payroll-advance-${advance.id}',
+      );
+      _employeeWalletTransactions.add(walletEntry);
+      savedAdvance = PayrollAdvance(
+        id: advance.id, employeeId: advance.employeeId, amount: advance.amount,
+        requestedAt: advance.requestedAt, description: advance.description, status: advance.status,
+        paidAt: advance.paidAt, deductedAmount: advance.deductedAmount,
+        sourceWalletTransactionId: walletEntry.id,
+      );
+    }
+    _payrollAdvances.add(savedAdvance);
     _commit();
   }
 
@@ -732,6 +767,27 @@ class AppDatabase extends ChangeNotifier {
       idempotencyKey: idempotencyKey,
     );
     _employeeWalletTransactions.add(entry);
+    if (type == EmployeeWalletTransactionType.bonus) {
+      _payrollAdjustments.add(PayrollAdjustment(
+        id: 'payroll-${entry.id}', employeeId: employeeId, amount: amount,
+        date: entry.createdAt, description: entry.description, createdBy: currentAccessAccount.name,
+        status: PayrollRecordStatus.approved, bonusType: PayrollBonusType.manual,
+        sourceWalletTransactionId: entry.id,
+      ));
+    } else if (type == EmployeeWalletTransactionType.penalty || type == EmployeeWalletTransactionType.deduction) {
+      _payrollAdjustments.add(PayrollAdjustment(
+        id: 'payroll-${entry.id}', employeeId: employeeId, amount: amount.abs(),
+        date: entry.createdAt, description: entry.description, createdBy: currentAccessAccount.name,
+        status: PayrollRecordStatus.approved, deductionType: PayrollDeductionType.agreed,
+        sourceWalletTransactionId: entry.id,
+      ));
+    } else if (type == EmployeeWalletTransactionType.advance) {
+      _payrollAdvances.add(PayrollAdvance(
+        id: 'advance-${entry.id}', employeeId: employeeId, amount: amount.abs(),
+        requestedAt: entry.createdAt, paidAt: entry.createdAt, description: entry.description,
+        status: AdvanceStatus.paid, sourceWalletTransactionId: entry.id,
+      ));
+    }
     if (type == EmployeeWalletTransactionType.salaryPayment) _notifyEmployee(employeeId,EmployeeNoticeType.paymentRecorded,'پرداخت ثبت شد.','پرداخت حقوق برای شما ثبت شد.');
     log(ActivityType.settingsChanged, 'ثبت تراکنش کیف پول', 'تراکنش «${type.label}» برای پرسنل ثبت شد.', entity: 'کیف پول پرسنل');
     _commit();
