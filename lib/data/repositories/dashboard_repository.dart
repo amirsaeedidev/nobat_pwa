@@ -437,6 +437,18 @@ class MockDashboardRepository implements DashboardRepository {
     final loyalCustomers = customerMetrics.where((item) => item.isLoyal).length;
     final inactiveCustomers = customerMetrics.where((item) => item.isInactive).length;
     final atRiskCustomers = customerMetrics.where((item) => item.isAtRisk).length;
+    final newCustomerBuckets = <DateTime, int>{};
+    final rangeDaysForAcquisition = range.endExclusive.difference(range.start).inDays;
+    for (final customer in customerMetrics.where((item) => item.isNew)) {
+      final date = customer.firstVisitAt;
+      if (date == null || !range.contains(date)) continue;
+      final bucket = rangeDaysForAcquisition <= 31
+        ? DateTime(date.year, date.month, date.day)
+        : JalaliDate(JalaliDate.fromDateTime(date).year, JalaliDate.fromDateTime(date).month, 1).toDateTime();
+      newCustomerBuckets[bucket] = (newCustomerBuckets[bucket] ?? 0) + 1;
+    }
+    final newCustomerTrend = newCustomerBuckets.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
 
     final hourlyCounts = <int, int>{};
     final hourlyScheduled = <int, int>{};
@@ -646,6 +658,10 @@ class MockDashboardRepository implements DashboardRepository {
       directCostCoveragePercent: directCostCoveragePercent,
       filter: filter,
       operationalStatusCounts: operationalStatusCounts,
+      newCustomerTrend: [for (final item in newCustomerTrend) ReportTrendPoint(
+        label: rangeDaysForAcquisition <= 31 ? JalaliDate.fromDateTime(item.key).short : JalaliDate.fromDateTime(item.key).monthName,
+        start: item.key, revenue: 0, cost: 0, appointments: item.value,
+      )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
       costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!canViewCommission || !canViewSalary ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
