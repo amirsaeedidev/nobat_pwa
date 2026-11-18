@@ -195,6 +195,11 @@ class MockDashboardRepository implements DashboardRepository {
       range.contains(entry.createdAt) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
       (canViewAll || employeeId == entry.employeeId)).toList();
+    final revenueByAppointmentInRange = <String, int>{};
+    for (final entry in revenueEntries) {
+      revenueByAppointmentInRange[entry.appointmentId] =
+          (revenueByAppointmentInRange[entry.appointmentId] ?? 0) + entry.receivedAmount;
+    }
     final financeEntries = canViewCommission ? revenueEntries : <EmployeeFinanceEntry>[];
     final allVisibleFinanceEntries = _db.employeeFinanceEntries.where((entry) =>
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
@@ -303,7 +308,7 @@ class MockDashboardRepository implements DashboardRepository {
     final employeeRevenue = <String, num>{};
     final employeeNames = <String, String>{};
     for (final appointment in completed) {
-      employeeRevenue[appointment.employeeId] = (employeeRevenue[appointment.employeeId] ?? 0) + (recognizedByAppointment[appointment.id] ?? appointment.price);
+      employeeRevenue[appointment.employeeId] = (employeeRevenue[appointment.employeeId] ?? 0) + (revenueByAppointmentInRange[appointment.id] ?? 0);
       employeeNames[appointment.employeeId] = appointment.employeeName;
     }
     final employeeIds = <String>{...employeeRevenue.keys, ...commissionByEmployee.keys};
@@ -322,7 +327,7 @@ class MockDashboardRepository implements DashboardRepository {
     for (final appointment in completed) {
       if (appointment.serviceIds.isEmpty) {
         final name = appointment.serviceName.trim().isEmpty ? 'خدمت ثبت‌نشده' : appointment.serviceName;
-        serviceTotals[name] = (serviceTotals[name] ?? 0) + (recognizedByAppointment[appointment.id] ?? appointment.price);
+        serviceTotals[name] = (serviceTotals[name] ?? 0) + (revenueByAppointmentInRange[appointment.id] ?? 0);
         serviceCounts[name] = (serviceCounts[name] ?? 0) + 1;
         continue;
       }
@@ -338,7 +343,7 @@ class MockDashboardRepository implements DashboardRepository {
         parts.add((name: serviceName, weight: savedPrice ?? 1));
       }
       final weightTotal = parts.fold<num>(0, (sum, item) => sum + item.weight);
-      final appointmentRevenue = recognizedByAppointment[appointment.id] ?? appointment.price;
+      final appointmentRevenue = revenueByAppointmentInRange[appointment.id] ?? 0;
       var allocated = 0.0;
       for (var index = 0; index < parts.length; index++) {
         final part = parts[index];
@@ -377,8 +382,8 @@ class MockDashboardRepository implements DashboardRepository {
         trend.add(ReportTrendPoint(
           label: JalaliDate.fromDateTime(cursor).short,
           start: cursor,
-          revenue: items.where((item) => item.status == AppointmentStatus.completed)
-              .fold<num>(0, (sum, item) => sum + (recognizedByAppointment[item.id] ?? item.price)),
+          revenue: revenueEntries.where((entry) => !entry.createdAt.isBefore(cursor) && entry.createdAt.isBefore(next))
+              .fold<int>(0, (sum, entry) => sum + entry.receivedAmount),
           cost: costBetween(cursor, next),
           appointments: items.length,
         ));
@@ -396,8 +401,8 @@ class MockDashboardRepository implements DashboardRepository {
         trend.add(ReportTrendPoint(
           label: cursorJalali.monthName,
           start: from,
-          revenue: items.where((item) => item.status == AppointmentStatus.completed)
-              .fold<num>(0, (sum, item) => sum + (recognizedByAppointment[item.id] ?? item.price)),
+          revenue: revenueEntries.where((entry) => !entry.createdAt.isBefore(from) && entry.createdAt.isBefore(to))
+              .fold<int>(0, (sum, entry) => sum + entry.receivedAmount),
           cost: costBetween(from, to),
           appointments: items.length,
         ));
