@@ -57,6 +57,40 @@ void main() {
       expect(expectedCommission, greaterThanOrEqualTo(0));
     });
 
+    test('full refund reverses service revenue and cannot be re-collected', () async {
+      final db = AppDatabase();
+      final pending = db.appointments.firstWhere((item) => item.status == AppointmentStatus.pending);
+      db.changeStatus(pending, AppointmentStatus.completed);
+      final billable = db.employeeFinanceEntries.where((entry) =>
+        entry.appointmentId == pending.id && entry.type.name == 'commission')
+        .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      final receipt = db.recordAppointmentPayment(
+        appointmentId: pending.id,
+        amount: billable,
+        method: BusinessPaymentMethod.cash,
+        description: 'تسویه کامل نمونه',
+        idempotencyKey: 'full-receipt-${pending.id}',
+      );
+      db.refundAppointmentPayment(
+        paymentId: receipt.id,
+        amount: billable,
+        description: 'برگشت کامل',
+        idempotencyKey: 'full-refund-${pending.id}',
+      );
+      expect(() => db.recordAppointmentPayment(
+        appointmentId: pending.id,
+        amount: 1,
+        method: BusinessPaymentMethod.cash,
+        description: 'دریافت مجدد',
+        idempotencyKey: 'recollect-${pending.id}',
+      ), throwsArgumentError);
+      final report = await MockDashboardRepository(db).fetchReportAnalytics(range: allTime());
+      final appointmentRevenue = db.employeeFinanceEntries.where((entry) => entry.appointmentId == pending.id)
+          .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      expect(appointmentRevenue, 0);
+      expect(report.collectedRevenue, db.appointmentPayments.fold<int>(0, (sum, item) => sum + item.signedAmount));
+    });
+
     test('requires a source document and prevents duplicate expense documents', () {
       final db = AppDatabase();
       final expense = BusinessExpense(
@@ -91,6 +125,15 @@ void main() {
       expect(report.collectedRevenue, collected);
       expect(report.operatingExpense, operating);
       expect(report.cost, report.commissionCost + report.payrollCost + operating);
+      final expectedPayroll = db.employeeWalletTransactions.where((item) =>
+        item.status == EmployeeWalletTransactionStatus.posted &&
+        (item.type == EmployeeWalletTransactionType.fixedSalary ||
+          item.type == EmployeeWalletTransactionType.bonus ||
+          item.type == EmployeeWalletTransactionType.penalty ||
+          item.type == EmployeeWalletTransactionType.deduction ||
+          item.type == EmployeeWalletTransactionType.adjustment))
+        .fold<int>(0, (sum, item) => sum + item.amount);
+      expect(report.payrollCost, expectedPayroll);
       expect(report.settlements, isNotEmpty);
       expect(report.staffPaid, greaterThan(0));
       expect(report.paymentsByMethod.length, BusinessPaymentMethod.values.length);
