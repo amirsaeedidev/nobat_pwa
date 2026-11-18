@@ -619,6 +619,7 @@ class AppDatabase extends ChangeNotifier {
   }
   bool hasCommissionForAppointment(String appointmentId) => _employeeFinanceEntries.any((entry) => entry.appointmentId == appointmentId && entry.type == FinanceEntryType.commission);
   bool finalizeCompletedAppointment(String appointmentId, {int discountAmount = 0, int? finalPaidAmount}) {
+    requirePermission('appointments.complete');
     final appointment = appointmentById(appointmentId);
     if (appointment == null || appointment.status != AppointmentStatus.completed || hasCommissionForAppointment(appointmentId)) return false;
     final profile = payProfileFor(appointment.employeeId);
@@ -668,7 +669,8 @@ class AppDatabase extends ChangeNotifier {
         if (item.name == basisKey) { basis = item; break; }
       }
       final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
-      final commission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
+      final calculatedCommission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
+      final commission = calculatedCommission.clamp(0, received).toInt();
       final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
       _employeeFinanceEntries.add(financeEntry);
       _mirrorFinanceEntryToWallet(financeEntry);
