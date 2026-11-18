@@ -1111,6 +1111,7 @@ class AppDatabase extends ChangeNotifier {
       ..sort((a,b)=>b.at.compareTo(a.at));
 
   void recordAttendance(AttendanceRecord record) {
+    if (record.isManualCorrection) requirePermission('employees.edit',employeeId:record.employeeId);
     if (currentAccessAccount.employeeId != record.employeeId) {
       requirePermission('employees.edit', employeeId: record.employeeId);
     } else if (!hasPermission('appointments.view_self') && !hasPermission('employees.edit')) {
@@ -1128,6 +1129,16 @@ class AppDatabase extends ChangeNotifier {
     _attendanceRecords.add(record);
     final employee=employeeById(record.employeeId)!;
     log(ActivityType.settingsChanged,'ثبت حضور و غیاب','رویداد حضور برای ${employee.fullName} ثبت شد.',entity:'حضور و غیاب');
+    _commit();
+  }
+
+  void updateAttendanceRecord(AttendanceRecord record) {
+    requirePermission('employees.edit',employeeId:record.employeeId);
+    final index=_attendanceRecords.indexWhere((item)=>item.id==record.id && item.employeeId==record.employeeId);
+    if(index<0) throw StateError('رکورد حضور و غیاب پیدا نشد.');
+    if(record.at.isBefore(DateTime(2000))) throw ArgumentError('زمان اصلاح معتبر نیست.');
+    if([record.overtimeMinutes,record.lateMinutes,record.earlyLeaveMinutes].any((value)=>value<0)) throw ArgumentError('مقادیر دقیقه نمی‌توانند منفی باشند.');
+    _attendanceRecords[index]=record.copyWith(isManualCorrection:true,createdBy:currentAccessAccount.name);
     _commit();
   }
 

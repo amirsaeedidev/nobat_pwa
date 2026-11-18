@@ -1,8 +1,9 @@
 enum AttendanceEventType { checkIn, checkOut, absence, mission, manualCorrection }
 class AttendanceRecord {
- const AttendanceRecord({required this.id,required this.employeeId,required this.date,required this.type,required this.at, this.note='',this.createdBy='پرسنل',this.overtimeMinutes=0,this.lateMinutes=0,this.earlyLeaveMinutes=0});
- final String id,employeeId,note,createdBy; final DateTime date,at; final AttendanceEventType type; final int overtimeMinutes,lateMinutes,earlyLeaveMinutes;
+ const AttendanceRecord({required this.id,required this.employeeId,required this.date,required this.type,required this.at, this.note='',this.createdBy='پرسنل',this.overtimeMinutes=0,this.lateMinutes=0,this.earlyLeaveMinutes=0,this.isManualCorrection=false});
+ final String id,employeeId,note,createdBy; final DateTime date,at; final AttendanceEventType type; final int overtimeMinutes,lateMinutes,earlyLeaveMinutes; final bool isManualCorrection;
  int get signedMinutes => overtimeMinutes-lateMinutes-earlyLeaveMinutes;
+ AttendanceRecord copyWith({DateTime? date,DateTime? at,AttendanceEventType? type,String? note,int? overtimeMinutes,int? lateMinutes,int? earlyLeaveMinutes,bool? isManualCorrection,String? createdBy}) => AttendanceRecord(id:id,employeeId:employeeId,date:date??this.date,at:at??this.at,type:type??this.type,note:note??this.note,createdBy:createdBy??this.createdBy,overtimeMinutes:overtimeMinutes??this.overtimeMinutes,lateMinutes:lateMinutes??this.lateMinutes,earlyLeaveMinutes:earlyLeaveMinutes??this.earlyLeaveMinutes,isManualCorrection:isManualCorrection??this.isManualCorrection);
 }
 enum EmployeeDocumentType { contract, identity, certificate, specialty, attachment }
 class EmployeeDocument {

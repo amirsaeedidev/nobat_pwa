@@ -39,7 +39,7 @@ class EmployeeAttendancePage extends StatelessWidget {
    Wrap(spacing:8,runSpacing:8,children:[
     SoftButton(label:'ثبت غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
     SoftButton(label:'ثبت مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
-    SoftButton(label:'اصلاح دستی',icon:Icons.edit_note,onTap:()=>_special(context,db,e.id,AttendanceEventType.manualCorrection)),
+    SoftButton(label:'اصلاح دستی',icon:Icons.edit_note,onTap:()=>_manualCorrection(context,db,e.id)),
    ]),
    const SizedBox(height:12),
    AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -67,7 +67,7 @@ class EmployeeAttendancePage extends StatelessWidget {
     for(final row in rows) ListTile(contentPadding:EdgeInsets.zero,
      leading:Icon(_icon(row.type)),title:Text(_label(row.type)),
      subtitle:Text('${row.at.hour.toString().padLeft(2,'0')}:${row.at.minute.toString().padLeft(2,'0')} · ${row.note}'),
-     trailing:Text(row.lateMinutes>0?'تأخیر ${row.lateMinutes}د':row.overtimeMinutes>0?'اضافه‌کاری ${row.overtimeMinutes}د':''),
+     trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[if(row.isManualCorrection)const Icon(Icons.edit_note,size:16),if(row.lateMinutes>0)Text('تأخیر ${row.lateMinutes}د'),if(row.overtimeMinutes>0)Text('اضافه‌کاری ${row.overtimeMinutes}د'),if(row.earlyLeaveMinutes>0)Text('خروج زودهنگام ${row.earlyLeaveMinutes}د'),IconButton(tooltip:'اصلاح رکورد',onPressed:()=>_editRecord(context,db,row),icon:const Icon(Icons.edit_outlined,size:18))]),
     ),
    ])),
    const SizedBox(height:8),Text('گزارش بازه ماهانه؛ تمام اطلاعات در Datamonck و آفلاین نگهداری می‌شوند.',style:Theme.of(context).textTheme.bodySmall),
@@ -96,14 +96,46 @@ class EmployeeAttendancePage extends StatelessWidget {
  }
  static Future<void> _configurePolicy(BuildContext context,AppDatabase db)async{
   final p=db.attendancePayrollPolicy;
-  final late=TextEditingController(text:p.lateDeductionPerMinute.toString()),absence=TextEditingController(text:p.absenceDeductionPerDay.toString()),overtime=TextEditingController(text:p.overtimePaymentPerMinute.toString());
+  final late=TextEditingController(text:p.lateDeductionPerMinute.toString()),absence=TextEditingController(text:p.absenceDeductionPerDay.toString()),overtime=TextEditingController(text:p.overtimePaymentPerMinute.toString()),early=TextEditingController(text:p.earlyLeaveDeductionPerMinute.toString());
   final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('قانون مالی حضور و غیاب'),content:Column(mainAxisSize:MainAxisSize.min,children:[
    TextField(controller:late,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کسر هر دقیقه تأخیر (تومان)')),
    TextField(controller:absence,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کسر هر روز غیبت (تومان)')),
    TextField(controller:overtime,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'پرداخت هر دقیقه اضافه‌کاری (تومان)')),
+   TextField(controller:early,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کسر هر دقیقه خروج زودهنگام (تومان)')),
   ]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ذخیره نرخ‌ها'))]));
-  if(ok==true&&context.mounted){try{db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:p.enabled,lateDeductionPerMinute:int.parse(FaNum.toLatin(late.text)),absenceDeductionPerDay:int.parse(FaNum.toLatin(absence.text)),overtimePaymentPerMinute:int.parse(FaNum.toLatin(overtime.text))));AppToast.show(context,'قانون مالی ذخیره شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
-  late.dispose();absence.dispose();overtime.dispose();
+  if(ok==true&&context.mounted){try{db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:p.enabled,lateDeductionPerMinute:int.parse(FaNum.toLatin(late.text)),absenceDeductionPerDay:int.parse(FaNum.toLatin(absence.text)),overtimePaymentPerMinute:int.parse(FaNum.toLatin(overtime.text)),earlyLeaveDeductionPerMinute:int.parse(FaNum.toLatin(early.text))));AppToast.show(context,'قانون مالی ذخیره شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
+  late.dispose();absence.dispose();overtime.dispose();early.dispose();
  }
+ static Future<void> _manualCorrection(BuildContext context,AppDatabase db,String id) async {
+  var date=DateTime.now();var time=TimeOfDay.now();var type=AttendanceEventType.checkIn;
+  final note=TextEditingController();
+  final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setState)=>AlertDialog(
+   title:const Text('ثبت اصلاح دستی حضور'),
+   content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+    DropdownButtonFormField<AttendanceEventType>(value:type,decoration:const InputDecoration(labelText:'نوع رکورد'),items:const [AttendanceEventType.checkIn,AttendanceEventType.checkOut].map((v)=>DropdownMenuItem(value:v,child:Text(v==AttendanceEventType.checkIn?'اصلاح ساعت ورود':'اصلاح ساعت خروج'))).toList(),onChanged:(v){if(v!=null)setState(()=>type=v);}),
+    ListTile(contentPadding:EdgeInsets.zero,title:const Text('تاریخ'),subtitle:Text(date.toString().split(' ').first),trailing:const Icon(Icons.calendar_month),onTap:()async{final v=await showDatePicker(context:c,initialDate:date,firstDate:DateTime(2020),lastDate:DateTime.now().add(const Duration(days:365)));if(v!=null)setState(()=>date=v);}),
+    ListTile(contentPadding:EdgeInsets.zero,title:const Text('ساعت'),subtitle:Text(time.format(c)),trailing:const Icon(Icons.schedule),onTap:()async{final v=await showTimePicker(context:c,initialTime:time);if(v!=null)setState(()=>time=v);}),
+    TextField(controller:note,decoration:const InputDecoration(labelText:'دلیل اصلاح (الزامی)')),
+   ])),
+   actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت اصلاح'))],
+  )));
+  if(ok==true&&context.mounted){try{if(note.text.trim().isEmpty)throw ArgumentError('دلیل اصلاح الزامی است.');final at=DateTime(date.year,date.month,date.day,time.hour,time.minute);db.recordAttendance(AttendanceRecord(id:db.nextId('attendance'),employeeId:id,date:DateTime(date.year,date.month,date.day),at:at,type:type,note:note.text,createdBy:db.currentAccessAccount.name,isManualCorrection:true));AppToast.show(context,'اصلاح دستی ثبت شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
+  note.dispose();
+ }
+ static Future<void> _editRecord(BuildContext context,AppDatabase db,AttendanceRecord record) async {
+  var date=record.date;var time=TimeOfDay.fromDateTime(record.at);final note=TextEditingController(text:record.note);
+  final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setState)=>AlertDialog(
+   title:const Text('اصلاح رکورد حضور'),
+   content:Column(mainAxisSize:MainAxisSize.min,children:[
+    ListTile(title:const Text('تاریخ'),subtitle:Text(date.toString().split(' ').first),onTap:()async{final v=await showDatePicker(context:c,initialDate:date,firstDate:DateTime(2020),lastDate:DateTime.now().add(const Duration(days:365)));if(v!=null)setState(()=>date=v);}),
+    ListTile(title:const Text('ساعت'),subtitle:Text(time.format(c)),onTap:()async{final v=await showTimePicker(context:c,initialTime:time);if(v!=null)setState(()=>time=v);}),
+    TextField(controller:note,decoration:const InputDecoration(labelText:'دلیل اصلاح (الزامی)')),
+   ]),
+   actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ذخیره اصلاح'))],
+  )));
+  if(ok==true&&context.mounted){try{if(note.text.trim().isEmpty)throw ArgumentError('دلیل اصلاح الزامی است.');db.updateAttendanceRecord(record.copyWith(date:DateTime(date.year,date.month,date.day),at:DateTime(date.year,date.month,date.day,time.hour,time.minute),note:note.text));AppToast.show(context,'رکورد اصلاح شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
+  note.dispose();
+ }
+
 
 }
