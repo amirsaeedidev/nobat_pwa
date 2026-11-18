@@ -19,30 +19,32 @@ class EmployeeAttendancePage extends StatelessWidget {
   final daily=db.attendanceSummary(employeeId,from:todayStart,to:todayStart.add(const Duration(days:1)));
   final weekly=db.attendanceSummary(employeeId,from:weekStart,to:todayStart.add(const Duration(days:1)));
   final rows=db.attendanceFor(employeeId,from:from,to:to); final sum=db.attendanceSummary(employeeId,from:from,to:to);
+  final canManage=db.hasPermission('employees.edit',employeeId:employeeId);
+  final canRecord=db.currentAccessAccount.employeeId==employeeId||canManage;
   final hasIn=rows.any((r)=>r.type==AttendanceEventType.checkIn&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
   final hasOut=rows.any((r)=>r.type==AttendanceEventType.checkOut&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
   return PageScaffold(title:'حضور و غیاب',subtitle:e.fullName,showBackButton:true,actions:[
-   SoftButton(label:'ثبت ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
-   SolidButton(label:'ثبت خروج',icon:Icons.logout,onPressed:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
+   if(canRecord)SoftButton(label:'ثبت ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
+   if(canRecord)SolidButton(label:'ثبت خروج',icon:Icons.logout,onPressed:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
   ],mobileHeader:Wrap(spacing:8,runSpacing:8,children:[
-   SoftButton(label:'ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
-   SoftButton(label:'خروج',icon:Icons.logout,onTap:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
-   SoftButton(label:'غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
-   SoftButton(label:'مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
+   if(canRecord)SoftButton(label:'ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
+   if(canRecord)SoftButton(label:'خروج',icon:Icons.logout,onTap:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
+   if(canManage)SoftButton(label:'غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
+   if(canManage)SoftButton(label:'مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
   ]),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-   Wrap(spacing:8,runSpacing:8,children:[
+   LayoutBuilder(builder:(context,constraints){final columns=constraints.maxWidth>=1000?4:constraints.maxWidth>=650?3:2;final gap=8.0;final width=(constraints.maxWidth-gap*(columns-1))/columns;return Wrap(spacing:gap,runSpacing:gap,children:[
     _metric('حضور امروز',daily.presentDays.toString()),_metric('حضور این هفته',weekly.presentDays.toString()),_metric('حضور ماه',sum.presentDays.toString()),_metric('غیبت ماه',sum.absentDays.toString()),
     _metric('ساعت کار',(sum.workedMinutes/60).toStringAsFixed(1)),_metric('اضافه‌کاری',FaNum.ofInt(sum.overtimeMinutes)+' دقیقه'),
     _metric('تأخیر',FaNum.ofInt(sum.lateMinutes)+' دقیقه'),_metric('خروج زودهنگام',FaNum.ofInt(sum.earlyLeaveMinutes)+' دقیقه'),
-   ]),
+   ].map((item)=>SizedBox(width:width,child:item)).toList());}),
    const SizedBox(height:12),
-   Wrap(spacing:8,runSpacing:8,children:[
+   if(canManage)Wrap(spacing:8,runSpacing:8,children:[
     SoftButton(label:'ثبت غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
     SoftButton(label:'ثبت مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
     SoftButton(label:'اصلاح دستی',icon:Icons.edit_note,onTap:()=>_manualCorrection(context,db,e.id)),
    ]),
    const SizedBox(height:12),
-   AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   if(canManage)AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const SectionHeader(title:'پیش‌نمایش اثر مالی حضور و غیاب'),
     SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('فعال‌سازی قانون مالی حضور و غیاب'),value:db.attendancePayrollPolicy.enabled,onChanged:(v){
       final p=db.attendancePayrollPolicy;db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:v,lateDeductionPerMinute:p.lateDeductionPerMinute,absenceDeductionPerDay:p.absenceDeductionPerDay,overtimePaymentPerMinute:p.overtimePaymentPerMinute,earlyLeaveDeductionPerMinute:p.earlyLeaveDeductionPerMinute));
@@ -67,7 +69,7 @@ class EmployeeAttendancePage extends StatelessWidget {
     for(final row in rows) ListTile(contentPadding:EdgeInsets.zero,
      leading:Icon(_icon(row.type)),title:Text(_label(row.type)),
      subtitle:Text('${row.at.hour.toString().padLeft(2,'0')}:${row.at.minute.toString().padLeft(2,'0')} · ${row.note}'),
-     trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[if(row.isManualCorrection)const Icon(Icons.edit_note,size:16),if(row.lateMinutes>0)Text('تأخیر ${row.lateMinutes}د'),if(row.overtimeMinutes>0)Text('اضافه‌کاری ${row.overtimeMinutes}د'),if(row.earlyLeaveMinutes>0)Text('خروج زودهنگام ${row.earlyLeaveMinutes}د'),IconButton(tooltip:'اصلاح رکورد',onPressed:()=>_editRecord(context,db,row),icon:const Icon(Icons.edit_outlined,size:18))]),
+     trailing:canManage?IconButton(tooltip:'اصلاح رکورد',onPressed:()=>_editRecord(context,db,row),icon:const Icon(Icons.edit_outlined,size:18)):null,
     ),
    ])),
    const SizedBox(height:8),Text('گزارش بازه ماهانه؛ تمام اطلاعات در Datamonck و آفلاین نگهداری می‌شوند.',style:Theme.of(context).textTheme.bodySmall),
