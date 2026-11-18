@@ -15,6 +15,7 @@ class EmployeeRecordsPage extends StatelessWidget{
   final docs=db.documentsFor(employeeId);
   return PageScaffold(title:'پرونده دیجیتال',subtitle:e.fullName,showBackButton:true,
    actions:[SolidButton(label:'افزودن سند نمونه',icon:Icons.add,onPressed:()=>_add(context,db,employeeId))],
+   mobileHeader:Wrap(children:[SoftButton(label:'افزودن سند نمونه',icon:Icons.add,onTap:()=>_add(context,db,employeeId))]),
    child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
      const SectionHeader(title:'مدارک و اسناد'),

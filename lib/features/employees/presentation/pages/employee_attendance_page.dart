@@ -22,7 +22,12 @@ class EmployeeAttendancePage extends StatelessWidget {
   return PageScaffold(title:'حضور و غیاب',subtitle:e.fullName,showBackButton:true,actions:[
    SoftButton(label:'ثبت ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
    SolidButton(label:'ثبت خروج',icon:Icons.logout,onPressed:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
-  ],child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+  ],mobileHeader:Wrap(spacing:8,runSpacing:8,children:[
+   SoftButton(label:'ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
+   SoftButton(label:'خروج',icon:Icons.logout,onTap:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
+   SoftButton(label:'غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
+   SoftButton(label:'مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
+  ]),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
    Wrap(spacing:8,runSpacing:8,children:[
     _metric('روز حضور',sum.presentDays.toString()),_metric('غیبت',sum.absentDays.toString()),
     _metric('ساعت کار',(sum.workedMinutes/60).toStringAsFixed(1)),_metric('اضافه‌کاری',FaNum.ofInt(sum.overtimeMinutes)+' دقیقه'),
