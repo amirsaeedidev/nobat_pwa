@@ -314,9 +314,17 @@ class _HeroStatsCard extends StatelessWidget {
                 ),
                 PillToggle(
                   dense: constraints.maxWidth < 360,
-                  options: const ['هفتگی', 'ماهانه'],
-                  selectedIndex: period == StatsPeriod.weekly ? 0 : 1,
-                  onChanged: (i) => onPeriodChanged(i == 0 ? StatsPeriod.weekly : StatsPeriod.monthly),
+                  options: const ['روزانه', 'هفتگی', 'ماهانه'],
+                  selectedIndex: switch (period) {
+                    StatsPeriod.daily => 0,
+                    StatsPeriod.weekly => 1,
+                    StatsPeriod.monthly => 2,
+                  },
+                  onChanged: (i) => onPeriodChanged(switch (i) {
+                    0 => StatsPeriod.daily,
+                    1 => StatsPeriod.weekly,
+                    _ => StatsPeriod.monthly,
+                  }),
                 ),
               ],
             ),
@@ -349,7 +357,14 @@ class _HeroStatsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          PerformanceChart(data: stats.weekdayPerformance, height: 208),
+          PerformanceChart(
+            data: stats.weekdayPerformance,
+            height: 208,
+            onPointTap: (point) {
+              final date = point.dateIso;
+              if (date != null) context.push('/reports?date=$date');
+            },
+          ),
         ],
       ),
     );
