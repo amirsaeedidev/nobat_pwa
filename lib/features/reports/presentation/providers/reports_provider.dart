@@ -76,7 +76,7 @@ class ReportsProvider extends DbBoundProvider {
 
   Future<void> _refresh() async {
     try {
-      _analytics = await _repository.fetchReportAnalytics(range: _range);
+      _analytics = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
       _error = null;
     } catch (error) {
       _analytics = ReportAnalytics.empty(_range);
