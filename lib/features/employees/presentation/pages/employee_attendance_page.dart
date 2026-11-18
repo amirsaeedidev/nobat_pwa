@@ -15,6 +15,9 @@ class EmployeeAttendancePage extends StatelessWidget {
   final db=context.watch<AppDatabase>(); final e=db.employeeById(employeeId);
   if(e==null)return PageScaffold(title:'حضور و غیاب',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
   final now=DateTime.now(),from=DateTime(now.year,now.month,1),to=DateTime(now.year,now.month+1,0,23,59);
+  final todayStart=DateTime(now.year,now.month,now.day),weekStart=DateTime(now.year,now.month,now.day).subtract(Duration(days:now.weekday-1));
+  final daily=db.attendanceSummary(employeeId,from:todayStart,to:todayStart.add(const Duration(days:1)));
+  final weekly=db.attendanceSummary(employeeId,from:weekStart,to:todayStart.add(const Duration(days:1)));
   final rows=db.attendanceFor(employeeId,from:from,to:to); final sum=db.attendanceSummary(employeeId,from:from,to:to);
   final hasIn=rows.any((r)=>r.type==AttendanceEventType.checkIn&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
   final hasOut=rows.any((r)=>r.type==AttendanceEventType.checkOut&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
@@ -28,7 +31,7 @@ class EmployeeAttendancePage extends StatelessWidget {
    SoftButton(label:'مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
   ]),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
    Wrap(spacing:8,runSpacing:8,children:[
-    _metric('روز حضور',sum.presentDays.toString()),_metric('غیبت',sum.absentDays.toString()),
+    _metric('حضور امروز',daily.presentDays.toString()),_metric('حضور این هفته',weekly.presentDays.toString()),_metric('حضور ماه',sum.presentDays.toString()),_metric('غیبت ماه',sum.absentDays.toString()),
     _metric('ساعت کار',(sum.workedMinutes/60).toStringAsFixed(1)),_metric('اضافه‌کاری',FaNum.ofInt(sum.overtimeMinutes)+' دقیقه'),
     _metric('تأخیر',FaNum.ofInt(sum.lateMinutes)+' دقیقه'),
    ]),
