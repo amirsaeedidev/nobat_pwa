@@ -119,14 +119,14 @@ class JalaliMonthGrid extends StatelessWidget {
           },
         ),
         const SizedBox(height: 10),
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _LegendDot(color: pal.success, label: 'تأیید شده'),
-            const SizedBox(width: 10),
             _LegendDot(color: pal.info, label: 'در انتظار'),
-            const SizedBox(width: 10),
             _LegendDot(color: pal.accentGlow, label: 'تکمیل شده'),
-            const Spacer(),
             _LegendDot(color: pal.danger, label: 'تعطیل'),
           ],
         ),
