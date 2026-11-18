@@ -1176,6 +1176,18 @@ class AppDatabase extends ChangeNotifier {
   }
 
   List<EmployeeDocument> documentsFor(String employeeId)=>_employeeDocuments.where((d)=>d.employeeId==employeeId).toList()..sort((a,b)=>b.addedAt.compareTo(a.addedAt));
+  void updateEmployeeDocument(EmployeeDocument document){
+    requirePermission('employees.edit',employeeId:document.employeeId);
+    final index=_employeeDocuments.indexWhere((item)=>item.id==document.id && item.employeeId==document.employeeId);
+    if(index<0) throw StateError('سند پیدا نشد.');
+    if(document.title.trim().isEmpty || document.fileName.trim().isEmpty) throw ArgumentError('عنوان و فایل سند الزامی است.');
+    _employeeDocuments[index]=document; _commit();
+  }
+  void deleteEmployeeDocument(String id){
+    final index=_employeeDocuments.indexWhere((item)=>item.id==id);
+    if(index<0)return; requirePermission('employees.edit',employeeId:_employeeDocuments[index].employeeId);
+    _employeeDocuments.removeAt(index); _commit();
+  }
   void addEmployeeDocument(EmployeeDocument document){
     requirePermission('employees.edit',employeeId:document.employeeId);
     if(employeeById(document.employeeId)==null) throw StateError('پرسنل یافت نشد.');
@@ -1265,6 +1277,9 @@ class AppDatabase extends ChangeNotifier {
     }
     _employeeLeaves.add(leave);
     _notifyEmployee(leave.employeeId,EmployeeNoticeType.leaveRequested,'درخواست مرخصی ثبت شد.','درخواست مرخصی شما در انتظار بررسی است.');
+    for(final manager in _accessAccounts.where((account)=>account.isEnabled && account.employeeId!=null && (account.roleId=='global_admin'||account.roleId=='manager'))){
+      _notifyEmployee(manager.employeeId!,EmployeeNoticeType.leaveRequested,'درخواست مرخصی جدید','درخواست مرخصی برای ${employee.fullName} ثبت شده و نیازمند بررسی است.');
+    }
     log(ActivityType.settingsChanged, 'ثبت مرخصی پرسنل', 'مرخصی جدید برای ' + employee.fullName + ' ثبت شد.', entity: 'مرخصی پرسنل');
     _commit();
   }
