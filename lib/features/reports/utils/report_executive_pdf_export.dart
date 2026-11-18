@@ -82,7 +82,7 @@ class ReportExecutivePdfExport {
                   alignment: pw.Alignment.centerRight,
                   decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                   child: pw.Align(alignment: pw.Alignment.centerRight,
-                    child: pw.Container(height: 8, width: maxRevenue <= 0 ? 0 : 260 * point.revenue / maxRevenue,
+                    child: pw.Container(height: 8, width: maxRevenue <= 0 ? 0.0 : (260 * point.revenue / maxRevenue).toDouble(),
                       color: PdfColors.brown)),
                 )),
                 pw.SizedBox(width: 8),
