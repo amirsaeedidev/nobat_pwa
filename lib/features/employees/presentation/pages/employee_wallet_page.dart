@@ -91,11 +91,18 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
               ),
               OutlinedButton(
                 onPressed: _chooseRange,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const HugeIcon(icon: HugeIcons.strokeRoundedCalendarRange, size: 17),
-                  const SizedBox(width: 6),
-                  Text('${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_to)}'),
-                ]),
+                child: SizedBox(
+                  width: 210,
+                  child: Row(children: [
+                    const HugeIcon(icon: HugeIcons.strokeRoundedCalendarRange, size: 17),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(
+                      '${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_to)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )),
+                  ]),
+                ),
               ),
             ]),
             const SizedBox(height: 8),
