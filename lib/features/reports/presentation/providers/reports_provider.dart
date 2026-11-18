@@ -3,6 +3,7 @@ import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/report_analytics.dart';
+import '../../../../data/models/enums.dart';
 import '../../../../data/repositories/dashboard_repository.dart';
 
 class ReportsProvider extends DbBoundProvider {
@@ -10,12 +11,14 @@ class ReportsProvider extends DbBoundProvider {
 
   final DashboardRepository _repository;
   ReportDateRange _range = ReportDateRange.preset(ReportPeriod.thisMonth);
+  ReportAnalyticsFilter _filter = const ReportAnalyticsFilter();
   ReportAnalytics? _analytics;
   bool _loading = true;
   String? _error;
 
   ReportDateRange get range => _range;
   ReportPeriod get period => _range.period;
+  ReportAnalyticsFilter get filter => _filter;
   ReportAnalytics get analytics => _analytics ?? ReportAnalytics.empty(_range);
   bool get loading => _loading;
   String? get error => _error;
@@ -45,7 +48,7 @@ class ReportsProvider extends DbBoundProvider {
     _error = null;
     notifyListeners();
     try {
-      _analytics = await _repository.fetchReportAnalytics(range: _range);
+      _analytics = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
     } catch (error) {
       _analytics = ReportAnalytics.empty(_range);
       _error = error.toString();
@@ -67,6 +70,24 @@ class ReportsProvider extends DbBoundProvider {
       _error = error.toString();
     }
     notifyListeners();
+  }
+
+  Future<void> setFilters({
+    String? serviceId, String? employeeId, String? customerId,
+    AppointmentStatus? status, bool clearService = false,
+    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false,
+  }) async {
+    _filter = _filter.copyWith(
+      serviceId: serviceId, employeeId: employeeId, customerId: customerId,
+      status: status, clearService: clearService, clearEmployee: clearEmployee,
+      clearCustomer: clearCustomer, clearStatus: clearStatus,
+    );
+    await load();
+  }
+
+  Future<void> clearFilters() async {
+    _filter = const ReportAnalyticsFilter();
+    await load();
   }
 
   Future<void> setPeriod(ReportPeriod period) async {
