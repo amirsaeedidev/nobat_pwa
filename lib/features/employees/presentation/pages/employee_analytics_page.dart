@@ -51,6 +51,17 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
     _RankingMetric.completion => report.completionRate,
     _RankingMetric.utilization => report.utilizationRate,
   };
+  _RankingMetric _rankingMetric = _RankingMetric.revenue;
+
+  num _rankingValue(EmployeeAnalytics report) => switch (_rankingMetric) {
+    _RankingMetric.revenue => report.netRevenue,
+    _RankingMetric.completed => report.completed,
+    _RankingMetric.customers => report.uniqueCustomers,
+    _RankingMetric.commission => report.commission,
+    _RankingMetric.attendance => report.actualWorkedMinutes,
+    _RankingMetric.completion => report.completionRate,
+    _RankingMetric.utilization => report.utilizationRate,
+  };
 
   @override
   void initState() {
@@ -210,7 +221,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
     final comparison = employees.where((e) => _comparisonIds.contains(e.id)).toList();
     final comparisonReports = comparison.map((e) => (employee: e, report: EmployeeAnalyticsCalculator.calculate(
       db: db, employee: e, filter: EmployeeAnalyticsFilter(from: _from, to: _to, serviceId: _serviceId, status: _status),
-    ))).toList()..sort((a, b) => b.report.netRevenue.compareTo(a.report.netRevenue));
+    ))).toList()..sort((a, b) => _rankingValue(b.report).compareTo(_rankingValue(a.report)));
 
     return PageScaffold(
       title: 'تحلیل عملکرد پرسنل',
