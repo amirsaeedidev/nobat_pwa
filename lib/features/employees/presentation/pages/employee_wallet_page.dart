@@ -123,7 +123,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             if (entries.isEmpty)
               const EmptyState(compact: true, title: 'تراکنشی در این بازه ثبت نشده', description: 'با ثبت حقوق، پورسانت یا عملیات مالی، سوابق اینجا نمایش داده می‌شوند.'),
             for (final entry in entries)
-              ListTile(
+              Material(color: Colors.transparent, child: ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   backgroundColor: (entry.amount >= 0 ? pal.success : pal.danger).withValues(alpha: 0.12),
@@ -137,7 +137,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: entry.amount >= 0 ? pal.success : pal.danger),
                 ),
                 onTap: () => _showTransaction(db, entry),
-              ),
+              )),
           ])),
           const SizedBox(height: 12),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -146,7 +146,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             if (settlements.isEmpty)
               const EmptyState(compact: true, title: 'هنوز تسویه‌ای ثبت نشده', description: ''),
             for (final settlement in settlements)
-              ListTile(
+              Material(color: Colors.transparent, child: ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const HugeIcon(icon: HugeIcons.strokeRoundedInvoice01, size: 22),
                 title: Text('رسید ${settlement.receiptNumber}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
@@ -154,7 +154,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 isThreeLine: true,
                 trailing: _SettlementStatus(status: settlement.status),
                 onTap: () => _showReceipt(settlement),
-              ),
+              )),
           ])),
           const SizedBox(height: 12),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
