@@ -454,7 +454,7 @@ class MockDashboardRepository implements DashboardRepository {
     final hourlyCounts = <int, int>{};
     final hourlyScheduled = <int, int>{};
     final hourlyBooked = <int, int>{};
-    final weekdayCounts = <int, int>{};
+    final weekdayCounts = <int, int>{for (var weekday = 1; weekday <= 7; weekday++) weekday: 0};
     final daysInRange = range.endExclusive.difference(range.start).inDays;
     var capacityMinutes = 0;
     var bookedCapacityMinutes = 0;
