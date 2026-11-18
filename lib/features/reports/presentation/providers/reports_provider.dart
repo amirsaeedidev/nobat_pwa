@@ -14,14 +14,19 @@ class ReportsProvider extends DbBoundProvider {
   final DashboardRepository _repository;
   ReportDateRange _range = ReportDateRange.preset(ReportPeriod.thisMonth);
   ReportAnalyticsFilter _filter = const ReportAnalyticsFilter();
-  ReportServiceSort _serviceSort = ReportServiceSort.revenue;
+  ReportDateRange? _customComparisonRange;
   ReportAnalytics? _analytics;
+  ReportAnalytics? _comparisonAnalytics;
+  ReportServiceSort _serviceSort = ReportServiceSort.revenue;
   bool _loading = true;
   String? _error;
 
   ReportDateRange get range => _range;
+  ReportDateRange get comparisonRange => _customComparisonRange ?? _defaultComparisonRange();
   ReportPeriod get period => _range.period;
   ReportAnalyticsFilter get filter => _filter;
+  ReportAnalytics? get comparisonAnalytics => _comparisonAnalytics;
+  bool get hasCustomComparison => _customComparisonRange != null;
   ReportServiceSort get serviceSort => _serviceSort;
   List<ReportServiceMetric> get rankedServices {
     final items = [...analytics.services];
@@ -56,14 +61,52 @@ class ReportsProvider extends DbBoundProvider {
   };
   Map<String, int> get statusCounts => analytics.statusCounts;
 
+  ReportDateRange _defaultComparisonRange() {
+    switch (_range.period) {
+      case ReportPeriod.today:
+        return ReportDateRange.preset(ReportPeriod.yesterday);
+      case ReportPeriod.thisWeek:
+        return ReportDateRange.preset(ReportPeriod.lastWeek);
+      case ReportPeriod.thisMonth:
+        return ReportDateRange.preset(ReportPeriod.lastMonth);
+      case ReportPeriod.thisYear:
+        final year = _range.jalaliStart.year;
+        return ReportDateRange.custom(JalaliDate(year - 1, 1, 1), JalaliDate(year - 1, 12, 29));
+      case ReportPeriod.yesterday:
+        return _shiftRange(const Duration(days: 1));
+      case ReportPeriod.lastWeek:
+        return _shiftRange(const Duration(days: 7));
+      case ReportPeriod.lastMonth:
+        final end = _range.jalaliStart;
+        final previousStart = end.addMonths(-1);
+        return ReportDateRange.custom(previousStart, end.addDays(-1));
+      case ReportPeriod.custom:
+        return _shiftRange(_range.endExclusive.difference(_range.start));
+    }
+  }
+
+  ReportDateRange _shiftRange(Duration amount) {
+    final from = JalaliDate.fromDateTime(_range.start.subtract(amount));
+    final to = JalaliDate.fromDateTime(_range.endExclusive.subtract(amount).subtract(const Duration(microseconds: 1)));
+    return ReportDateRange.custom(from, to);
+  }
+
   Future<void> load() async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
       _analytics = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
+      try {
+        _comparisonAnalytics = await _repository.fetchReportAnalytics(
+          range: comparisonRange, filter: _filter,
+        );
+      } catch (_) {
+        _comparisonAnalytics = null;
+      }
     } catch (error) {
       _analytics = ReportAnalytics.empty(_range);
+      _comparisonAnalytics = null;
       _error = error.toString();
     } finally {
       _loading = false;
@@ -74,16 +117,7 @@ class ReportsProvider extends DbBoundProvider {
   @override
   void onDatabaseChanged() { _refresh(); }
 
-  Future<void> _refresh() async {
-    try {
-      _analytics = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
-      _error = null;
-    } catch (error) {
-      _analytics = ReportAnalytics.empty(_range);
-      _error = error.toString();
-    }
-    notifyListeners();
-  }
+  Future<void> _refresh() async => load();
 
   Future<void> setFilters({
     String? serviceId, String? employeeId, String? customerId,
@@ -109,12 +143,24 @@ class ReportsProvider extends DbBoundProvider {
   }
 
   Future<void> setPeriod(ReportPeriod period) async {
+    _customComparisonRange = null;
     _range = ReportDateRange.preset(period);
     await load();
   }
 
   Future<void> setCustomRange(JalaliDate from, JalaliDate to) async {
+    _customComparisonRange = null;
     _range = ReportDateRange.custom(from, to);
+    await load();
+  }
+
+  Future<void> setComparisonRange(JalaliDate from, JalaliDate to) async {
+    _customComparisonRange = ReportDateRange.custom(from, to);
+    await load();
+  }
+
+  Future<void> clearComparisonRange() async {
+    _customComparisonRange = null;
     await load();
   }
 }
