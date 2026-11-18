@@ -55,8 +55,10 @@ class ReportsPage extends StatelessWidget {
       subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
       leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
-        if (db.hasPermission('finance.payment.create'))
+        if (db.hasPermission('finance.payment.create')) ...[
+          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(database: db))),
           SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(database: db))),
+        ],
         SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
       child: provider.loading
@@ -264,6 +266,106 @@ class ReportsPage extends StatelessWidget {
 }
 
 
+
+
+class _AddAppointmentPaymentDialog extends StatefulWidget {
+  const _AddAppointmentPaymentDialog({required this.database});
+  final AppDatabase database;
+
+  @override
+  State<_AddAppointmentPaymentDialog> createState() => _AddAppointmentPaymentDialogState();
+}
+
+class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDialog> {
+  final _amount = TextEditingController();
+  final _description = TextEditingController(text: 'دریافت وجه نوبت');
+  late List<Appointment> _appointments;
+  Appointment? _selected;
+  BusinessPaymentMethod _method = BusinessPaymentMethod.pos;
+  String? _error;
+
+  int _outstanding(Appointment appointment) {
+    final recognized = widget.database.employeeFinanceEntries.where((entry) =>
+      entry.appointmentId == appointment.id).fold<int>(0, (sum, entry) =>
+        sum + (entry.type == FinanceEntryType.refund ? entry.receivedAmount :
+          entry.type == FinanceEntryType.commission ? entry.receivedAmount : 0));
+    final due = recognized > 0 ? recognized : appointment.price.round();
+    final paid = widget.database.appointmentPayments.where((payment) =>
+      payment.appointmentId == appointment.id).fold<int>(0, (sum, payment) => sum + payment.signedAmount);
+    return due - paid;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _appointments = widget.database.appointments.where((item) =>
+      item.status == AppointmentStatus.completed && _outstanding(item) > 0).toList();
+    if (_appointments.isNotEmpty) _selected = _appointments.first;
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
+    if (_selected == null || amount == null || amount <= 0 || _description.text.trim().isEmpty) {
+      setState(() => _error = 'نوبت، مبلغ و شرح پرداخت را کامل کنید.');
+      return;
+    }
+    try {
+      widget.database.recordAppointmentPayment(
+        appointmentId: _selected!.id,
+        amount: amount,
+        method: _method,
+        description: _description.text.trim(),
+        idempotencyKey: 'receipt-${_selected!.id}-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      setState(() => _error = error.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('ثبت دریافت مشتری'),
+    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      if (_appointments.isEmpty)
+        const Text('نوبت تکمیل‌شده با مانده قابل دریافت وجود ندارد.')
+      else
+        DropdownButtonFormField<Appointment>(
+          value: _selected,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'نوبت / مشتری'),
+          items: [for (final item in _appointments) DropdownMenuItem(
+            value: item,
+            child: Text('${item.customerName} · ${item.serviceName} · ${Fmt.compactMoney(_outstanding(item))}', overflow: TextOverflow.ellipsis),
+          )],
+          onChanged: (value) => setState(() => _selected = value),
+        ),
+      const SizedBox(height: 8),
+      TextField(controller: _amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ دریافتی (تومان)')),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<BusinessPaymentMethod>(
+        value: _method,
+        decoration: const InputDecoration(labelText: 'روش پرداخت'),
+        items: [for (final item in BusinessPaymentMethod.values) DropdownMenuItem(value: item, child: Text(item.label))],
+        onChanged: (value) => setState(() => _method = value ?? _method),
+      ),
+      const SizedBox(height: 8),
+      TextField(controller: _description, decoration: const InputDecoration(labelText: 'شرح')),
+      if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))),
+    ])),
+    actions: [
+      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('انصراف')),
+      FilledButton(onPressed: _appointments.isEmpty ? null : _save, child: const Text('ثبت دریافت')),
+    ],
+  );
+}
 
 class _AddBusinessExpenseDialog extends StatefulWidget {
   const _AddBusinessExpenseDialog({required this.database});
