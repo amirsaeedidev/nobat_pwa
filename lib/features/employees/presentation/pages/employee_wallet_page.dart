@@ -47,10 +47,12 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       showBackButton: true,
       mobileActions: [
         IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 21)),
+        IconButton(tooltip: 'ثبت حقوق ماه جاری', onPressed: () => _accruePayroll(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
         IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
       ],
       actions: [
         SoftButton(label: 'ثبت تراکنش', onTap: () => _addTransaction(db, employee.id)),
+        SoftButton(label: 'ثبت حقوق ماه جاری', icon: Icons.account_balance_wallet_outlined, onTap: () => _accruePayroll(db, employee.id)),
         SolidButton(label: 'ثبت تسویه', onPressed: () => _settle(db, employee.id)),
       ],
       child: Column(
@@ -268,6 +270,17 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       if (mounted) AppToast.show(context, 'ثبت تراکنش انجام نشد: $error', success: false);
     }
     amount.dispose(); description.dispose();
+  }
+
+  void _accruePayroll(AppDatabase db, String employeeId) {
+    try {
+      final count = db.accruePayrollBaseToWallet(employeeId);
+      if (mounted) AppToast.show(context, count == 0
+          ? 'حقوق پایه قبلاً ثبت شده یا مبلغ جدیدی برای انتقال وجود ندارد.'
+          : 'حقوق پایه و اثر حضور و غیاب به کیف پول منتقل شد.');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ثبت حقوق انجام نشد: $error', success: false);
+    }
   }
 
   Future<void> _settle(AppDatabase db, String employeeId) async {
