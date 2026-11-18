@@ -441,11 +441,11 @@ class MockDashboardRepository implements DashboardRepository {
       sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
     final previousPayroll = canViewSalary ? walletCostFor(_db.employeeWalletTransactions.where((item) =>
       item.status == EmployeeWalletTransactionStatus.posted &&
-      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start) &&
+      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd) &&
       (canViewAll || employeeId == item.employeeId))) : 0;
     final previousOperations = _db.businessExpenses.where((item) =>
       item.status == BusinessExpenseStatus.posted &&
-      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start))
+      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd))
       .fold<int>(0, (sum, item) => sum + item.amount);
     final previousCost = previousCommission + previousPayroll + previousOperations;
 
