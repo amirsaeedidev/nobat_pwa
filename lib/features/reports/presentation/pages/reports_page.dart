@@ -55,7 +55,7 @@ class ReportsPage extends StatelessWidget {
       ? db.customers
       : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
-      visibleAppointments.where((item) => item.jalali.sameDay(selectedDay)).toList();
+      visibleAppointments.where((item) => item.jalali.sameDay(selectedDay) && provider.filter.matches(item)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
     final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
       selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
