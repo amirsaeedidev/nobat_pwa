@@ -22,6 +22,7 @@ import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/employee_finance.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
+import '../utils/report_table_export.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
 
@@ -49,7 +50,31 @@ class ReportsPage extends StatelessWidget {
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
       visibleAppointments.where((item) => item.jalali.sameDay(selectedDay)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
-    final dayRevenue = dayCompleted.fold<num>(0, (sum, item) => sum + item.price);
+    final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
+      selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
+    final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
+    final dayCommission = dayFinanceEntries.fold<num>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
+    final dayOperatingExpense = db.businessExpenses.where((item) =>
+      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
+      item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
+    final dayWalletEntries = db.employeeWalletTransactions.where((item) =>
+      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
+      item.status == EmployeeWalletTransactionStatus.posted).toList();
+    final dayPayrollExpense = dayWalletEntries.where((item) => {
+      EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
+      EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
+      EmployeeWalletTransactionType.adjustment,
+    }.contains(item.type)).fold<num>(0, (sum, item) => sum + item.amount);
+    final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense;
+    final dayEmployeeTotals = <String, ({int count, num revenue})>{};
+    for (final item in dayCompleted) {
+      final current = dayEmployeeTotals[item.employeeName];
+      final revenue = dayFinanceEntries.where((entry) => entry.appointmentId == item.id)
+        .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      dayEmployeeTotals[item.employeeName] = (count: (current?.count ?? 0) + 1, revenue: (current?.revenue ?? 0) + revenue);
+    }
 
     return PageScaffold(
       title: 'گزارش‌ها و تحلیل',
@@ -133,7 +158,7 @@ class ReportsPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       const _ChartLegend(),
                       const SizedBox(height: 10),
-                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
+                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _openDayReport(context, provider, index),),
                       const SizedBox(height: 12),
                       RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
                     ])),
