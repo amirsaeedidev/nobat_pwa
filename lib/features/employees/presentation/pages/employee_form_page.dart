@@ -328,22 +328,27 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
               ),
             ),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: SolidButton(label: 'ذخیره پرسنل', icon: Icons.check_rounded, loading: _saving, onPressed: _save),
-                ),
+            LayoutBuilder(builder: (context, constraints) {
+              final saveButton = SolidButton(
+                label: 'ذخیره پرسنل', icon: Icons.check_rounded, loading: _saving, onPressed: _save,
+              );
+              final cancelButton = SolidButton(
+                label: 'انصراف', outlined: true,
+                onPressed: () => context.canPop() ? context.pop() : context.go('/employees'),
+              );
+              if (constraints.maxWidth < 560) {
+                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  saveButton,
+                  const SizedBox(height: 8),
+                  cancelButton,
+                ]);
+              }
+              return Row(children: [
+                Expanded(flex: 2, child: saveButton),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: SolidButton(
-                    label: 'انصراف',
-                    outlined: true,
-                    onPressed: () => context.canPop() ? context.pop() : context.go('/employees'),
-                  ),
-                ),
-              ],
-            ),
+                Expanded(child: cancelButton),
+              ]);
+            }),
           ],
         ),
       ),
