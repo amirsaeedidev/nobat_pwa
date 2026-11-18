@@ -79,9 +79,9 @@ class OperationalReportsSections extends StatelessWidget {
       item.marginPercent?.toStringAsFixed(1) ?? 'نامشخص',
       item.employeeCounts.entries.map((entry) => '${entry.key} (${entry.value})').join('، '),
     ]];
-    final customerHeaders = ['مشتری', 'مراجعه در بازه', 'کل مراجعات', 'مجموع خرید', 'میانگین هر مراجعه', 'اولین مراجعه', 'آخرین مراجعه', 'فاصله میان مراجعات', 'وضعیت'];
+    final customerHeaders = ['مشتری', 'مراجعه در بازه', 'کل مراجعات', 'مراجعه مجدد', 'مجموع خرید', 'میانگین هر مراجعه', 'اولین مراجعه', 'آخرین مراجعه', 'فاصله میان مراجعات', 'وضعیت'];
     final customerRows = [for (final item in customers) [
-      item.name, item.visits, item.lifetimeVisits, item.totalSpent.round(), item.averageSpend.round(),
+      item.name, item.visits, item.lifetimeVisits, item.repeatVisits, item.totalSpent.round(), item.averageSpend.round(),
       item.firstVisitAt == null ? '' : JalaliDate.fromDateTime(item.firstVisitAt!).short,
       item.lastVisitAt == null ? '' : JalaliDate.fromDateTime(item.lastVisitAt!).short,
       item.averageGapDays?.toStringAsFixed(1) ?? '—',
@@ -199,6 +199,7 @@ class OperationalReportsSections extends StatelessWidget {
                 DataColumn(label: Text('مشتری')),
                 DataColumn(label: Text('مراجعه بازه')),
                 DataColumn(label: Text('کل مراجعات')),
+                DataColumn(label: Text('مراجعه مجدد')),
                 DataColumn(label: Text('مجموع خرید')),
                 DataColumn(label: Text('میانگین مراجعه')),
                 DataColumn(label: Text('آخرین مراجعه')),
@@ -209,6 +210,7 @@ class OperationalReportsSections extends StatelessWidget {
                 DataCell(Text(item.name)),
                 DataCell(Text(FaNum.ofInt(item.visits))),
                 DataCell(Text(FaNum.ofInt(item.lifetimeVisits))),
+                DataCell(Text(FaNum.ofInt(item.repeatVisits))),
                 DataCell(Text(Fmt.compactMoney(item.totalSpent))),
                 DataCell(Text(Fmt.compactMoney(item.averageSpend))),
                 DataCell(Text(item.lastVisitAt == null ? '—' : JalaliDate.fromDateTime(item.lastVisitAt!).short)),
