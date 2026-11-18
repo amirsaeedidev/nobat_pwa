@@ -44,7 +44,6 @@ class ReportTableExport {
     null => TextCellValue(''),
     int number => IntCellValue(number),
     double number => DoubleCellValue(number),
-    num number => DoubleCellValue(number.toDouble()),
     bool boolean => BoolCellValue(boolean),
     _ => TextCellValue(value.toString()),
   };
