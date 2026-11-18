@@ -46,7 +46,14 @@ class ReportsPage extends StatelessWidget {
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
     final canViewAll = db.hasPermission('appointments.view_all');
     final visibleAppointments = db.appointments.where((item) =>
-      canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId));
+      canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId)).toList();
+    final availableEmployees = canViewAll
+      ? db.employees
+      : db.employees.where((item) => item.id == db.currentAccessAccount.employeeId).toList();
+    final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
+    final availableCustomers = canViewAll
+      ? db.customers
+      : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
       visibleAppointments.where((item) => item.jalali.sameDay(selectedDay)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
@@ -185,7 +192,7 @@ class ReportsPage extends StatelessWidget {
                             decoration: const InputDecoration(labelText: 'پرسنل'),
                             items: [
                               const DropdownMenuItem<String?>(value: null, child: Text('همه پرسنل')),
-                              for (final item in db.employees)
+                              for (final item in availableEmployees)
                                 DropdownMenuItem<String?>(value: item.id, child: Text(item.fullName, overflow: TextOverflow.ellipsis)),
                             ],
                             onChanged: (value) => provider.setFilters(employeeId: value, clearEmployee: value == null),
@@ -196,7 +203,7 @@ class ReportsPage extends StatelessWidget {
                             decoration: const InputDecoration(labelText: 'مشتری'),
                             items: [
                               const DropdownMenuItem<String?>(value: null, child: Text('همه مشتریان')),
-                              for (final item in db.customers)
+                              for (final item in availableCustomers)
                                 DropdownMenuItem<String?>(value: item.id, child: Text(item.fullName, overflow: TextOverflow.ellipsis)),
                             ],
                             onChanged: (value) => provider.setFilters(customerId: value, clearCustomer: value == null),
