@@ -12,7 +12,7 @@ class EmployeeRecordsPage extends StatelessWidget{
  @override Widget build(BuildContext context){
   final db=context.watch<AppDatabase>();final e=db.employeeById(employeeId);
   if(e==null)return PageScaffold(title:'پرونده دیجیتال',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
-  final docs=db.documentsFor(employeeId);
+  final docs=db.documentsFor(employeeId);final canManage=db.hasPermission('employees.edit',employeeId:employeeId);
   return PageScaffold(title:'پرونده دیجیتال',subtitle:e.fullName,showBackButton:true,
    actions:[SolidButton(label:'افزودن سند نمونه',icon:Icons.add,onPressed:()=>_add(context,db,employeeId))],
    mobileHeader:Wrap(children:[SoftButton(label:'افزودن سند نمونه',icon:Icons.add,onTap:()=>_add(context,db,employeeId))]),
@@ -20,7 +20,7 @@ class EmployeeRecordsPage extends StatelessWidget{
     AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
      const SectionHeader(title:'مدارک و اسناد'),
      if(docs.isEmpty)EmptyState(title:'سندی ثبت نشده'),
-     for(final d in docs)ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.description_outlined),title:Text(d.title),subtitle:Text('${d.fileName} · ${d.type.name}'),trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[Icon(d.isExpired?Icons.error_outline:d.isExpiringSoon?Icons.warning_amber:Icons.verified_outlined,color:d.isExpired?Colors.red:d.isExpiringSoon?Colors.orange:Colors.green),PopupMenuButton<String>(onSelected:(v){if(v=='edit')_edit(context,db,d);if(v=='delete'){try{db.deleteEmployeeDocument(d.id);AppToast.show(context,'سند حذف شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}},itemBuilder:(c)=>const [PopupMenuItem(value:'edit',child:Text('ویرایش')),PopupMenuItem(value:'delete',child:Text('حذف'))])]),onTap:()=>_preview(context,d)),
+     for(final d in docs)ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.description_outlined),title:Text(d.title),subtitle:Text('${d.fileName} · ${d.type.name}${d.expiresAt==null?'':' · اعتبار تا ${d.expiresAt!.toString().split(' ').first}'}'),trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[Icon(d.isExpired?Icons.error_outline:d.isExpiringSoon?Icons.warning_amber:Icons.verified_outlined,color:d.isExpired?Colors.red:d.isExpiringSoon?Colors.orange:Colors.green),if(canManage)PopupMenuButton<String>(onSelected:(v){if(v=='edit')_edit(context,db,d);if(v=='delete'){try{db.deleteEmployeeDocument(d.id);AppToast.show(context,'سند حذف شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}},itemBuilder:(c)=>const [PopupMenuItem(value:'edit',child:Text('ویرایش')),PopupMenuItem(value:'delete',child:Text('حذف'))])]),onTap:()=>_preview(context,d)),
     ])),
     const SizedBox(height:8),const Text('فایل‌ها نمونه نمایشی هستند؛ هیچ آپلود یا سرویس آنلاین لازم نیست.',style:TextStyle(fontSize:11)),
    ]));

@@ -86,6 +86,15 @@ void main(){
   final db=AppDatabase();final staff=db.accessAccounts.firstWhere((a)=>a.id=='demo-staff');db.switchMockAccount(staff.id);
   expect(()=>db.recordAttendance(AttendanceRecord(id:'staff-manual',employeeId:staff.employeeId!,date:date,type:AttendanceEventType.checkIn,at:date,createdBy:staff.name,isManualCorrection:true)),throwsA(isA<Exception>()));
  });
+ test('employee documents can be edited and deleted with manager permission',(){
+  final db=AppDatabase();final employee=db.employees.first;
+  final doc=EmployeeDocument(id:'doc-crud',employeeId:employee.id,title:'قرارداد',type:EmployeeDocumentType.contract,fileName:'contract-sample.pdf',addedAt:date);
+  db.addEmployeeDocument(doc);
+  db.updateEmployeeDocument(EmployeeDocument(id:doc.id,employeeId:doc.employeeId,title:'قرارداد اصلاح‌شده',type:doc.type,fileName:doc.fileName,addedAt:doc.addedAt,expiresAt:date.add(const Duration(days:10))));
+  expect(db.documentsFor(employee.id).singleWhere((d)=>d.id==doc.id).title,'قرارداد اصلاح‌شده');
+  db.deleteEmployeeDocument(doc.id);
+  expect(db.documentsFor(employee.id).any((d)=>d.id==doc.id),false);
+ });
  test('mock notice can be marked read',(){
   final notice=EmployeeNotice(id:'1',employeeId:'e',title:'مرخصی',message:'درخواست جدید',type:EmployeeNoticeType.leaveRequested,createdAt:date);
   expect(notice.markRead().read,true);

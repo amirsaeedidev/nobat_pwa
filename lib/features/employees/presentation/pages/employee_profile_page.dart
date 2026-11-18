@@ -150,12 +150,15 @@ class EmployeeProfilePage extends StatelessWidget {
                         style: TextStyle(fontSize: 11, color: pal.textMuted),
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Icon(Icons.star_rounded, size: 13, color: pal.warning),
-                          Text(FaNum.convert(employee.rating.toStringAsFixed(1)),
-                              style: TextStyle(fontSize: 10.5, color: pal.textSecondary)),
-                          const SizedBox(width: 10),
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.star_rounded, size: 13, color: pal.warning),
+                            Text(FaNum.convert(employee.rating.toStringAsFixed(1)), style: TextStyle(fontSize: 10.5, color: pal.textSecondary)),
+                          ]),
                           Text(Fmt.phone(employee.phone), style: TextStyle(fontSize: 10.5, color: pal.textSecondary)),
                         ],
                       ),
