@@ -134,11 +134,12 @@ class ReportsPage extends StatelessWidget {
                         const Divider(height: 18),
                         Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
                           style: TextStyle(fontSize: 10, color: pal.textMuted)),
-                        if (!db.employees.every((item) => db.hasPermission('finance.commission.view', employeeId: item.id)) ||
+                        if (!db.employees.every((item) => db.hasPermission('finance.income.view', employeeId: item.id)) ||
+                            !db.employees.every((item) => db.hasPermission('finance.commission.view', employeeId: item.id)) ||
                             !db.employees.every((item) => db.hasPermission('finance.salary.view', employeeId: item.id)))
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text('به‌دلیل محدودیت مجوز، بخشی از هزینه‌های پرسنلی در جمع روز لحاظ نشده است.',
+                            child: Text('به‌دلیل محدودیت مجوز، بخشی از درآمد یا هزینه‌های پرسنلی در جمع روز لحاظ نشده است.',
                               style: TextStyle(fontSize: 9, color: pal.warning)),
                           ),
                         const SizedBox(height: 8),
