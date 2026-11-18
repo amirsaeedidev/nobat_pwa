@@ -302,11 +302,11 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
   String? _error;
 
   int _outstanding(Appointment appointment) {
-    final recognized = widget.database.employeeFinanceEntries.where((entry) =>
-      entry.appointmentId == appointment.id).fold<int>(0, (sum, entry) =>
-        sum + (entry.type == FinanceEntryType.refund ? entry.receivedAmount :
-          entry.type == FinanceEntryType.commission ? entry.receivedAmount : 0));
-    final due = recognized > 0 ? recognized : appointment.price.round();
+    final revenueDocuments = widget.database.employeeFinanceEntries.where((entry) =>
+      entry.appointmentId == appointment.id &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
+    final recognized = revenueDocuments.fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+    final due = revenueDocuments.isNotEmpty ? recognized : appointment.price.round();
     final paid = widget.database.appointmentPayments.where((payment) =>
       payment.appointmentId == appointment.id).fold<int>(0, (sum, payment) => sum + payment.signedAmount);
     return due - paid;
