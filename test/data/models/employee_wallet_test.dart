@@ -74,7 +74,7 @@ void main() {
         throwsStateError,
       );
       final salary = db.addWalletTransaction(
-        employeeId: employeeId, amount: 100000, type: EmployeeWalletTransactionType.salaryPayment,
+        employeeId: employeeId, amount: -100000, type: EmployeeWalletTransactionType.salaryPayment,
         description: 'پرداخت آزمایشی',
       );
       expect(
