@@ -58,7 +58,15 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             hint: 'جست‌وجوی نام مشتری، شماره یا کد پیگیری...',
             onChanged: provider.setQuery,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Text('وضعیت نوبت', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+              const Spacer(),
+              Text('انتخاب وضعیت برای محدودکردن فهرست', style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
+            ],
+          ),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
@@ -76,7 +84,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               ],
             ]),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Text('فیلترهای تکمیلی', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+              const Spacer(),
+              if (provider.filter.activeCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: pal.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                  child: Text('${FaNum.ofInt(provider.filter.activeCount)} فیلتر فعال', style: TextStyle(fontSize: 9.5, color: pal.primaryBright, fontWeight: FontWeight.w700)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -358,7 +379,7 @@ class _FilterDropdown<T> extends StatelessWidget {
               dropdownColor: pal.surfaceAlt,
               borderRadius: AppRadius.brSm,
               isDense: true,
-              style: TextStyle(fontSize: 11.5, color: pal.textPrimary, fontFamily: 'Vazirmatn'),
+              style: TextStyle(fontSize: 11.5, color: pal.textPrimary, fontFamily: 'Lalezar'),
               icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: pal.textMuted),
               items: [
                 for (final item in items)
