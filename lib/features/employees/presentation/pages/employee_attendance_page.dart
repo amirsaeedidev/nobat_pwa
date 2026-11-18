@@ -21,14 +21,20 @@ class EmployeeAttendancePage extends StatelessWidget {
   final rows=db.attendanceFor(employeeId,from:from,to:to); final sum=db.attendanceSummary(employeeId,from:from,to:to);
   final canManage=db.hasPermission('employees.edit',employeeId:employeeId);
   final canRecord=db.currentAccessAccount.employeeId==employeeId||canManage;
-  final hasIn=rows.any((r)=>r.type==AttendanceEventType.checkIn&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
-  final hasOut=rows.any((r)=>r.type==AttendanceEventType.checkOut&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
+  final todayEvents=rows.where((r)=>r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day&&
+    (r.type==AttendanceEventType.checkIn||r.type==AttendanceEventType.checkOut)).toList()
+    ..sort((a,b)=>a.at.compareTo(b.at));
+  var hasOpenSession=false;
+  for(final event in todayEvents){
+   if(event.type==AttendanceEventType.checkIn) hasOpenSession=true;
+   if(event.type==AttendanceEventType.checkOut) hasOpenSession=false;
+  }
   return PageScaffold(title:'حضور و غیاب',subtitle:e.fullName,showBackButton:true,actions:[
    if(canRecord)SoftButton(label:'ثبت ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
-   if(canRecord)SolidButton(label:'ثبت خروج',icon:Icons.logout,onPressed:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
+   if(canRecord)SolidButton(label:'ثبت خروج',icon:Icons.logout,onPressed:hasOpenSession?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
   ],mobileHeader:Wrap(spacing:8,runSpacing:8,children:[
    if(canRecord)SoftButton(label:'ورود',icon:Icons.login,onTap:()=>_record(context,db,e.id,AttendanceEventType.checkIn)),
-   if(canRecord)SoftButton(label:'خروج',icon:Icons.logout,onTap:hasIn&&!hasOut?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
+   if(canRecord)SoftButton(label:'خروج',icon:Icons.logout,onTap:hasOpenSession?()=>_record(context,db,e.id,AttendanceEventType.checkOut):null),
    if(canManage)SoftButton(label:'غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
    if(canManage)SoftButton(label:'مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
   ]),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
