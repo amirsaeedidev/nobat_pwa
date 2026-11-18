@@ -1,4 +1,5 @@
 import '../models/employee.dart';
+import '../models/appointment.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_schedule.dart';
 import '../models/employee_hr.dart';
@@ -43,7 +44,7 @@ class EmployeeAnalytics {
     this.fixedSalary = 0, this.bonusAmount = 0, this.deductionAmount = 0,
     this.advanceAmount = 0, this.salaryPaid = 0, this.salaryBalance = 0,
     this.attendanceDataAvailable = false, this.salaryDataAvailable = false,
-    this.attendanceRecords = const [], this.leaves = const [], this.busyHours = const [],
+    this.attendanceRecords = const [], this.leaves = const [], this.busyHours = const [], this.completedAppointments = const [],
     this.customerSatisfactionScore,
   });
   final int totalAppointments, completed, cancelled, noShow;
@@ -58,6 +59,7 @@ class EmployeeAnalytics {
   final List<AttendanceRecord> attendanceRecords;
   final List<EmployeeLeave> leaves;
   final List<AnalyticsPoint> busyHours;
+  final List<Appointment> completedAppointments;
   /// null یعنی هنوز امتیاز رضایت مشتری در داده‌ها ثبت نشده است.
   final double? customerSatisfactionScore;
   double get completionRate => totalAppointments == 0 ? 0 : completed * 100 / totalAppointments;
@@ -214,6 +216,7 @@ class EmployeeAnalyticsCalculator {
           break;
         case EmployeeWalletTransactionType.commission:
         case EmployeeWalletTransactionType.refund:
+        case EmployeeWalletTransactionType.adjustment:
           break;
       }
     }
@@ -251,7 +254,8 @@ class EmployeeAnalyticsCalculator {
       deductionAmount: deductionAmount, advanceAmount: advanceAmount, salaryPaid: salaryPaid,
       salaryBalance: salaryBalance, attendanceDataAvailable: attendanceAvailable,
       salaryDataAvailable: canViewSalary, attendanceRecords: attendanceRecords,
-      leaves: leaves, busyHours: [for (final item in busyHours)
+      leaves: leaves, completedAppointments: completed,
+      busyHours: [for (final item in busyHours)
         AnalyticsPoint('${item.key.toString().padLeft(2, '0')}:00', item.value)],
     );
   }
