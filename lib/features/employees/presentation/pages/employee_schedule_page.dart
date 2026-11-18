@@ -255,7 +255,10 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
           const SizedBox(height: 10),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SectionHeader(title: 'تنظیمات برنامه'),
-            SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled, onChanged: (value) => db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: value, bufferMinutes: employee.bufferMinutes)),
+            Material(
+              color: Colors.transparent,
+              child: SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled, onChanged: (value) => db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: value, bufferMinutes: employee.bufferMinutes)),
+            ),
             Row(children: [
               const Expanded(child: Text('فاصله بین نوبت‌ها', style: TextStyle(fontSize: 12))),
               DropdownButton<int>(value: employee.bufferMinutes, items: [0, 5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقیقه'))).toList(), onChanged: (value) { if (value != null) db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: employee.scheduleEnabled, bufferMinutes: value); }),
