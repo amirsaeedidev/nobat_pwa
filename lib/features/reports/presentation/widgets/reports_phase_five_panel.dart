@@ -350,7 +350,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
 }
 
 class _DeltaCard extends StatelessWidget {
-  const _DeltaCard({required this.label, required this.value, required this.previous, required this.color, this.money = false});
+  const _DeltaCard({required this.label, required this.value, required this.previous, required this.color, this.money = false, this.inverse = false});
   final String label;
   final num value;
   final num? previous;
