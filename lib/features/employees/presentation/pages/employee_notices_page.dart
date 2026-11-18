@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 class EmployeeNoticesPage extends StatelessWidget{
  const EmployeeNoticesPage({super.key,required this.employeeId});final String employeeId;

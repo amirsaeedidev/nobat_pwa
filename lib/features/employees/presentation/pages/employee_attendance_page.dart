@@ -16,7 +16,6 @@ class EmployeeAttendancePage extends StatelessWidget {
   if(e==null)return PageScaffold(title:'حضور و غیاب',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
   final now=DateTime.now(),from=DateTime(now.year,now.month,1),to=DateTime(now.year,now.month+1,0,23,59);
   final rows=db.attendanceFor(employeeId,from:from,to:to); final sum=db.attendanceSummary(employeeId,from:from,to:to);
-  final today=DateTime(now.year,now.month,now.day);
   final hasIn=rows.any((r)=>r.type==AttendanceEventType.checkIn&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
   final hasOut=rows.any((r)=>r.type==AttendanceEventType.checkOut&&r.date.year==now.year&&r.date.month==now.month&&r.date.day==now.day);
   return PageScaffold(title:'حضور و غیاب',subtitle:e.fullName,showBackButton:true,actions:[
