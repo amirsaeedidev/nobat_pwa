@@ -43,10 +43,14 @@ class MockDashboardRepository implements DashboardRepository {
       StatsPeriod.weekly => weekStart,
       StatsPeriod.monthly => monthStart,
     };
-    final periodItems = all.where((a) {
-      if (period == StatsPeriod.daily) return a.jalali.sameDay(today);
-      return !a.jalali.isBefore(periodStart);
-    }).toList();
+    final periodEnd = switch (period) {
+      StatsPeriod.daily => today.addDays(1),
+      StatsPeriod.weekly => weekStart.addDays(7),
+      StatsPeriod.monthly => monthStart.addMonths(1),
+    };
+    final periodItems = all.where((a) =>
+      !a.jalali.isBefore(periodStart) && a.jalali.isBefore(periodEnd)
+    ).toList();
 
     final completed = periodItems.where((a) => a.status == AppointmentStatus.completed);
     final cancelled = periodItems.where((a) => a.status == AppointmentStatus.cancelled || a.status == AppointmentStatus.noShow);
