@@ -52,6 +52,7 @@ class ReportsPage extends StatelessWidget {
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
     final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
       selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
+      (canViewAll || entry.employeeId == db.currentAccessAccount.employeeId) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
     final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
     final dayCommission = db.hasPermission('finance.commission.view') ? dayFinanceEntries.fold<num>(0, (sum, item) =>
