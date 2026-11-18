@@ -51,16 +51,36 @@ void main() {
       );
     });
 
-    test('corrects a transaction using reversal and a new adjustment', () {
+    test('corrects a transaction using reversal and keeps payroll synchronized', () {
+      final payrollBefore = db.payrollFor(employeeId).approvedBonuses;
       final entry = db.addWalletTransaction(employeeId: employeeId, amount: 500000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش اولیه');
       final before = db.walletBalanceFor(employeeId);
+      expect(db.payrollFor(employeeId).approvedBonuses, payrollBefore + 500000);
       final correction = db.correctWalletTransaction(transactionId: entry.id, correctedAmount: 350000, description: 'اصلاح مبلغ پاداش');
       expect(correction, hasLength(2));
       expect(correction.first.amount, -500000);
       expect(correction.last.amount, 350000);
       expect(db.walletBalanceFor(employeeId), before - 150000);
+      expect(db.payrollFor(employeeId).approvedBonuses, payrollBefore + 350000);
       expect(db.employeeWalletTransactions.any((item) => item.id == entry.id), isTrue);
       expect(() => db.correctWalletTransaction(transactionId: entry.id, correctedAmount: 1, description: 'اصلاح دوباره'), throwsStateError);
+    });
+
+    test('does not allow generic correction of payroll source transactions', () {
+      final finance = db.employeeFinanceEntries.first;
+      final commissionWallet = db.employeeWalletTransactions.singleWhere((item) => item.sourceFinanceEntryId == finance.id);
+      expect(
+        () => db.correctWalletTransaction(transactionId: commissionWallet.id, correctedAmount: commissionWallet.amount - 1, description: 'اصلاح پورسانت'),
+        throwsStateError,
+      );
+      final salary = db.addWalletTransaction(
+        employeeId: employeeId, amount: 100000, type: EmployeeWalletTransactionType.salaryPayment,
+        description: 'پرداخت آزمایشی',
+      );
+      expect(
+        () => db.correctWalletTransaction(transactionId: salary.id, correctedAmount: -50000, description: 'اصلاح پرداخت'),
+        throwsStateError,
+      );
     });
 
     test('approved commissions are mirrored once and keep the original snapshot', () {
