@@ -36,18 +36,25 @@ class ReportHistorySnapshot {
     required this.id, required this.title, required this.range,
     required this.createdAt, required this.revenue, required this.cost,
     required this.appointments,
+    required this.accountId,
+    this.includesSalary = false,
+    this.includesCommission = false,
   });
 
   final String id, title, range;
   final DateTime createdAt;
   final num revenue, cost;
   final int appointments;
+  final String accountId;
+  final bool includesSalary, includesCommission;
   num get profit => revenue - cost;
 
   Map<String, Object?> toJson() => {
     'id': id, 'title': title, 'range': range,
     'createdAt': createdAt.toIso8601String(),
     'revenue': revenue, 'cost': cost, 'appointments': appointments,
+    'accountId': accountId, 'includesSalary': includesSalary,
+    'includesCommission': includesCommission,
   };
 
   factory ReportHistorySnapshot.fromJson(Map<String, dynamic> json) => ReportHistorySnapshot(
@@ -56,6 +63,9 @@ class ReportHistorySnapshot {
     createdAt: DateTime.parse(json['createdAt'] as String),
     revenue: json['revenue'] as num, cost: json['cost'] as num,
     appointments: json['appointments'] as int,
+    accountId: json['accountId'] as String? ?? '',
+    includesSalary: json['includesSalary'] as bool? ?? false,
+    includesCommission: json['includesCommission'] as bool? ?? false,
   );
 }
 
@@ -92,13 +102,21 @@ class SavedReportStore {
     await prefs.setString(_viewsKey, jsonEncode(items.map((item) => item.toJson()).toList()));
   }
 
-  Future<List<ReportHistorySnapshot>> loadHistory() async {
+  Future<List<ReportHistorySnapshot>> loadHistory({
+    String accountId = '',
+    bool canViewSalary = true,
+    bool canViewCommission = true,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_historyKey);
     if (raw == null) return [];
     try {
       return (jsonDecode(raw) as List)
           .map((item) => ReportHistorySnapshot.fromJson(Map<String, dynamic>.from(item as Map)))
+          .where((item) =>
+            (item.accountId == accountId || (canViewSalary && canViewCommission)) &&
+            (!item.includesSalary || canViewSalary) &&
+            (!item.includesCommission || canViewCommission))
           .toList();
     } catch (_) {
       return [];
