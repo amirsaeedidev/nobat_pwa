@@ -52,6 +52,7 @@ class WeekdayPerformance {
     required this.count,
     required this.revenue,
     this.isPeak = false,
+    this.dateIso,
   });
 
   final String label;
@@ -59,6 +60,7 @@ class WeekdayPerformance {
   final int count;
   final num revenue;
   final bool isPeak;
+  final String? dateIso;
 }
 
 /// نقطه درآمد برای نمودارهای گزارش.
