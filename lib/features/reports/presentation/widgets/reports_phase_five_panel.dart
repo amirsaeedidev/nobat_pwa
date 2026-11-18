@@ -41,10 +41,15 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
   }
 
   Future<void> _loadStore() async {
-    final saved = await _store.loadViews();
-    final history = await _store.loadHistory();
-    if (!mounted) return;
-    setState(() { _saved = saved; _history = history; _loadingStore = false; });
+    try {
+      final saved = await _store.loadViews();
+      final history = await _store.loadHistory();
+      if (!mounted) return;
+      setState(() { _saved = saved; _history = history; _loadingStore = false; });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _loadingStore = false; });
+    }
   }
 
   Future<void> _saveCurrentView() async {
