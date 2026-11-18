@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_tokens.dart';
+import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/jalali.dart';
