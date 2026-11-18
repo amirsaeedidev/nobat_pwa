@@ -133,9 +133,9 @@ class ReportsPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       const _ChartLegend(),
                       const SizedBox(height: 10),
-                      RevenueBarChart(data: provider.revenueSeries, height: 180),
+                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _showTrendDetails(context, db, provider, index),)
                       const SizedBox(height: 12),
-                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true),
+                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _showTrendDetails(context, db, provider, index),)
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -182,7 +182,7 @@ class ReportsPage extends StatelessWidget {
                                   ])),
                                 ),
                             ]);
-                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118);
+                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showFinanceSheet(context, 'پرداخت‌های $method', [for (final payment in provider.analytics.paymentTransactions.where((p) => p.method.label == method)) '${payment.description} · ${Fmt.compactMoney(payment.signedAmount)}']));
                             if (inner.maxWidth < 340) return Column(children: [Center(child: donut), const SizedBox(height: 8), legend]);
                             return Row(children: [donut, const SizedBox(width: 12), Expanded(child: legend)]);
                           }),
@@ -437,6 +437,39 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
       FilledButton(onPressed: _save, child: const Text('ثبت هزینه')),
     ],
   );
+}
+
+
+void _showTrendDetails(BuildContext context, AppDatabase database, ReportsProvider provider, int index) {
+  final points = provider.analytics.trend;
+  if (index < 0 || index >= points.length) return;
+  final point = points[index];
+  final end = index + 1 < points.length ? points[index + 1].start : provider.range.endExclusive;
+  final canViewAll = database.hasPermission('appointments.view_all');
+  final employeeId = database.currentAccessAccount.employeeId;
+  final appointments = database.appointments.where((item) =>
+    !item.startAt.isBefore(point.start) && item.startAt.isBefore(end) &&
+    (canViewAll || (database.hasPermission('appointments.view_self') && item.employeeId == employeeId)));
+  final appointmentIds = appointments.map((item) => item.id).toSet();
+  final payments = database.appointmentPayments.where((item) =>
+    appointmentIds.contains(item.appointmentId) &&
+    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end));
+  final expenses = database.businessExpenses.where((item) =>
+    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end) &&
+    item.status == BusinessExpenseStatus.posted);
+  final wallet = database.employeeWalletTransactions.where((item) =>
+    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end) &&
+    item.status == EmployeeWalletTransactionStatus.posted &&
+    (canViewAll || item.employeeId == employeeId));
+  final details = <String>[
+    'درآمد: ${Fmt.compactMoney(point.revenue)}',
+    'هزینه: ${Fmt.compactMoney(point.cost)}',
+    for (final item in appointments) '${item.customerName} · ${item.serviceName} · ${item.status.label}',
+    for (final item in payments) '${item.description} · ${item.method.label} · ${Fmt.compactMoney(item.signedAmount)}',
+    for (final item in expenses) '${item.description} · سند ${item.sourceDocumentId} · ${Fmt.compactMoney(item.amount)}',
+    for (final item in wallet) '${item.description} · ${item.type.label} · ${Fmt.compactMoney(item.amount)}',
+  ];
+  _showFinanceSheet(context, 'جزئیات ${point.label}', details);
 }
 
 void _showFinanceSheet(BuildContext context, String title, List<String> details) {
