@@ -6,12 +6,15 @@ import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/repositories/dashboard_repository.dart';
 
+enum ReportServiceSort { revenue, bookings, profit }
+
 class ReportsProvider extends DbBoundProvider {
   ReportsProvider(this._repository, AppDatabase db) : super(db) { load(); }
 
   final DashboardRepository _repository;
   ReportDateRange _range = ReportDateRange.preset(ReportPeriod.thisMonth);
   ReportAnalyticsFilter _filter = const ReportAnalyticsFilter();
+  ReportServiceSort _serviceSort = ReportServiceSort.revenue;
   ReportAnalytics? _analytics;
   bool _loading = true;
   String? _error;
@@ -19,6 +22,16 @@ class ReportsProvider extends DbBoundProvider {
   ReportDateRange get range => _range;
   ReportPeriod get period => _range.period;
   ReportAnalyticsFilter get filter => _filter;
+  ReportServiceSort get serviceSort => _serviceSort;
+  List<ReportServiceMetric> get rankedServices {
+    final items = [...analytics.services];
+    items.sort((a, b) => switch (_serviceSort) {
+      ReportServiceSort.revenue => b.revenue.compareTo(a.revenue),
+      ReportServiceSort.bookings => b.count.compareTo(a.count),
+      ReportServiceSort.profit => (b.profit ?? double.negativeInfinity).compareTo(a.profit ?? double.negativeInfinity),
+    });
+    return items;
+  }
   ReportAnalytics get analytics => _analytics ?? ReportAnalytics.empty(_range);
   bool get loading => _loading;
   String? get error => _error;
@@ -83,6 +96,11 @@ class ReportsProvider extends DbBoundProvider {
       clearCustomer: clearCustomer, clearStatus: clearStatus,
     );
     await load();
+  }
+
+  Future<void> setServiceSort(ReportServiceSort sort) async {
+    _serviceSort = sort;
+    notifyListeners();
   }
 
   Future<void> clearFilters() async {
