@@ -1278,7 +1278,6 @@ class AppDatabase extends ChangeNotifier {
     if (employee == null) throw StateError('پرسنل یافت نشد.');
     if (currentAccessAccount.employeeId != leave.employeeId) requirePermission('employees.edit', employeeId: leave.employeeId);
     if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
-    if (leave.description.trim().isEmpty) throw ArgumentError('توضیحات درخواست مرخصی الزامی است.');
     if (_employeeLeaves.any((item) => item.id == leave.id)) throw StateError('شناسه مرخصی تکراری است.');
     if (_employeeLeaves.any((item) => item.employeeId == leave.employeeId && item.status != EmployeeLeaveStatus.rejected && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt))) {
       throw ArgumentError('این مرخصی با درخواست دیگری هم‌پوشانی دارد.');

@@ -307,9 +307,10 @@ class AppSidebar extends StatelessWidget {
                   ),
                   if (expanded) ...[
                     const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                         RichText(
                           text: TextSpan(
                             children: [
@@ -339,7 +340,7 @@ class AppSidebar extends StatelessWidget {
                           style: TextStyle(fontSize: 9.5, color: pal.textMuted),
                         ),
                       ],
-                    ),
+                    )),
                   ],
                 ],
               ),
@@ -379,26 +380,27 @@ class AppSidebar extends StatelessWidget {
                   ? InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () => _showMockAccountPicker(context, database),
-                      child: Row(
-                        children: [
-                          AvatarBadge(name: database.currentAccessAccount.name, size: 36, color: pal.primaryBright),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  database.currentAccessAccount.name,
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(database.currentAccessRoleName, style: TextStyle(fontSize: 10, color: pal.textMuted)),
-                              ],
+                      child: LayoutBuilder(builder: (context, constraints) {
+                        if (constraints.maxWidth < 150) {
+                          return Center(child: AvatarBadge(name: database.currentAccessAccount.name, size: 36, color: pal.primaryBright));
+                        }
+                        return Row(
+                          children: [
+                            AvatarBadge(name: database.currentAccessAccount.name, size: 36, color: pal.primaryBright),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(database.currentAccessAccount.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary), overflow: TextOverflow.ellipsis),
+                                  Text(database.currentAccessRoleName, style: TextStyle(fontSize: 10, color: pal.textMuted), overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
                             ),
-                          ),
-                          CountPill(value: settings.totalUnread, icon: Icons.notifications_none_rounded),
-                        ],
-                      ),
+                            if (constraints.maxWidth >= 205) CountPill(value: settings.totalUnread, icon: Icons.notifications_none_rounded),
+                          ],
+                        );
+                      }),
                     )
                   : Center(
                       child: IconButton(
@@ -512,10 +514,12 @@ class _BookingLinkCard extends StatelessWidget {
               children: [
                 Icon(Icons.public_rounded, size: 15, color: pal.primaryBright),
                 const SizedBox(width: 6),
-                Text(
+                Expanded(child: Text(
                   'صفحه رزرو عمومی',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 4),
