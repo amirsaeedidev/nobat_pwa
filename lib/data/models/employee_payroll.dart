@@ -65,7 +65,11 @@ class EmployeePayrollCalculator {
     final salary = contract != null && contract.appliesAt(at) ? contract.monthlyBase : 0;
     var bonuses = 0, deductions = 0;
     for (final item in adjustments) { if (item.status != PayrollRecordStatus.approved) continue; if (item.isBonus) { bonuses += item.amount; } else { deductions += item.amount; } }
-    final advanceDeducted = advances.where((item) => item.status == AdvanceStatus.paid || item.status == AdvanceStatus.deducted).fold<int>(0, (sum, item) => sum + item.deductedAmount);
+    final advanceDeducted = advances.fold<int>(0, (sum, item) {
+      if (item.status == AdvanceStatus.paid) return sum + item.outstanding;
+      if (item.status == AdvanceStatus.deducted) return sum + item.deductedAmount;
+      return sum;
+    });
     return PayrollCalculation(
       baseSalary: salary,
       approvedCommission: approvedCommission,
