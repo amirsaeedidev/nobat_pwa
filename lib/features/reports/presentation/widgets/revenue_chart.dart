@@ -64,7 +64,7 @@ class RevenueBarChart extends StatelessWidget {
                 showTitles: true,
                 reservedSize: 26,
                 getTitlesWidget: (value, meta) {
-                  final index = data.length - 1 - value.round();
+                  final index = value.round();
                   if (index < 0 || index >= data.length) return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -152,7 +152,7 @@ class RevenueLineChart extends StatelessWidget {
                 reservedSize: 24,
                 interval: 1,
                 getTitlesWidget: (value, meta) {
-                  final index = value.round();
+                  final index = data.length - 1 - value.round();
                   if (index < 0 || index >= data.length) return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -211,7 +211,7 @@ class RevenueLineChart extends StatelessWidget {
             ),
             if (showSecondary)
               LineChartBarData(
-                spots: [for (var i = 0; i < data.length; i++) FlSpot(i.toDouble(), data[i].secondary.toDouble())],
+                spots: [for (var i = 0; i < data.length; i++) FlSpot((data.length - 1 - i).toDouble(), data[i].secondary.toDouble())],
                 isCurved: true,
                 curveSmoothness: 0.28,
                 barWidth: 2.2,
