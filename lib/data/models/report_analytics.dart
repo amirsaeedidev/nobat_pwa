@@ -2,6 +2,7 @@ import '../../core/utils/jalali.dart';
 import 'appointment.dart';
 import 'employee_wallet.dart';
 import 'business_finance.dart';
+import 'enums.dart';
 
 enum ReportPeriod {
   today('امروز'), yesterday('دیروز'), thisWeek('هفته جاری'),
@@ -74,11 +75,58 @@ class ReportEmployeeMetric {
   final num commission;
 }
 
+class ReportAnalyticsFilter {
+  const ReportAnalyticsFilter({this.serviceId, this.employeeId, this.customerId, this.status});
+  final String? serviceId, employeeId, customerId;
+  final AppointmentStatus? status;
+  bool get isEmpty => serviceId == null && employeeId == null && customerId == null && status == null;
+  bool matches(Appointment item) =>
+    (serviceId == null || item.serviceIds.contains(serviceId)) &&
+    (employeeId == null || item.employeeId == employeeId) &&
+    (customerId == null || item.customerId == customerId) &&
+    (status == null || item.status == status);
+}
+
 class ReportServiceMetric {
-  const ReportServiceMetric({required this.name, required this.revenue, required this.count});
-  final String name;
-  final num revenue;
+  const ReportServiceMetric({
+    required this.name, required this.revenue, required this.count,
+    this.serviceId = '', this.averagePrice = 0, this.directCost,
+    this.profit, this.marginPercent, this.employeeCounts = const {},
+  });
+  final String serviceId, name;
+  final num revenue, averagePrice;
   final int count;
+  /// null یعنی حداقل یکی از نوبت‌های تاریخی این خدمت هزینه مستقیم ثبت‌شده ندارد.
+  final num? directCost, profit, marginPercent;
+  final Map<String, int> employeeCounts;
+}
+
+class ReportCustomerMetric {
+  const ReportCustomerMetric({
+    required this.customerId, required this.name, required this.visits,
+    required this.totalSpent, required this.averageSpend, required this.lastVisitAt,
+    required this.firstVisitAt, required this.averageGapDays, required this.isNew,
+    required this.isLoyal, required this.isInactive, required this.isAtRisk,
+    required this.repeatVisits,
+  });
+  final String customerId, name;
+  final int visits, repeatVisits;
+  final num totalSpent, averageSpend;
+  final DateTime? firstVisitAt, lastVisitAt;
+  final double? averageGapDays;
+  final bool isNew, isLoyal, isInactive, isAtRisk;
+}
+
+class ReportHourMetric {
+  const ReportHourMetric({required this.hour, required this.appointments, required this.scheduledMinutes, required this.bookedMinutes});
+  final int hour, appointments, scheduledMinutes, bookedMinutes;
+}
+
+class ReportWeekdayMetric {
+  const ReportWeekdayMetric({required this.weekday, required this.label, required this.appointments});
+  final int weekday;
+  final String label;
+  final int appointments;
 }
 
 class ReportCustomerDebt {
@@ -104,6 +152,21 @@ class ReportAnalytics {
     this.customerDebts = const [], this.partialPayments = const [],
     this.paymentTransactions = const [], this.businessExpenses = const [],
     this.settlements = const [],
+    this.operationalAppointments = const [],
+    this.customerMetrics = const [],
+    this.hourlyDemand = const [],
+    this.weekdayDemand = const [],
+    this.repeatCustomerRate = 0,
+    this.newCustomers = 0,
+    this.oldCustomers = 0,
+    this.loyalCustomers = 0,
+    this.inactiveCustomers = 0,
+    this.atRiskCustomers = 0,
+    this.rejectedAppointments = 0,
+    this.capacityMinutes = 0,
+    this.bookedCapacityMinutes = 0,
+    this.directCostCoveragePercent = 0,
+    this.filter = const ReportAnalyticsFilter(),
   });
   final ReportDateRange range;
   final num revenue, cost, commissionCost, payrollCost;
@@ -124,6 +187,17 @@ class ReportAnalytics {
   final List<AppointmentPayment> partialPayments, paymentTransactions;
   final List<BusinessExpense> businessExpenses;
   final List<EmployeeWalletSettlement> settlements;
+  final List<Appointment> operationalAppointments;
+  final List<ReportCustomerMetric> customerMetrics;
+  final List<ReportHourMetric> hourlyDemand;
+  final List<ReportWeekdayMetric> weekdayDemand;
+  final num repeatCustomerRate;
+  final int newCustomers, oldCustomers, loyalCustomers, inactiveCustomers, atRiskCustomers;
+  /// در مدل فعلی وضعیت مستقل «ردشده» وجود ندارد؛ مقدار صفر به‌معنی عدم پشتیبانی وضعیت است.
+  final int rejectedAppointments;
+  final int capacityMinutes, bookedCapacityMinutes;
+  final num directCostCoveragePercent;
+  final ReportAnalyticsFilter filter;
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
