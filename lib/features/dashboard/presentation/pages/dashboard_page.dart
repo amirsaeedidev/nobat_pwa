@@ -306,6 +306,7 @@ class _HeroStatsCard extends StatelessWidget {
                       spacing: 8,
                       children: [
                         TweenAnimationBuilder<double>(
+                          key: ValueKey('dashboard-total-${period.name}-${stats.totalAppointments}'),
                           tween: Tween(begin: 0, end: stats.totalAppointments.toDouble()),
                           duration: const Duration(milliseconds: 850),
                           curve: Curves.easeOutCubic,
@@ -361,8 +362,22 @@ class _HeroStatsCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: pal.primary.withValues(alpha: 0.65), borderRadius: BorderRadius.circular(3))),
+              const SizedBox(width: 5),
+              Text('حجم نوبت', style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
+              const SizedBox(width: 16),
+              Container(width: 15, height: 2.5, decoration: BoxDecoration(color: pal.accentGlow, borderRadius: BorderRadius.circular(3))),
+              const SizedBox(width: 5),
+              Text('درآمد', style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
+            ],
+          ),
+          const SizedBox(height: 4),
           PerformanceChart(
+            key: ValueKey('performance-chart-${period.name}'),
             data: stats.weekdayPerformance,
             height: 208,
             onPointTap: (point) {
