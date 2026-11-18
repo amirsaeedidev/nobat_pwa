@@ -12,7 +12,7 @@ import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../providers/reports_provider.dart';
-import '../utils/report_table_export.dart';
+import '../../utils/report_table_export.dart';
 import 'revenue_chart.dart';
 
 /// بخش عملیاتی فاز چهار؛ از همان خروجی فیلترشده محاسبه‌گر گزارش استفاده می‌کند.
