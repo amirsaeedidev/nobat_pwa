@@ -104,7 +104,9 @@ class ReportsPage extends StatelessWidget {
                         Wrap(spacing: 8, runSpacing: 8, children: [
                           _MetricCard(label: 'کل نوبت‌ها', value: dayAppointments.length, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
                           _MetricCard(label: 'تکمیل‌شده', value: dayCompleted.length, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
-                          _MetricCard(label: 'درآمد روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                          _MetricCard(label: 'درآمد ثبت‌شده روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                          _MetricCard(label: 'هزینه روز', value: dayTotalExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
+                          _MetricCard(label: 'هزینه عملیاتی', value: dayOperatingExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                         ]),
                         const SizedBox(height: 8),
                         if (dayAppointments.isEmpty)
@@ -117,6 +119,22 @@ class ReportsPage extends StatelessWidget {
                               title: Text(item.customerName),
                               subtitle: Text('${item.serviceName} · ${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}'),
                               trailing: StatusBadge.appointment(item.status, dense: true),
+                            ),
+                        const Divider(height: 18),
+                        Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
+                          style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                        const SizedBox(height: 8),
+                        const SectionHeader(title: 'عملکرد پرسنل در این روز'),
+                        if (dayEmployeeTotals.isEmpty)
+                          const EmptyState(title: 'عملکردی برای نمایش وجود ندارد', compact: true)
+                        else
+                          for (final entry in dayEmployeeTotals.entries)
+                            ListTile(
+                              dense: true, contentPadding: EdgeInsets.zero,
+                              leading: const HugeIcon(icon: HugeIcons.strokeRoundedUser, size: 18),
+                              title: Text(entry.key, style: const TextStyle(fontSize: 11)),
+                              subtitle: Text('${FaNum.ofInt(entry.value.count)} نوبت تکمیل‌شده', style: const TextStyle(fontSize: 9)),
+                              trailing: Text(Fmt.compactMoney(entry.value.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
                             ),
                       ])),
                       const SizedBox(height: 12),
