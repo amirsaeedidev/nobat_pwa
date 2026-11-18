@@ -160,6 +160,67 @@ class ReportsPage extends StatelessWidget {
                       Text('از ${provider.range.jalaliStart.long} تا ${provider.range.jalaliEnd.long}', style: TextStyle(fontSize: 11, color: pal.textMuted)),
                     ])),
                     const SizedBox(height: 12),
+                    AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const SectionHeader(title: 'فیلتر گزارش‌های عملیاتی', subtitle: 'فیلترها روی جدول خدمات، مشتریان، نوبت‌ها و تحلیل تقاضا اعمال می‌شوند؛ گزارش مالی کلی حفظ می‌شود.'),
+                      const SizedBox(height: 10),
+                      LayoutBuilder(builder: (context, constraints) {
+                        final width = constraints.maxWidth < 440 ? constraints.maxWidth : 205.0;
+                        return Wrap(spacing: 9, runSpacing: 9, children: [
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.serviceId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'خدمت'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه خدمات')),
+                              for (final item in db.services)
+                                DropdownMenuItem<String?>(value: item.id, child: Text(item.title, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(serviceId: value, clearService: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.employeeId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'پرسنل'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه پرسنل')),
+                              for (final item in db.employees)
+                                DropdownMenuItem<String?>(value: item.id, child: Text(item.fullName, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(employeeId: value, clearEmployee: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.customerId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'مشتری'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه مشتریان')),
+                              for (final item in db.customers)
+                                DropdownMenuItem<String?>(value: item.id, child: Text(item.fullName, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(customerId: value, clearCustomer: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<AppointmentStatus?>(
+                            value: provider.filter.status,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'وضعیت نوبت'),
+                            items: [
+                              const DropdownMenuItem<AppointmentStatus?>(value: null, child: Text('همه وضعیت‌ها')),
+                              for (final item in AppointmentStatus.values)
+                                DropdownMenuItem<AppointmentStatus?>(value: item, child: Text(item.label)),
+                            ],
+                            onChanged: (value) => provider.setFilters(status: value, clearStatus: value == null),
+                          )),
+                        ]);
+                      }),
+                      if (!provider.filter.isEmpty)
+                        Align(alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton.icon(
+                            onPressed: provider.clearFilters,
+                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedFilterRemove, size: 16),
+                            label: const Text('پاک کردن فیلترها'),
+                          )),
+                    ])),
+                    const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                       _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
