@@ -6,6 +6,7 @@ import '../models/enums.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_wallet.dart';
 import '../models/report_analytics.dart';
+import '../models/business_finance.dart';
 
 /// بازه زمانی گزارش پیشخوان.
 enum StatsPeriod {
@@ -26,148 +27,6 @@ abstract class DashboardRepository {
 
   Future<List<RevenuePoint>> fetchServiceRevenue({int limit = 5});
 
-  Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range});
-}
-
-class MockDashboardRepository implements DashboardRepository {
-  MockDashboardRepository(this._db);
-
-  final AppDatabase _db;
-
-  @override
-  Future<DashboardStats> fetchStats({StatsPeriod period = StatsPeriod.weekly}) async {
-    await _db.delay(180);
-    final all = _db.appointments;
-    final today = JalaliDate.today();
-    final now = DateTime.now();
-
-    final weekStart = today.addDays(-today.weekday);
-    final monthStart = JalaliDate(today.year, today.month, 1);
-    final periodStart = switch (period) {
-      StatsPeriod.daily => today,
-      StatsPeriod.weekly => weekStart,
-      StatsPeriod.monthly => monthStart,
-    };
-    final periodEnd = switch (period) {
-      StatsPeriod.daily => today.addDays(1),
-      StatsPeriod.weekly => weekStart.addDays(7),
-      StatsPeriod.monthly => monthStart.addMonths(1),
-    };
-    final periodItems = all.where((a) =>
-      !a.jalali.isBefore(periodStart) && a.jalali.isBefore(periodEnd)
-    ).toList();
-
-    final completed = periodItems.where((a) => a.status == AppointmentStatus.completed);
-    final cancelled = periodItems.where((a) => a.status == AppointmentStatus.cancelled || a.status == AppointmentStatus.noShow);
-
-    final totalRevenue = periodItems
-        .where((a) => a.status == AppointmentStatus.completed)
-        .fold<num>(0, (sum, a) => sum + a.price);
-
-    final monthRevenue = all
-        .where((a) => a.status == AppointmentStatus.completed && !a.jalali.isBefore(monthStart))
-        .fold<num>(0, (sum, a) => sum + a.price);
-
-    final activeEmployees = _db.employees.where((e) => e.isActive).length;
-    final slotsPerDay = activeEmployees == 0 ? 1 : activeEmployees * 4;
-
-    // نمودار عملکرد بر اساس بازه انتخاب‌شده؛ میله‌ها حجم نوبت و خط درآمد را نشان می‌دهند.
-    final performanceDates = switch (period) {
-      StatsPeriod.daily => <JalaliDate>[today],
-      StatsPeriod.weekly => List.generate(7, (i) => weekStart.addDays(i)),
-      StatsPeriod.monthly => List.generate(today.day, (i) => monthStart.addDays(i)),
-    };
-    final performance = <WeekdayPerformance>[];
-    for (final date in performanceDates) {
-      final dayItems = all.where((a) => a.jalali.sameDay(date) && a.status != AppointmentStatus.cancelled).toList();
-      final completedDayItems = dayItems.where((a) => a.status == AppointmentStatus.completed);
-      final percent = ((dayItems.length / slotsPerDay) * 100).clamp(0, 100).round();
-      performance.add(WeekdayPerformance(
-        label: period == StatsPeriod.daily ? 'امروز' : period == StatsPeriod.weekly ? date.weekdayName : date.day.toString(),
-        percent: percent,
-        count: dayItems.length,
-        revenue: completedDayItems.fold<num>(0, (sum, a) => sum + a.price),
-        dateIso: date.iso,
-      ));
-    }
-    if (performance.isNotEmpty) {
-      final maxCount = performance.map((p) => p.count).reduce((a, b) => a > b ? a : b);
-      final maxIndex = performance.indexWhere((p) => p.count == maxCount);
-      final peak = performance[maxIndex];
-      performance[maxIndex] = WeekdayPerformance(
-        label: peak.label, percent: peak.percent, count: peak.count,
-        revenue: peak.revenue, dateIso: peak.dateIso, isPeak: true,
-      );
-    }
-
-    final statusBreakdown = <String, int>{
-      for (final status in AppointmentStatus.values) status.label: periodItems.where((a) => a.status == status).length,
-    };
-
-    return DashboardStats(
-      totalAppointments: periodItems.length,
-      todayAppointments: all.where((a) => a.isToday && a.status != AppointmentStatus.cancelled).length,
-      upcomingAppointments: all.where((a) => a.status.isActive && a.startAt.isAfter(now)).length,
-      completedAppointments: completed.length,
-      cancelledAppointments: cancelled.length,
-      totalRevenue: totalRevenue,
-      monthRevenue: monthRevenue,
-      totalCustomers: _db.customers.length,
-      activeEmployees: activeEmployees,
-      weeklyTrend: performance,
-      weekdayPerformance: performance,
-      statusBreakdown: statusBreakdown,
-    );
-  }
-
-  @override
-  Future<List<Appointment>> fetchUpcoming({int limit = 4}) async {
-    await _db.delay(120);
-    final now = DateTime.now();
-    final list = _db.appointments
-        .where((a) => a.status.isActive && a.startAt.isAfter(now.subtract(const Duration(hours: 1))))
-        .toList()
-      ..sort((a, b) => a.startAt.compareTo(b.startAt));
-    return list.take(limit).toList();
-  }
-
-  @override
-  Future<List<RevenuePoint>> fetchRevenueSeries({int months = 6}) async {
-    await _db.delay(140);
-    final today = JalaliDate.today();
-    final result = <RevenuePoint>[];
-    for (var i = months - 1; i >= 0; i--) {
-      final monthDate = JalaliDate(today.year, today.month, 1).addMonths(-i);
-      final nextMonth = monthDate.addMonths(1);
-      final items = _db.appointments.where((a) {
-        final j = a.jalali;
-        return !j.isBefore(monthDate) && j.isBefore(nextMonth);
-      }).toList();
-      final revenue = items
-          .where((a) => a.status == AppointmentStatus.completed)
-          .fold<num>(0, (sum, a) => sum + a.price);
-      result.add(
-        RevenuePoint(
-          label: monthDate.monthName,
-          value: revenue,
-          secondary: items.length,
-        ),
-      );
-    }
-
-    return result;
-  }
-
-  @override
-  Future<List<RevenuePoint>> fetchServiceRevenue({int limit = 5}) async {
-    await _db.delay(120);
-    final totals = <String, num>{};
-    for (final a in _db.appointments.where((a) => a.status == AppointmentStatus.completed)) {
-      totals[a.serviceName] = (totals[a.serviceName] ?? 0) + a.price;
-    }
-    final entries = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    return [for (final e in entries.take(limit)) RevenuePoint(label: e.key, value: e.value)];
-  }
   @override
   Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range}) async {
     await _db.delay(120);
@@ -176,11 +35,11 @@ class MockDashboardRepository implements DashboardRepository {
     final canViewSelf = _db.hasPermission('appointments.view_self');
     if (!canViewAll && !canViewSelf) _db.requirePermission('appointments.view_all');
     final employeeId = _db.currentAccessAccount.employeeId;
+    final canSeeAppointment = (Appointment item) =>
+        canViewAll || (canViewSelf && employeeId != null && item.employeeId == employeeId);
     final appointments = _db.appointments.where((item) =>
-      (canViewAll || (canViewSelf && employeeId != null && item.employeeId == employeeId)) &&
-      range.contains(item.startAt)).toList();
+      canSeeAppointment(item) && range.contains(item.startAt)).toList();
     final completed = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
-    final revenue = completed.fold<num>(0, (sum, item) => sum + item.price);
     final statusCounts = <String, int>{
       for (final status in AppointmentStatus.values)
         status.label: appointments.where((item) => item.status == status).length,
@@ -195,12 +54,24 @@ class MockDashboardRepository implements DashboardRepository {
             (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
             (canViewAll || employeeId == entry.employeeId)).toList()
         : <EmployeeFinanceEntry>[];
+    final allVisibleFinanceEntries = canViewCommission
+        ? _db.employeeFinanceEntries.where((entry) =>
+            (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
+            (canViewAll || employeeId == entry.employeeId)).toList()
+        : <EmployeeFinanceEntry>[];
+
     final commissionByEmployee = <String, int>{};
     var commissionCost = 0;
+    var grossRevenue = 0;
+    var revenue = 0;
     for (final entry in financeEntries) {
-      final amount = entry.type == FinanceEntryType.refund ? -entry.commissionAmount.abs() : entry.commissionAmount;
-      commissionCost += amount;
-      commissionByEmployee[entry.employeeId] = (commissionByEmployee[entry.employeeId] ?? 0) + amount;
+      final signedCommission = entry.type == FinanceEntryType.refund
+          ? -entry.commissionAmount.abs()
+          : entry.commissionAmount;
+      commissionCost += signedCommission;
+      commissionByEmployee[entry.employeeId] = (commissionByEmployee[entry.employeeId] ?? 0) + signedCommission;
+      grossRevenue += entry.grossAmount;
+      revenue += entry.receivedAmount;
     }
 
     final walletEntries = canViewSalary
@@ -230,7 +101,66 @@ class MockDashboardRepository implements DashboardRepository {
       return total;
     }
     final payrollCost = walletCostFor(walletEntries);
-    final cost = commissionCost + payrollCost;
+    final businessExpenses = _db.businessExpenses.where((item) =>
+      range.contains(item.createdAt) && item.status == BusinessExpenseStatus.posted).toList();
+    final operatingExpense = businessExpenses.fold<int>(0, (sum, item) => sum + item.amount);
+    final cost = commissionCost + payrollCost + operatingExpense;
+
+    final payments = _db.appointmentPayments.where((item) => range.contains(item.createdAt)).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final paymentTransactions = _db.appointmentPayments.where((item) =>
+      range.contains(item.createdAt) &&
+      appointments.any((appointment) => appointment.id == item.appointmentId)).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final collectedRevenue = payments.fold<int>(0, (sum, item) => sum + item.signedAmount);
+    final paymentsByMethod = <String, num>{
+      for (final method in BusinessPaymentMethod.values)
+        method.label: payments.where((item) => item.method == method)
+            .fold<int>(0, (sum, item) => sum + item.signedAmount),
+    };
+    final expensesByCategory = <String, num>{
+      'کمیسیون پرسنل': commissionCost,
+      'حقوق و مزایا': payrollCost,
+      for (final category in BusinessExpenseCategory.values)
+        category.label: businessExpenses.where((item) => item.category == category)
+            .fold<int>(0, (sum, item) => sum + item.amount),
+    };
+
+    final recognizedByAppointment = <String, int>{};
+    for (final entry in allVisibleFinanceEntries) {
+      recognizedByAppointment[entry.appointmentId] =
+          (recognizedByAppointment[entry.appointmentId] ?? 0) + entry.receivedAmount;
+    }
+    final paidByAppointment = <String, int>{};
+    for (final payment in _db.appointmentPayments) {
+      paidByAppointment[payment.appointmentId] =
+          (paidByAppointment[payment.appointmentId] ?? 0) + payment.signedAmount;
+    }
+    final debtByCustomer = <String, int>{};
+    final debtNameByCustomer = <String, String>{};
+    final debtAppointments = <String, int>{};
+    final partialPayments = <AppointmentPayment>[];
+    var receivables = 0;
+    for (final appointment in completed) {
+      final due = (recognizedByAppointment[appointment.id] ?? appointment.price.round()) -
+          (paidByAppointment[appointment.id] ?? 0);
+      if (due > 0) {
+        receivables += due;
+        debtByCustomer[appointment.customerId] = (debtByCustomer[appointment.customerId] ?? 0) + due;
+        debtNameByCustomer[appointment.customerId] = appointment.customerName;
+        debtAppointments[appointment.customerId] = (debtAppointments[appointment.customerId] ?? 0) + 1;
+        if ((paidByAppointment[appointment.id] ?? 0) > 0) {
+          partialPayments.addAll(_db.appointmentPayments.where((payment) =>
+            payment.appointmentId == appointment.id && payment.type == BusinessPaymentType.receipt));
+        }
+      }
+    }
+    final customerDebts = debtByCustomer.entries.map((entry) => ReportCustomerDebt(
+      customerId: entry.key,
+      customerName: debtNameByCustomer[entry.key] ?? 'مشتری',
+      amount: entry.value,
+      appointmentCount: debtAppointments[entry.key] ?? 0,
+    )).toList()..sort((a, b) => b.amount.compareTo(a.amount));
 
     final employeeRevenue = <String, num>{};
     final employeeNames = <String, String>{};
@@ -258,7 +188,6 @@ class MockDashboardRepository implements DashboardRepository {
         serviceCounts[name] = (serviceCounts[name] ?? 0) + 1;
         continue;
       }
-
       final parts = <({String name, num weight})>[];
       for (final serviceId in appointment.serviceIds) {
         final snapshots = appointment.serviceSnapshots.where((item) => item['service_id'] == serviceId).toList();
@@ -287,12 +216,16 @@ class MockDashboardRepository implements DashboardRepository {
     )).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
     int costBetween(DateTime from, DateTime to) {
-      final commission = financeEntries.where((item) =>
+      final commission = allVisibleFinanceEntries.where((item) =>
         !item.createdAt.isBefore(from) && item.createdAt.isBefore(to)).fold<int>(0, (sum, item) =>
           sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
       final payroll = walletCostFor(walletEntries.where((item) =>
         !item.createdAt.isBefore(from) && item.createdAt.isBefore(to)));
-      return commission + payroll;
+      final operations = _db.businessExpenses.where((item) =>
+        item.status == BusinessExpenseStatus.posted &&
+        !item.createdAt.isBefore(from) && item.createdAt.isBefore(to))
+        .fold<int>(0, (sum, item) => sum + item.amount);
+      return commission + payroll + operations;
     }
 
     final trend = <ReportTrendPoint>[];
@@ -305,7 +238,8 @@ class MockDashboardRepository implements DashboardRepository {
         trend.add(ReportTrendPoint(
           label: JalaliDate.fromDateTime(cursor).short,
           start: cursor,
-          revenue: items.where((item) => item.status == AppointmentStatus.completed).fold<num>(0, (sum, item) => sum + item.price),
+          revenue: items.where((item) => item.status == AppointmentStatus.completed)
+              .fold<num>(0, (sum, item) => sum + (recognizedByAppointment[item.id] ?? item.price)),
           cost: costBetween(cursor, next),
           appointments: items.length,
         ));
@@ -321,7 +255,8 @@ class MockDashboardRepository implements DashboardRepository {
         trend.add(ReportTrendPoint(
           label: JalaliDate.fromDateTime(cursor).monthName,
           start: from,
-          revenue: items.where((item) => item.status == AppointmentStatus.completed).fold<num>(0, (sum, item) => sum + item.price),
+          revenue: items.where((item) => item.status == AppointmentStatus.completed)
+              .fold<num>(0, (sum, item) => sum + (recognizedByAppointment[item.id] ?? item.price)),
           cost: costBetween(from, to),
           appointments: items.length,
         ));
@@ -329,10 +264,41 @@ class MockDashboardRepository implements DashboardRepository {
       }
     }
 
+    final previousDuration = range.endExclusive.difference(range.start);
+    final previousStart = range.start.subtract(previousDuration);
+    final previousEntries = allVisibleFinanceEntries.where((item) =>
+      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start));
+    final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
+    final previousCommission = previousEntries.fold<int>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
+    final previousPayroll = canViewSalary ? walletCostFor(_db.employeeWalletTransactions.where((item) =>
+      item.status == EmployeeWalletTransactionStatus.posted &&
+      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start) &&
+      (canViewAll || employeeId == item.employeeId))) : 0;
+    final previousOperations = _db.businessExpenses.where((item) =>
+      item.status == BusinessExpenseStatus.posted &&
+      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start))
+      .fold<int>(0, (sum, item) => sum + item.amount);
+    final previousCost = previousCommission + previousPayroll + previousOperations;
+
+    final staffPaid = walletEntries.where((item) => item.type == EmployeeWalletTransactionType.salaryPayment)
+        .fold<int>(0, (sum, item) => sum + item.amount.abs());
+    final staffPayable = walletEntries.where((item) => item.type != EmployeeWalletTransactionType.salaryPayment)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    final advancesOutstanding = _db.payrollAdvances.where((item) =>
+      item.status == AdvanceStatus.paid &&
+      (canViewAll || employeeId == item.employeeId) &&
+      !item.requestedAt.isBefore(range.start) && item.requestedAt.isBefore(range.endExclusive))
+      .fold<int>(0, (sum, item) => sum + item.outstanding);
+    final settlements = _db.employeeWalletSettlements.where((item) =>
+      range.contains(item.createdAt) && (canViewAll || employeeId == item.employeeId)).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     final recentAppointments = appointments.toList()
       ..sort((a, b) => (b.createdAt ?? b.startAt).compareTo(a.createdAt ?? a.startAt));
     final recentTransactions = walletEntries.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final margin = revenue == 0 ? 0.0 : ((revenue - cost) / revenue) * 100;
 
     return ReportAnalytics(
       range: range,
@@ -351,8 +317,25 @@ class MockDashboardRepository implements DashboardRepository {
       services: serviceMetrics.take(5).toList(),
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
-      costNote: 'هزینه شامل پورسانت و اقلام حقوقی ثبت‌شده و قابل مشاهده است؛ هزینه‌های عمومی کسب‌وکار هنوز در مدل مالی ثبت نمی‌شوند. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.',
+      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.',
+      grossRevenue: grossRevenue,
+      collectedRevenue: collectedRevenue,
+      receivables: receivables,
+      operatingExpense: operatingExpense,
+      staffPayable: staffPayable,
+      staffPaid: staffPaid,
+      advancesOutstanding: advancesOutstanding,
+      profitMarginPercent: margin,
+      grossProfit: null,
+      previousPeriodRevenue: previousRevenue,
+      previousPeriodCost: previousCost,
+      paymentsByMethod: paymentsByMethod,
+      expensesByCategory: expensesByCategory,
+      customerDebts: customerDebts,
+      partialPayments: partialPayments,
+      paymentTransactions: paymentTransactions,
+      businessExpenses: businessExpenses,
+      settlements: settlements,
     );
   }
-
 }
