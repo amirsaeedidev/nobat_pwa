@@ -56,6 +56,7 @@ class KpiGrid extends StatelessWidget {
                       ),
                       SizedBox(height: compact ? 8 : 10),
                       TweenAnimationBuilder<double>(
+                        key: ValueKey('kpi-${item.label}-${item.value}'),
                         tween: Tween(begin: 0, end: item.value.toDouble()),
                         duration: const Duration(milliseconds: 900),
                         curve: Curves.easeOutCubic,
