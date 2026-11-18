@@ -184,9 +184,9 @@ class EmployeeAnalyticsCalculator {
     final attendanceRecords = db.attendanceFor(employee.id, from: filter.from, to: inclusiveEnd);
     final attendance = db.attendanceSummary(employee.id, from: filter.from, to: inclusiveEnd);
     final attendanceAvailable = attendanceRecords.isNotEmpty;
-    final leaves = db.leavesForEmployee(employee.id).where((leave) =>
+    final rangeLeaves = db.leavesForEmployee(employee.id).where((leave) =>
       leave.startAt.isBefore(filter.to) && leave.endAt.isAfter(filter.from)).toList();
-    final leaveCount = leaves.where((leave) => leave.status == EmployeeLeaveStatus.approved).length;
+    final leaveCount = rangeLeaves.where((leave) => leave.status == EmployeeLeaveStatus.approved).length;
 
     // اطلاعات مالی فقط در صورت مجوز؛ منبع واحد همان دفتر کیف پول پرسنل است.
     final canViewSalary = db.hasPermission('finance.salary.view', employeeId: employee.id);
@@ -271,7 +271,7 @@ class EmployeeAnalyticsCalculator {
       deductionAmount: deductionAmount, advanceAmount: advanceAmount, salaryPaid: salaryPaid,
       salaryBalance: salaryBalance, attendanceDataAvailable: attendanceAvailable,
       salaryDataAvailable: canViewSalary, attendanceRecords: attendanceRecords,
-      leaves: leaves, completedAppointments: completed, settlements: settlements,
+      leaves: rangeLeaves, completedAppointments: completed, settlements: settlements,
       busyHours: [for (final item in busyHours)
         AnalyticsPoint('${item.key.toString().padLeft(2, '0')}:00', item.value)],
     );
