@@ -44,7 +44,7 @@ class EmployeeAnalytics {
     this.fixedSalary = 0, this.bonusAmount = 0, this.deductionAmount = 0,
     this.advanceAmount = 0, this.salaryPaid = 0, this.salaryBalance = 0,
     this.attendanceDataAvailable = false, this.salaryDataAvailable = false,
-    this.attendanceRecords = const [], this.leaves = const [], this.busyHours = const [], this.completedAppointments = const [],
+    this.attendanceRecords = const [], this.leaves = const [], this.busyHours = const [], this.completedAppointments = const [], this.settlements = const [],
     this.customerSatisfactionScore,
   });
   final int totalAppointments, completed, cancelled, noShow;
@@ -60,6 +60,7 @@ class EmployeeAnalytics {
   final List<EmployeeLeave> leaves;
   final List<AnalyticsPoint> busyHours;
   final List<Appointment> completedAppointments;
+  final List<EmployeeWalletSettlement> settlements;
   /// null یعنی هنوز امتیاز رضایت مشتری در داده‌ها ثبت نشده است.
   final double? customerSatisfactionScore;
   double get completionRate => totalAppointments == 0 ? 0 : completed * 100 / totalAppointments;
@@ -230,6 +231,12 @@ class EmployeeAnalyticsCalculator {
     final busyHours = hourlyBookings.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
+    final canViewSettlements = db.hasPermission('finance.settlement.view', employeeId: employee.id);
+    final settlements = canViewSettlements
+      ? db.walletSettlementsFor(employee.id).where((item) =>
+          !item.createdAt.isBefore(filter.from) && item.createdAt.isBefore(filter.to)).toList()
+      : <EmployeeWalletSettlement>[];
+
     final duration = filter.to.difference(filter.from);
     final previousFrom = filter.from.subtract(duration);
     final previous = db.appointments.where((a) => a.employeeId == employee.id && !a.startAt.isBefore(previousFrom) && a.startAt.isBefore(filter.from) && a.status == AppointmentStatus.completed && (filter.serviceId == null || a.serviceIds.contains(filter.serviceId))).toList();
@@ -254,7 +261,7 @@ class EmployeeAnalyticsCalculator {
       deductionAmount: deductionAmount, advanceAmount: advanceAmount, salaryPaid: salaryPaid,
       salaryBalance: salaryBalance, attendanceDataAvailable: attendanceAvailable,
       salaryDataAvailable: canViewSalary, attendanceRecords: attendanceRecords,
-      leaves: leaves, completedAppointments: completed,
+      leaves: leaves, completedAppointments: completed, settlements: settlements,
       busyHours: [for (final item in busyHours)
         AnalyticsPoint('${item.key.toString().padLeft(2, '0')}:00', item.value)],
     );
