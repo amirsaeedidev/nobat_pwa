@@ -1,0 +1,3 @@
+class ExampleReportService {
+  const ExampleReportService();
+}
