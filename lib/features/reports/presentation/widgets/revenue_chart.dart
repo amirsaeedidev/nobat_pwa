@@ -8,10 +8,11 @@ import '../../../../data/models/dashboard_stats.dart';
 
 /// نمودار درآمد ماهانه با fl_chart (میله‌ای گرد + گرادیان).
 class RevenueBarChart extends StatelessWidget {
-  const RevenueBarChart({super.key, required this.data, this.height = 190});
+  const RevenueBarChart({super.key, required this.data, this.height = 190, this.onPointTap});
 
   final List<RevenuePoint> data;
   final double height;
+  final ValueChanged<int>? onPointTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +30,11 @@ class RevenueBarChart extends StatelessWidget {
           alignment: BarChartAlignment.spaceAround,
           barTouchData: BarTouchData(
             enabled: true,
+            touchCallback: (event, response) {
+              if (event is FlTapUpEvent && response?.spot != null) {
+                onPointTap?.call(response!.spot!.touchedBarGroupIndex);
+              }
+            },
             touchTooltipData: BarTouchTooltipData(
               getTooltipColor: (_) => pal.surfaceHigh,
               tooltipRoundedRadius: 10,
@@ -104,11 +110,12 @@ class RevenueBarChart extends StatelessWidget {
 
 /// نمودار خطی روند درآمد.
 class RevenueLineChart extends StatelessWidget {
-  const RevenueLineChart({super.key, required this.data, this.height = 180, this.showSecondary = false});
+  const RevenueLineChart({super.key, required this.data, this.height = 180, this.showSecondary = false, this.onPointTap});
 
   final List<RevenuePoint> data;
   final double height;
   final bool showSecondary;
+  final ValueChanged<int>? onPointTap;
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +167,11 @@ class RevenueLineChart extends StatelessWidget {
           ),
           lineTouchData: LineTouchData(
             enabled: true,
+            touchCallback: (event, response) {
+              if (event is FlTapUpEvent && response?.lineBarSpots?.isNotEmpty == true) {
+                onPointTap?.call(response!.lineBarSpots!.first.spotIndex);
+              }
+            },
             touchTooltipData: LineTouchTooltipData(
               getTooltipColor: (_) => pal.surfaceHigh,
               tooltipRoundedRadius: 10,
@@ -216,11 +228,12 @@ class RevenueLineChart extends StatelessWidget {
 
 /// نمودار دایره‌ای وضعیت نوبت‌ها.
 class StatusDonut extends StatelessWidget {
-  const StatusDonut({super.key, required this.counts, this.size = 150, this.centerLabel = 'نوبت'});
+  const StatusDonut({super.key, required this.counts, this.size = 150, this.centerLabel = 'نوبت', this.onSegmentTap});
 
   final Map<String, int> counts;
   final double size;
   final String centerLabel;
+  final ValueChanged<String>? onSegmentTap;
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +258,12 @@ class StatusDonut extends StatelessWidget {
         children: [
           PieChart(
             PieChartData(
+              pieTouchData: PieTouchData(touchCallback: (event, response) {
+                final section = response?.touchedSection;
+                if (event is FlTapUpEvent && section != null && section.touchedSectionIndex >= 0 && section.touchedSectionIndex < entries.length) {
+                  onSegmentTap?.call(entries[section.touchedSectionIndex].key);
+                }
+              }),
               sectionsSpace: 3,
               centerSpaceRadius: size * 0.30,
               startDegreeOffset: -90,
