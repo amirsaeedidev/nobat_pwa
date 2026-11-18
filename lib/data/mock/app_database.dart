@@ -1215,11 +1215,21 @@ class AppDatabase extends ChangeNotifier {
     _commit();
   }
 
+  void _requireEmployeeProfileRead(String employeeId) {
+    if (currentAccessAccount.employeeId == employeeId) return;
+    requirePermission('employees.view_profile');
+    if (!canViewEmployee(employeeId)) {
+      throw const AccessDeniedException('اجازه مشاهده اطلاعات این پرسنل را ندارید.');
+    }
+  }
+
   // حضور و غیاب، پرونده دیجیتال و اعلان‌های آفلاین.
-  List<AttendanceRecord> attendanceFor(String employeeId, {DateTime? from, DateTime? to}) =>
-    _attendanceRecords.where((item) => item.employeeId == employeeId &&
+  List<AttendanceRecord> attendanceFor(String employeeId, {DateTime? from, DateTime? to}) {
+    _requireEmployeeProfileRead(employeeId);
+    return _attendanceRecords.where((item) => item.employeeId == employeeId &&
       (from == null || !item.at.isBefore(from)) && (to == null || !item.at.isAfter(to))).toList()
       ..sort((a,b)=>b.at.compareTo(a.at));
+  }
 
   void recordAttendance(AttendanceRecord record) {
     if (record.isManualCorrection) requirePermission('employees.edit',employeeId:record.employeeId);
@@ -1313,7 +1323,10 @@ class AppDatabase extends ChangeNotifier {
     return AttendancePayrollPreview(lateDeduction:late,absenceDeduction:absence,overtimePayment:overtime,earlyLeaveDeduction:early,netAdjustment:overtime-late-absence-early);
   }
 
-  List<EmployeeDocument> documentsFor(String employeeId)=>_employeeDocuments.where((d)=>d.employeeId==employeeId).toList()..sort((a,b)=>b.addedAt.compareTo(a.addedAt));
+  List<EmployeeDocument> documentsFor(String employeeId) {
+    _requireEmployeeProfileRead(employeeId);
+    return _employeeDocuments.where((d)=>d.employeeId==employeeId).toList()..sort((a,b)=>b.addedAt.compareTo(a.addedAt));
+  }
   void updateEmployeeDocument(EmployeeDocument document){
     requirePermission('employees.edit',employeeId:document.employeeId);
     final index=_employeeDocuments.indexWhere((item)=>item.id==document.id && item.employeeId==document.employeeId);
@@ -1333,7 +1346,10 @@ class AppDatabase extends ChangeNotifier {
     if(document.title.trim().isEmpty || document.fileName.trim().isEmpty) throw ArgumentError('عنوان و نام فایل الزامی است.');
     _employeeDocuments.add(document); _commit();
   }
-  List<EmployeeNotice> noticesFor(String employeeId)=>_employeeNotices.where((n)=>n.employeeId==employeeId).toList()..sort((a,b)=>b.createdAt.compareTo(a.createdAt));
+  List<EmployeeNotice> noticesFor(String employeeId) {
+    _requireEmployeeProfileRead(employeeId);
+    return _employeeNotices.where((n)=>n.employeeId==employeeId).toList()..sort((a,b)=>b.createdAt.compareTo(a.createdAt));
+  }
   void addEmployeeNotice(EmployeeNotice notice){_employeeNotices.insert(0,notice);_commit();}
   void markEmployeeNoticeRead(String id){
     final i=_employeeNotices.indexWhere((n)=>n.id==id); if(i<0)return;
@@ -1362,9 +1378,11 @@ class AppDatabase extends ChangeNotifier {
   // برنامه کاری اختصاصی پرسنل، استثناهای تاریخ‌دار و مرخصی
   String _employeeScheduleKey(String employeeId, String dateKey) => employeeId + '::' + dateKey;
 
-  List<EmployeeLeave> leavesForEmployee(String employeeId) =>
-      _employeeLeaves.where((leave) => leave.employeeId == employeeId).toList()
-        ..sort((a, b) => a.startAt.compareTo(b.startAt));
+  List<EmployeeLeave> leavesForEmployee(String employeeId) {
+    _requireEmployeeProfileRead(employeeId);
+    return _employeeLeaves.where((leave) => leave.employeeId == employeeId).toList()
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
+  }
 
   EmployeeScheduleException? employeeScheduleException(String employeeId, DateTime date) =>
       _employeeScheduleExceptions[_employeeScheduleKey(employeeId, EmployeeScheduleRules.dateKey(date))];
