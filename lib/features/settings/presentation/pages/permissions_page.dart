@@ -94,14 +94,14 @@ class _PermissionsPageState extends State<PermissionsPage> {
             Text(group.key, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: pal.primaryBright)),
             const SizedBox(height: 4),
             for (final permission in group.value)
-              CheckboxListTile(
+              Material(color: Colors.transparent, child: CheckboxListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 title: Text(permission.label, style: TextStyle(fontSize: 11, color: pal.textPrimary)),
                 value: selectedRole.permissionIds.contains(permission.id),
                 onChanged: selectedRole.isSystem ? null : (checked) => _toggleRolePermission(db, selectedRole, permission.id, checked == true),
-              ),
+              )),
           ],
           if (selectedRole.isSystem)
             Text('نقش‌های سیستمی محافظت شده‌اند؛ برای ساخت ترکیب اختصاصی از «نقش جدید» استفاده کنید.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
@@ -130,22 +130,22 @@ class _PermissionsPageState extends State<PermissionsPage> {
             },
           ),
           const SizedBox(height: 8),
-          SwitchListTile(
+          Material(color: Colors.transparent, child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('مشاهده اطلاعات سایر کارکنان', style: TextStyle(fontSize: 11)),
             value: assignment?.canViewOtherEmployees ?? false,
             onChanged: (value) => _saveAssignment(db, selectedEmployee.id, assignedRole.id, assignment?.overrides ?? const {}, value, assignment?.canViewPersonalIncome ?? true),
-          ),
-          SwitchListTile(
+          )),
+          Material(color: Colors.transparent, child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('مشاهده درآمد شخصی', style: TextStyle(fontSize: 11)),
             value: assignment?.canViewPersonalIncome ?? true,
             onChanged: (value) => _saveAssignment(db, selectedEmployee.id, assignedRole.id, assignment?.overrides ?? const {}, assignment?.canViewOtherEmployees ?? false, value),
-          ),
+          )),
           const Divider(),
           Text('استثناهای دسترسی (فعال‌سازی یا منع صریح)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
           for (final permission in AccessPermission.all)
-            CheckboxListTile(
+            Material(color: Colors.transparent, child: CheckboxListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
@@ -158,7 +158,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
                 _saveAssignment(db, selectedEmployee.id, assignedRole.id, overrides,
                   assignment?.canViewOtherEmployees ?? false, assignment?.canViewPersonalIncome ?? true);
               },
-            ),
+            )),
           Text('سه حالت: خالی = پیروی از نقش، تیک = اجازه، خط = منع.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
         ])),
       ]),
