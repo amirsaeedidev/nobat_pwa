@@ -28,7 +28,7 @@ class PerformanceChart extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTapUp: (details) {
           if (data.isEmpty || onPointTap == null) return;
-          final index = ((details.localPosition.dx / context.size!.width) * data.length).floor().clamp(0, data.length - 1);
+          final index = ((details.localPosition.dx / (context.size?.width ?? MediaQuery.sizeOf(context).width)) * data.length).floor().clamp(0, data.length - 1);
           onPointTap!(data[index]);
         },
         child: CustomPaint(
@@ -100,7 +100,7 @@ class _PerformancePainter extends CustomPainter {
       final item = data[i];
       final cx = leftInset + columnWidth * i + columnWidth / 2;
       final ratio = item.count / maxCount;
-      final barHeight = chartHeight * (0.08 + 0.72 * ratio) * revealProgress.clamp(0.0, 1.0);
+      final barHeight = chartHeight * (item.count == 0 ? 0.0 : 0.08 + 0.72 * ratio) * revealProgress.clamp(0.0, 1.0);
       final rect = RRect.fromRectAndRadius(
         Rect.fromLTWH(cx - barWidth / 2, chartBottom - barHeight, barWidth, barHeight),
         Radius.circular(barWidth / 2),
