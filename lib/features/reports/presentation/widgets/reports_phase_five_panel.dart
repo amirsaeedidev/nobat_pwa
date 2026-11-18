@@ -226,7 +226,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           _DeltaCard(label: 'درآمد', value: a.revenue, previous: previous?.revenue, money: true, color: pal.success),
-          _DeltaCard(label: 'هزینه', value: a.cost, previous: previous?.cost, money: true, color: pal.warning),
+          _DeltaCard(label: 'هزینه', value: a.cost, previous: previous?.cost, money: true, inverse: true, color: pal.warning),
           _DeltaCard(label: 'سود خالص', value: a.netProfit, previous: previous?.netProfit, money: true, color: a.netProfit >= 0 ? pal.success : pal.danger),
           _DeltaCard(label: 'تعداد نوبت', value: a.totalAppointments, previous: previous?.totalAppointments, color: pal.primaryBright),
         ]),
@@ -356,6 +356,7 @@ class _DeltaCard extends StatelessWidget {
   final num? previous;
   final Color color;
   final bool money;
+  final bool inverse;
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +383,7 @@ class _DeltaCard extends StatelessWidget {
         if (change != null)
           Text((delta!.increased ? '▲ ' : delta.decreased ? '▼ ' : '• ') +
             change.abs().toStringAsFixed(1) + '٪ نسبت به قبل',
-            style: TextStyle(fontSize: 9, color: delta.decreased ? context.pal.danger : context.pal.success)),
+            style: TextStyle(fontSize: 9, color: (inverse ? delta.increased : delta.decreased) ? context.pal.danger : context.pal.success)),
       ]),
     );
   }
