@@ -305,14 +305,20 @@ class EmployeeCard extends StatelessWidget {
         const SizedBox(height: 12),
         Divider(color: pal.border.withValues(alpha: 0.8), height: 1),
         const SizedBox(height: 10),
-        Row(children: [
-          SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, dense: true, onTap: onEdit),
-          const SizedBox(width: 8),
-          SoftButton(label: 'حذف / بایگانی', icon: Icons.archive_outlined, dense: true, color: pal.danger, onTap: onDelete),
-          const Spacer(),
-          Text('مشاهده پروفایل', style: TextStyle(fontSize: 10, color: pal.primaryBright, fontWeight: FontWeight.w600)),
-          Icon(Icons.chevron_left_rounded, size: 14, color: pal.primaryBright),
-        ]),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, dense: true, onTap: onEdit),
+            SoftButton(label: 'حذف / بایگانی', icon: Icons.archive_outlined, dense: true, color: pal.danger, onTap: onDelete),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('مشاهده پروفایل', style: TextStyle(fontSize: 10, color: pal.primaryBright, fontWeight: FontWeight.w600)),
+              Icon(Icons.chevron_left_rounded, size: 14, color: pal.primaryBright),
+            ]),
+          ],
+        ),
       ]),
     );
   }
