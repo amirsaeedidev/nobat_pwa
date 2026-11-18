@@ -4,6 +4,7 @@ import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/business_finance.dart';
 import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/models/report_analytics.dart';
+import 'package:datetime/data/models/employee_wallet.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
 
 void main() {
