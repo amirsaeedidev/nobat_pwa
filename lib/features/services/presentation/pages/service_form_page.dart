@@ -191,7 +191,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                         controller: _directCost,
                         label: 'هزینه مستقیم هر بار ارائه (تومان)',
                         hint: 'اختیاری؛ مواد مصرفی و هزینه مستقیم',
-                        icon: Icons.inventory_2_outlined,
+                        icon: Icons.sell_outlined,
                         keyboardType: TextInputType.number,
                         numericFa: true,
                         helper: 'خالی بماند یعنی هزینه مستقیم این خدمت ثبت نشده است؛ در گزارش سود تخمینی نمایش داده نمی‌شود.',
