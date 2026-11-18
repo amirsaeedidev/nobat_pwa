@@ -178,6 +178,7 @@ class ReportAnalytics {
     this.bookedCapacityMinutes = 0,
     this.directCostCoveragePercent = 0,
     this.filter = const ReportAnalyticsFilter(),
+    this.operationalStatusCounts = const {},
   });
   final ReportDateRange range;
   final num revenue, cost, commissionCost, payrollCost;
@@ -209,6 +210,7 @@ class ReportAnalytics {
   final int capacityMinutes, bookedCapacityMinutes;
   final num directCostCoveragePercent;
   final ReportAnalyticsFilter filter;
+  final Map<String, int> operationalStatusCounts;
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
