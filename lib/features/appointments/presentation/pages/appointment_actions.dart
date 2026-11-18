@@ -31,8 +31,15 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             title: const Text('تأیید نوبت'),
             onTap: () async {
               Navigator.of(sheetContext).pop();
+              final previousStatus = appointment.status;
               await provider.changeStatus(appointment, AppointmentStatus.confirmed);
-              if (context.mounted) AppToast.show(context, 'نوبت تأیید شد');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: const Text('نوبت تأیید شد'),
+                  behavior: SnackBarBehavior.floating,
+                  action: SnackBarAction(label: 'برگشت', onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی تأیید نوبت')),
+                ));
+              }
             },
           ),
           ListTile(
@@ -67,8 +74,15 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
                 icon: Icons.event_busy_rounded,
               );
               if (confirmed) {
-                await provider.changeStatus(appointment, AppointmentStatus.cancelled, reason: 'لغو توسط پرسنل');
-                if (context.mounted) AppToast.show(context, 'نوبت لغو شد', success: false);
+                final previousStatus = appointment.status;
+                await provider.changeStatus(appointment, AppointmentStatus.cancelled, reason: 'رد / لغو توسط پرسنل');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: const Text('نوبت رد یا لغو شد'),
+                    behavior: SnackBarBehavior.floating,
+                    action: SnackBarAction(label: 'برگشت', onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی رد نوبت')),
+                  ));
+                }
               }
             },
           ),
