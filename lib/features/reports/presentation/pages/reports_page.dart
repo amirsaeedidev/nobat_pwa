@@ -54,14 +54,15 @@ class ReportsPage extends StatelessWidget {
       selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
     final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
-    final dayCommission = dayFinanceEntries.fold<num>(0, (sum, item) =>
-      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
+    final dayCommission = db.hasPermission('finance.commission.view') ? dayFinanceEntries.fold<num>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
     final dayOperatingExpense = db.businessExpenses.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
-    final dayWalletEntries = db.employeeWalletTransactions.where((item) =>
+    final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
-      item.status == EmployeeWalletTransactionStatus.posted).toList();
+      item.status == EmployeeWalletTransactionStatus.posted &&
+      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId)).toList() : <EmployeeWalletTransaction>[];
     final dayPayrollExpense = dayWalletEntries.where((item) => {
       EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
       EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
