@@ -326,7 +326,7 @@ class AppSidebar extends StatelessWidget {
                               TextSpan(
                                 text: 'Time',
                                 style: TextStyle(
-                                  fontFamily: 'Vazirmatn',
+                                  fontFamily: 'Lalezar',
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
                                   color: pal.primaryBright,
@@ -373,6 +373,33 @@ class AppSidebar extends StatelessWidget {
                 ],
               ),
             ),
+            if (database.hasPermission('appointments.create'))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Tooltip(
+                  message: 'افزودن نوبت جدید',
+                  child: Material(
+                    color: pal.primary,
+                    shape: const CircleBorder(),
+                    elevation: 3,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onAdd,
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: HugeIcon(
+                            icon: HugeIcons.strokeRoundedAdd01,
+                            color: Colors.white,
+                            size: 23,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             Divider(color: pal.border, height: 1),
             Padding(
               padding: EdgeInsets.all(expanded ? 12 : 8),
