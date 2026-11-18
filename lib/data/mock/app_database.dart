@@ -1120,11 +1120,14 @@ class AppDatabase extends ChangeNotifier {
     if (employeeById(record.employeeId) == null) throw StateError('پرسنل یافت نشد.');
     if (_attendanceRecords.any((item)=>item.id==record.id)) throw StateError('شناسه حضور تکراری است.');
     if ([record.overtimeMinutes,record.lateMinutes,record.earlyLeaveMinutes].any((value)=>value<0)) throw ArgumentError('دقایق حضور و غیاب نمی‌توانند منفی باشند.');
+    if (record.date.year != record.at.year || record.date.month != record.at.month || record.date.day != record.at.day) throw ArgumentError('تاریخ رکورد با زمان ثبت‌شده یکسان نیست.');
+    if (record.type == AttendanceEventType.absence && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day && (item.type==AttendanceEventType.checkIn || item.type==AttendanceEventType.absence))) throw StateError('برای این روز حضور یا غیبت قبلاً ثبت شده است.');
+    if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.absence && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('برای این روز غیبت ثبت شده است.');
     if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('ورود امروز قبلاً ثبت شده است.');
     if (record.type == AttendanceEventType.checkOut) {
-      final hasOpen = _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day);
+      final checkIns = _attendanceRecords.where((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day).toList();
       final closed = _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkOut && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day);
-      if (!hasOpen || closed) throw StateError('ورود ثبت‌نشده یا خروج تکراری است.');
+      if (checkIns.isEmpty || closed || !record.at.isAfter(checkIns.last.at)) throw StateError('ورود ثبت‌نشده، خروج تکراری یا ساعت خروج نامعتبر است.');
     }
     _attendanceRecords.add(record);
     final employee=employeeById(record.employeeId)!;
