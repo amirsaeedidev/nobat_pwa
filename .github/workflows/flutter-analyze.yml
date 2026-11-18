@@ -55,9 +55,9 @@ jobs:
 
           roots = [Path("lib"), Path("test")]
           patterns = [
-              ("Material Icons catalog", re.compile(r"\\bIcons\\s*\\.")),
-              ("Material IconData", re.compile(r"\\bIconData\\b")),
-              ("ImageIcon widget", re.compile(r"\\bImageIcon\\s*\\(")),
+              ("Material Icons catalog", re.compile(r"\bIcons\s*\.")),
+              ("Material IconData", re.compile(r"\bIconData\b")),
+              ("ImageIcon widget", re.compile(r"\bImageIcon\s*\(")),
           ]
           violations = []
           scanned = 0
