@@ -35,6 +35,14 @@ void main(){
   db.addEmployeeDocument(doc);
   expect(db.documentsFor(employee.id).any((d)=>d.id=='doc-test'&&d.isExpired),true);
  });
+ test('attendance payroll policy produces preview only and does not post wallet transactions',(){
+  final db=AppDatabase();final employee=db.employees.first;final day=DateTime(2026,1,4);
+  db.recordAttendance(AttendanceRecord(id:'policy-in',employeeId:employee.id,date:day,type:AttendanceEventType.checkIn,at:day.add(const Duration(hours:9)),lateMinutes:10));
+  db.recordAttendance(AttendanceRecord(id:'policy-out',employeeId:employee.id,date:day,type:AttendanceEventType.checkOut,at:day.add(const Duration(hours:18)),overtimeMinutes:30));
+  db.saveAttendancePayrollPolicy(const AttendancePayrollPolicy(enabled:true,lateDeductionPerMinute:1000,absenceDeductionPerDay:0,overtimePaymentPerMinute:500));
+  final preview=db.attendancePayrollPreview(employee.id,from:day,to:day.add(const Duration(days:1)));
+  expect(preview.lateDeduction,10000);expect(preview.overtimePayment,15000);expect(preview.netAdjustment,5000);
+ });
  test('mock notice can be marked read',(){
   final notice=EmployeeNotice(id:'1',employeeId:'e',title:'مرخصی',message:'درخواست جدید',type:EmployeeNoticeType.leaveRequested,createdAt:date);
   expect(notice.markRead().read,true);
