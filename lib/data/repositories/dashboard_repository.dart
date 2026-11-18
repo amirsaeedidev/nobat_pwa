@@ -250,10 +250,6 @@ class MockDashboardRepository implements DashboardRepository {
 
     final payments = _db.appointmentPayments.where((item) => range.contains(item.createdAt)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final paymentTransactions = _db.appointmentPayments.where((item) =>
-      range.contains(item.createdAt) &&
-      appointments.any((appointment) => appointment.id == item.appointmentId)).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final collectedRevenue = payments.fold<int>(0, (sum, item) => sum + item.signedAmount);
     final paymentsByMethod = <String, num>{
       for (final method in BusinessPaymentMethod.values)
@@ -476,7 +472,7 @@ class MockDashboardRepository implements DashboardRepository {
       expensesByCategory: expensesByCategory,
       customerDebts: customerDebts,
       partialPayments: partialPayments,
-      paymentTransactions: paymentTransactions,
+      paymentTransactions: payments,
       businessExpenses: businessExpenses,
       settlements: settlements,
     );
