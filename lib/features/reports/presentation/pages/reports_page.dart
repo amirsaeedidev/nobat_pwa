@@ -25,6 +25,7 @@ import '../../../../data/models/report_analytics.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
 import '../widgets/operational_reports_sections.dart';
+import '../widgets/reports_phase_five_panel.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -47,9 +48,7 @@ class ReportsPage extends StatelessWidget {
     final canViewAll = db.hasPermission('appointments.view_all');
     final visibleAppointments = db.appointments.where((item) =>
       canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId)).toList();
-    final availableEmployees = canViewAll
-      ? db.employees
-      : db.employees.where((item) => item.id == db.currentAccessAccount.employeeId).toList();
+    final availableEmployees = db.employees.where((item) => db.canViewEmployee(item.id)).toList();
     final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
     final availableCustomers = canViewAll
       ? db.customers
@@ -60,17 +59,20 @@ class ReportsPage extends StatelessWidget {
     final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
       selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
       (canViewAll || entry.employeeId == db.currentAccessAccount.employeeId) &&
+      db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
     final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
-    final dayCommission = db.hasPermission('finance.commission.view') ? dayFinanceEntries.fold<num>(0, (sum, item) =>
-      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
+    final dayCommission = dayFinanceEntries.where((item) =>
+      db.hasPermission('finance.commission.view', employeeId: item.employeeId)).fold<num>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
     final dayOperatingExpense = db.businessExpenses.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
     final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == EmployeeWalletTransactionStatus.posted &&
-      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId)).toList() : <EmployeeWalletTransaction>[];
+      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId) &&
+      db.hasPermission('finance.salary.view', employeeId: item.employeeId)).toList() : <EmployeeWalletTransaction>[];
     final dayPayrollExpense = dayWalletEntries.where((item) => {
       EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
       EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
@@ -78,7 +80,7 @@ class ReportsPage extends StatelessWidget {
     }.contains(item.type)).fold<num>(0, (sum, item) => sum + item.amount);
     final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense;
     final dayEmployeeTotals = <String, ({int count, num revenue})>{};
-    for (final item in dayCompleted) {
+    for (final item in dayCompleted.where((item) => db.canViewEmployee(item.employeeId))) {
       final current = dayEmployeeTotals[item.employeeName];
       final revenue = dayFinanceEntries.where((entry) => entry.appointmentId == item.id)
         .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
@@ -132,6 +134,14 @@ class ReportsPage extends StatelessWidget {
                         const Divider(height: 18),
                         Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
                           style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                        if (!db.employees.every((item) => db.hasPermission('finance.income.view', employeeId: item.id)) ||
+                            !db.employees.every((item) => db.hasPermission('finance.commission.view', employeeId: item.id)) ||
+                            !db.employees.every((item) => db.hasPermission('finance.salary.view', employeeId: item.id)))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('به‌دلیل محدودیت مجوز، بخشی از درآمد یا هزینه‌های پرسنلی در جمع روز لحاظ نشده است.',
+                              style: TextStyle(fontSize: 9, color: pal.warning)),
+                          ),
                         const SizedBox(height: 8),
                         const SectionHeader(title: 'عملکرد پرسنل در این روز'),
                         if (dayEmployeeTotals.isEmpty)
@@ -226,6 +236,8 @@ class ReportsPage extends StatelessWidget {
                           child: TextButton(onPressed: provider.clearFilters, child: const Text('پاک کردن فیلترها'))),
                     ])),
                     const SizedBox(height: 12),
+                    ReportsPhaseFivePanel(database: db, provider: provider),
+                    const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                       _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
@@ -242,9 +254,9 @@ class ReportsPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       const _ChartLegend(),
                       const SizedBox(height: 10),
-                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _openDayReport(context, provider, index),),
+                      ReportChartEntrance(child: RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _openDayReport(context, provider, index),)),
                       const SizedBox(height: 12),
-                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _openDayReport(context, provider, index),),
+                      ReportChartEntrance(child: RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _openDayReport(context, provider, index),)),
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

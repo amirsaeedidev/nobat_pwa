@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:datetime/app/theme/app_palette.dart';
 import 'package:datetime/data/mock/app_database.dart';
@@ -10,7 +11,9 @@ import 'package:datetime/features/reports/presentation/pages/reports_page.dart';
 import 'package:datetime/features/reports/presentation/providers/reports_provider.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('reports dashboard stays within mobile, tablet and desktop widths', (tester) async {
+    SharedPreferences.setMockInitialValues({});
     tester.view.devicePixelRatio = 1;
     final db = AppDatabase();
     final reports = ReportsProvider(MockDashboardRepository(db), db);

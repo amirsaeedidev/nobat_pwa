@@ -441,7 +441,7 @@ class AppDatabase extends ChangeNotifier {
       return hasPermission('customers.view');
     }
     if (path.startsWith('/services')) return hasPermission('services.manage');
-    if (path.startsWith('/reports')) return hasPermission('finance.income.view') || hasPermission('finance.salary.view');
+    if (path.startsWith('/reports')) return hasPermission('finance.income.view');
     if (path.startsWith('/activity') || path.startsWith('/sms')) return hasPermission('settings.view');
     return true;
   }
@@ -452,7 +452,7 @@ class AppDatabase extends ChangeNotifier {
     if (path == '/customers') return hasPermission('customers.view');
     if (path == '/services') return hasPermission('services.manage');
     if (path == '/employees') return hasPermission('employees.view_list');
-    if (path == '/reports') return hasPermission('finance.income.view') || hasPermission('finance.salary.view');
+    if (path == '/reports') return hasPermission('finance.income.view');
     if (path == '/activity' || path == '/sms') return hasPermission('settings.view');
     if (path == '/settings') return hasPermission('settings.view') || hasPermission('permissions.manage');
     return false;
