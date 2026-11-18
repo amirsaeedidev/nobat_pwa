@@ -331,6 +331,7 @@ class MockDashboardRepository implements DashboardRepository {
     final serviceStats = <String, ({
       String name, num revenue, int count, num priceTotal,
       num directCostTotal, int costKnownCount, Map<String, int> employeeCounts,
+      Map<DateTime, num> trendRevenue, Map<DateTime, int> trendCounts,
     })>{};
     for (final appointment in operationalCompleted) {
       final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
@@ -362,6 +363,15 @@ class MockDashboardRepository implements DashboardRepository {
         final current = serviceStats[key];
         final employeeCounts = current?.employeeCounts ?? <String, int>{};
         employeeCounts[appointment.employeeName] = (employeeCounts[appointment.employeeName] ?? 0) + 1;
+        final trendRevenue = current?.trendRevenue ?? <DateTime, num>{};
+        final trendCounts = current?.trendCounts ?? <DateTime, int>{};
+        final serviceRangeDays = range.endExclusive.difference(range.start).inDays;
+        final serviceDate = appointment.startAt;
+        final trendBucket = serviceRangeDays <= 31
+          ? DateTime(serviceDate.year, serviceDate.month, serviceDate.day)
+          : JalaliDate(JalaliDate.fromDateTime(serviceDate).year, JalaliDate.fromDateTime(serviceDate).month, 1).toDateTime();
+        trendRevenue[trendBucket] = (trendRevenue[trendBucket] ?? 0) + amount;
+        trendCounts[trendBucket] = (trendCounts[trendBucket] ?? 0) + 1;
         serviceStats[key] = (
           name: part.name,
           revenue: (current?.revenue ?? 0) + amount,
@@ -370,6 +380,8 @@ class MockDashboardRepository implements DashboardRepository {
           directCostTotal: (current?.directCostTotal ?? 0) + (part.directCost ?? 0),
           costKnownCount: (current?.costKnownCount ?? 0) + (part.directCost != null ? 1 : 0),
           employeeCounts: employeeCounts,
+          trendRevenue: trendRevenue,
+          trendCounts: trendCounts,
         );
       }
     }
@@ -378,6 +390,7 @@ class MockDashboardRepository implements DashboardRepository {
       final hasCompleteCost = item.count > 0 && item.costKnownCount == item.count;
       final directCost = hasCompleteCost ? item.directCostTotal : null;
       final profit = directCost == null ? null : item.revenue - directCost;
+      final trendEntries = item.trendRevenue.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
       return ReportServiceMetric(
         serviceId: entry.key.startsWith('legacy:') ? '' : entry.key,
         name: item.name,
@@ -388,6 +401,13 @@ class MockDashboardRepository implements DashboardRepository {
         profit: profit,
         marginPercent: profit == null || item.revenue == 0 ? null : profit * 100 / item.revenue,
         employeeCounts: Map.unmodifiable(item.employeeCounts),
+        trend: [for (final point in trendEntries) ReportTrendPoint(
+          label: range.endExclusive.difference(range.start).inDays <= 31
+            ? JalaliDate.fromDateTime(point.key).short
+            : JalaliDate.fromDateTime(point.key).monthName,
+          start: point.key, revenue: point.value, cost: 0,
+          appointments: item.trendCounts[point.key] ?? 0,
+        )],
       );
     }).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
@@ -602,6 +622,9 @@ class MockDashboardRepository implements DashboardRepository {
         previousEnd = range.start;
         break;
     }
+    final previousPeriodAppointments = _db.appointments.where((item) =>
+      canSeeAppointment(item) && !item.startAt.isBefore(previousStart) &&
+      item.startAt.isBefore(previousEnd) && filter.matches(item)).length;
     final previousEntries = allVisibleFinanceEntries.where((item) =>
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
@@ -685,6 +708,7 @@ class MockDashboardRepository implements DashboardRepository {
       grossProfit: null,
       previousPeriodRevenue: previousRevenue,
       previousPeriodCost: previousCost,
+      previousPeriodAppointments: previousPeriodAppointments,
       paymentsByMethod: paymentsByMethod,
       expensesByCategory: expensesByCategory,
       customerDebts: customerDebts,
