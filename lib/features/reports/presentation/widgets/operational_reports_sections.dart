@@ -6,7 +6,6 @@ import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
@@ -146,7 +145,9 @@ class OperationalReportsSections extends StatelessWidget {
             ),
           ),
         for (final item in services)
-          ExpansionTile(
+          Material(
+            color: Colors.transparent,
+            child: ExpansionTile(
             tilePadding: EdgeInsets.zero,
             title: Text('روند فروش: ${item.name}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
             subtitle: Text('${FaNum.ofInt(item.count)} ارائه در بازه', style: TextStyle(fontSize: 9, color: pal.textMuted)),
@@ -159,7 +160,7 @@ class OperationalReportsSections extends StatelessWidget {
                   height: 130,
                 )),
             ],
-          ),
+          )),
       ])),
       const SizedBox(height: 12),
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
