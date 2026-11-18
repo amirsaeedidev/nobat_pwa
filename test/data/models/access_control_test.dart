@@ -49,6 +49,17 @@ void main() {
       expect(visible.every((item) => item.employeeId == 'emp-zahra'), isTrue);
     });
 
+    test('staff cannot read another employee attendance, leave, documents or notices directly', () {
+      final db = AppDatabase()..switchMockAccount('demo-staff');
+      expect(() => db.attendanceFor('emp-shima'), throwsA(isA<AccessDeniedException>()));
+      expect(() => db.attendanceSummary('emp-shima', from: DateTime(2026, 1, 1), to: DateTime(2026, 2, 1)),
+          throwsA(isA<AccessDeniedException>()));
+      expect(() => db.documentsFor('emp-shima'), throwsA(isA<AccessDeniedException>()));
+      expect(() => db.leavesForEmployee('emp-shima'), throwsA(isA<AccessDeniedException>()));
+      expect(() => db.noticesFor('emp-shima'), throwsA(isA<AccessDeniedException>()));
+      expect(db.attendanceFor('emp-zahra').every((row) => row.employeeId == 'emp-zahra'), isTrue);
+    });
+
     test('accountant can view financial data and settlements but cannot change roles', () {
       final db = AppDatabase()..switchMockAccount('demo-accountant');
       expect(db.hasPermission('finance.income.view'), isTrue);
