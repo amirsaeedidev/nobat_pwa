@@ -96,6 +96,7 @@ class ReportsProvider extends DbBoundProvider {
     final generation = ++_loadGeneration;
     _loading = true;
     _error = null;
+    _comparisonAnalytics = null;
     notifyListeners();
     try {
       final current = await _repository.fetchReportAnalytics(range: _range, filter: _filter);
