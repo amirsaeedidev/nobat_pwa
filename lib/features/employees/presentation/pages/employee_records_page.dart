@@ -26,9 +26,9 @@ class EmployeeRecordsPage extends StatelessWidget{
    ]));
  }
  static Future<void> _add(BuildContext context,AppDatabase db,String id)async{
-  final title=TextEditingController();final file=TextEditingController(text:'sample-document.pdf');EmployeeDocumentType type=EmployeeDocumentType.certificate;
-  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('ثبت سند آزمایشی'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:title,decoration:const InputDecoration(labelText:'عنوان سند')),TextField(controller:file,decoration:const InputDecoration(labelText:'نام فایل نمونه')),DropdownButtonFormField(value:type,items:EmployeeDocumentType.values.map((v)=>DropdownMenuItem(value:v,child:Text(v.name))).toList(),onChanged:(v){if(v!=null)type=v;})]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت'))]));
-  if(ok==true&&context.mounted){try{db.addEmployeeDocument(EmployeeDocument(id:db.nextId('document'),employeeId:id,title:title.text,type:type,fileName:file.text,addedAt:DateTime.now()));AppToast.show(context,'سند نمونه ثبت شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
-  title.dispose();file.dispose();
+  final title=TextEditingController();String file='contract-sample.pdf';EmployeeDocumentType type=EmployeeDocumentType.certificate;
+  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('ثبت سند آزمایشی'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:title,decoration:const InputDecoration(labelText:'عنوان سند')),DropdownButtonFormField<String>(value:file,decoration:const InputDecoration(labelText:'انتخاب فایل آزمایشی'),items:const ['contract-sample.pdf','identity-card-demo.png','certificate-demo.pdf','specialty-license-demo.pdf','employee-attachment-demo.pdf'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)file=v;}),DropdownButtonFormField(value:type,items:EmployeeDocumentType.values.map((v)=>DropdownMenuItem(value:v,child:Text(v.name))).toList(),onChanged:(v){if(v!=null)type=v;})]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت'))]));
+  if(ok==true&&context.mounted){try{db.addEmployeeDocument(EmployeeDocument(id:db.nextId('document'),employeeId:id,title:title.text,type:type,fileName:file,addedAt:DateTime.now()));AppToast.show(context,'سند نمونه ثبت شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
+  title.dispose();
  }
 }
