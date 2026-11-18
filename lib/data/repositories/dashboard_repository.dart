@@ -424,8 +424,8 @@ class MockDashboardRepository implements DashboardRepository {
         averageGapDays: lifetimeVisits.length < 2 ? null : totalGapDays / (lifetimeVisits.length - 1),
         isNew: isNew,
         isLoyal: lifetimeVisits.length >= 4,
-        isInactive: daysSinceVisit >= 90,
-        isAtRisk: daysSinceVisit >= 60 && daysSinceVisit < 90,
+        isInactive: lastVisit != null && daysSinceVisit >= 90 || (lastVisit == null && customer.createdAt != null && daysSinceVisit >= 90),
+        isAtRisk: (lastVisit != null || customer.createdAt != null) && daysSinceVisit >= 60 && daysSinceVisit < 90,
       );
     }).toList()..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
 
