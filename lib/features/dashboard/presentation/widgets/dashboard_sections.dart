@@ -223,10 +223,10 @@ class RevenueCard extends StatelessWidget {
             children: [
               Icon(Icons.payments_rounded, size: 16, color: pal.success),
               const SizedBox(width: 6),
-              Text(
-                Fmt.money(total),
+              Expanded(child: Text(
+                Fmt.money(total), maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: pal.textPrimary),
-              ),
+              )),
             ],
           ),
           const SizedBox(height: 12),

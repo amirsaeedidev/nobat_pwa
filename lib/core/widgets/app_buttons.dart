@@ -63,9 +63,12 @@ class GradientCta extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: compact ? 14.5 : 17,
@@ -76,6 +79,8 @@ class GradientCta extends StatelessWidget {
                         if (subtitle != null)
                           Text(
                             subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.82),
                               fontSize: compact ? 10.5 : 11.5,

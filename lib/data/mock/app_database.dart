@@ -1118,6 +1118,7 @@ class AppDatabase extends ChangeNotifier {
     }
     if (employeeById(record.employeeId) == null) throw StateError('پرسنل یافت نشد.');
     if (_attendanceRecords.any((item)=>item.id==record.id)) throw StateError('شناسه حضور تکراری است.');
+    if ([record.overtimeMinutes,record.lateMinutes,record.earlyLeaveMinutes].any((value)=>value<0)) throw ArgumentError('دقایق حضور و غیاب نمی‌توانند منفی باشند.');
     if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('ورود امروز قبلاً ثبت شده است.');
     if (record.type == AttendanceEventType.checkOut) {
       final hasOpen = _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day);
@@ -1246,6 +1247,7 @@ class AppDatabase extends ChangeNotifier {
     if (employee == null) throw StateError('پرسنل یافت نشد.');
     if (currentAccessAccount.employeeId != leave.employeeId) requirePermission('employees.edit', employeeId: leave.employeeId);
     if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
+    if (leave.description.trim().isEmpty) throw ArgumentError('توضیحات درخواست مرخصی الزامی است.');
     if (_employeeLeaves.any((item) => item.id == leave.id)) throw StateError('شناسه مرخصی تکراری است.');
     if (_employeeLeaves.any((item) => item.employeeId == leave.employeeId && item.status != EmployeeLeaveStatus.rejected && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt))) {
       throw ArgumentError('این مرخصی با درخواست دیگری هم‌پوشانی دارد.');
@@ -1264,6 +1266,12 @@ class AppDatabase extends ChangeNotifier {
     if (leave.status == EmployeeLeaveStatus.approved) {
       final conflict = _employeeLeaves.any((item) => item.id != leave.id && item.employeeId == leave.employeeId && item.status == EmployeeLeaveStatus.approved && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt));
       if (conflict) throw ArgumentError('مرخصی با مرخصی تأییدشده دیگری هم‌پوشانی دارد.');
+      final appointmentConflict = _appointments.any((appointment) =>
+        appointment.employeeId == leave.employeeId &&
+        appointment.status != AppointmentStatus.cancelled &&
+        appointment.startAt.isBefore(leave.endAt) &&
+        leave.startAt.isBefore(appointment.endAt));
+      if (appointmentConflict) throw ArgumentError('در این بازه برای پرسنل نوبت ثبت شده است؛ ابتدا نوبت را جابه‌جا یا لغو کنید.');
     }
     _employeeLeaves[index] = leave;
     _notifyEmployee(leave.employeeId,leave.status==EmployeeLeaveStatus.approved?EmployeeNoticeType.leaveApproved:EmployeeNoticeType.leaveRejected,'وضعیت مرخصی تغییر کرد.','درخواست مرخصی شما ${leave.status.label} شد.');
@@ -1284,7 +1292,7 @@ class AppDatabase extends ChangeNotifier {
     final startMinute = startAt.hour * 60 + startAt.minute;
     final endMinute = endAt.hour * 60 + endAt.minute + (endAt.day != startAt.day ? 24 * 60 : 0);
     if (!shifts.any((shift) => startMinute >= shift.startMinutes && endMinute <= shift.endMinutes)) return false;
-    if (_employeeLeaves.any((leave) => leave.employeeId == employeeId && leave.overlaps(startAt, endAt))) return false;
+    if (_employeeLeaves.any((leave) => leave.employeeId == employeeId && leave.status == EmployeeLeaveStatus.approved && leave.overlaps(startAt, endAt))) return false;
     final buffer = Duration(minutes: employee.bufferMinutes);
     for (final appointment in _appointments) {
       if (appointment.id == ignoreAppointmentId || appointment.employeeId != employeeId || appointment.status == AppointmentStatus.cancelled) continue;

@@ -288,51 +288,38 @@ class _HeroStatsCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 16, 14, 6),
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+          LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'آمار نوبت‌ها و عملکرد',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: pal.textSecondary,
-                      ),
-                    ),
+                    Text('آمار نوبت‌ها و عملکرد', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: pal.textSecondary)),
                     const SizedBox(height: 6),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
                       children: [
-                        Flexible(
-                          child: Text(
-                            '${FaNum.ofInt(stats.totalAppointments)} نوبت',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              color: pal.textPrimary,
-                              height: 1.3,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                        Text('${FaNum.ofInt(stats.totalAppointments)} نوبت', maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: pal.textPrimary, height: 1.3)),
                         TrendChip(value: '${FaNum.ofInt(completionRate)}٪', positive: true),
                       ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              PillToggle(
-                options: const ['هفتگی', 'ماهانه'],
-                selectedIndex: period == StatsPeriod.weekly ? 0 : 1,
-                onChanged: (i) => onPeriodChanged(i == 0 ? StatsPeriod.weekly : StatsPeriod.monthly),
-              ),
-            ],
+                PillToggle(
+                  dense: constraints.maxWidth < 360,
+                  options: const ['هفتگی', 'ماهانه'],
+                  selectedIndex: period == StatsPeriod.weekly ? 0 : 1,
+                  onChanged: (i) => onPeriodChanged(i == 0 ? StatsPeriod.weekly : StatsPeriod.monthly),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           Row(
