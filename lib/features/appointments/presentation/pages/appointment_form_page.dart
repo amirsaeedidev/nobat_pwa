@@ -106,6 +106,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
         'title': service.title,
         'category': service.category,
         'price': _db.effectiveServicePrice(employee.id, service.id),
+        'direct_cost': service.directCost,
         'duration_minutes': _db.effectiveServiceDuration(employee.id, service.id),
         'commission_rate_bps': config?.commissionRateBps ?? rule?.rateBps ?? payProfile.generalRateBps,
         'fixed_commission_amount': config?.fixedCommissionAmount ?? rule?.fixedAmount ?? 0,
