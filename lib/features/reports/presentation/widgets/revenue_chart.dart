@@ -216,10 +216,11 @@ class RevenueLineChart extends StatelessWidget {
 
 /// نمودار دایره‌ای وضعیت نوبت‌ها.
 class StatusDonut extends StatelessWidget {
-  const StatusDonut({super.key, required this.counts, this.size = 150});
+  const StatusDonut({super.key, required this.counts, this.size = 150, this.centerLabel = 'نوبت'});
 
   final Map<String, int> counts;
   final double size;
+  final String centerLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +266,7 @@ class StatusDonut extends StatelessWidget {
                 FaNum.ofInt(total),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: pal.textPrimary),
               ),
-              Text('نوبت', style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
+              Text(centerLabel, style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
             ],
           ),
         ],
