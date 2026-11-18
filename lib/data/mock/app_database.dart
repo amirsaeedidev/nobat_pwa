@@ -480,6 +480,7 @@ class AppDatabase extends ChangeNotifier {
     }
     final history = _salaryContracts.putIfAbsent(contract.employeeId, () => []);
     history.add(contract);
+    _notifyEmployee(contract.employeeId,EmployeeNoticeType.salaryChanged,'حقوق ثابت تغییر کرد.','قرارداد حقوق جدید با مبلغ ${contract.monthlyBase} ثبت شد.');
     log(ActivityType.settingsChanged, 'ثبت سابقه حقوق ثابت', 'قرارداد حقوق ثابت جدید ثبت شد.', entity: 'حقوق پرسنل');
     _commit();
   }
@@ -729,6 +730,7 @@ class AppDatabase extends ChangeNotifier {
       idempotencyKey: idempotencyKey,
     );
     _employeeWalletTransactions.add(entry);
+    if (type == EmployeeWalletTransactionType.salaryPayment) _notifyEmployee(employeeId,EmployeeNoticeType.paymentRecorded,'پرداخت ثبت شد.','پرداخت حقوق برای شما ثبت شد.');
     log(ActivityType.settingsChanged, 'ثبت تراکنش کیف پول', 'تراکنش «${type.label}» برای پرسنل ثبت شد.', entity: 'کیف پول پرسنل');
     _commit();
     return entry;
@@ -1109,7 +1111,11 @@ class AppDatabase extends ChangeNotifier {
       ..sort((a,b)=>b.at.compareTo(a.at));
 
   void recordAttendance(AttendanceRecord record) {
-    requirePermission('employees.edit', employeeId: record.employeeId);
+    if (currentAccessAccount.employeeId != record.employeeId) {
+      requirePermission('employees.edit', employeeId: record.employeeId);
+    } else if (!hasPermission('appointments.view_self') && !hasPermission('employees.edit')) {
+      throw AccessDeniedException('برای ثبت حضور شخصی دسترسی ندارید.');
+    }
     if (employeeById(record.employeeId) == null) throw StateError('پرسنل یافت نشد.');
     if (_attendanceRecords.any((item)=>item.id==record.id)) throw StateError('شناسه حضور تکراری است.');
     if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('ورود امروز قبلاً ثبت شده است.');
@@ -1211,6 +1217,7 @@ class AppDatabase extends ChangeNotifier {
     for (final shifts in schedule.values) { EmployeeScheduleRules.validateShifts(shifts); }
     if (schedule.keys.any((day) => day < 0 || day > 6)) throw ArgumentError('روز هفته معتبر نیست.');
     updateEmployee(employee.copyWith(schedule: schedule, scheduleEnabled: enabled, bufferMinutes: bufferMinutes));
+    _notifyEmployee(employeeId,EmployeeNoticeType.scheduleChanged,'برنامه کاری تغییر کرد.','برنامه کاری شما توسط مدیر به‌روزرسانی شد.');
     log(ActivityType.settingsChanged, 'به‌روزرسانی برنامه پرسنل', 'برنامه کاری ' + employee.fullName + ' تغییر کرد.', entity: 'برنامه پرسنل');
     _commit();
   }
@@ -1235,6 +1242,7 @@ class AppDatabase extends ChangeNotifier {
   void addEmployeeLeave(EmployeeLeave leave) {
     final employee = employeeById(leave.employeeId);
     if (employee == null) throw StateError('پرسنل یافت نشد.');
+    if (currentAccessAccount.employeeId != leave.employeeId) requirePermission('employees.edit', employeeId: leave.employeeId);
     if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
     if (_employeeLeaves.any((item) => item.id == leave.id)) throw StateError('شناسه مرخصی تکراری است.');
     if (_employeeLeaves.any((item) => item.employeeId == leave.employeeId && item.status != EmployeeLeaveStatus.rejected && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt))) {
@@ -1247,6 +1255,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void updateEmployeeLeave(EmployeeLeave leave) {
+    requirePermission('employees.edit', employeeId: leave.employeeId);
     final index = _employeeLeaves.indexWhere((item) => item.id == leave.id && item.employeeId == leave.employeeId);
     if (index < 0) throw StateError('مرخصی یافت نشد.');
     if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
