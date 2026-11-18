@@ -721,6 +721,44 @@ class AppDatabase extends ChangeNotifier {
 
   int walletBalanceFor(String employeeId) => walletSummaryFor(employeeId).balance;
 
+  /// ثبت حقوق پایه و اثر حضور و غیاب در دفتر کل، بدون تکرار برای ماه جاری.
+  int accruePayrollBaseToWallet(String employeeId, {DateTime? at}) {
+    requirePermission('finance.payment.create', employeeId: employeeId);
+    final date = at ?? DateTime.now();
+    final payroll = payrollFor(employeeId, at: date);
+    final monthStart = DateTime(date.year, date.month, 1);
+    var posted = 0;
+    final hasSalaryEntry = _employeeWalletTransactions.any((entry) =>
+      entry.employeeId == employeeId &&
+      entry.type == EmployeeWalletTransactionType.fixedSalary &&
+      entry.createdAt.year == date.year && entry.createdAt.month == date.month);
+    if (!hasSalaryEntry && payroll.baseSalary > 0) {
+      addWalletTransaction(
+        employeeId: employeeId,
+        amount: payroll.baseSalary,
+        type: EmployeeWalletTransactionType.fixedSalary,
+        description: 'حقوق پایه ${date.year}/${date.month.toString().padLeft(2, '0')}',
+        createdAt: monthStart,
+        idempotencyKey: 'payroll-base-$employeeId-${date.year}-${date.month}',
+      );
+      posted += 1;
+    }
+    final attendanceKey = 'payroll-attendance-$employeeId-${date.year}-${date.month}';
+    if (payroll.attendanceAdjustment != 0 &&
+        !_employeeWalletTransactions.any((entry) => entry.idempotencyKey == attendanceKey)) {
+      addWalletTransaction(
+        employeeId: employeeId,
+        amount: payroll.attendanceAdjustment,
+        type: EmployeeWalletTransactionType.adjustment,
+        description: 'اثر قانون حضور و غیاب ${date.year}/${date.month.toString().padLeft(2, '0')}',
+        createdAt: monthStart,
+        idempotencyKey: attendanceKey,
+      );
+      posted += 1;
+    }
+    return posted;
+  }
+
   int walletPeriodDue(String employeeId, DateTime periodStart, DateTime periodEnd) {
     requirePermission('finance.salary.view', employeeId: employeeId);
     if (periodEnd.isBefore(periodStart)) throw ArgumentError('بازه تسویه معتبر نیست.');
