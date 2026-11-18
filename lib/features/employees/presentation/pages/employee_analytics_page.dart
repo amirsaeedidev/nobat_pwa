@@ -268,7 +268,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           ]),
         ])),
         const SizedBox(height: 12),
-        if (report.totalAppointments == 0 && !report.attendanceDataAvailable && report.leaves.isEmpty)
+        if (report.totalAppointments == 0 && !report.attendanceDataAvailable && report.leaves.isEmpty && !report.salaryDataAvailable)
           const EmptyState(title: 'در این بازه داده‌ای ثبت نشده است', description: 'فیلترها یا بازه زمانی را تغییر دهید.')
         else ...[
           LayoutBuilder(builder: (context, constraints) {
