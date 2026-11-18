@@ -73,7 +73,7 @@ class _SmsMonitorPageState extends State<SmsMonitorPage> {
                     _StatCard(width: width, label: 'کل پیامک‌ها', value: FaNum.ofInt(stats.total), color: pal.primaryBright, icon: Icons.forum_rounded),
                     _StatCard(width: width, label: 'تحویل شده', value: FaNum.ofInt(stats.delivered), color: pal.success, icon: Icons.mark_email_read_rounded),
                     _StatCard(width: width, label: 'در صف/ارسال', value: FaNum.ofInt(stats.pending + stats.sent), color: pal.warning, icon: Icons.schedule_send_rounded),
-                    _StatCard(width: width, label: 'ناموفق', value: FaNum.ofInt(stats.failed), color: pal.danger, icon: Icons.error_outline_rounded),
+                    _StatCard(width: width, label: 'ناموفق', value: FaNum.ofInt(stats.failed), color: pal.danger, icon: Icons.sms_rounded),
                     _StatCard(width: width, label: 'اعتبار پنل', value: '${FaNum.ofInt(stats.credit)} پیامک', color: pal.purple, icon: Icons.account_balance_wallet_rounded),
                   ],
                 );
