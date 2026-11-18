@@ -1207,9 +1207,14 @@ class AppDatabase extends ChangeNotifier {
   void _seedEmployeeHr(){
     final now=DateTime.now();
     for(var i=0;i<_employees.length && i<5;i++){
-      final e=_employees[i]; final day=DateTime(now.year,now.month,now.day);
-      _attendanceRecords.add(AttendanceRecord(id:'att-in-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkIn,at:day.add(Duration(hours:8,minutes:i*7)),lateMinutes:i*7));
-      _attendanceRecords.add(AttendanceRecord(id:'att-out-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkOut,at:day.add(Duration(hours:16,minutes:i*7)),overtimeMinutes:i*10));
+      final e=_employees[i]; final day=DateTime(now.year,now.month,now.day).subtract(Duration(days:i+1));
+      if(i==4){
+        _attendanceRecords.add(AttendanceRecord(id:'att-absence-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.absence,at:day.add(const Duration(hours:9)),note:'غیبت نمونه',createdBy:'مدیر سیستم'));
+      } else {
+        _attendanceRecords.add(AttendanceRecord(id:'att-in-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkIn,at:day.add(Duration(hours:8,minutes:i*7)),lateMinutes:i*7));
+        _attendanceRecords.add(AttendanceRecord(id:'att-out-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkOut,at:day.add(Duration(hours:16,minutes:i*7)),overtimeMinutes:i*10));
+      }
+      if(i==3) _attendanceRecords.add(AttendanceRecord(id:'att-mission-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.mission,at:day.add(const Duration(hours:11)),note:'مأموریت نمونه',createdBy:'مدیر سیستم'));
       _employeeDocuments.add(EmployeeDocument(id:'doc-contract-${e.id}',employeeId:e.id,title:'قرارداد همکاری',type:EmployeeDocumentType.contract,fileName:'contract-demo.pdf',addedAt:day,expiresAt:day.add(Duration(days:20+i*10)),note:'فایل نمایشی آفلاین'));
       if(i<2) _notifyEmployee(e.id,EmployeeNoticeType.contractExpiring,'اعتبار قرارداد رو به پایان است.','برای بررسی تاریخ اعتبار قرارداد پرسنل اقدام کنید.');
       _notifyEmployee(e.id,EmployeeNoticeType.scheduleChanged,'برنامه کاری به‌روزرسانی شد.','برنامه کاری نمونه برای بررسی رابط کاربری ثبت شده است.');

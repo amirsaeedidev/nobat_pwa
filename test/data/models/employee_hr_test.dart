@@ -43,6 +43,31 @@ void main(){
   final preview=db.attendancePayrollPreview(employee.id,from:day,to:day.add(const Duration(days:1)));
   expect(preview.lateDeduction,10000);expect(preview.overtimePayment,15000);expect(preview.netAdjustment,5000);
  });
+ test('pending leave does not block calendar availability; approved leave does',(){
+  final db=AppDatabase();final employee=db.employees.first;
+  DateTime? start;
+  for(var offset=1;offset<40 && start==null;offset++){
+   final day=DateTime.now().add(Duration(days:offset));
+   final shifts=db.employeeShiftsForDate(employee.id,day);
+   for(final shift in shifts){
+    final candidate=DateTime(day.year,day.month,day.day,shift.startMinutes~/60,(shift.startMinutes%60)+10);
+    if(db.isEmployeeAvailableAt(employeeId:employee.id,startAt:candidate,durationMinutes:15)){start=candidate;break;}
+   }
+  }
+  expect(start,isNotNull);
+  final slot=start!;
+  final leave=EmployeeLeave(id:'leave-pending-hr',employeeId:employee.id,startAt:DateTime(slot.year,slot.month,slot.day),endAt:DateTime(slot.year,slot.month,slot.day,23,59),type:EmployeeLeaveType.daily,status:EmployeeLeaveStatus.pending,description:'درخواست آزمایشی',createdAt:DateTime.now());
+  db.addEmployeeLeave(leave);
+  expect(db.isEmployeeAvailableAt(employeeId:employee.id,startAt:slot,durationMinutes:15),true);
+  db.updateEmployeeLeave(leave.copyWith(status:EmployeeLeaveStatus.approved,approvedBy:'مدیر'));
+  expect(db.isEmployeeAvailableAt(employeeId:employee.id,startAt:slot,durationMinutes:15),false);
+ });
+ test('approved leave cannot overlap a booked appointment',(){
+  final db=AppDatabase();final appointment=db.appointments.firstWhere((a)=>a.status!=AppointmentStatus.cancelled);
+  final leave=EmployeeLeave(id:'leave-conflict-hr',employeeId:appointment.employeeId,startAt:appointment.startAt.subtract(const Duration(minutes:5)),endAt:appointment.endAt.add(const Duration(minutes:5)),type:EmployeeLeaveType.daily,status:EmployeeLeaveStatus.pending,description:'تداخل آزمایشی',createdAt:DateTime.now());
+  db.addEmployeeLeave(leave);
+  expect(()=>db.updateEmployeeLeave(leave.copyWith(status:EmployeeLeaveStatus.approved)),throwsArgumentError);
+ });
  test('mock notice can be marked read',(){
   final notice=EmployeeNotice(id:'1',employeeId:'e',title:'مرخصی',message:'درخواست جدید',type:EmployeeNoticeType.leaveRequested,createdAt:date);
   expect(notice.markRead().read,true);
