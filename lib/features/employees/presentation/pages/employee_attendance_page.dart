@@ -33,7 +33,7 @@ class EmployeeAttendancePage extends StatelessWidget {
    Wrap(spacing:8,runSpacing:8,children:[
     _metric('حضور امروز',daily.presentDays.toString()),_metric('حضور این هفته',weekly.presentDays.toString()),_metric('حضور ماه',sum.presentDays.toString()),_metric('غیبت ماه',sum.absentDays.toString()),
     _metric('ساعت کار',(sum.workedMinutes/60).toStringAsFixed(1)),_metric('اضافه‌کاری',FaNum.ofInt(sum.overtimeMinutes)+' دقیقه'),
-    _metric('تأخیر',FaNum.ofInt(sum.lateMinutes)+' دقیقه'),
+    _metric('تأخیر',FaNum.ofInt(sum.lateMinutes)+' دقیقه'),_metric('خروج زودهنگام',FaNum.ofInt(sum.earlyLeaveMinutes)+' دقیقه'),
    ]),
    const SizedBox(height:12),
    AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[

@@ -1134,18 +1134,18 @@ class AppDatabase extends ChangeNotifier {
     final rows=attendanceFor(employeeId,from:from,to:to);
     final present=rows.where((r)=>r.type==AttendanceEventType.checkIn).map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
     final absent=rows.where((r)=>r.type==AttendanceEventType.absence).map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
-    var worked=0, overtime=0, late=0;
+    var worked=0, overtime=0, late=0, early=0;
     for(final checkIn in rows.where((r)=>r.type==AttendanceEventType.checkIn)){
       final checkout=rows.where((r)=>r.type==AttendanceEventType.checkOut && r.date.year==checkIn.date.year && r.date.month==checkIn.date.month && r.date.day==checkIn.date.day).toList();
       if(checkout.isNotEmpty) worked+=checkout.first.at.difference(checkIn.at).inMinutes;
     }
-    for(final row in rows){overtime+=row.overtimeMinutes;late+=row.lateMinutes;}
-    return AttendanceSummary(presentDays:present.length,absentDays:absent.length,workedMinutes:worked,overtimeMinutes:overtime,lateMinutes:late);
+    for(final row in rows){overtime+=row.overtimeMinutes;late+=row.lateMinutes;early+=row.earlyLeaveMinutes;}
+    return AttendanceSummary(presentDays:present.length,absentDays:absent.length,workedMinutes:worked,overtimeMinutes:overtime,lateMinutes:late,earlyLeaveMinutes:early);
   }
 
   void saveAttendancePayrollPolicy(AttendancePayrollPolicy policy) {
     requirePermission('employees.edit');
-    if (policy.lateDeductionPerMinute < 0 || policy.absenceDeductionPerDay < 0 || policy.overtimePaymentPerMinute < 0) {
+    if (policy.lateDeductionPerMinute < 0 || policy.absenceDeductionPerDay < 0 || policy.overtimePaymentPerMinute < 0 || policy.earlyLeaveDeductionPerMinute < 0) {
       throw ArgumentError('مقادیر قانون مالی نمی‌توانند منفی باشند.');
     }
     _attendancePayrollPolicy = policy;
@@ -1155,11 +1155,12 @@ class AppDatabase extends ChangeNotifier {
   AttendancePayrollPreview attendancePayrollPreview(String employeeId,{required DateTime from,required DateTime to}) {
     final summary = attendanceSummary(employeeId,from:from,to:to);
     final policy = _attendancePayrollPolicy;
-    if (!policy.enabled) return const AttendancePayrollPreview(lateDeduction:0,absenceDeduction:0,overtimePayment:0,netAdjustment:0);
+    if (!policy.enabled) return const AttendancePayrollPreview(lateDeduction:0,absenceDeduction:0,overtimePayment:0,earlyLeaveDeduction:0,netAdjustment:0);
     final late = summary.lateMinutes * policy.lateDeductionPerMinute;
     final absence = summary.absentDays * policy.absenceDeductionPerDay;
     final overtime = summary.overtimeMinutes * policy.overtimePaymentPerMinute;
-    return AttendancePayrollPreview(lateDeduction:late,absenceDeduction:absence,overtimePayment:overtime,netAdjustment:overtime-late-absence);
+    final early = summary.earlyLeaveMinutes * policy.earlyLeaveDeductionPerMinute;
+    return AttendancePayrollPreview(lateDeduction:late,absenceDeduction:absence,overtimePayment:overtime,earlyLeaveDeduction:early,netAdjustment:overtime-late-absence-early);
   }
 
   List<EmployeeDocument> documentsFor(String employeeId)=>_employeeDocuments.where((d)=>d.employeeId==employeeId).toList()..sort((a,b)=>b.addedAt.compareTo(a.addedAt));
@@ -1186,6 +1187,7 @@ class AppDatabase extends ChangeNotifier {
       _attendanceRecords.add(AttendanceRecord(id:'att-in-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkIn,at:day.add(Duration(hours:8,minutes:i*7)),lateMinutes:i*7));
       _attendanceRecords.add(AttendanceRecord(id:'att-out-${e.id}',employeeId:e.id,date:day,type:AttendanceEventType.checkOut,at:day.add(Duration(hours:16,minutes:i*7)),overtimeMinutes:i*10));
       _employeeDocuments.add(EmployeeDocument(id:'doc-contract-${e.id}',employeeId:e.id,title:'قرارداد همکاری',type:EmployeeDocumentType.contract,fileName:'contract-demo.pdf',addedAt:day,expiresAt:day.add(Duration(days:20+i*10)),note:'فایل نمایشی آفلاین'));
+      if(i<2) _notifyEmployee(e.id,EmployeeNoticeType.contractExpiring,'اعتبار قرارداد رو به پایان است.','برای بررسی تاریخ اعتبار قرارداد پرسنل اقدام کنید.');
       _notifyEmployee(e.id,EmployeeNoticeType.scheduleChanged,'برنامه کاری به‌روزرسانی شد.','برنامه کاری نمونه برای بررسی رابط کاربری ثبت شده است.');
     }
   }

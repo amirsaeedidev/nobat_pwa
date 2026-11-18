@@ -18,15 +18,15 @@ class EmployeeNotice {
  EmployeeNotice markRead()=>EmployeeNotice(id:id,employeeId:employeeId,title:title,message:message,type:type,createdAt:createdAt,read:true);
 }
 class AttendanceSummary {
- const AttendanceSummary({required this.presentDays,required this.absentDays,required this.workedMinutes,required this.overtimeMinutes,required this.lateMinutes});
- final int presentDays,absentDays,workedMinutes,overtimeMinutes,lateMinutes;
+ const AttendanceSummary({required this.presentDays,required this.absentDays,required this.workedMinutes,required this.overtimeMinutes,required this.lateMinutes, this.earlyLeaveMinutes = 0});
+ final int presentDays,absentDays,workedMinutes,overtimeMinutes,lateMinutes,earlyLeaveMinutes;
 }
 /// قوانین مالی حضور و غیاب؛ خاموش بودن هر گزینه به معنی عدم اعمال خودکار است.
 class AttendancePayrollPolicy {
- const AttendancePayrollPolicy({this.enabled=false,this.lateDeductionPerMinute=0,this.absenceDeductionPerDay=0,this.overtimePaymentPerMinute=0});
- final bool enabled; final int lateDeductionPerMinute,absenceDeductionPerDay,overtimePaymentPerMinute;
+ const AttendancePayrollPolicy({this.enabled=false,this.lateDeductionPerMinute=0,this.absenceDeductionPerDay=0,this.overtimePaymentPerMinute=0,this.earlyLeaveDeductionPerMinute=0});
+ final bool enabled; final int lateDeductionPerMinute,absenceDeductionPerDay,overtimePaymentPerMinute,earlyLeaveDeductionPerMinute;
 }
 class AttendancePayrollPreview {
- const AttendancePayrollPreview({required this.lateDeduction,required this.absenceDeduction,required this.overtimePayment,required this.netAdjustment});
- final int lateDeduction,absenceDeduction,overtimePayment,netAdjustment;
+ const AttendancePayrollPreview({required this.lateDeduction,required this.absenceDeduction,required this.overtimePayment,required this.earlyLeaveDeduction,required this.netAdjustment});
+ final int lateDeduction,absenceDeduction,overtimePayment,earlyLeaveDeduction,netAdjustment;
 }
