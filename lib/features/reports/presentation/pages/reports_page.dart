@@ -215,11 +215,7 @@ class ReportsPage extends StatelessWidget {
                       }),
                       if (!provider.filter.isEmpty)
                         Align(alignment: AlignmentDirectional.centerEnd,
-                          child: TextButton.icon(
-                            onPressed: provider.clearFilters,
-                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedFilterRemove, size: 16),
-                            label: const Text('پاک کردن فیلترها'),
-                          )),
+                          child: TextButton(onPressed: provider.clearFilters, child: const Text('پاک کردن فیلترها'))),
                     ])),
                     const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
