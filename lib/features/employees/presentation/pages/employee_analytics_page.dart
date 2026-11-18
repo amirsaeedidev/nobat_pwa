@@ -357,6 +357,24 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
                 ),
           ])),
           const SizedBox(height: 12),
+          if (report.salaryDataAvailable) ...[
+            AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SectionHeader(title: 'حقوق و تسویه'),
+              Text('مانده خالص دفتر کیف پول در بازه: ${_money(report.salaryBalance)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              Text('پرداخت حقوق ثبت‌شده: ${_money(report.salaryPaid)} • مساعده: ${_money(report.advanceAmount)}', style: const TextStyle(fontSize: 10)),
+              if (report.settlements.isEmpty)
+                const Padding(padding: EdgeInsets.only(top: 8), child: Text('سند تسویه‌ای در این بازه ثبت نشده است.', style: TextStyle(fontSize: 10)))
+              else
+                for (final settlement in report.settlements)
+                  ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.receipt_long, size: 18),
+                    title: Text('${_money(settlement.paidAmount)} پرداخت‌شده', style: const TextStyle(fontSize: 11)),
+                    subtitle: Text('${_money(settlement.dueAmount)} مبلغ دوره • باقی‌مانده ${_money(settlement.remainingAfter)}', style: const TextStyle(fontSize: 9)),
+                    trailing: Text(settlement.status.label, style: const TextStyle(fontSize: 9)),
+                  ),
+            ])),
+            const SizedBox(height: 12),
+          ],
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SectionHeader(title: 'حضور و غیاب و مرخصی'),
             if (!report.attendanceDataAvailable)
@@ -514,7 +532,7 @@ class _CompareRow extends StatelessWidget {
     const SizedBox(width: 8),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(employee.fullName, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-      Text('${FaNum.ofInt(report.completed)} تکمیل • میانگین ${Fmt.compactMoney(report.averageTicket)} • ${FaNum.ofInt(report.uniqueCustomers)} مشتری • لغو ${FaNum.convert(report.cancellationRate.toStringAsFixed(0))}٪ • بهره‌وری ${FaNum.convert(report.utilizationRate.toStringAsFixed(0))}٪', style: TextStyle(fontSize: 8.5, color: context.pal.textMuted)),
+      Text('${FaNum.ofInt(report.completed)} تکمیل • ${FaNum.ofInt(report.uniqueCustomers)} مشتری • کمیسیون ${Fmt.compactMoney(report.commission)} • حضور ${FaNum.ofInt(report.actualWorkedMinutes ~/ 60)} ساعت • تکمیل ${FaNum.convert(report.completionRate.toStringAsFixed(0))}٪ • بهره‌وری ${FaNum.convert(report.utilizationRate.toStringAsFixed(0))}٪', style: TextStyle(fontSize: 8.5, color: context.pal.textMuted)),
     ])),
     Text('${Fmt.compactMoney(report.netRevenue)} تومان', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
   ]));
