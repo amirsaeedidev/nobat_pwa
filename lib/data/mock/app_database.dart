@@ -143,10 +143,11 @@ class AppDatabase extends ChangeNotifier {
       throw StateError('این پرداخت قبلاً ثبت شده است.');
     }
     final appointment = matches.first;
-    final recognized = _employeeFinanceEntries
-        .where((entry) => entry.appointmentId == appointmentId)
-        .fold<int>(0, (sum, entry) => sum + (entry.type == FinanceEntryType.refund ? entry.receivedAmount : entry.type == FinanceEntryType.commission ? entry.receivedAmount : 0));
-    final billable = recognized > 0 ? recognized : appointment.price.round();
+    final revenueDocuments = _employeeFinanceEntries.where((entry) =>
+      entry.appointmentId == appointmentId &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
+    final recognized = revenueDocuments.fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+    final billable = revenueDocuments.isNotEmpty ? recognized : appointment.price.round();
     final collected = _appointmentPayments.where((item) => item.appointmentId == appointmentId)
         .fold<int>(0, (sum, item) => sum + item.signedAmount);
     final outstanding = billable - collected;
