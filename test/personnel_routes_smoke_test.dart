@@ -83,11 +83,14 @@ void main() {
       '/settings/permissions',
     ];
 
+    final failures = <String>[];
     for (final path in paths) {
       router.go(path);
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(tester.takeException(), isNull, reason: 'Route failed: $path');
+      final exception = tester.takeException();
+      if (exception != null) failures.add('$path: $exception');
     }
+    expect(failures, isEmpty, reason: failures.join('\n'));
   });
 }
