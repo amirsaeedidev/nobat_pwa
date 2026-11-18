@@ -149,9 +149,7 @@ class ReportsPage extends StatelessWidget {
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
                           for (final item in provider.analytics.recentAppointments) '${item.customerName} · ${item.serviceName} · ${Fmt.compactMoney(item.price)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
-                        GestureDetector(onTap: () => _showFinanceSheet(context, 'رسیدهای دریافت', [
-                          for (final item in provider.analytics.paymentTransactions) '${item.description} · ${item.method.label} · ${Fmt.compactMoney(item.signedAmount)}',
-                        ]), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
+                        GestureDetector(onTap: () => _showPaymentSheet(context, db, provider), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
                         ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedAppointment01, color: pal.warning)),
@@ -173,16 +171,14 @@ class ReportsPage extends StatelessWidget {
                             final legend = Column(children: [
                               for (final item in methodEntries)
                                 InkWell(
-                                  onTap: () => _showFinanceSheet(context, 'پرداخت‌های ${item.key}', [
-                                    for (final payment in provider.analytics.paymentTransactions.where((p) => p.method.label == item.key)) '${payment.description} · ${Fmt.compactMoney(payment.signedAmount)}',
-                                  ]),
+                                  onTap: () => _showPaymentSheet(context, db, provider, method: item.key),
                                   child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
                                     Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
                                     Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
                                   ])),
                                 ),
                             ]);
-                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showFinanceSheet(context, 'پرداخت‌های $method', [for (final payment in provider.analytics.paymentTransactions.where((p) => p.method.label == method)) '${payment.description} · ${Fmt.compactMoney(payment.signedAmount)}']));
+                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, db, provider, method: method));
                             if (inner.maxWidth < 340) return Column(children: [Center(child: donut), const SizedBox(height: 8), legend]);
                             return Row(children: [donut, const SizedBox(width: 12), Expanded(child: legend)]);
                           }),
@@ -439,6 +435,102 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
   );
 }
 
+
+
+void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvider provider, {String? method}) {
+  final payments = provider.analytics.paymentTransactions.where((item) => method == null || item.method.label == method).toList();
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: context.pal.surface,
+    builder: (sheetContext) => SafeArea(child: SizedBox(
+      height: MediaQuery.sizeOf(sheetContext).height * 0.65,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SectionHeader(title: method == null ? 'رسیدها و برگشت وجه' : 'پرداخت‌های $method', subtitle: 'رسیدهای این بازه؛ امکان ثبت برگشت وجه برای هر دریافت'),
+          const SizedBox(height: 8),
+          Expanded(child: payments.isEmpty
+            ? const EmptyState(title: 'پرداختی در این بازه وجود ندارد', compact: true)
+            : ListView.separated(
+                itemCount: payments.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final payment = payments[index];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(payment.description, style: const TextStyle(fontSize: 12)),
+                    subtitle: Text('${payment.method.label} · ${payment.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}', style: const TextStyle(fontSize: 10)),
+                    trailing: payment.type == BusinessPaymentType.receipt
+                      ? TextButton(onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => _RefundPaymentDialog(database: database, payment: payment),
+                        ), child: const Text('برگشت وجه'))
+                      : Text(Fmt.compactMoney(payment.signedAmount), style: TextStyle(color: context.pal.danger, fontSize: 11)),
+                  );
+                },
+              )),
+        ]),
+      ),
+    )),
+  );
+}
+
+class _RefundPaymentDialog extends StatefulWidget {
+  const _RefundPaymentDialog({required this.database, required this.payment});
+  final AppDatabase database;
+  final AppointmentPayment payment;
+
+  @override
+  State<_RefundPaymentDialog> createState() => _RefundPaymentDialogState();
+}
+
+class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
+  final _amount = TextEditingController();
+  final _description = TextEditingController(text: 'برگشت وجه مشتری');
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
+    if (amount == null || amount <= 0 || _description.text.trim().isEmpty) {
+      setState(() => _error = 'مبلغ و شرح برگشت وجه را وارد کنید.');
+      return;
+    }
+    try {
+      widget.database.refundAppointmentPayment(
+        paymentId: widget.payment.id,
+        amount: amount,
+        description: _description.text.trim(),
+        idempotencyKey: 'refund-${widget.payment.id}-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      setState(() => _error = error.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('ثبت برگشت وجه'),
+    content: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text('رسید: ${widget.payment.description}', style: const TextStyle(fontSize: 11)),
+      TextField(controller: _amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ برگشتی (تومان)')),
+      TextField(controller: _description, decoration: const InputDecoration(labelText: 'شرح برگشت')),
+      if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11)),
+    ]),
+    actions: [
+      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('انصراف')),
+      FilledButton(onPressed: _save, child: const Text('ثبت برگشت')),
+    ],
+  );
+}
 
 void _showTrendDetails(BuildContext context, AppDatabase database, ReportsProvider provider, int index) {
   final points = provider.analytics.trend;
