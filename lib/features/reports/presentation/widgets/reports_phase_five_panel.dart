@@ -130,13 +130,15 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         'تکمیل‌شده': a.completedAppointments, 'مشتری یکتا': a.uniqueCustomers,
         'نرخ بازگشت': a.repeatCustomerRate.toStringAsFixed(1) + '٪',
       };
-      final headers = ['بخش', 'عنوان', ...columns];
+      final generatedAt = JalaliDate.fromDateTime(DateTime.now()).long;
+      final headers = ['گزارش', 'بازه', 'تاریخ تولید', 'بخش', 'عنوان', ...columns];
       final rows = <List<Object?>>[
-        ['شاخص', 'خلاصه', for (final key in columns) all[key] ?? ''],
+        ['گزارش مدیریتی DateTime', a.range.label, generatedAt, 'شاخص', 'خلاصه',
+          for (final key in columns) all[key] ?? ''],
       ];
       for (final item in a.services) {
         rows.add([
-          'خدمت', item.name,
+          'گزارش مدیریتی DateTime', a.range.label, generatedAt, 'خدمت', item.name,
           for (final key in columns)
             switch (key) {
               'درآمد' => item.revenue.round(),
@@ -151,7 +153,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         final appointments = a.operationalAppointments.where((entry) =>
           entry.employeeId == item.employeeId && entry.status == AppointmentStatus.completed).toList();
         rows.add([
-          'پرسنل', item.name,
+          'گزارش مدیریتی DateTime', a.range.label, generatedAt, 'پرسنل', item.name,
           for (final key in columns)
             switch (key) {
               'درآمد' => item.revenue.round(),
@@ -165,7 +167,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       }
       for (final item in a.customerMetrics) {
         rows.add([
-          'مشتری', item.name,
+          'گزارش مدیریتی DateTime', a.range.label, generatedAt, 'مشتری', item.name,
           for (final key in columns)
             switch (key) {
               'درآمد' => item.totalSpent.round(),
