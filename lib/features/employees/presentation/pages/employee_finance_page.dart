@@ -77,10 +77,14 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
           const SizedBox(height: 10),
           _MoneyLine(label: 'حقوق پایه معتبر', amount: payroll.baseSalary),
           _MoneyLine(label: 'پورسانت تأییدشده', amount: payroll.approvedCommission),
+          if (payroll.commissionRefunds > 0)
+            _MoneyLine(label: 'برگشت پورسانت', amount: -payroll.commissionRefunds),
           _MoneyLine(label: 'پاداش تأییدشده', amount: payroll.approvedBonuses),
           _MoneyLine(label: 'کسورات', amount: -payroll.deductions),
           _MoneyLine(label: 'مساعده کسرشده', amount: -payroll.advanceDeducted),
           _MoneyLine(label: 'پرداخت‌های قبلی', amount: -payroll.previousPayments),
+          if (payroll.attendanceAdjustment != 0)
+            _MoneyLine(label: 'خالص قانون حضور و غیاب', amount: payroll.attendanceAdjustment),
           const Divider(height: 20),
           _MoneyLine(label: payroll.payable < 0 ? 'بدهی پرسنل' : 'مانده قابل پرداخت',
             amount: payroll.payable.abs(), highlight: true),
