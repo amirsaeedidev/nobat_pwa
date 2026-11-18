@@ -124,7 +124,7 @@ class _PerformancePainter extends CustomPainter {
     final points = <Offset>[];
     for (var i = 0; i < data.length; i++) {
       final item = data[i];
-      final cx = leftInset + columnWidth * i + columnWidth / 2;
+      final cx = size.width - (leftInset + columnWidth * i + columnWidth / 2);
       final ratio = maxRevenue == 0 ? 0.0 : (item.revenue.toDouble() / maxRevenue).clamp(0.0, 1.0);
       final y = chartBottom - chartHeight * (0.18 + 0.68 * ratio);
       points.add(Offset(cx, y));
@@ -179,7 +179,7 @@ class _PerformancePainter extends CustomPainter {
 
     // نام روزها
     for (var i = 0; i < data.length; i++) {
-      final cx = leftInset + columnWidth * i + columnWidth / 2;
+      final cx = size.width - (leftInset + columnWidth * i + columnWidth / 2);
       _paintText(
         canvas,
         _shortLabel(data[i].label),
