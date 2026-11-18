@@ -252,9 +252,35 @@ class MockDashboardRepository implements DashboardRepository {
     final serviceTotals = <String, num>{};
     final serviceCounts = <String, int>{};
     for (final appointment in completed) {
-      final name = appointment.serviceName.trim().isEmpty ? 'خدمت ثبت‌نشده' : appointment.serviceName;
-      serviceTotals[name] = (serviceTotals[name] ?? 0) + appointment.price;
-      serviceCounts[name] = (serviceCounts[name] ?? 0) + 1;
+      if (appointment.serviceIds.isEmpty) {
+        final name = appointment.serviceName.trim().isEmpty ? 'خدمت ثبت‌نشده' : appointment.serviceName;
+        serviceTotals[name] = (serviceTotals[name] ?? 0) + appointment.price;
+        serviceCounts[name] = (serviceCounts[name] ?? 0) + 1;
+        continue;
+      }
+
+      final parts = <({String name, num weight})>[];
+      for (final serviceId in appointment.serviceIds) {
+        final snapshots = appointment.serviceSnapshots.where((item) => item['service_id'] == serviceId).toList();
+        final snapshot = snapshots.isEmpty ? null : snapshots.first;
+        final savedPrice = snapshot?['price'] as num?;
+        final serviceMatches = _db.services.where((item) => item.id == serviceId).toList();
+        final serviceName = serviceMatches.isEmpty
+            ? (snapshot?['service_name'] as String? ?? serviceId)
+            : serviceMatches.first.name;
+        parts.add((name: serviceName, weight: savedPrice ?? 1));
+      }
+      final weightTotal = parts.fold<num>(0, (sum, item) => sum + item.weight);
+      var allocated = 0.0;
+      for (var index = 0; index < parts.length; index++) {
+        final part = parts[index];
+        final amount = index == parts.length - 1
+            ? appointment.price - allocated
+            : (weightTotal == 0 ? appointment.price / parts.length : appointment.price * part.weight / weightTotal);
+        allocated += amount;
+        serviceTotals[part.name] = (serviceTotals[part.name] ?? 0) + amount;
+        serviceCounts[part.name] = (serviceCounts[part.name] ?? 0) + 1;
+      }
     }
     final serviceMetrics = serviceTotals.entries.map((entry) => ReportServiceMetric(
       name: entry.key, revenue: entry.value, count: serviceCounts[entry.key] ?? 0,
