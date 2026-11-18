@@ -6,6 +6,7 @@ import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/report_analytics.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
 import 'package:datetime/features/reports/utils/report_phase_five.dart';
+import 'package:datetime/features/reports/utils/report_executive_pdf_export.dart';
 import 'package:datetime/features/reports/utils/saved_report_store.dart';
 
 ReportAnalytics sample({
@@ -54,6 +55,15 @@ void main() {
       );
       expect(alerts.where((item) => item.id == 'revenue-drop'), isEmpty);
     });
+
+    test('generates a valid offline PDF document', () async {
+      final bytes = await ReportExecutivePdfExport.buildBytes(
+        analytics: sample(), comparison: sample(revenue: 800),
+        title: 'گزارش مدیریتی', columns: const ['درآمد', 'هزینه', 'سود خالص'],
+      );
+      expect(bytes.take(4).toList(), [37, 80, 68, 70]);
+      expect(bytes.length, greaterThan(500));
+    });
   });
 
   group('Saved report persistence', () {
@@ -89,6 +99,7 @@ void main() {
   test('staff without income permission cannot retrieve management reports', () async {
     final db = AppDatabase();
     db.switchMockAccount('demo-staff');
+    expect(db.canOpenRoute('/reports'), isFalse);
     final range = ReportDateRange.custom(
       JalaliDate.fromDateTime(DateTime(2000, 1, 1)),
       JalaliDate.fromDateTime(DateTime(2100, 1, 1)),
