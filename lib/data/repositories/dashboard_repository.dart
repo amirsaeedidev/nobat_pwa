@@ -408,7 +408,14 @@ class MockDashboardRepository implements DashboardRepository {
       for (var i = 1; i < lifetimeVisits.length; i++) {
         totalGapDays += lifetimeVisits[i].startAt.difference(lifetimeVisits[i - 1].startAt).inDays.abs();
       }
-      final totalSpent = lifetimeVisits.fold<num>(0, (sum, item) => sum + item.price);
+      final lifetimeAppointmentIds = lifetimeVisits.map((item) => item.id).toSet();
+      final customerIncomeEntries = _db.employeeFinanceEntries.where((entry) =>
+        lifetimeAppointmentIds.contains(entry.appointmentId) &&
+        (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
+        (canViewAll || employeeId == entry.employeeId)).toList();
+      final totalSpent = customerIncomeEntries.isEmpty
+        ? lifetimeVisits.fold<num>(0, (sum, item) => sum + item.price)
+        : customerIncomeEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
       final isNew = firstVisit != null
         ? range.contains(firstVisit)
         : customer.createdAt != null && range.contains(customer.createdAt!);
