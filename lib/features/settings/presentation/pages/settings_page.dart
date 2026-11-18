@@ -74,10 +74,12 @@ class SettingsPage extends StatelessWidget {
                         children: [
                           Icon(Icons.verified_rounded, size: 12, color: pal.success),
                           const SizedBox(width: 4),
-                          Text(
+                          Expanded(child: Text(
                             'پنل پیامک: ${settings.smsProvider.status.label}',
                             style: TextStyle(fontSize: 10, color: pal.success),
-                          ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          )),
                         ],
                       ),
                     ],
