@@ -104,16 +104,17 @@ class RevenueBarChart extends StatelessWidget {
 
 /// نمودار خطی روند درآمد.
 class RevenueLineChart extends StatelessWidget {
-  const RevenueLineChart({super.key, required this.data, this.height = 180});
+  const RevenueLineChart({super.key, required this.data, this.height = 180, this.showSecondary = false});
 
   final List<RevenuePoint> data;
   final double height;
+  final bool showSecondary;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
     if (data.isEmpty) return SizedBox(height: height);
-    final maxValue = data.map((d) => d.value.toDouble()).reduce((a, b) => a > b ? a : b);
+    final maxValue = data.map((d) => showSecondary && d.secondary > d.value ? d.secondary.toDouble() : d.value.toDouble()).reduce((a, b) => a > b ? a : b);
     final maxY = maxValue == 0 ? 1000.0 : maxValue * 1.3;
 
     return SizedBox(
@@ -196,6 +197,16 @@ class RevenueLineChart extends StatelessWidget {
                 ),
               ),
             ),
+            if (showSecondary)
+              LineChartBarData(
+                spots: [for (var i = 0; i < data.length; i++) FlSpot(i.toDouble(), data[i].secondary.toDouble())],
+                isCurved: true,
+                curveSmoothness: 0.28,
+                barWidth: 2.2,
+                color: pal.warning,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
+              ),
           ],
         ),
       ),

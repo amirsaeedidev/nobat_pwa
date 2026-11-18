@@ -1,26 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
-import '../../../../core/utils/jalali.dart';
+import '../../../../data/models/appointment.dart';
 import '../../../../data/models/dashboard_stats.dart';
+import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/enums.dart';
+import '../../../../data/models/report_analytics.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
 
-/// گزارش درآمد، عملکرد پرسنل و ترکیب خدمات.
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
+
+  Future<void> _selectCustomRange(BuildContext context, ReportsProvider provider) async {
+    final from = await showJalaliDatePicker(context, initial: provider.range.jalaliStart, title: 'تاریخ شروع گزارش');
+    if (from == null || !context.mounted) return;
+    final to = await showJalaliDatePicker(context, initial: provider.range.jalaliEnd, minDate: from, title: 'تاریخ پایان گزارش');
+    if (to == null || !context.mounted) return;
+    await provider.setCustomRange(from, to);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,324 +41,272 @@ class ReportsPage extends StatelessWidget {
     final db = context.watch<AppDatabase>();
     final dayIso = GoRouterState.of(context).uri.queryParameters['date'];
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
-    final dayAppointments = selectedDay == null ? const [] : db.appointments.where((a) => a.jalali.sameDay(selectedDay)).toList();
-    final dayCompleted = dayAppointments.where((a) => a.status == AppointmentStatus.completed);
-    final dayRevenue = dayCompleted.fold<num>(0, (sum, a) => sum + a.price);
+    final canViewAll = db.hasPermission('appointments.view_all');
+    final visibleAppointments = db.appointments.where((item) =>
+      canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId));
+    final dayAppointments = selectedDay == null ? const <Appointment>[] :
+      visibleAppointments.where((item) => item.jalali.sameDay(selectedDay)).toList();
+    final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
+    final dayRevenue = dayCompleted.fold<num>(0, (sum, item) => sum + item.price);
 
     return PageScaffold(
       title: 'گزارش‌ها و تحلیل',
-      subtitle: 'عملکرد مالی و آماری مجموعه',
+      subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
       icon: Icons.insights_rounded,
       actions: [
         SoftButton(label: 'تحلیل پرسنل', icon: Icons.groups_2_rounded, onTap: () => context.push('/reports/personnel')),
-        PillToggle(
-          options: const ['۳ ماه', '۶ ماه', '۱۲ ماه'],
-          selectedIndex: switch (provider.months) {
-            3 => 0,
-            6 => 1,
-            _ => 2,
-          },
-          dense: true,
-          onChanged: (i) => provider.setMonths([3, 6, 12][i]),
-        ),
       ],
       child: provider.loading
           ? const LoadingState()
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (selectedDay != null) ...[
-                  AppCard(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      SectionHeader(title: 'گزارش روز ' + selectedDay.long, subtitle: 'جزئیات همان روز انتخاب‌شده از نمودار'),
+          : provider.error != null
+              ? AppCard(child: EmptyState(
+                  title: 'دسترسی یا دریافت گزارش ممکن نیست',
+                  description: 'برای مشاهده گزارش مدیریتی، مجوز مشاهده درآمد و نوبت‌ها لازم است.\n${provider.error}',
+                ))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (selectedDay != null) ...[
+                      AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        SectionHeader(title: 'گزارش روز ${selectedDay.long}', subtitle: 'جزئیات همان روز انتخاب‌شده از نمودار'),
+                        const SizedBox(height: 10),
+                        Wrap(spacing: 8, runSpacing: 8, children: [
+                          _MetricCard(label: 'کل نوبت‌ها', value: dayAppointments.length, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
+                          _MetricCard(label: 'تکمیل‌شده', value: dayCompleted.length, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
+                          _MetricCard(label: 'درآمد روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                        ]),
+                        const SizedBox(height: 8),
+                        if (dayAppointments.isEmpty)
+                          const EmptyState(title: 'برای این روز نوبتی ثبت نشده', compact: true)
+                        else
+                          for (final item in dayAppointments)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(item.status.icon, color: item.status.color),
+                              title: Text(item.customerName),
+                              subtitle: Text('${item.serviceName} · ${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}'),
+                              trailing: StatusBadge.appointment(item.status, dense: true),
+                            ),
+                      ])),
+                      const SizedBox(height: 12),
+                    ],
+                    AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      const SectionHeader(title: 'بازه گزارش', subtitle: 'تمام کارت‌ها، نمودارها و فهرست‌ها با این بازه به‌روزرسانی می‌شوند'),
                       const SizedBox(height: 10),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        _MetricCard(label: 'کل نوبت‌ها', value: FaNum.ofInt(dayAppointments.length), icon: Icons.event_note_rounded, color: pal.primaryBright),
-                        _MetricCard(label: 'تکمیل‌شده', value: FaNum.ofInt(dayCompleted.length), icon: Icons.task_alt_rounded, color: pal.success),
-                        _MetricCard(label: 'درآمد روز', value: Fmt.compactMoney(dayRevenue), icon: Icons.payments_rounded, color: pal.success),
+                      Wrap(spacing: 7, runSpacing: 7, children: [
+                        for (final period in ReportPeriod.values.where((item) => item != ReportPeriod.custom))
+                          ChoiceChip(
+                            label: Text(period.label),
+                            selected: provider.period == period,
+                            onSelected: (_) => provider.setPeriod(period),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ActionChip(
+                          avatar: const HugeIcon(icon: HugeIcons.strokeRoundedCalendar03, size: 16),
+                          label: Text(provider.period == ReportPeriod.custom ? provider.range.label : 'انتخاب بازه دلخواه'),
+                          onPressed: () => _selectCustomRange(context, provider),
+                        ),
                       ]),
                       const SizedBox(height: 8),
-                      if (dayAppointments.isEmpty)
-                        const EmptyState(title: 'برای این روز نوبتی ثبت نشده', compact: true)
-                      else
-                        for (final appointment in dayAppointments)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(appointment.status.icon, color: appointment.status.color),
-                            title: Text(appointment.customerName),
-                            subtitle: Text(appointment.serviceName + ' · ' + appointment.startAt.hour.toString().padLeft(2, '0') + ':' + appointment.startAt.minute.toString().padLeft(2, '0')),
-                            trailing: StatusBadge.appointment(appointment.status, dense: true),
-                          ),
+                      Text('از ${provider.range.jalaliStart.long} تا ${provider.range.jalaliEnd.long}', style: TextStyle(fontSize: 11, color: pal.textMuted)),
+                    ])),
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 10, runSpacing: 10, children: [
+                      _MetricCard(label: 'درآمد کل', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                      _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
+                      _MetricCard(label: 'سود خالص تخمینی', value: provider.netProfit, money: true, icon: HugeIcons.strokeRoundedChartLineData01, color: provider.netProfit >= 0 ? pal.success : pal.danger),
+                      _MetricCard(label: 'تعداد نوبت', value: provider.totalAppointments, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
+                      _MetricCard(label: 'مشتری یکتا', value: provider.totalCustomers, icon: HugeIcons.strokeRoundedUser, color: pal.purple),
+                      _MetricCard(label: 'نوبت تکمیل‌شده', value: provider.completedAppointments, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
                     ]),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _MetricCard(
-                      label: 'درآمد بازه',
-                      value: Fmt.compactMoney(provider.totalRevenue),
-                      icon: Icons.payments_rounded,
-                      color: pal.success,
-                    ),
-                    _MetricCard(
-                      label: 'میانگین ماهانه',
-                      value: Fmt.compactMoney(provider.averageRevenue),
-                      icon: Icons.show_chart_rounded,
-                      color: pal.primaryBright,
-                    ),
-                    _MetricCard(
-                      label: 'بهترین ماه',
-                      value: Fmt.compactMoney(provider.bestMonth),
-                      icon: Icons.emoji_events_rounded,
-                      color: pal.warning,
-                    ),
-                    _MetricCard(
-                      label: 'کل نوبت‌ها',
-                      value: FaNum.ofInt(provider.totalAppointments),
-                      icon: Icons.event_note_rounded,
-                      color: pal.purple,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SectionHeader(title: 'درآمد ماهانه', subtitle: '${FaNum.ofInt(provider.months)} ماه اخیر'),
-                      const SizedBox(height: 14),
-                      RevenueBarChart(data: provider.revenueSeries, height: 190),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionHeader(title: 'روند رشد درآمد'),
-                      const SizedBox(height: 14),
-                      RevenueLineChart(data: provider.revenueSeries, height: 180),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 900;
-                    final statusCard = AppCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SectionHeader(title: 'توزیع وضعیت نوبت‌ها'),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              StatusDonut(counts: provider.statusCounts, size: 130),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    for (final status in AppointmentStatus.values)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 3),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 7,
-                                              height: 7,
-                                              decoration: BoxDecoration(color: status.color, shape: BoxShape.circle),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                status.label,
-                                                style: TextStyle(fontSize: 10.5, color: pal.textSecondary),
-                                              ),
-                                            ),
-                                            Text(
-                                              FaNum.ofInt(provider.statusCounts[status.label] ?? 0),
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: pal.textPrimary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-
-                    final employeeCard = AppCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SectionHeader(title: 'درآمد به تفکیک پرسنل'),
-                          const SizedBox(height: 12),
-                          _RankedList(
-                            items: provider.employeeRevenue.entries
-                                .map((e) => RevenuePoint(label: e.key, value: e.value))
-                                .toList()
-                              ..sort((a, b) => b.value.compareTo(a.value)),
-                            color: pal.primaryBright,
-                          ),
-                        ],
-                      ),
-                    );
-
-                    final serviceCard = AppCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SectionHeader(title: 'پرفروش‌ترین خدمات'),
-                          const SizedBox(height: 12),
-                          _RankedList(items: provider.serviceRevenue, color: pal.success),
-                        ],
-                      ),
-                    );
-
-                    if (!wide) {
-                      return Column(
-                        children: [
-                          statusCard,
-                          const SizedBox(height: 12),
-                          employeeCard,
-                          const SizedBox(height: 12),
-                          serviceCard,
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                    const SizedBox(height: 8),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(provider.analytics.costNote, style: TextStyle(fontSize: 10, color: pal.textMuted))),
+                    const SizedBox(height: 12),
+                    AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const SectionHeader(title: 'روند درآمد و هزینه', subtitle: 'میله‌ها درآمد و خطوط، درآمد و هزینه ثبت‌شده را نشان می‌دهند'),
+                      const SizedBox(height: 8),
+                      const _ChartLegend(),
+                      const SizedBox(height: 10),
+                      RevenueBarChart(data: provider.revenueSeries, height: 180),
+                      const SizedBox(height: 12),
+                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true),
+                    ])),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 900;
+                      final statusCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const SectionHeader(title: 'توزیع وضعیت نوبت‌ها'),
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          StatusDonut(counts: provider.statusCounts, size: 126),
+                          const SizedBox(width: 10),
+                          Expanded(child: Column(children: [
+                            for (final status in AppointmentStatus.values)
+                              Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [
+                                Container(width: 7, height: 7, decoration: BoxDecoration(color: status.color, shape: BoxShape.circle)),
+                                const SizedBox(width: 6),
+                                Expanded(child: Text(status.label, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
+                                Text(FaNum.ofInt(provider.statusCounts[status.label] ?? 0), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+                              ])),
+                          ])),
+                        ]),
+                      ]));
+                      final employeeCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const SectionHeader(title: 'عملکرد پرسنل', subtitle: 'درآمد خدمات و کمیسیون ثبت‌شده'),
+                        const SizedBox(height: 12),
+                        _RankedList(items: [
+                          for (final item in provider.analytics.employees) RevenuePoint(label: item.name, value: item.revenue),
+                        ], color: pal.primaryBright),
+                      ]));
+                      final serviceCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const SectionHeader(title: 'خدمات پرفروش'),
+                        const SizedBox(height: 12),
+                        _RankedList(items: provider.serviceRevenue, color: pal.success),
+                      ]));
+                      if (!wide) return Column(children: [statusCard, const SizedBox(height: 12), employeeCard, const SizedBox(height: 12), serviceCard]);
+                      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Expanded(flex: 4, child: statusCard),
                         const SizedBox(width: 12),
-                        Expanded(
-                          flex: 5,
-                          child: Column(children: [employeeCard, const SizedBox(height: 12), serviceCard]),
-                        ),
-                      ],
-                    );
-                  },
+                        Expanded(flex: 5, child: Column(children: [employeeCard, const SizedBox(height: 12), serviceCard])),
+                      ]);
+                    }),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(builder: (context, constraints) {
+                      final appointmentsCard = _RecentAppointments(items: provider.analytics.recentAppointments);
+                      final transactionsCard = _RecentTransactions(items: provider.analytics.recentTransactions);
+                      if (constraints.maxWidth < 900) return Column(children: [appointmentsCard, const SizedBox(height: 12), transactionsCard]);
+                      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(child: appointmentsCard), const SizedBox(width: 12), Expanded(child: transactionsCard),
+                      ]);
+                    }),
+                  ],
                 ),
-              ],
-            ),
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value, required this.icon, required this.color});
+class _ChartLegend extends StatelessWidget {
+  const _ChartLegend();
+  @override
+  Widget build(BuildContext context) => Wrap(spacing: 16, runSpacing: 6, children: [
+    _LegendItem(color: context.pal.primaryBright, label: 'درآمد'),
+    _LegendItem(color: context.pal.warning, label: 'هزینه'),
+  ]);
+}
 
-  final String label;
-  final String value;
-  final IconData icon;
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({required this.color, required this.label});
   final Color color;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+    const SizedBox(width: 5),
+    Text(label, style: TextStyle(fontSize: 10, color: context.pal.textSecondary)),
+  ]);
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.label, required this.value, required this.icon, required this.color, this.money = false});
+  final String label;
+  final num value;
+  final List<List<dynamic>> icon;
+  final Color color;
+  final bool money;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
     return Container(
-      width: 170,
+      width: 164,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: pal.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: pal.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconTile(icon: icon, color: color, size: 30, radius: 9),
-          const SizedBox(height: 10),
-          Text(
-            value,
+      decoration: BoxDecoration(color: pal.surface, borderRadius: BorderRadius.circular(AppRadius.lg), border: Border.all(color: pal.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        HugeIcon(icon: icon, color: color, size: 25),
+        const SizedBox(height: 10),
+        TweenAnimationBuilder<double>(
+          key: ValueKey('$label-$value'),
+          tween: Tween(begin: 0, end: value.toDouble()),
+          duration: const Duration(milliseconds: 650),
+          curve: Curves.easeOutCubic,
+          builder: (context, current, _) => Text(
+            money ? Fmt.compactMoney(current.round()) : FaNum.ofInt(current.round()),
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 1, overflow: TextOverflow.ellipsis,
           ),
-          Text(label, style: TextStyle(fontSize: 10, color: pal.textMuted)),
-        ],
-      ),
+        ),
+        Text(label, style: TextStyle(fontSize: 10, color: pal.textMuted)),
+      ]),
     );
   }
 }
 
 class _RankedList extends StatelessWidget {
   const _RankedList({required this.items, required this.color});
-
   final List<RevenuePoint> items;
   final Color color;
-
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    if (items.isEmpty) {
-      return const EmptyState(compact: true, title: 'داده‌ای موجود نیست', description: '');
-    }
-    final max = items.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    return Column(
-      children: [
-        for (var i = 0; i < items.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 18,
-                      height: 18,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        FaNum.ofInt(i + 1),
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        items[i].label,
-                        style: TextStyle(fontSize: 11.5, color: pal.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      Fmt.compactMoney(items[i].value),
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: pal.textPrimary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: max == 0 ? 0 : items[i].value / max,
-                    minHeight: 5,
-                    backgroundColor: pal.surfaceAlt,
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
+    if (items.isEmpty) return const EmptyState(compact: true, title: 'داده‌ای موجود نیست', description: '');
+    final maxValue = items.map((item) => item.value).reduce((a, b) => a > b ? a : b);
+    return Column(children: [
+      for (var i = 0; i < items.length; i++)
+        Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 18, height: 18, alignment: Alignment.center, decoration: BoxDecoration(color: color.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(6)),
+              child: Text(FaNum.ofInt(i + 1), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color))),
+            const SizedBox(width: 6),
+            Expanded(child: Text(items[i].label, style: TextStyle(fontSize: 11.5, color: pal.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Text(Fmt.compactMoney(items[i].value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: pal.textPrimary)),
+          ]),
+          const SizedBox(height: 5),
+          ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(
+            value: maxValue == 0 ? 0 : items[i].value / maxValue,
+            minHeight: 5, backgroundColor: pal.surfaceAlt, valueColor: AlwaysStoppedAnimation(color),
+          )),
+        ])),
+    ]);
+  }
+}
+
+class _RecentAppointments extends StatelessWidget {
+  const _RecentAppointments({required this.items});
+  final List<Appointment> items;
+  @override
+  Widget build(BuildContext context) => AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const SectionHeader(title: 'آخرین نوبت‌های بازه'),
+    const SizedBox(height: 8),
+    if (items.isEmpty) const EmptyState(compact: true, title: 'نوبتی در این بازه ثبت نشده')
+    else for (final item in items)
+      ListTile(
+        dense: true, contentPadding: EdgeInsets.zero,
+        leading: Icon(item.status.icon, color: item.status.color, size: 19),
+        title: Text(item.customerName, style: const TextStyle(fontSize: 12)),
+        subtitle: Text('${item.serviceName} · ${JalaliDate.fromDateTime(item.startAt).short}', style: const TextStyle(fontSize: 10)),
+        trailing: StatusBadge.appointment(item.status, dense: true),
+      ),
+  ]));
+}
+
+class _RecentTransactions extends StatelessWidget {
+  const _RecentTransactions({required this.items});
+  final List<EmployeeWalletTransaction> items;
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SectionHeader(title: 'آخرین تراکنش‌های حقوقی'),
+      const SizedBox(height: 8),
+      if (items.isEmpty) const EmptyState(compact: true, title: 'تراکنش قابل نمایشی وجود ندارد')
+      else for (final item in items)
+        ListTile(
+          dense: true, contentPadding: EdgeInsets.zero,
+          leading: HugeIcon(icon: HugeIcons.strokeRoundedWallet01, color: item.amount >= 0 ? pal.success : pal.danger, size: 20),
+          title: Text(item.description, style: const TextStyle(fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text('${item.type.label} · ${JalaliDate.fromDateTime(item.createdAt).short}', style: TextStyle(fontSize: 10, color: pal.textMuted)),
+          trailing: Text(Fmt.compactMoney(item.amount.abs()), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: item.amount >= 0 ? pal.success : pal.danger)),
+        ),
+    ]));
   }
 }
