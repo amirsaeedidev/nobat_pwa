@@ -126,12 +126,12 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
           const SizedBox(height: 12),
           Row(children: [const Expanded(child: SectionHeader(title: 'قوانین اختصاصی خدمات')), TextButton.icon(onPressed: () => _addRule(db), icon: const Icon(Icons.add), label: const Text('افزودن'))]),
           if (rules.isEmpty) const Text('در حال حاضر درصد عمومی برای همه خدمات اعمال می‌شود.', style: TextStyle(fontSize: 11)),
-          for (final rule in rules) ListTile(
+          for (final rule in rules) Material(color: Colors.transparent, child: ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(rule.serviceId == null ? 'دسته ' + (rule.category ?? '') : (db.serviceById(rule.serviceId!)?.title ?? 'خدمت'), style: const TextStyle(fontSize: 12)),
             subtitle: Text((rule.rateBps / 100).toStringAsFixed(2) + '٪  •  ' + Fmt.money(rule.fixedAmount)),
             trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => setState(() => rules.removeWhere((r) => r.id == rule.id))),
-          ),
+          )),
         ])),
         const SizedBox(height: 12),
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -150,13 +150,13 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SectionHeader(title: 'سوابق مالی این ماه'), const SizedBox(height: 8),
           if (filtered.isEmpty) const EmptyState(title: 'سند مالی ثبت نشده', description: 'با تکمیل نوبت، پورسانت به‌صورت خودکار ثبت می‌شود.'),
-          for (final entry in filtered) ListTile(
+          for (final entry in filtered) Material(color: Colors.transparent, child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(entry.type == FinanceEntryType.refund ? Icons.reply : Icons.receipt_long, color: entry.commissionAmount < 0 ? pal.danger : pal.success),
             title: Text('نوبت ' + entry.appointmentId, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
             subtitle: Text(entry.rateBps.toString() + ' bps • ' + Fmt.jalaliDate(entry.createdAt), style: const TextStyle(fontSize: 9)),
             trailing: Text(Fmt.money(entry.commissionAmount), style: TextStyle(fontSize: 10, color: entry.commissionAmount < 0 ? pal.danger : pal.success)),
-          ),
+          )),
         ])),
       ]),
     );
