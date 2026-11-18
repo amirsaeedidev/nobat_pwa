@@ -198,21 +198,21 @@ class AppDatabase extends ChangeNotifier {
       final already = _employeeFinanceEntries.where((item) =>
         item.type == FinanceEntryType.refund && item.reversesEntryId == entry.id)
         .fold<int>(0, (value, item) => value - item.receivedAmount);
-      return sum + (entry.receivedAmount - already).clamp(0, entry.receivedAmount);
+      return sum + (entry.receivedAmount - already).clamp(0, entry.receivedAmount).toInt();
     });
-    var left = amount.clamp(0, refundable);
+    var left = amount.clamp(0, refundable).toInt();
     var remainingWeight = refundable;
     for (var i = 0; i < originals.length && left > 0; i++) {
       final entry = originals[i];
       final already = _employeeFinanceEntries.where((item) =>
         item.type == FinanceEntryType.refund && item.reversesEntryId == entry.id)
         .fold<int>(0, (value, item) => value - item.receivedAmount);
-      final available = (entry.receivedAmount - already).clamp(0, entry.receivedAmount);
+      final available = (entry.receivedAmount - already).clamp(0, entry.receivedAmount).toInt();
       if (available == 0) continue;
       final share = i == originals.length - 1 || remainingWeight <= 0
           ? left
-          : (amount * available ~/ remainingWeight).clamp(0, available);
-      final allocation = share.clamp(0, available).clamp(0, left);
+          : (amount * available ~/ remainingWeight).clamp(0, available).toInt();
+      final allocation = share.clamp(0, available).clamp(0, left).toInt();
       if (allocation > 0) {
         recordCommissionRefund(entry.id, allocation);
         left -= allocation;
