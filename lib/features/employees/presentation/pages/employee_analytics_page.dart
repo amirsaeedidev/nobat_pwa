@@ -51,18 +51,6 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
     _RankingMetric.completion => report.completionRate,
     _RankingMetric.utilization => report.utilizationRate,
   };
-  _RankingMetric _rankingMetric = _RankingMetric.revenue;
-
-  num _rankingValue(EmployeeAnalytics report) => switch (_rankingMetric) {
-    _RankingMetric.revenue => report.netRevenue,
-    _RankingMetric.completed => report.completed,
-    _RankingMetric.customers => report.uniqueCustomers,
-    _RankingMetric.commission => report.commission,
-    _RankingMetric.attendance => report.actualWorkedMinutes,
-    _RankingMetric.completion => report.completionRate,
-    _RankingMetric.utilization => report.utilizationRate,
-  };
-
   @override
   void initState() {
     super.initState();
