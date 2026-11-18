@@ -370,7 +370,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
                     leading: const Icon(Icons.receipt_long, size: 18),
                     title: Text('${_money(settlement.paidAmount)} پرداخت‌شده', style: const TextStyle(fontSize: 11)),
                     subtitle: Text('${_money(settlement.dueAmount)} مبلغ دوره • باقی‌مانده ${_money(settlement.remainingAfter)}', style: const TextStyle(fontSize: 9)),
-                    trailing: Text(settlement.status.label, style: const TextStyle(fontSize: 9)),
+                    trailing: Text(settlement.status == EmployeeWalletSettlementStatus.completed ? 'تسویه کامل' : 'تسویه جزئی', style: const TextStyle(fontSize: 9)),
                   ),
             ])),
             const SizedBox(height: 12),
