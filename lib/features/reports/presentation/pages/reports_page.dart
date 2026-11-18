@@ -52,9 +52,9 @@ class ReportsPage extends StatelessWidget {
     return PageScaffold(
       title: 'گزارش‌ها و تحلیل',
       subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
-      icon: Icons.insights_rounded,
+      leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
-        SoftButton(label: 'تحلیل پرسنل', icon: Icons.groups_2_rounded, onTap: () => context.push('/reports/personnel')),
+        SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
       child: provider.loading
           ? const LoadingState()
@@ -281,7 +281,7 @@ class _RecentAppointments extends StatelessWidget {
     else for (final item in items)
       ListTile(
         dense: true, contentPadding: EdgeInsets.zero,
-        leading: Icon(item.status.icon, color: item.status.color, size: 19),
+        leading: HugeIcon(icon: HugeIcons.strokeRoundedAppointment01, color: item.status.color, size: 19),
         title: Text(item.customerName, style: const TextStyle(fontSize: 12)),
         subtitle: Text('${item.serviceName} · ${JalaliDate.fromDateTime(item.startAt).short}', style: const TextStyle(fontSize: 10)),
         trailing: StatusBadge.appointment(item.status, dense: true),
