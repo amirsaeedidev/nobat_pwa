@@ -89,6 +89,7 @@ void main() {
       await store.addHistory(ReportHistorySnapshot(
         id: 'history-1', title: 'نسخه اول', range: 'آبان',
         createdAt: now, revenue: 500, cost: 200, appointments: 7,
+        accountId: 'demo-admin', includesSalary: true, includesCommission: true,
       ));
       expect((await store.loadHistory()).single.profit, 300);
       await store.deleteView('view-1');
