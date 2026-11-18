@@ -317,7 +317,7 @@ class AppSidebar extends StatelessWidget {
                               TextSpan(
                                 text: 'Date',
                                 style: TextStyle(
-                                  fontFamily: 'Vazirmatn',
+                                  fontFamily: 'Lalezar',
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
                                   color: pal.textPrimary,
@@ -525,12 +525,16 @@ class _BookingLinkCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'datetime.app/book',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               textDirection: TextDirection.ltr,
               style: TextStyle(fontSize: 10, color: pal.textMuted),
             ),
             const SizedBox(height: 6),
             Text(
               'مشاهده صفحه مشتری',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 10, color: pal.primaryBright, fontWeight: FontWeight.w600),
             ),
           ],
