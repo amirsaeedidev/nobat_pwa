@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_tokens.dart';
 import '../../../../app/theme/app_palette.dart';
@@ -20,6 +21,11 @@ class OperationalReportsSections extends StatelessWidget {
 
   final ReportAnalytics analytics;
   final ReportsProvider provider;
+
+  void _openDay(BuildContext context, ReportTrendPoint point) {
+    final date = JalaliDate.fromDateTime(point.start);
+    context.go('/reports?date=${date.iso}');
+  }
 
   Future<void> _export(
     BuildContext context, {
@@ -158,6 +164,7 @@ class OperationalReportsSections extends StatelessWidget {
                 SizedBox(height: 130, child: RevenueBarChart(
                   data: [for (final point in item.trend) RevenuePoint(label: point.label, value: point.revenue)],
                   height: 130,
+                  onPointTap: (index) => _openDay(context, item.trend[index]),
                 )),
             ],
           )),
@@ -185,6 +192,7 @@ class OperationalReportsSections extends StatelessWidget {
             data: [for (final item in analytics.newCustomerTrend)
               RevenuePoint(label: item.label, value: item.appointments)],
             height: 140,
+            onPointTap: (index) => _openDay(context, analytics.newCustomerTrend[index]),
           )),
         ],
         const SizedBox(height: 8),
