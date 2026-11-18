@@ -125,15 +125,61 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         'تکمیل‌شده': a.completedAppointments, 'مشتری یکتا': a.uniqueCustomers,
         'نرخ بازگشت': a.repeatCustomerRate.toStringAsFixed(1) + '٪',
       };
-      final values = [for (final key in columns) all[key] ?? ''];
+      final headers = ['بخش', 'عنوان', ...columns];
+      final rows = <List<Object?>>[
+        ['شاخص', 'خلاصه', for (final key in columns) all[key] ?? ''],
+      ];
+      for (final item in a.services) {
+        rows.add([
+          'خدمت', item.name,
+          for (final key in columns)
+            switch (key) {
+              'درآمد' => item.revenue.round(),
+              'هزینه' => item.directCost?.round() ?? 'ثبت نشده',
+              'سود خالص' => item.profit?.round() ?? 'نامشخص',
+              'نوبت' || 'تکمیل‌شده' => item.count,
+              _ => '—',
+            },
+        ]);
+      }
+      for (final item in a.employees) {
+        final appointments = a.operationalAppointments.where((entry) =>
+          entry.employeeId == item.employeeId && entry.status == AppointmentStatus.completed).toList();
+        rows.add([
+          'پرسنل', item.name,
+          for (final key in columns)
+            switch (key) {
+              'درآمد' => item.revenue.round(),
+              'هزینه' => item.commission.round(),
+              'سود خالص' => (item.revenue - item.commission).round(),
+              'نوبت' || 'تکمیل‌شده' => appointments.length,
+              'مشتری یکتا' => appointments.map((entry) => entry.customerId).toSet().length,
+              _ => '—',
+            },
+        ]);
+      }
+      for (final item in a.customerMetrics) {
+        rows.add([
+          'مشتری', item.name,
+          for (final key in columns)
+            switch (key) {
+              'درآمد' => item.totalSpent.round(),
+              'نوبت' => item.lifetimeVisits,
+              'تکمیل‌شده' => item.visits,
+              'مشتری یکتا' => 1,
+              'نرخ بازگشت' => item.repeatVisits,
+              _ => '—',
+            },
+        ]);
+      }
       if (type == 'pdf') {
         await ReportExecutivePdfExport.save(
           analytics: a, comparison: comparison, title: 'گزارش مدیریتی DateTime', columns: columns,
         );
       } else if (type == 'excel') {
-        await ReportTableExport.saveExcel(name: 'گزارش-مدیریتی', headers: columns, rows: [values]);
+        await ReportTableExport.saveExcel(name: 'گزارش-مدیریتی', headers: headers, rows: rows);
       } else {
-        await ReportTableExport.saveCsv(name: 'گزارش-مدیریتی', headers: columns, rows: [values]);
+        await ReportTableExport.saveCsv(name: 'گزارش-مدیریتی', headers: headers, rows: rows);
       }
       if (mounted) AppToast.show(context, 'فایل گزارش آماده شد.');
     } catch (error) {
