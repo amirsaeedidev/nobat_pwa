@@ -295,3 +295,25 @@ class StatusDonut extends StatelessWidget {
     );
   }
 }
+
+
+/// ورود نرم نمودار از پایین به بالا در صفحه گزارشات.
+class ReportChartEntrance extends StatelessWidget {
+  const ReportChartEntrance({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0, end: 1),
+    duration: const Duration(milliseconds: 520),
+    curve: Curves.easeOutCubic,
+    child: child,
+    builder: (context, value, child) => Opacity(
+      opacity: value,
+      child: Transform.translate(
+        offset: Offset(0, (1 - value) * 18),
+        child: child,
+      ),
+    ),
+  );
+}
