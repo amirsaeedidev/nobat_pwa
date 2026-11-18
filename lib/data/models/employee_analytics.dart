@@ -1,6 +1,8 @@
 import '../models/employee.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_schedule.dart';
+import '../models/employee_hr.dart';
+import '../models/employee_wallet.dart';
 import '../models/enums.dart';
 import '../mock/app_database.dart';
 
@@ -26,21 +28,38 @@ class AnalyticsPoint {
 }
 
 class ServiceAnalytics {
-  const ServiceAnalytics({required this.serviceId, required this.name, required this.bookings, required this.revenue});
+  const ServiceAnalytics({required this.serviceId, required this.name, required this.bookings, required this.revenue, this.commission = 0});
   final String serviceId;
   final String name;
   final int bookings;
   final int revenue;
+  final int commission;
 }
 
 class EmployeeAnalytics {
-  const EmployeeAnalytics({required this.totalAppointments, required this.completed, required this.cancelled, required this.noShow, required this.grossRevenue, required this.netRevenue, required this.commission, required this.companyShare, required this.averageTicket, required this.uniqueCustomers, required this.workingMinutes, required this.bookedMinutes, required this.dailyRevenue, required this.monthlyRevenue, required this.dailyAppointments, required this.dailyCommission, required this.services, required this.previousRevenue, required this.previousCompleted});
+  const EmployeeAnalytics({required this.totalAppointments, required this.completed, required this.cancelled, required this.noShow, required this.grossRevenue, required this.netRevenue, required this.commission, required this.companyShare, required this.averageTicket, required this.uniqueCustomers, required this.workingMinutes, required this.bookedMinutes, required this.dailyRevenue, required this.monthlyRevenue, required this.dailyAppointments, required this.dailyCommission, required this.services, required this.previousRevenue, required this.previousCompleted,
+    this.actualWorkedMinutes = 0, this.attendanceDays = 0, this.absentDays = 0,
+    this.lateMinutes = 0, this.overtimeMinutes = 0, this.leaveCount = 0,
+    this.fixedSalary = 0, this.bonusAmount = 0, this.deductionAmount = 0,
+    this.advanceAmount = 0, this.salaryPaid = 0, this.salaryBalance = 0,
+    this.attendanceDataAvailable = false, this.salaryDataAvailable = false,
+    this.attendanceRecords = const [], this.leaves = const [], this.busyHours = const [],
+    this.customerSatisfactionScore,
+  });
   final int totalAppointments, completed, cancelled, noShow;
   final int grossRevenue, netRevenue, commission, companyShare, averageTicket, uniqueCustomers;
   final int workingMinutes, bookedMinutes;
   final List<AnalyticsPoint> dailyRevenue, monthlyRevenue, dailyAppointments, dailyCommission;
   final List<ServiceAnalytics> services;
   final int previousRevenue, previousCompleted;
+  final int actualWorkedMinutes, attendanceDays, absentDays, lateMinutes, overtimeMinutes, leaveCount;
+  final int fixedSalary, bonusAmount, deductionAmount, advanceAmount, salaryPaid, salaryBalance;
+  final bool attendanceDataAvailable, salaryDataAvailable;
+  final List<AttendanceRecord> attendanceRecords;
+  final List<EmployeeLeave> leaves;
+  final List<AnalyticsPoint> busyHours;
+  /// null یعنی هنوز امتیاز رضایت مشتری در داده‌ها ثبت نشده است.
+  final double? customerSatisfactionScore;
   double get completionRate => totalAppointments == 0 ? 0 : completed * 100 / totalAppointments;
   double get cancellationRate => totalAppointments == 0 ? 0 : cancelled * 100 / totalAppointments;
   double get utilizationRate => workingMinutes == 0 ? 0 : (bookedMinutes * 100 / workingMinutes).clamp(0, 100).toDouble();
@@ -91,7 +110,7 @@ class EmployeeAnalyticsCalculator {
           final service = _firstOrNull(db.services.where((s) => s.id == e.serviceId));
           final key = e.serviceId.isEmpty ? a.serviceName : e.serviceId;
           final old = serviceMap[key];
-          serviceMap[key] = ServiceAnalytics(serviceId: key, name: service?.title ?? a.serviceName, bookings: (old?.bookings ?? 0) + 1, revenue: (old?.revenue ?? 0) + e.receivedAmount);
+          serviceMap[key] = ServiceAnalytics(serviceId: key, name: service?.title ?? a.serviceName, bookings: (old?.bookings ?? 0) + 1, revenue: (old?.revenue ?? 0) + e.receivedAmount, commission: (old?.commission ?? 0) + e.commissionAmount);
         }
       } else {
         final ids = a.serviceIds.isEmpty ? <String>[''] : a.serviceIds;
@@ -100,7 +119,7 @@ class EmployeeAnalyticsCalculator {
           final service = _firstOrNull(db.services.where((s) => s.id == id));
           final key = id.isEmpty ? a.serviceName : id;
           final old = serviceMap[key];
-          serviceMap[key] = ServiceAnalytics(serviceId: key, name: service?.title ?? a.serviceName, bookings: (old?.bookings ?? 0) + 1, revenue: (old?.revenue ?? 0) + part);
+          serviceMap[key] = ServiceAnalytics(serviceId: key, name: service?.title ?? a.serviceName, bookings: (old?.bookings ?? 0) + 1, revenue: (old?.revenue ?? 0) + part, commission: old?.commission ?? 0);
         }
       }
     }
@@ -157,6 +176,57 @@ class EmployeeAnalyticsCalculator {
     }
     bookedMinutes = bookedMinutes.clamp(0, workingMinutes).toInt();
 
+    // حضور واقعی از رویدادهای ورود/خروج؛ نبود رکورد به معنی صفر ساعت حضور نیست.
+    final inclusiveEnd = filter.to.subtract(const Duration(microseconds: 1));
+    final attendanceRecords = db.attendanceFor(employee.id, from: filter.from, to: inclusiveEnd);
+    final attendance = db.attendanceSummary(employee.id, from: filter.from, to: inclusiveEnd);
+    final attendanceAvailable = attendanceRecords.isNotEmpty;
+    final leaves = db.leavesForEmployee(employee.id).where((leave) =>
+      leave.startAt.isBefore(filter.to) && leave.endAt.isAfter(filter.from)).toList();
+    final leaveCount = leaves.where((leave) => leave.status == EmployeeLeaveStatus.approved).length;
+
+    // اطلاعات مالی فقط در صورت مجوز؛ منبع واحد همان دفتر کیف پول پرسنل است.
+    final canViewSalary = db.hasPermission('finance.salary.view', employeeId: employee.id);
+    final wallet = canViewSalary
+      ? db.walletTransactionsFor(employee.id, from: filter.from, to: inclusiveEnd)
+          .where((entry) => entry.status == EmployeeWalletTransactionStatus.posted).toList()
+      : <EmployeeWalletTransaction>[];
+    var fixedSalary = 0, bonusAmount = 0, deductionAmount = 0;
+    var advanceAmount = 0, salaryPaid = 0, salaryBalance = 0;
+    for (final entry in wallet) {
+      salaryBalance += entry.amount;
+      switch (entry.type) {
+        case EmployeeWalletTransactionType.fixedSalary:
+          fixedSalary += entry.amount;
+          break;
+        case EmployeeWalletTransactionType.bonus:
+          bonusAmount += entry.amount;
+          break;
+        case EmployeeWalletTransactionType.penalty:
+        case EmployeeWalletTransactionType.deduction:
+          deductionAmount += entry.amount.abs();
+          break;
+        case EmployeeWalletTransactionType.advance:
+          advanceAmount += entry.amount.abs();
+          break;
+        case EmployeeWalletTransactionType.salaryPayment:
+          salaryPaid += entry.amount.abs();
+          break;
+        case EmployeeWalletTransactionType.commission:
+        case EmployeeWalletTransactionType.refund:
+          break;
+      }
+    }
+
+    // توزیع تعداد نوبت‌ها بر ساعت شروع؛ فقط ساعت‌هایی که داده دارند نمایش داده می‌شوند.
+    final hourlyBookings = <int, int>{};
+    for (final appointment in appointments.where((item) =>
+      item.status != AppointmentStatus.cancelled && item.status != AppointmentStatus.noShow)) {
+      hourlyBookings[appointment.startAt.hour] = (hourlyBookings[appointment.startAt.hour] ?? 0) + 1;
+    }
+    final busyHours = hourlyBookings.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
     final duration = filter.to.difference(filter.from);
     final previousFrom = filter.from.subtract(duration);
     final previous = db.appointments.where((a) => a.employeeId == employee.id && !a.startAt.isBefore(previousFrom) && a.startAt.isBefore(filter.from) && a.status == AppointmentStatus.completed && (filter.serviceId == null || a.serviceIds.contains(filter.serviceId))).toList();
@@ -174,6 +244,15 @@ class EmployeeAnalyticsCalculator {
       dailyRevenue: dailyRevenue, monthlyRevenue: monthlyRevenue, dailyAppointments: dailyAppointments,
       dailyCommission: dailyCommission, services: serviceMap.values.toList()..sort((a, b) => b.revenue.compareTo(a.revenue)),
       previousRevenue: previousRevenue, previousCompleted: previous.length,
+      actualWorkedMinutes: attendance.workedMinutes,
+      attendanceDays: attendance.presentDays, absentDays: attendance.absentDays,
+      lateMinutes: attendance.lateMinutes, overtimeMinutes: attendance.overtimeMinutes,
+      leaveCount: leaveCount, fixedSalary: fixedSalary, bonusAmount: bonusAmount,
+      deductionAmount: deductionAmount, advanceAmount: advanceAmount, salaryPaid: salaryPaid,
+      salaryBalance: salaryBalance, attendanceDataAvailable: attendanceAvailable,
+      salaryDataAvailable: canViewSalary, attendanceRecords: attendanceRecords,
+      leaves: leaves, busyHours: [for (final item in busyHours)
+        AnalyticsPoint('${item.key.toString().padLeft(2, '0')}:00', item.value)],
     );
   }
 }
