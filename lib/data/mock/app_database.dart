@@ -744,7 +744,7 @@ class AppDatabase extends ChangeNotifier {
         idempotencyKey: 'payroll-adjustment-${adjustment.id}',
       );
       _employeeWalletTransactions.add(walletEntry);
-      addSeedAdjustment(PayrollAdjustment(
+      _payrollAdjustments.add(PayrollAdjustment(
         id: adjustment.id, employeeId: adjustment.employeeId, amount: adjustment.amount,
         date: adjustment.date, description: adjustment.description, createdBy: adjustment.createdBy,
         status: adjustment.status, bonusType: adjustment.bonusType, deductionType: adjustment.deductionType,
@@ -758,13 +758,13 @@ class AppDatabase extends ChangeNotifier {
         monthlyBase: index == 0 ? 18000000 : 8000000 + index * 1000000,
         effectiveFrom: DateTime(now.year, now.month, 1), period: SalaryPeriod.monthly,
       )];
-      _payrollAdjustments.add(PayrollAdjustment(
+      addSeedAdjustment(PayrollAdjustment(
         id: 'bonus-seed-${employee.id}', employeeId: employee.id, amount: 500000 + index * 100000,
         date: now, description: 'پاداش عملکرد آزمایشی', createdBy: 'مدیر سیستم',
         status: PayrollRecordStatus.approved, bonusType: PayrollBonusType.performance,
       ));
       if (index.isOdd) {
-        _payrollAdjustments.add(PayrollAdjustment(
+        addSeedAdjustment(PayrollAdjustment(
           id: 'deduction-seed-${employee.id}', employeeId: employee.id, amount: 150000,
           date: now, description: 'کسورات نمونه', createdBy: 'مدیر سیستم',
           status: PayrollRecordStatus.approved, deductionType: PayrollDeductionType.agreed,
