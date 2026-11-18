@@ -133,9 +133,9 @@ class ReportsPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       const _ChartLegend(),
                       const SizedBox(height: 10),
-                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _showTrendDetails(context, db, provider, index),)
+                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
                       const SizedBox(height: 12),
-                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _showTrendDetails(context, db, provider, index),)
+                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
