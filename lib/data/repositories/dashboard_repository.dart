@@ -466,7 +466,7 @@ class MockDashboardRepository implements DashboardRepository {
           for (final shift in _db.employeeShiftsForDate(employee.id, day)) {
             final shiftStart = shift.startMinutes;
             final shiftEnd = shift.endMinutes;
-            capacityMinutes += (shiftEnd - shiftStart).clamp(0, 1440);
+            capacityMinutes += (shiftEnd - shiftStart).clamp(0, 1440).toInt();
             for (var hour = shiftStart ~/ 60; hour <= (shiftEnd - 1) ~/ 60; hour++) {
               final overlap = (shiftEnd < (hour + 1) * 60 ? shiftEnd : (hour + 1) * 60) -
                 (shiftStart > hour * 60 ? shiftStart : hour * 60);
