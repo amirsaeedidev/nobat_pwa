@@ -47,15 +47,13 @@ class OperationalReportsSections extends StatelessWidget {
 
   Widget _exports(BuildContext context, String name, List<String> headers, List<List<Object?>> rows) =>
     Wrap(spacing: 6, runSpacing: 6, children: [
-      TextButton.icon(
+      TextButton(
         onPressed: () => _export(context, name: name, headers: headers, rows: rows, excel: false),
-        icon: const Icon(Icons.file_download_outlined, size: 16),
-        label: const Text('CSV'),
+        child: const Text('خروجی CSV'),
       ),
-      TextButton.icon(
+      TextButton(
         onPressed: () => _export(context, name: name, headers: headers, rows: rows, excel: true),
-        icon: const Icon(Icons.table_view_outlined, size: 16),
-        label: const Text('Excel'),
+        child: const Text('خروجی Excel'),
       ),
     ]);
 
