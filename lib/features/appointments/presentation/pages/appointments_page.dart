@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/pagination_bar.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
@@ -44,6 +45,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     final provider = context.watch<AppointmentsProvider>();
     final services = context.watch<ServicesProvider>();
     final employees = context.watch<EmployeesProvider>();
+    final db = context.watch<AppDatabase>();
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
 
@@ -57,19 +59,29 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             hint: 'جست‌وجوی نام مشتری، شماره یا کد پیگیری...',
             onChanged: provider.setQuery,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _AppointmentStatusChip(label: 'همه', count: db.appointments.length, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
+              const SizedBox(width: 7),
+              for (final status in AppointmentStatus.values) ...[
+                _AppointmentStatusChip(
+                  label: status.label,
+                  count: db.appointments.where((a) => a.status == status).length,
+                  selected: provider.filter.status == status,
+                  color: status.color,
+                  onTap: () => provider.setStatus(status),
+                ),
+                const SizedBox(width: 7),
+              ],
+            ]),
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _FilterDropdown<AppointmentStatus?>(
-                icon: Icons.filter_alt_outlined,
-                value: provider.filter.status,
-                hint: 'همه وضعیت‌ها',
-                items: [null, ...AppointmentStatus.values],
-                labelOf: (s) => s?.label ?? 'همه وضعیت‌ها',
-                onChanged: provider.setStatus,
-              ),
               _FilterDropdown<String?>(
                 icon: Icons.content_cut_rounded,
                 value: provider.filter.serviceId,
@@ -202,8 +214,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                           return false;
                         },
                         onDismissed: (_) async {
+                          final previousStatus = appointment.status;
                           await provider.changeStatus(appointment, AppointmentStatus.confirmed);
-                          if (context.mounted) AppToast.show(context, 'نوبت تأیید شد');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(SnackBar(
+                                content: const Text('نوبت تأیید شد'),
+                                behavior: SnackBarBehavior.floating,
+                                action: SnackBarAction(
+                                  label: 'برگشت',
+                                  onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی وضعیت نوبت'),
+                                ),
+                              ));
+                          }
                         },
                         background: Container(
                           alignment: Alignment.centerRight,
@@ -258,6 +282,41 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AppointmentStatusChip extends StatelessWidget {
+  const _AppointmentStatusChip({required this.label, required this.count, required this.selected, required this.color, required this.onTap});
+  final String label;
+  final int count;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    return Material(
+      color: selected ? color.withValues(alpha: 0.16) : pal.surface,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: selected ? color : pal.border)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (selected) Icon(Icons.check_circle_rounded, size: 14, color: color)
+            else Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, color: selected ? color : pal.textSecondary)),
+            const SizedBox(width: 5),
+            Text(FaNum.ofInt(count), style: TextStyle(fontSize: 10, color: selected ? color : pal.textMuted)),
+          ]),
+        ),
       ),
     );
   }
