@@ -523,11 +523,14 @@ class AppDatabase extends ChangeNotifier {
     for (final item in contracts) {
       if (item.appliesAt(date) && (contract == null || item.effectiveFrom.isAfter(contract.effectiveFrom))) contract = item;
     }
-    final commission = _employeeFinanceEntries.where((entry) =>
+    final monthFinance = _employeeFinanceEntries.where((entry) =>
       entry.employeeId == employeeId &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-      entry.createdAt.year == date.year && entry.createdAt.month == date.month)
+      entry.createdAt.year == date.year && entry.createdAt.month == date.month);
+    final commission = monthFinance.where((entry) => entry.type == FinanceEntryType.commission)
       .fold<int>(0, (sum, entry) => sum + entry.commissionAmount);
+    final commissionRefunds = monthFinance.where((entry) => entry.type == FinanceEntryType.refund)
+      .fold<int>(0, (sum, entry) => sum + entry.commissionAmount.abs());
     final adjustments = _payrollAdjustments.where((item) =>
       item.employeeId == employeeId && item.date.year == date.year && item.date.month == date.month);
     final advances = _payrollAdvances.where((item) =>
@@ -541,7 +544,8 @@ class AppDatabase extends ChangeNotifier {
     final attendanceAdjustment = attendancePayrollPreview(employeeId, from: attendanceStart, to: attendanceEnd).netAdjustment;
     return EmployeePayrollCalculator.calculate(contract: contract, at: date,
       approvedCommission: commission, adjustments: adjustments, advances: advances,
-      previousPayments: paid, attendanceAdjustment: attendanceAdjustment);
+      previousPayments: paid, commissionRefunds: commissionRefunds,
+      attendanceAdjustment: attendanceAdjustment);
   }
 
   void _seedPayrollData() {
