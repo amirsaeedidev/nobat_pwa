@@ -24,10 +24,10 @@ class KpiGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final items = [
-      _Kpi(label: 'کل نوبت‌ها', value: FaNum.ofInt(stats.totalAppointments), icon: Icons.event_note_rounded, color: pal.primaryBright),
-      _Kpi(label: 'نوبت امروز', value: FaNum.ofInt(stats.todayAppointments), icon: Icons.today_rounded, color: pal.accentGlow),
-      _Kpi(label: 'درآمد کل', value: Fmt.compactMoney(stats.totalRevenue), icon: Icons.account_balance_wallet_rounded, color: pal.success),
-      _Kpi(label: 'مشتریان', value: FaNum.ofInt(stats.totalCustomers), icon: Icons.people_alt_rounded, color: pal.purple),
+      _Kpi(label: 'کل نوبت‌ها', value: stats.totalAppointments, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.event_note_rounded, color: pal.primaryBright),
+      _Kpi(label: 'نوبت امروز', value: stats.todayAppointments, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.today_rounded, color: pal.accentGlow),
+      _Kpi(label: 'درآمد کل', value: stats.totalRevenue.toDouble(), formatValue: Fmt.compactMoney, icon: Icons.account_balance_wallet_rounded, color: pal.success),
+      _Kpi(label: 'مشتریان', value: stats.totalCustomers, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.people_alt_rounded, color: pal.purple),
     ];
 
     return LayoutBuilder(
@@ -55,14 +55,19 @@ class KpiGrid extends StatelessWidget {
                         ],
                       ),
                       SizedBox(height: compact ? 8 : 10),
-                      Text(
-                        item.value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: compact ? 13 : 15,
-                          fontWeight: FontWeight.w800,
-                          color: pal.textPrimary,
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: item.value.toDouble()),
+                        duration: const Duration(milliseconds: 900),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => Text(
+                          item.formatValue(value),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: compact ? 13 : 15,
+                            fontWeight: FontWeight.w800,
+                            color: pal.textPrimary,
+                          ),
                         ),
                       ),
                       Text(item.label, style: TextStyle(fontSize: 10, color: pal.textMuted)),
@@ -78,10 +83,11 @@ class KpiGrid extends StatelessWidget {
 }
 
 class _Kpi {
-  const _Kpi({required this.label, required this.value, required this.icon, required this.color});
+  const _Kpi({required this.label, required this.value, required this.formatValue, required this.icon, required this.color});
 
   final String label;
-  final String value;
+  final num value;
+  final String Function(double) formatValue;
   final IconData icon;
   final Color color;
 }
