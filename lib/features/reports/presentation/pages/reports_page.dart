@@ -140,7 +140,7 @@ class ReportsPage extends StatelessWidget {
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد ناخالص', [
                           'مبلغ ناخالص خدمات تکمیل‌شده: ${Fmt.compactMoney(provider.analytics.grossRevenue)}',
                           'تخفیف و برگشت ثبت‌شده: ${Fmt.compactMoney(provider.analytics.discounts)}',
-                        ]), child: _MetricCard(label: 'درآمد ناخالص', value: provider.analytics.grossRevenue, money: true, icon: HugeIcons.strokeRoundedMoneyBag02, color: pal.primaryBright)),
+                        ]), child: _MetricCard(label: 'درآمد ناخالص', value: provider.analytics.grossRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.primaryBright)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
                           for (final item in provider.analytics.recentAppointments) '${item.customerName} · ${item.serviceName} · ${Fmt.compactMoney(item.price)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
@@ -149,14 +149,14 @@ class ReportsPage extends StatelessWidget {
                         ]), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
-                        ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedInvoice03, color: pal.warning)),
+                        ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedAppointment01, color: pal.warning)),
                         _MetricCard(label: 'حاشیه سود', value: provider.analytics.profitMarginPercent, icon: HugeIcons.strokeRoundedChartLineData01, color: pal.success),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مانده پرداخت پرسنل', [
                           'مانده قابل پرداخت: ${Fmt.compactMoney(provider.analytics.staffPayable)}',
                           'پرداخت‌شده در بازه: ${Fmt.compactMoney(provider.analytics.staffPaid)}',
                           'مساعده باز: ${Fmt.compactMoney(provider.analytics.advancesOutstanding)}',
                           for (final item in provider.analytics.settlements) '${item.receiptNumber} · ${Fmt.compactMoney(item.paidAmount)} · ${item.status.name}',
-                        ]), child: _MetricCard(label: 'مانده پرسنل', value: provider.analytics.staffPayable, money: true, icon: HugeIcons.strokeRoundedUserGroup, color: pal.purple)),
+                        ]), child: _MetricCard(label: 'مانده پرسنل', value: provider.analytics.staffPayable, money: true, icon: HugeIcons.strokeRoundedUser, color: pal.purple)),
                       ]),
                       const SizedBox(height: 12),
                       LayoutBuilder(builder: (context, constraints) {
