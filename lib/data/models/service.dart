@@ -8,6 +8,7 @@ class Service {
     required this.durationMinutes,
     this.bufferMinutes = 5,
     this.prepMinutes = 0,
+    this.directCost,
     this.isActive = true,
     this.employeeIds = const [],
     this.category = 'عمومی',
@@ -22,6 +23,8 @@ class Service {
   final String title;
   final String description;
   final num price;
+  /// هزینه مستقیم هر بار ارائه خدمت؛ null یعنی هزینه ثبت نشده است.
+  final num? directCost;
   final int durationMinutes;
 
   /// زمان استراحت/آماده‌سازی بین دو نوبت.
@@ -47,6 +50,8 @@ class Service {
     String? title,
     String? description,
     num? price,
+    num? directCost,
+    bool clearDirectCost = false,
     int? durationMinutes,
     int? bufferMinutes,
     int? prepMinutes,
@@ -64,6 +69,7 @@ class Service {
       title: title ?? this.title,
       description: description ?? this.description,
       price: price ?? this.price,
+      directCost: clearDirectCost ? null : (directCost ?? this.directCost),
       durationMinutes: durationMinutes ?? this.durationMinutes,
       bufferMinutes: bufferMinutes ?? this.bufferMinutes,
       prepMinutes: prepMinutes ?? this.prepMinutes,
@@ -83,6 +89,7 @@ class Service {
         'title': title,
         'description': description,
         'price': price,
+        'direct_cost': directCost,
         'duration_minutes': durationMinutes,
         'buffer_minutes': bufferMinutes,
         'prep_minutes': prepMinutes,
@@ -101,6 +108,7 @@ class Service {
         title: json['title'] as String? ?? '',
         description: json['description'] as String? ?? '',
         price: json['price'] as num? ?? 0,
+        directCost: json['direct_cost'] as num?,
         durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 30,
         bufferMinutes: (json['buffer_minutes'] as num?)?.toInt() ?? 5,
         prepMinutes: (json['prep_minutes'] as num?)?.toInt() ?? 0,
