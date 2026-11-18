@@ -305,8 +305,13 @@ class _HeroStatsCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       spacing: 8,
                       children: [
-                        Text('${FaNum.ofInt(stats.totalAppointments)} نوبت', maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: pal.textPrimary, height: 1.3)),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: stats.totalAppointments.toDouble()),
+                          duration: const Duration(milliseconds: 850),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, _) => Text('${FaNum.ofInt(value.round())} نوبت', maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: pal.textPrimary, height: 1.3)),
+                        ),
                         TrendChip(value: '${FaNum.ofInt(completionRate)}٪', positive: true),
                       ],
                     ),
