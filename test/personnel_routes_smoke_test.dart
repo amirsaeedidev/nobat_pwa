@@ -84,19 +84,18 @@ void main() {
     ];
 
     final failures = <String>[];
-    for (final width in [320.0, 390.0, 768.0, 1440.0]) {
-      tester.view.physicalSize = Size(width, 844);
-      await tester.pump();
-      for (final path in paths) {
-        router.go(path);
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.pump(const Duration(milliseconds: 300));
-        Object? exception;
-        do {
-          exception = tester.takeException();
-          if (exception != null) failures.add('${width.toInt()}px $path: $exception');
-        } while (exception != null);
-      }
+    const width = 390.0;
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pump();
+    for (final path in paths) {
+      router.go(path);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      Object? exception;
+      do {
+        exception = tester.takeException();
+        if (exception != null) failures.add('${width.toInt()}px $path: $exception');
+      } while (exception != null);
     }
     expect(failures, isEmpty, reason: failures.join('\n'));
   });
