@@ -92,6 +92,9 @@ void main() {
         accountId: 'demo-admin', includesSalary: true, includesCommission: true,
       ));
       expect((await store.loadHistory()).single.profit, 300);
+      expect(await store.loadHistory(
+        accountId: 'demo-staff', canViewSalary: false, canViewCommission: false,
+      ), isEmpty);
       await store.deleteView('view-1');
       expect(await store.loadViews(), isEmpty);
     });
