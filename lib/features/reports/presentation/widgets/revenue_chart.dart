@@ -64,7 +64,7 @@ class RevenueBarChart extends StatelessWidget {
                 showTitles: true,
                 reservedSize: 26,
                 getTitlesWidget: (value, meta) {
-                  final index = value.round();
+                  final index = data.length - 1 - value.round();
                   if (index < 0 || index >= data.length) return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -178,15 +178,15 @@ class RevenueLineChart extends StatelessWidget {
               getTooltipItems: (spots) => [
                 for (final spot in spots)
                   LineTooltipItem(
-                    Fmt.compactMoney(spot.y),
-                    TextStyle(color: pal.textPrimary, fontSize: 11, fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600),
+                    data[spot.spotIndex].label + '\n' + Fmt.compactMoney(spot.y),
+                    TextStyle(color: pal.textPrimary, fontSize: 10, fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600),
                   ),
               ],
             ),
           ),
           lineBarsData: [
             LineChartBarData(
-              spots: [for (var i = 0; i < data.length; i++) FlSpot(i.toDouble(), data[i].value.toDouble())],
+              spots: [for (var i = 0; i < data.length; i++) FlSpot((data.length - 1 - i).toDouble(), data[i].value.toDouble())],
               isCurved: true,
               curveSmoothness: 0.28,
               barWidth: 2.6,
@@ -221,6 +221,8 @@ class RevenueLineChart extends StatelessWidget {
               ),
           ],
         ),
+        duration: const Duration(milliseconds: 850),
+        curve: Curves.easeOutCubic,
       ),
     );
   }
