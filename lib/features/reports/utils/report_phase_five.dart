@@ -8,6 +8,8 @@ class ReportDelta {
   final num current;
   final num previous;
   num? get percent => previous == 0 ? null : (current - previous) * 100 / previous;
+  bool get increased => current > previous;
+  bool get decreased => current < previous;
 }
 
 enum ReportAlertLevel { info, warning, critical }
