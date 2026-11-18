@@ -24,11 +24,11 @@ class PerformanceChart extends StatelessWidget {
       builder: (context, progress, _) => SizedBox(
       height: height,
       width: double.infinity,
-      child: GestureDetector(
+      child: LayoutBuilder(builder: (context, constraints) => GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapUp: (details) {
           if (data.isEmpty || onPointTap == null) return;
-          final index = ((details.localPosition.dx / (context.size?.width ?? MediaQuery.sizeOf(context).width)) * data.length).floor().clamp(0, data.length - 1);
+          final index = ((details.localPosition.dx / constraints.maxWidth) * data.length).floor().clamp(0, data.length - 1);
           onPointTap!(data[index]);
         },
         child: CustomPaint(
@@ -42,7 +42,7 @@ class PerformanceChart extends StatelessWidget {
           dotFill: pal.isDark ? Colors.white : pal.surface,
           revealProgress: progress,
         ),
-      )),
+      ))),
     ));
   }
 }
