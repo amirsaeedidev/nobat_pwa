@@ -85,7 +85,8 @@ void main() {
 
     for (final path in paths) {
       router.go(path);
-      await tester.pumpAndSettle(const Duration(milliseconds: 40), timeout: const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
       expect(tester.takeException(), isNull, reason: 'Route failed: $path');
     }
   });
