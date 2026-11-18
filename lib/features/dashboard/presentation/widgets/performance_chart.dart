@@ -28,7 +28,9 @@ class PerformanceChart extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTapUp: (details) {
           if (data.isEmpty || onPointTap == null) return;
-          final index = ((details.localPosition.dx / constraints.maxWidth) * data.length).floor().clamp(0, data.length - 1);
+          final visualIndex = ((details.localPosition.dx / constraints.maxWidth) * data.length).floor().clamp(0, data.length - 1);
+          // محور نمودار در رابط RTL از راست (قدیمی‌تر) به چپ (جدیدتر) خوانده می‌شود.
+          final index = data.length - 1 - visualIndex;
           onPointTap!(data[index]);
         },
         child: CustomPaint(
@@ -98,7 +100,7 @@ class _PerformancePainter extends CustomPainter {
     // میله‌ها
     for (var i = 0; i < data.length; i++) {
       final item = data[i];
-      final cx = leftInset + columnWidth * i + columnWidth / 2;
+      final cx = size.width - (leftInset + columnWidth * i + columnWidth / 2);
       final ratio = item.count / maxCount;
       final barHeight = chartHeight * (item.count == 0 ? 0.0 : 0.08 + 0.72 * ratio) * revealProgress.clamp(0.0, 1.0);
       final rect = RRect.fromRectAndRadius(
