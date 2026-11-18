@@ -52,9 +52,9 @@ class EmployeeAttendancePage extends StatelessWidget {
    const SizedBox(height:12),
    if(canManage)AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const SectionHeader(title:'پیش‌نمایش اثر مالی حضور و غیاب'),
-    SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('فعال‌سازی قانون مالی حضور و غیاب'),value:db.attendancePayrollPolicy.enabled,onChanged:(v){
+    Material(color:Colors.transparent,child:SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('فعال‌سازی قانون مالی حضور و غیاب'),value:db.attendancePayrollPolicy.enabled,onChanged:(v){
       final p=db.attendancePayrollPolicy;db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:v,lateDeductionPerMinute:p.lateDeductionPerMinute,absenceDeductionPerDay:p.absenceDeductionPerDay,overtimePaymentPerMinute:p.overtimePaymentPerMinute,earlyLeaveDeductionPerMinute:p.earlyLeaveDeductionPerMinute));
-    }),
+    })),
     SoftButton(label:'تنظیم نرخ‌ها',icon:Icons.tune,onTap:()=>_configurePolicy(context,db)),
     Builder(builder:(context){
       final p=db.attendancePayrollPreview(employeeId,from:from,to:to);
@@ -72,11 +72,11 @@ class EmployeeAttendancePage extends StatelessWidget {
    AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const SectionHeader(title:'سوابق ماه جاری'),
     if(rows.isEmpty) EmptyState(title:'سابقه‌ای ثبت نشده'),
-    for(final row in rows) ListTile(contentPadding:EdgeInsets.zero,
+    for(final row in rows) Material(color:Colors.transparent,child:ListTile(contentPadding:EdgeInsets.zero,
      leading:Icon(_icon(row.type)),title:Text(_label(row.type)),
      subtitle:Text('${row.at.hour.toString().padLeft(2,'0')}:${row.at.minute.toString().padLeft(2,'0')} · ${row.note}'),
      trailing:canManage?IconButton(tooltip:'اصلاح رکورد',onPressed:()=>_editRecord(context,db,row),icon:const Icon(Icons.edit_outlined,size:18)):null,
-    ),
+    )),
    ])),
    const SizedBox(height:8),Text('گزارش بازه ماهانه؛ تمام اطلاعات در Datamonck و آفلاین نگهداری می‌شوند.',style:Theme.of(context).textTheme.bodySmall),
   ]));
