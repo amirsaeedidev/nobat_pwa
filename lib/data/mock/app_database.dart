@@ -200,24 +200,26 @@ class AppDatabase extends ChangeNotifier {
         .fold<int>(0, (value, item) => value - item.receivedAmount);
       return sum + (entry.receivedAmount - already).clamp(0, entry.receivedAmount).toInt();
     });
-    var left = amount.clamp(0, refundable).toInt();
-    var remainingWeight = refundable;
-    for (var i = 0; i < originals.length && left > 0; i++) {
-      final entry = originals[i];
+    final refundableEntries = <({EmployeeFinanceEntry entry, int available})>[];
+    for (final entry in originals) {
       final already = _employeeFinanceEntries.where((item) =>
         item.type == FinanceEntryType.refund && item.reversesEntryId == entry.id)
         .fold<int>(0, (value, item) => value - item.receivedAmount);
       final available = (entry.receivedAmount - already).clamp(0, entry.receivedAmount).toInt();
-      if (available == 0) continue;
-      final share = i == originals.length - 1 || remainingWeight <= 0
+      if (available > 0) refundableEntries.add((entry: entry, available: available));
+    }
+    var left = amount.clamp(0, refundable).toInt();
+    var remainingWeight = refundable;
+    for (var index = 0; index < refundableEntries.length && left > 0; index++) {
+      final item = refundableEntries[index];
+      final allocation = index == refundableEntries.length - 1
           ? left
-          : (amount * available ~/ remainingWeight).clamp(0, available).toInt();
-      final allocation = share.clamp(0, available).clamp(0, left).toInt();
+          : (amount * item.available ~/ remainingWeight).clamp(0, item.available).toInt();
       if (allocation > 0) {
-        recordCommissionRefund(entry.id, allocation);
+        recordCommissionRefund(item.entry.id, allocation);
         left -= allocation;
       }
-      remainingWeight -= available;
+      remainingWeight -= item.available;
     }
     log(ActivityType.settingsChanged, 'ثبت برگشت وجه مشتری', 'برگشت مبلغ $amount برای نوبت ثبت شد.', entity: 'دریافت‌های مجموعه');
     _commit();
