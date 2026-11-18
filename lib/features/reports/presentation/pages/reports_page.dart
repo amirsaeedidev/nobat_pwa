@@ -48,9 +48,7 @@ class ReportsPage extends StatelessWidget {
     final canViewAll = db.hasPermission('appointments.view_all');
     final visibleAppointments = db.appointments.where((item) =>
       canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId)).toList();
-    final availableEmployees = canViewAll
-      ? db.employees
-      : db.employees.where((item) => item.id == db.currentAccessAccount.employeeId).toList();
+    final availableEmployees = db.employees.where((item) => db.canViewEmployee(item.id)).toList();
     final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
     final availableCustomers = canViewAll
       ? db.customers
@@ -61,17 +59,20 @@ class ReportsPage extends StatelessWidget {
     final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
       selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
       (canViewAll || entry.employeeId == db.currentAccessAccount.employeeId) &&
+      db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
     final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
-    final dayCommission = db.hasPermission('finance.commission.view') ? dayFinanceEntries.fold<num>(0, (sum, item) =>
-      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
+    final dayCommission = dayFinanceEntries.where((item) =>
+      db.hasPermission('finance.commission.view', employeeId: item.employeeId)).fold<num>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
     final dayOperatingExpense = db.businessExpenses.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
     final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == EmployeeWalletTransactionStatus.posted &&
-      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId)).toList() : <EmployeeWalletTransaction>[];
+      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId) &&
+      db.hasPermission('finance.salary.view', employeeId: item.employeeId)).toList() : <EmployeeWalletTransaction>[];
     final dayPayrollExpense = dayWalletEntries.where((item) => {
       EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
       EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
@@ -79,7 +80,7 @@ class ReportsPage extends StatelessWidget {
     }.contains(item.type)).fold<num>(0, (sum, item) => sum + item.amount);
     final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense;
     final dayEmployeeTotals = <String, ({int count, num revenue})>{};
-    for (final item in dayCompleted) {
+    for (final item in dayCompleted.where((item) => db.canViewEmployee(item.employeeId))) {
       final current = dayEmployeeTotals[item.employeeName];
       final revenue = dayFinanceEntries.where((entry) => entry.appointmentId == item.id)
         .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
