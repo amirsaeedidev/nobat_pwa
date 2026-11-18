@@ -93,24 +93,36 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     }
     return null;
   }
-  num get _totalPrice => _services.fold<num>(0, (sum, service) => sum + (_pricingEmployee == null ? service.price : _db.effectiveServicePrice(_pricingEmployee!.id, service.id)));
-  int get _totalDuration => _services.fold<int>(0, (sum, service) => sum + (_pricingEmployee == null ? service.totalMinutes : _db.effectiveServiceDuration(_pricingEmployee!.id, service.id)));
+  num get _totalPrice => _services.fold<num>(0, (sum, service) {
+    final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
+    final savedPrice = previous?['price'] as num?;
+    final currentPrice = _pricingEmployee == null ? service.price : _db.effectiveServicePrice(_pricingEmployee!.id, service.id);
+    return sum + (savedPrice ?? currentPrice);
+  });
+  int get _totalDuration => _services.fold<int>(0, (sum, service) {
+    final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
+    final savedDuration = (previous?['duration_minutes'] as num?)?.toInt();
+    final currentDuration = _pricingEmployee == null ? service.totalMinutes : _db.effectiveServiceDuration(_pricingEmployee!.id, service.id);
+    return sum + (savedDuration ?? currentDuration);
+  });
 
   List<Map<String, dynamic>> _buildServiceSnapshots(Employee employee) {
     final payProfile = _db.payProfileFor(employee.id);
     return _services.map((service) {
+      final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
       final config = _db.employeeServiceConfig(employee.id, service.id);
       final rule = payProfile.ruleFor(serviceId: service.id, category: service.category, date: _date.toDateTime());
       return <String, dynamic>{
         'service_id': service.id,
-        'title': service.title,
-        'category': service.category,
-        'price': _db.effectiveServicePrice(employee.id, service.id),
-        'direct_cost': service.directCost,
-        'duration_minutes': _db.effectiveServiceDuration(employee.id, service.id),
-        'commission_rate_bps': config?.commissionRateBps ?? rule?.rateBps ?? payProfile.generalRateBps,
-        'fixed_commission_amount': config?.fixedCommissionAmount ?? rule?.fixedAmount ?? 0,
-        'commission_basis': payProfile.basis.name,
+        'title': previous?['title'] as String? ?? service.title,
+        'category': previous?['category'] as String? ?? service.category,
+        'price': previous?['price'] as num? ?? _db.effectiveServicePrice(employee.id, service.id),
+        // هزینه مستقیم و قیمت نوبت قبلی با تغییر بعدی کاتالوگ خدمات بازنویسی نمی‌شوند.
+        'direct_cost': previous == null ? service.directCost : previous['direct_cost'],
+        'duration_minutes': previous?['duration_minutes'] as num? ?? _db.effectiveServiceDuration(employee.id, service.id),
+        'commission_rate_bps': previous?['commission_rate_bps'] as num? ?? config?.commissionRateBps ?? rule?.rateBps ?? payProfile.generalRateBps,
+        'fixed_commission_amount': previous?['fixed_commission_amount'] as num? ?? config?.fixedCommissionAmount ?? rule?.fixedAmount ?? 0,
+        'commission_basis': previous?['commission_basis'] as String? ?? payProfile.basis.name,
       };
     }).toList();
   }
