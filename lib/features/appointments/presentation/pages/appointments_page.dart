@@ -32,7 +32,6 @@ class AppointmentsPage extends StatefulWidget {
 
 class _AppointmentsPageState extends State<AppointmentsPage> {
   final _searchController = TextEditingController();
-  bool _showFilters = false;
 
   @override
   void dispose() {
@@ -130,13 +129,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           onPressed: () => context.push('/appointments/new'),
         ),
       ],
-      onHeaderAction: () => setState(() => _showFilters = !_showFilters),
-      headerActionLabel: isDesktop ? null : (_showFilters ? 'بستن' : 'فیلتر'),
       showBackButton: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (isDesktop || _showFilters) ...[filters, const SizedBox(height: 12)],
+          filters,
+          const SizedBox(height: 12),
           if (!isDesktop) ...[
             GradientCta(
               title: 'ثبت نوبت جدید',
@@ -202,12 +200,19 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                             ),
                           );
                           if (action == 'cancel') {
+                            final previousStatus = appointment.status;
                             await provider.changeStatus(
                               appointment,
                               AppointmentStatus.cancelled,
                               reason: 'لغو با کشیدن کارت',
                             );
-                            if (context.mounted) AppToast.show(context, 'نوبت لغو شد', success: false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: const Text('نوبت لغو شد'),
+                                behavior: SnackBarBehavior.floating,
+                                action: SnackBarAction(label: 'برگشت', onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی لغو نوبت')),
+                              ));
+                            }
                           } else if (action == 'move' && context.mounted) {
                             context.push('/appointments/${appointment.id}/edit');
                           }
@@ -271,13 +276,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   onPageChanged: provider.goToPage,
                 ),
                 const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'وضعیت‌ها: ${AppointmentStatus.values.map((s) => s.label).join(' • ')}',
-                    style: TextStyle(fontSize: 9.5, color: pal.textMuted),
-                  ),
-                ),
               ],
             ),
           ),
