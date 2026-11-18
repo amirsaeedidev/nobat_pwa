@@ -16,11 +16,11 @@ void main() {
       );
       final report = await repository.fetchReportAnalytics(range: range);
       final completed = db.appointments.where((item) => item.status == AppointmentStatus.completed);
-      final expectedRevenue = completed.fold<num>(0, (sum, item) => sum + item.price);
+      final expectedRevenue = db.employeeFinanceEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
       expect(report.totalAppointments, db.appointments.length);
       expect(report.completedAppointments, completed.length);
       expect(report.revenue, expectedRevenue);
-      expect(report.cost, report.commissionCost + report.payrollCost);
+      expect(report.cost, report.commissionCost + report.payrollCost + report.operatingExpense);
       expect(report.netProfit, report.revenue - report.cost);
       expect(report.statusCounts.values.fold<int>(0, (sum, value) => sum + value), report.totalAppointments);
       expect(report.trend, isNotEmpty);
