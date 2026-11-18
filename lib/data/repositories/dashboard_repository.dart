@@ -191,30 +191,29 @@ class MockDashboardRepository implements DashboardRepository {
 
     final canViewCommission = _db.hasPermission('finance.commission.view');
     final canViewSalary = _db.hasPermission('finance.salary.view');
-    final financeEntries = canViewCommission
-        ? _db.employeeFinanceEntries.where((entry) =>
-            range.contains(entry.createdAt) &&
-            (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-            (canViewAll || employeeId == entry.employeeId)).toList()
-        : <EmployeeFinanceEntry>[];
-    final allVisibleFinanceEntries = canViewCommission
-        ? _db.employeeFinanceEntries.where((entry) =>
-            (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-            (canViewAll || employeeId == entry.employeeId)).toList()
-        : <EmployeeFinanceEntry>[];
+    final revenueEntries = _db.employeeFinanceEntries.where((entry) =>
+      range.contains(entry.createdAt) &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
+      (canViewAll || employeeId == entry.employeeId)).toList();
+    final financeEntries = canViewCommission ? revenueEntries : <EmployeeFinanceEntry>[];
+    final allVisibleFinanceEntries = _db.employeeFinanceEntries.where((entry) =>
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
+      (canViewAll || employeeId == entry.employeeId)).toList();
 
     final commissionByEmployee = <String, int>{};
     var commissionCost = 0;
     var grossRevenue = 0;
     var revenue = 0;
+    for (final entry in revenueEntries) {
+      grossRevenue += entry.grossAmount;
+      revenue += entry.receivedAmount;
+    }
     for (final entry in financeEntries) {
       final signedCommission = entry.type == FinanceEntryType.refund
           ? -entry.commissionAmount.abs()
           : entry.commissionAmount;
       commissionCost += signedCommission;
       commissionByEmployee[entry.employeeId] = (commissionByEmployee[entry.employeeId] ?? 0) + signedCommission;
-      grossRevenue += entry.grossAmount;
-      revenue += entry.receivedAmount;
     }
 
     final walletEntries = canViewSalary
@@ -360,7 +359,7 @@ class MockDashboardRepository implements DashboardRepository {
     )).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
     int costBetween(DateTime from, DateTime to) {
-      final commission = allVisibleFinanceEntries.where((item) =>
+      final commission = (canViewCommission ? allVisibleFinanceEntries : <EmployeeFinanceEntry>[]).where((item) =>
         !item.createdAt.isBefore(from) && item.createdAt.isBefore(to)).fold<int>(0, (sum, item) =>
           sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
       final payroll = walletCostFor(walletEntries.where((item) =>
@@ -413,8 +412,8 @@ class MockDashboardRepository implements DashboardRepository {
     final previousEntries = allVisibleFinanceEntries.where((item) =>
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
-    final previousCommission = previousEntries.fold<int>(0, (sum, item) =>
-      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
+    final previousCommission = canViewCommission ? previousEntries.fold<int>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
     final previousPayroll = canViewSalary ? walletCostFor(_db.employeeWalletTransactions.where((item) =>
       item.status == EmployeeWalletTransactionStatus.posted &&
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start) &&
