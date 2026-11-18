@@ -11,7 +11,7 @@ class SalaryContract {
   bool appliesAt(DateTime date) => active && !date.isBefore(effectiveFrom) && (effectiveTo == null || !date.isAfter(effectiveTo!));
 }
 class PayrollAdjustment {
-  const PayrollAdjustment({required this.id, required this.employeeId, required this.amount, required this.date, required this.description, required this.createdBy, required this.status, this.bonusType, this.deductionType, this.relatedAdvanceId});
+  const PayrollAdjustment({required this.id, required this.employeeId, required this.amount, required this.date, required this.description, required this.createdBy, required this.status, this.bonusType, this.deductionType, this.relatedAdvanceId, this.sourceWalletTransactionId});
   final String id, employeeId, description, createdBy; final int amount; final DateTime date; final PayrollRecordStatus status; final PayrollBonusType? bonusType; final PayrollDeductionType? deductionType; final String? relatedAdvanceId;
   bool get isBonus => bonusType != null;
 }
