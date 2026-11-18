@@ -62,7 +62,10 @@ class CalendarPage extends StatelessWidget {
             onToday: provider.selectToday,
           ),
           const SizedBox(height: 10),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               PillToggle(
                 options: const ['روزانه', 'هفتگی', 'ماهانه'],
@@ -70,7 +73,6 @@ class CalendarPage extends StatelessWidget {
                 onChanged: (i) => provider.setView(CalendarView.values[i]),
                 dense: true,
               ),
-              const Spacer(),
               if (!isDesktop) smsPill,
             ],
           ),
