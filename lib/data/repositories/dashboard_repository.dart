@@ -636,12 +636,14 @@ class MockDashboardRepository implements DashboardRepository {
     final previousEntries = allVisibleFinanceEntries.where((item) =>
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
-    final previousCommission = canViewCommission ? previousEntries.fold<int>(0, (sum, item) =>
+    final previousCommission = canViewCommission ? previousEntries.where((item) =>
+      _db.hasPermission('finance.commission.view', employeeId: item.employeeId)).fold<int>(0, (sum, item) =>
       sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
     final previousPayroll = canViewSalary ? walletCostFor(_db.employeeWalletTransactions.where((item) =>
       item.status == EmployeeWalletTransactionStatus.posted &&
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd) &&
-      (canViewAll || employeeId == item.employeeId))) : 0;
+      (canViewAll || employeeId == item.employeeId) &&
+      _db.hasPermission('finance.salary.view', employeeId: item.employeeId))) : 0;
     final previousOperations = _db.businessExpenses.where((item) =>
       item.status == BusinessExpenseStatus.posted &&
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd))
