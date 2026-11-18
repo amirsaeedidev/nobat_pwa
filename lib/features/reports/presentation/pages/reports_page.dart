@@ -25,6 +25,7 @@ import '../../../../data/models/report_analytics.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
 import '../widgets/operational_reports_sections.dart';
+import '../widgets/reports_phase_five_panel.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -225,6 +226,8 @@ class ReportsPage extends StatelessWidget {
                         Align(alignment: AlignmentDirectional.centerEnd,
                           child: TextButton(onPressed: provider.clearFilters, child: const Text('پاک کردن فیلترها'))),
                     ])),
+                    const SizedBox(height: 12),
+                    ReportsPhaseFivePanel(database: db, provider: provider),
                     const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
