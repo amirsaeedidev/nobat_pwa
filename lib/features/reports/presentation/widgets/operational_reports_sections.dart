@@ -145,6 +145,21 @@ class OperationalReportsSections extends StatelessWidget {
               ])],
             ),
           ),
+        for (final item in services)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text('روند فروش: ${item.name}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+            subtitle: Text('${FaNum.ofInt(item.count)} ارائه در بازه', style: TextStyle(fontSize: 9, color: pal.textMuted)),
+            children: [
+              if (item.trend.isEmpty)
+                const EmptyState(title: 'روندی برای این خدمت ثبت نشده است', compact: true)
+              else
+                SizedBox(height: 130, child: RevenueBarChart(
+                  data: [for (final point in item.trend) RevenuePoint(label: point.label, value: point.revenue)],
+                  height: 130,
+                )),
+            ],
+          ),
       ])),
       const SizedBox(height: 12),
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -212,6 +227,7 @@ class OperationalReportsSections extends StatelessWidget {
           _SegmentMetric(label: 'تکمیل‌شده', value: completed, color: pal.success),
           _SegmentMetric(label: 'لغوشده', value: cancelled, color: pal.danger),
           _SegmentMetric(label: 'عدم حضور', value: noShow, color: pal.textMuted),
+          _SegmentMetric(label: 'نوبت دوره قبل', value: analytics.previousPeriodAppointments, color: pal.info),
           _SegmentMetric(label: 'ردشده', value: analytics.rejectedAppointments, color: pal.warning),
           _SegmentMetric(label: 'نرخ تکمیل', value: rate(completed), percent: true, color: pal.success),
           _SegmentMetric(label: 'نرخ لغو', value: rate(cancelled), percent: true, color: pal.danger),
