@@ -181,52 +181,32 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                 children: [
                   const SectionHeader(title: 'اطلاعات پرسنل'),
                   const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppTextField(
-                          controller: _name,
-                          label: 'نام و نام خانوادگی',
-                          icon: Icons.person_outline_rounded,
-                          validator: (v) => Validators.required(v, label: 'نام'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: AppTextField(
-                          controller: _phone,
-                          label: 'موبایل',
-                          icon: Icons.call_outlined,
-                          keyboardType: TextInputType.phone,
-                          numericFa: true,
-                          validator: Validators.mobile,
-                        ),
-                      ),
-                    ],
-                  ),
+                  LayoutBuilder(builder: (context, constraints) {
+                    final fieldWidth = constraints.maxWidth < 620 ? constraints.maxWidth : (constraints.maxWidth - 10) / 2;
+                    return Wrap(spacing: 10, runSpacing: 12, children: [
+                      SizedBox(width: fieldWidth, child: AppTextField(
+                        controller: _name, label: 'نام و نام خانوادگی', icon: Icons.person_outline_rounded,
+                        validator: (v) => Validators.required(v, label: 'نام'),
+                      )),
+                      SizedBox(width: fieldWidth, child: AppTextField(
+                        controller: _phone, label: 'موبایل', icon: Icons.call_outlined,
+                        keyboardType: TextInputType.phone, numericFa: true, validator: Validators.mobile,
+                      )),
+                    ]);
+                  }),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppTextField(
-                          controller: _title,
-                          label: 'عنوان شغلی',
-                          hint: 'متخصص ناخن',
-                          icon: Icons.work_outline_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: AppDropdown<StaffRole>(
-                          label: 'نقش',
-                          items: StaffRole.values,
-                          value: _role,
-                          itemLabel: (r) => r.label,
-                          onChanged: (r) => setState(() => _role = r ?? _role),
-                        ),
-                      ),
-                    ],
-                  ),
+                  LayoutBuilder(builder: (context, constraints) {
+                    final fieldWidth = constraints.maxWidth < 620 ? constraints.maxWidth : (constraints.maxWidth - 10) / 2;
+                    return Wrap(spacing: 10, runSpacing: 12, children: [
+                      SizedBox(width: fieldWidth, child: AppTextField(
+                        controller: _title, label: 'عنوان شغلی', hint: 'متخصص ناخن', icon: Icons.work_outline_rounded,
+                      )),
+                      SizedBox(width: fieldWidth, child: AppDropdown<StaffRole>(
+                        label: 'نقش', items: StaffRole.values, value: _role,
+                        itemLabel: (r) => r.label, onChanged: (r) => setState(() => _role = r ?? _role),
+                      )),
+                    ]);
+                  }),
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: _email,
@@ -240,18 +220,19 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                   const SizedBox(height: 12),
                   AppTextField(controller: _specialties, label: 'تخصص‌ها و مهارت‌ها', hint: 'مثلاً رنگ و مش، کراتین، مشاوره', icon: Icons.workspace_premium_outlined),
                   const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: AppTextField(controller: _emergencyName, label: 'نام تماس اضطراری', icon: Icons.contact_emergency_outlined)),
-                    const SizedBox(width: 10),
-                    Expanded(child: AppTextField(
-                      controller: _emergencyPhone,
-                      label: 'شماره تماس اضطراری',
-                      icon: Icons.phone_in_talk_outlined,
-                      keyboardType: TextInputType.phone,
-                      numericFa: true,
-                      validator: (value) => value == null || value.trim().isEmpty ? null : Validators.mobile(value),
-                    )),
-                  ]),
+                  LayoutBuilder(builder: (context, constraints) {
+                    final fieldWidth = constraints.maxWidth < 620 ? constraints.maxWidth : (constraints.maxWidth - 10) / 2;
+                    return Wrap(spacing: 10, runSpacing: 12, children: [
+                      SizedBox(width: fieldWidth, child: AppTextField(
+                        controller: _emergencyName, label: 'نام تماس اضطراری', icon: Icons.contact_emergency_outlined,
+                      )),
+                      SizedBox(width: fieldWidth, child: AppTextField(
+                        controller: _emergencyPhone, label: 'شماره تماس اضطراری', icon: Icons.phone_in_talk_outlined,
+                        keyboardType: TextInputType.phone, numericFa: true,
+                        validator: (value) => value == null || value.trim().isEmpty ? null : Validators.mobile(value),
+                      )),
+                    ]);
+                  }),
                   const SizedBox(height: 12),
                   AppTextField(controller: _notes, label: 'یادداشت مدیریتی', hint: 'توضیحات داخلی درباره همکاری و مهارت‌ها', icon: Icons.notes_rounded, maxLines: 3),
                   const SizedBox(height: 12),
