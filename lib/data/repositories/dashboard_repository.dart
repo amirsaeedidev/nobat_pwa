@@ -385,28 +385,57 @@ class MockDashboardRepository implements DashboardRepository {
         cursor = next;
       }
     } else {
-      var cursor = DateTime(range.start.year, range.start.month, 1);
-      while (cursor.isBefore(range.endExclusive)) {
-        final next = DateTime(cursor.year, cursor.month + 1, 1);
-        final from = cursor.isBefore(range.start) ? range.start : cursor;
-        final to = next.isAfter(range.endExclusive) ? range.endExclusive : next;
+      var cursorJalali = JalaliDate(range.jalaliStart.year, range.jalaliStart.month, 1);
+      while (cursorJalali.toDateTime().isBefore(range.endExclusive)) {
+        final nextJalali = cursorJalali.addMonths(1);
+        final monthStart = cursorJalali.toDateTime();
+        final nextMonthStart = nextJalali.toDateTime();
+        final from = monthStart.isBefore(range.start) ? range.start : monthStart;
+        final to = nextMonthStart.isAfter(range.endExclusive) ? range.endExclusive : nextMonthStart;
         final items = appointments.where((item) => !item.startAt.isBefore(from) && item.startAt.isBefore(to)).toList();
         trend.add(ReportTrendPoint(
-          label: JalaliDate.fromDateTime(cursor).monthName,
+          label: cursorJalali.monthName,
           start: from,
           revenue: items.where((item) => item.status == AppointmentStatus.completed)
               .fold<num>(0, (sum, item) => sum + (recognizedByAppointment[item.id] ?? item.price)),
           cost: costBetween(from, to),
           appointments: items.length,
         ));
-        cursor = next;
+        cursorJalali = nextJalali;
       }
     }
 
     final previousDuration = range.endExclusive.difference(range.start);
-    final previousStart = range.start.subtract(previousDuration);
+    late DateTime previousStart;
+    late DateTime previousEnd;
+    switch (range.period) {
+      case ReportPeriod.today:
+      case ReportPeriod.yesterday:
+        previousStart = range.start.subtract(const Duration(days: 1));
+        previousEnd = range.start;
+        break;
+      case ReportPeriod.thisWeek:
+      case ReportPeriod.lastWeek:
+        previousStart = range.start.subtract(const Duration(days: 7));
+        previousEnd = range.start;
+        break;
+      case ReportPeriod.thisMonth:
+      case ReportPeriod.lastMonth:
+        final monthStart = JalaliDate(range.jalaliStart.year, range.jalaliStart.month, 1);
+        previousStart = monthStart.addMonths(-1).toDateTime();
+        previousEnd = monthStart.toDateTime();
+        break;
+      case ReportPeriod.thisYear:
+        previousStart = JalaliDate(range.jalaliStart.year - 1, 1, 1).toDateTime();
+        previousEnd = JalaliDate(range.jalaliStart.year, 1, 1).toDateTime();
+        break;
+      case ReportPeriod.custom:
+        previousStart = range.start.subtract(previousDuration);
+        previousEnd = range.start;
+        break;
+    }
     final previousEntries = allVisibleFinanceEntries.where((item) =>
-      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(range.start));
+      !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
     final previousCommission = canViewCommission ? previousEntries.fold<int>(0, (sum, item) =>
       sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
