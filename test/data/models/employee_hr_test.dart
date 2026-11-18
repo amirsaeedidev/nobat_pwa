@@ -18,10 +18,10 @@ void main(){
  test('mock database records check-in, check-out, late and overtime without duplicates',(){
   final db=AppDatabase(); final employee=db.employees.first; final day=DateTime(2026,1,3);
   db.recordAttendance(AttendanceRecord(id:'test-in',employeeId:employee.id,date:day,type:AttendanceEventType.checkIn,at:day.add(const Duration(hours:9)),lateMinutes:12));
+  expect(()=>db.recordAttendance(AttendanceRecord(id:'test-in-open-duplicate',employeeId:employee.id,date:day,type:AttendanceEventType.checkIn,at:day.add(const Duration(hours:10)))),throwsStateError);
   db.recordAttendance(AttendanceRecord(id:'test-out',employeeId:employee.id,date:day,type:AttendanceEventType.checkOut,at:day.add(const Duration(hours:18)),overtimeMinutes:60));
   final report=db.attendanceSummary(employee.id,from:day,to:day.add(const Duration(days:1)));
   expect(report.presentDays,1); expect(report.workedMinutes,540); expect(report.lateMinutes,12); expect(report.overtimeMinutes,60);
-  expect(()=>db.recordAttendance(AttendanceRecord(id:'test-in2',employeeId:employee.id,date:day,type:AttendanceEventType.checkIn,at:day)),throwsStateError);
  });
  test('leave requests generate notification and approved leave remains linked',(){
   final db=AppDatabase(); final employee=db.employees.first; final start=DateTime(2026,12,2);
