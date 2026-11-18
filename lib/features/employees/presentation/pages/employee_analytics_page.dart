@@ -13,6 +13,7 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_analytics.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/enums.dart';
 
 enum _RangePreset { today, yesterday, week, month, lastMonth, custom }
