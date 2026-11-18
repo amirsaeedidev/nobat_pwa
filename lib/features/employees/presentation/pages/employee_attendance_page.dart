@@ -36,6 +36,31 @@ class EmployeeAttendancePage extends StatelessWidget {
     _metric('تأخیر',FaNum.ofInt(sum.lateMinutes)+' دقیقه'),_metric('خروج زودهنگام',FaNum.ofInt(sum.earlyLeaveMinutes)+' دقیقه'),
    ]),
    const SizedBox(height:12),
+   Wrap(spacing:8,runSpacing:8,children:[
+    SoftButton(label:'ثبت غیبت',icon:Icons.event_busy,onTap:()=>_special(context,db,e.id,AttendanceEventType.absence)),
+    SoftButton(label:'ثبت مأموریت',icon:Icons.directions_walk,onTap:()=>_special(context,db,e.id,AttendanceEventType.mission)),
+    SoftButton(label:'اصلاح دستی',icon:Icons.edit_note,onTap:()=>_special(context,db,e.id,AttendanceEventType.manualCorrection)),
+   ]),
+   const SizedBox(height:12),
+   AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    const SectionHeader(title:'پیش‌نمایش اثر مالی حضور و غیاب'),
+    SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('فعال‌سازی قانون مالی حضور و غیاب'),value:db.attendancePayrollPolicy.enabled,onChanged:(v){
+      final p=db.attendancePayrollPolicy;db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:v,lateDeductionPerMinute:p.lateDeductionPerMinute,absenceDeductionPerDay:p.absenceDeductionPerDay,overtimePaymentPerMinute:p.overtimePaymentPerMinute));
+    }),
+    SoftButton(label:'تنظیم نرخ‌ها',icon:Icons.tune,onTap:()=>_configurePolicy(context,db)),
+    Builder(builder:(context){
+      final p=db.attendancePayrollPreview(employeeId,from:from,to:to);
+      return Column(children:[
+       _metric('کسر تأخیر',p.lateDeduction.toString()),
+       _metric('کسر غیبت',p.absenceDeduction.toString()),
+       _metric('اضافه‌کاری',p.overtimePayment.toString()),
+       _metric('کسر خروج زودهنگام',p.earlyLeaveDeduction.toString()),
+       _metric('خالص پیش‌نمایش',p.netAdjustment.toString()),
+       const Text('این ارقام فقط پیش‌نمایش هستند و هیچ جریمه یا کسری خودکار در دفتر مالی ثبت نمی‌شود.',style:TextStyle(fontSize:10)),
+      ]);
+    }),
+   ])),
+   const SizedBox(height:12),
    AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const SectionHeader(title:'سوابق ماه جاری'),
     if(rows.isEmpty) EmptyState(title:'سابقه‌ای ثبت نشده'),
@@ -52,10 +77,33 @@ class EmployeeAttendancePage extends StatelessWidget {
  static String _label(AttendanceEventType t)=>switch(t){AttendanceEventType.checkIn=>'ورود',AttendanceEventType.checkOut=>'خروج',AttendanceEventType.absence=>'غیبت',AttendanceEventType.mission=>'مأموریت',AttendanceEventType.manualCorrection=>'اصلاح دستی'};
  static IconData _icon(AttendanceEventType t)=>switch(t){AttendanceEventType.checkIn=>Icons.login,AttendanceEventType.checkOut=>Icons.logout,AttendanceEventType.absence=>Icons.event_busy,AttendanceEventType.mission=>Icons.directions_walk,AttendanceEventType.manualCorrection=>Icons.edit_note};
  static Future<void> _record(BuildContext context,AppDatabase db,String id,AttendanceEventType type)async{
-  final now=DateTime.now();final note=TextEditingController();
-  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:Text(type==AttendanceEventType.checkIn?'ثبت ورود':'ثبت خروج'),content:TextField(controller:note,decoration:const InputDecoration(labelText:'توضیحات (اختیاری)')),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت'))]));
-  if(ok!=true||!context.mounted)return;
-  try{db.recordAttendance(AttendanceRecord(id:db.nextId('attendance'),employeeId:id,date:DateTime(now.year,now.month,now.day),at:now,type:type,note:note.text,createdBy:db.currentAccessAccount.name));AppToast.show(context,'ثبت حضور انجام شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}
+  final now=DateTime.now();final note=TextEditingController(),minutes=TextEditingController(),early=TextEditingController();
+  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:Text(type==AttendanceEventType.checkIn?'ثبت ورود':'ثبت خروج'),content:Column(mainAxisSize:MainAxisSize.min,children:[
+   TextField(controller:note,decoration:const InputDecoration(labelText:'توضیحات (اختیاری)')),
+   if(type==AttendanceEventType.checkIn)TextField(controller:minutes,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'دقایق تأخیر')),
+   if(type==AttendanceEventType.checkOut)...[TextField(controller:minutes,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'دقایق اضافه‌کاری')),TextField(controller:early,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'دقایق خروج زودهنگام'))],
+  ]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت'))]));
+  if(ok!=true||!context.mounted){note.dispose();minutes.dispose();early.dispose();return;}
+  final mins=int.tryParse(FaNum.toLatin(minutes.text))??0,earlyMins=int.tryParse(FaNum.toLatin(early.text))??0;
+  try{db.recordAttendance(AttendanceRecord(id:db.nextId('attendance'),employeeId:id,date:DateTime(now.year,now.month,now.day),at:now,type:type,note:note.text,createdBy:db.currentAccessAccount.name,lateMinutes:type==AttendanceEventType.checkIn?mins:0,overtimeMinutes:type==AttendanceEventType.checkOut?mins:0,earlyLeaveMinutes:earlyMins));AppToast.show(context,'ثبت حضور انجام شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}
+  note.dispose();minutes.dispose();early.dispose();
+ }
+ static Future<void> _special(BuildContext context,AppDatabase db,String id,AttendanceEventType type)async{
+  final note=TextEditingController();
+  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:Text(type==AttendanceEventType.absence?'ثبت غیبت':type==AttendanceEventType.mission?'ثبت مأموریت':'اصلاح دستی'),content:TextField(controller:note,decoration:const InputDecoration(labelText:'دلیل / توضیحات',hintText:'ثبت دلیل الزامی است')),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت'))]));
+  if(ok==true&&context.mounted){try{if(note.text.trim().isEmpty)throw ArgumentError('ثبت دلیل الزامی است.');final now=DateTime.now();db.recordAttendance(AttendanceRecord(id:db.nextId('attendance'),employeeId:id,date:DateTime(now.year,now.month,now.day),at:now,type:type,note:note.text,createdBy:db.currentAccessAccount.name));AppToast.show(context,'رویداد ثبت شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
   note.dispose();
  }
+ static Future<void> _configurePolicy(BuildContext context,AppDatabase db)async{
+  final p=db.attendancePayrollPolicy;
+  final late=TextEditingController(text:p.lateDeductionPerMinute.toString()),absence=TextEditingController(text:p.absenceDeductionPerDay.toString()),overtime=TextEditingController(text:p.overtimePaymentPerMinute.toString());
+  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('قانون مالی حضور و غیاب'),content:Column(mainAxisSize:MainAxisSize.min,children:[
+   TextField(controller:late,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کسر هر دقیقه تأخیر (تومان)')),
+   TextField(controller:absence,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کسر هر روز غیبت (تومان)')),
+   TextField(controller:overtime,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'پرداخت هر دقیقه اضافه‌کاری (تومان)')),
+  ]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ذخیره نرخ‌ها'))]));
+  if(ok==true&&context.mounted){try{db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:p.enabled,lateDeductionPerMinute:int.parse(FaNum.toLatin(late.text)),absenceDeductionPerDay:int.parse(FaNum.toLatin(absence.text)),overtimePaymentPerMinute:int.parse(FaNum.toLatin(overtime.text))));AppToast.show(context,'قانون مالی ذخیره شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
+  late.dispose();absence.dispose();overtime.dispose();
+ }
+
 }
