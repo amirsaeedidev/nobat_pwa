@@ -246,7 +246,7 @@ class _AddButton extends StatelessWidget {
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
           ),
-          borderRadius: BorderRadius.circular(19),
+          shape: BoxShape.circle,
           border: Border.all(color: pal.background, width: 4),
           boxShadow: AppShadows.glow(pal.primary, opacity: 0.45, blur: 22),
         ),
