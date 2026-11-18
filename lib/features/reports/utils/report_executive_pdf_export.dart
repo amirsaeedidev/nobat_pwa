@@ -17,7 +17,7 @@ class ReportExecutivePdfExport {
     required String title,
     required List<String> columns,
   }) async {
-    final fontData = await rootBundle.load('assets/fonts/Vazirmatn-Regular.ttf');
+    final fontData = await rootBundle.load('assets/fonts/Lalezar-Regular.ttf');
     final font = pw.Font.ttf(fontData);
     final document = pw.Document(
       theme: pw.ThemeData.withFont(base: font, bold: font),
