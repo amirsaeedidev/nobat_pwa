@@ -38,6 +38,7 @@ class AppTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
+    final compactLogoHeader = MediaQuery.sizeOf(context).width < 400;
     return Container(
       decoration: BoxDecoration(
         color: pal.backgroundAlt,
@@ -56,8 +57,8 @@ class AppTopBar extends StatelessWidget {
                     children: [
                       const _DateTimeLogo(),
                       const Spacer(),
-                      ...actions,
-                      if (actions.isNotEmpty) const SizedBox(width: 8),
+                      if (!compactLogoHeader) ...actions,
+                      if (!compactLogoHeader && actions.isNotEmpty) const SizedBox(width: 8),
                       if (onBell != null) ...[
                         CircleIconButton(
                           icon: Icons.notifications_none_rounded,
