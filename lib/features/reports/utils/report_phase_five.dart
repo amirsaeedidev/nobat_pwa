@@ -21,6 +21,8 @@ class ReportInsight {
 class ReportInsightEngine {
   const ReportInsightEngine._();
 
+  static ReportDelta compare(num current, num previous) => ReportDelta(current, previous);
+
   static List<ReportInsight> build({
     required ReportAnalytics current,
     required ReportAnalytics previous,
