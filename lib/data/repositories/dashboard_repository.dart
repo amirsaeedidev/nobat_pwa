@@ -392,12 +392,13 @@ class MockDashboardRepository implements DashboardRepository {
     }).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
     final now = DateTime.now();
-    final candidateCustomers = filter.serviceId != null || filter.employeeId != null || filter.status != null
+    final restrictCustomerScope = !canViewAll || filter.serviceId != null || filter.employeeId != null || filter.status != null;
+    final candidateCustomers = restrictCustomerScope
       ? _db.customers.where((customer) => operationalAppointments.any((item) => item.customerId == customer.id))
       : _db.customers.where((customer) => filter.customerId == null || customer.id == filter.customerId);
     final customerMetrics = candidateCustomers.map((customer) {
       final lifetimeVisits = _db.appointments.where((item) =>
-        item.customerId == customer.id && item.status == AppointmentStatus.completed).toList()
+        canSeeAppointment(item) && item.customerId == customer.id && item.status == AppointmentStatus.completed).toList()
         ..sort((a, b) => a.startAt.compareTo(b.startAt));
       final periodVisits = operationalCompleted.where((item) => item.customerId == customer.id).toList();
       final firstVisit = lifetimeVisits.isEmpty ? null : lifetimeVisits.first.startAt;
@@ -458,8 +459,9 @@ class MockDashboardRepository implements DashboardRepository {
     var capacityMinutes = 0;
     var bookedCapacityMinutes = 0;
     if (daysInRange > 0 && daysInRange <= 366) {
+      final capacityEmployeeId = filter.employeeId ?? (!canViewAll ? employeeId : null);
       final activeEmployees = _db.employees.where((item) =>
-        item.isActive && (filter.employeeId == null || item.id == filter.employeeId)).toList();
+        item.isActive && (capacityEmployeeId == null || item.id == capacityEmployeeId)).toList();
       for (var dayIndex = 0; dayIndex < daysInRange; dayIndex++) {
         final day = DateTime(range.start.year, range.start.month, range.start.day + dayIndex);
         for (final employee in activeEmployees) {
