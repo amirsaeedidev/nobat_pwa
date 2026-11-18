@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/models/employee_hr.dart';
+import 'package:datetime/data/models/employee_payroll.dart';
+import 'package:datetime/data/models/employee_wallet.dart';
 import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/employee_schedule.dart';
@@ -93,6 +95,26 @@ void main(){
   expect(db.documentsFor(employee.id).singleWhere((d)=>d.id==doc.id).title,'قرارداد اصلاح‌شده');
   db.deleteEmployeeDocument(doc.id);
   expect(db.documentsFor(employee.id).any((d)=>d.id==doc.id),false);
+ });
+ test('attendance reports early leave and absence days',(){
+  final db=AppDatabase();final employee=db.employees.first;final absentDay=DateTime(2026,1,12);final workDay=DateTime(2026,1,13);
+  db.recordAttendance(AttendanceRecord(id:'report-absence',employeeId:employee.id,date:absentDay,type:AttendanceEventType.absence,at:absentDay.add(const Duration(hours:9)),note:'غیبت آزمایشی'));
+  db.recordAttendance(AttendanceRecord(id:'report-in',employeeId:employee.id,date:workDay,type:AttendanceEventType.checkIn,at:workDay.add(const Duration(hours:9))));
+  db.recordAttendance(AttendanceRecord(id:'report-out',employeeId:employee.id,date:workDay,type:AttendanceEventType.checkOut,at:workDay.add(const Duration(hours:16)),earlyLeaveMinutes:30));
+  final summary=db.attendanceSummary(employee.id,from:absentDay,to:workDay.add(const Duration(days:1)));
+  expect(summary.absentDays,1);expect(summary.presentDays,1);expect(summary.earlyLeaveMinutes,30);
+ });
+ test('salary and payment changes create employee notices',(){
+  final db=AppDatabase();final employee=db.employees.first;
+  db.saveSalaryContract(SalaryContract(id:'notice-salary',employeeId:employee.id,monthlyBase:9000000,effectiveFrom:date));
+  expect(db.noticesFor(employee.id).any((n)=>n.type==EmployeeNoticeType.salaryChanged),true);
+  db.addWalletTransaction(employeeId:employee.id,amount:-1000,type:EmployeeWalletTransactionType.salaryPayment,description:'پرداخت آزمایشی');
+  expect(db.noticesFor(employee.id).any((n)=>n.type==EmployeeNoticeType.paymentRecorded),true);
+ });
+ test('mock data includes contract-expiry and schedule notices',(){
+  final db=AppDatabase();
+  expect(db.employeeNotices.any((n)=>n.type==EmployeeNoticeType.contractExpiring),true);
+  expect(db.employeeNotices.any((n)=>n.type==EmployeeNoticeType.scheduleChanged),true);
  });
  test('mock notice can be marked read',(){
   final notice=EmployeeNotice(id:'1',employeeId:'e',title:'مرخصی',message:'درخواست جدید',type:EmployeeNoticeType.leaveRequested,createdAt:date);

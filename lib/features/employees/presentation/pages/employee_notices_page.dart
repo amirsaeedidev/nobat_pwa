@@ -9,9 +9,9 @@ class EmployeeNoticesPage extends StatelessWidget{
  @override Widget build(BuildContext context){
   final db=context.watch<AppDatabase>();final e=db.employeeById(employeeId);
   if(e==null)return PageScaffold(title:'اعلان‌های پرسنل',showBackButton:true,child:EmptyState(title:'پرسنل یافت نشد'));
-  final notices=db.noticesFor(employeeId);
+  final notices=db.noticesFor(employeeId);final unread=notices.where((n)=>!n.read).length;
   return PageScaffold(title:'اعلان‌های پرسنل',subtitle:e.fullName,showBackButton:true,child:AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-   const SectionHeader(title:'اعلان‌های آفلاین'),
+   SectionHeader(title:'اعلان‌های آفلاین',subtitle:'$unread خوانده‌نشده'),
    if(notices.isEmpty)EmptyState(title:'اعلانی وجود ندارد'),
    for(final n in notices)ListTile(contentPadding:EdgeInsets.zero,leading:Icon(n.read?Icons.notifications_none:Icons.notifications_active_outlined),title:Text(n.title),subtitle:Text('${n.message}\n${n.createdAt.toString().split('.').first}'),trailing:n.read?const Icon(Icons.done,color:Colors.green):TextButton(onPressed:()=>db.markEmployeeNoticeRead(n.id),child:const Text('خواندم'))),
   ])));
