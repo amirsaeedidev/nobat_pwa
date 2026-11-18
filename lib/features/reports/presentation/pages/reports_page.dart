@@ -55,6 +55,8 @@ class ReportsPage extends StatelessWidget {
       subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
       leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
+        if (db.hasPermission('finance.payment.create'))
+          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(database: db))),
         SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
       child: provider.loading
@@ -261,6 +263,77 @@ class ReportsPage extends StatelessWidget {
   }
 }
 
+
+
+class _AddBusinessExpenseDialog extends StatefulWidget {
+  const _AddBusinessExpenseDialog({required this.database});
+  final AppDatabase database;
+
+  @override
+  State<_AddBusinessExpenseDialog> createState() => _AddBusinessExpenseDialogState();
+}
+
+class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
+  final _amount = TextEditingController();
+  final _description = TextEditingController();
+  final _source = TextEditingController();
+  BusinessExpenseCategory _category = BusinessExpenseCategory.operating;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _description.dispose();
+    _source.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
+    if (amount == null || amount <= 0 || _description.text.trim().isEmpty || _source.text.trim().isEmpty) {
+      setState(() => _error = 'مبلغ، شرح و شناسه سند منبع را کامل و معتبر وارد کنید.');
+      return;
+    }
+    try {
+      widget.database.addBusinessExpense(BusinessExpense(
+        id: widget.database.nextId('expense'),
+        createdAt: DateTime.now(),
+        amount: amount,
+        category: _category,
+        description: _description.text.trim(),
+        sourceDocumentId: _source.text.trim(),
+        createdBy: widget.database.currentAccessAccount.name,
+      ));
+      Navigator.of(context).pop();
+    } catch (error) {
+      setState(() => _error = error.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('ثبت هزینه مجموعه'),
+    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextField(controller: _amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ (تومان)')),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<BusinessExpenseCategory>(
+        value: _category,
+        decoration: const InputDecoration(labelText: 'دسته هزینه'),
+        items: [for (final item in BusinessExpenseCategory.values) DropdownMenuItem(value: item, child: Text(item.label))],
+        onChanged: (value) => setState(() => _category = value ?? _category),
+      ),
+      const SizedBox(height: 8),
+      TextField(controller: _description, decoration: const InputDecoration(labelText: 'شرح هزینه')),
+      const SizedBox(height: 8),
+      TextField(controller: _source, decoration: const InputDecoration(labelText: 'شناسه سند منبع')),
+      if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))),
+    ])),
+    actions: [
+      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('انصراف')),
+      FilledButton(onPressed: _save, child: const Text('ثبت هزینه')),
+    ],
+  );
+}
 
 void _showFinanceSheet(BuildContext context, String title, List<String> details) {
   showModalBottomSheet<void>(
