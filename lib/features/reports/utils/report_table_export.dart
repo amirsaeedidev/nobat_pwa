@@ -54,7 +54,7 @@ class ReportTableExport {
     required List<String> headers,
     required List<List<Object?>> rows,
   }) async {
-    await FileSaver.instance.saveFile(
+    await FileSaver.instance.saveAs(
       name: name,
       bytes: csvBytes(headers, rows),
       fileExtension: 'csv',
