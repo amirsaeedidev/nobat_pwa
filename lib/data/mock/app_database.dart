@@ -6,6 +6,7 @@ import '../../core/utils/jalali.dart';
 import '../models/activity_log.dart';
 import '../models/appointment.dart';
 import '../models/business_settings.dart';
+import '../models/business_finance.dart';
 import '../models/customer.dart';
 import '../models/employee.dart';
 import '../models/enums.dart';
@@ -44,6 +45,8 @@ class AppDatabase extends ChangeNotifier {
   final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
   final List<EmployeeWalletTransaction> _employeeWalletTransactions = [];
   final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
+  final List<AppointmentPayment> _appointmentPayments = [];
+  final List<BusinessExpense> _businessExpenses = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
   final Map<String, EmployeeScheduleException> _employeeScheduleExceptions = {};
   final List<EmployeeLeave> _employeeLeaves = [];
@@ -74,6 +77,8 @@ class AppDatabase extends ChangeNotifier {
   List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(_employeeWalletTransactions);
   List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(_employeeWalletSettlements);
+  List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_appointmentPayments);
+  List<BusinessExpense> get businessExpenses => List.unmodifiable(_businessExpenses);
   List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
   List<AttendanceRecord> get attendanceRecords => List.unmodifiable(_attendanceRecords);
   List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments);
@@ -88,6 +93,150 @@ class AppDatabase extends ChangeNotifier {
     return _employeePayProfiles[employeeId] ?? EmployeePayProfile(employeeId: employeeId);
   }
   BusinessSettings get settings => _settings;
+
+  /// داده‌های نمونه پرداخت و هزینه مجموعه؛ صرفاً برای Datamonck آفلاین.
+  void _seedBusinessFinance() {
+    var index = 0;
+    for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) {
+      final received = _employeeFinanceEntries
+          .where((entry) => entry.appointmentId == appointment.id && entry.type == FinanceEntryType.commission)
+          .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      if (received <= 0) continue;
+      final methods = BusinessPaymentMethod.values;
+      _appointmentPayments.add(AppointmentPayment(
+        id: 'payment-seed-${appointment.id}',
+        appointmentId: appointment.id,
+        customerId: appointment.customerId,
+        createdAt: appointment.startAt,
+        amount: received,
+        method: methods[index++ % methods.length],
+        type: BusinessPaymentType.receipt,
+        description: 'دریافت نمونه Datamonck برای نوبت ${appointment.reference}',
+        idempotencyKey: 'seed-payment-${appointment.id}',
+      ));
+    }
+    final now = DateTime.now();
+    _businessExpenses.addAll([
+      BusinessExpense(id: 'expense-seed-rent', createdAt: now.subtract(const Duration(days: 3)), amount: 6500000, category: BusinessExpenseCategory.rent, description: 'اجاره فضای مجموعه (نمونه)', sourceDocumentId: 'DOC-DM-RENT-001', createdBy: 'Datamonck'),
+      BusinessExpense(id: 'expense-seed-supplies', createdAt: now.subtract(const Duration(days: 2)), amount: 1250000, category: BusinessExpenseCategory.supplies, description: 'خرید مواد مصرفی (نمونه)', sourceDocumentId: 'DOC-DM-SUP-001', createdBy: 'Datamonck'),
+      BusinessExpense(id: 'expense-seed-utilities', createdAt: now.subtract(const Duration(days: 1)), amount: 480000, category: BusinessExpenseCategory.utilities, description: 'قبوض و خدمات (نمونه)', sourceDocumentId: 'DOC-DM-UTIL-001', createdBy: 'Datamonck'),
+    ]);
+  }
+
+  List<AppointmentPayment> paymentsForAppointment(String appointmentId) =>
+      _appointmentPayments.where((item) => item.appointmentId == appointmentId).toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+  AppointmentPayment recordAppointmentPayment({
+    required String appointmentId,
+    required int amount,
+    required BusinessPaymentMethod method,
+    required String description,
+    DateTime? createdAt,
+    String? idempotencyKey,
+  }) {
+    requirePermission('finance.payment.create');
+    final matches = _appointments.where((item) => item.id == appointmentId).toList();
+    if (matches.isEmpty) throw StateError('نوبت مورد نظر پیدا نشد.');
+    if (amount <= 0 || description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات پرداخت معتبر نیست.');
+    if (idempotencyKey != null &&
+        (idempotencyKey.trim().isEmpty || _appointmentPayments.any((item) => item.idempotencyKey == idempotencyKey))) {
+      throw StateError('این پرداخت قبلاً ثبت شده است.');
+    }
+    final appointment = matches.first;
+    final recognized = _employeeFinanceEntries
+        .where((entry) => entry.appointmentId == appointmentId)
+        .fold<int>(0, (sum, entry) => sum + (entry.type == FinanceEntryType.refund ? entry.receivedAmount : entry.type == FinanceEntryType.commission ? entry.receivedAmount : 0));
+    final billable = recognized > 0 ? recognized : appointment.price.round();
+    final collected = _appointmentPayments.where((item) => item.appointmentId == appointmentId)
+        .fold<int>(0, (sum, item) => sum + item.signedAmount);
+    final outstanding = billable - collected;
+    if (outstanding <= 0 || amount > outstanding) throw ArgumentError('مبلغ پرداخت از مانده قابل دریافت بیشتر است.');
+    final payment = AppointmentPayment(
+      id: nextId('payment'), appointmentId: appointmentId, customerId: appointment.customerId,
+      createdAt: createdAt ?? DateTime.now(), amount: amount, method: method,
+      type: BusinessPaymentType.receipt, description: description.trim(), idempotencyKey: idempotencyKey,
+    );
+    _appointmentPayments.add(payment);
+    log(ActivityType.settingsChanged, 'ثبت دریافت مشتری', 'دریافت مبلغ $amount برای نوبت ${appointment.reference} ثبت شد.', entity: 'دریافت‌های مجموعه');
+    _commit();
+    return payment;
+  }
+
+  AppointmentPayment refundAppointmentPayment({
+    required String paymentId,
+    required int amount,
+    required String description,
+    DateTime? createdAt,
+    String? idempotencyKey,
+  }) {
+    requirePermission('finance.payment.create');
+    final matches = _appointmentPayments.where((item) => item.id == paymentId && item.type == BusinessPaymentType.receipt).toList();
+    if (matches.isEmpty) throw StateError('رسید دریافت پیدا نشد.');
+    final original = matches.first;
+    if (amount <= 0 || description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات برگشت معتبر نیست.');
+    if (idempotencyKey != null &&
+        (idempotencyKey.trim().isEmpty || _appointmentPayments.any((item) => item.idempotencyKey == idempotencyKey))) {
+      throw StateError('این برگشت قبلاً ثبت شده است.');
+    }
+    final refunded = _appointmentPayments.where((item) => item.type == BusinessPaymentType.refund && item.reversesPaymentId == paymentId)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    if (refunded + amount > original.amount) throw ArgumentError('مبلغ برگشت از مبلغ رسید بیشتر است.');
+
+    final refund = AppointmentPayment(
+      id: nextId('payment'), appointmentId: original.appointmentId, customerId: original.customerId,
+      createdAt: createdAt ?? DateTime.now(), amount: amount, method: original.method,
+      type: BusinessPaymentType.refund, description: description.trim(),
+      reversesPaymentId: paymentId, idempotencyKey: idempotencyKey,
+    );
+    _appointmentPayments.add(refund);
+
+    // برگشت سهم پرسنل را متناسب با مبلغ برگشتی، از همان اسناد کمیسیون برمی‌گردانیم.
+    final originals = _employeeFinanceEntries.where((entry) =>
+      entry.appointmentId == original.appointmentId && entry.type == FinanceEntryType.commission).toList();
+    final refundable = originals.fold<int>(0, (sum, entry) {
+      final already = _employeeFinanceEntries.where((item) =>
+        item.type == FinanceEntryType.refund && item.reversesEntryId == entry.id)
+        .fold<int>(0, (value, item) => value - item.receivedAmount);
+      return sum + (entry.receivedAmount - already).clamp(0, entry.receivedAmount);
+    });
+    var left = amount.clamp(0, refundable);
+    var remainingWeight = refundable;
+    for (var i = 0; i < originals.length && left > 0; i++) {
+      final entry = originals[i];
+      final already = _employeeFinanceEntries.where((item) =>
+        item.type == FinanceEntryType.refund && item.reversesEntryId == entry.id)
+        .fold<int>(0, (value, item) => value - item.receivedAmount);
+      final available = (entry.receivedAmount - already).clamp(0, entry.receivedAmount);
+      if (available == 0) continue;
+      final share = i == originals.length - 1 || remainingWeight <= 0
+          ? left
+          : (amount * available ~/ remainingWeight).clamp(0, available);
+      final allocation = share.clamp(0, available).clamp(0, left);
+      if (allocation > 0) {
+        recordCommissionRefund(entry.id, allocation);
+        left -= allocation;
+      }
+      remainingWeight -= available;
+    }
+    log(ActivityType.settingsChanged, 'ثبت برگشت وجه مشتری', 'برگشت مبلغ $amount برای نوبت ثبت شد.', entity: 'دریافت‌های مجموعه');
+    _commit();
+    return refund;
+  }
+
+  void addBusinessExpense(BusinessExpense expense) {
+    requirePermission('finance.payment.create');
+    if (expense.amount <= 0 || expense.description.trim().isEmpty ||
+        expense.sourceDocumentId.trim().isEmpty || expense.createdBy.trim().isEmpty) {
+      throw ArgumentError('مبلغ، شرح، سند منبع و ثبت‌کننده هزینه الزامی است.');
+    }
+    if (_businessExpenses.any((item) => item.id == expense.id || item.sourceDocumentId == expense.sourceDocumentId)) {
+      throw StateError('شناسه هزینه یا سند منبع تکراری است.');
+    }
+    _businessExpenses.add(expense);
+    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} با سند ${expense.sourceDocumentId} ثبت شد.', entity: 'امور مالی مجموعه');
+    _commit();
+  }
 
   String nextId(String prefix) => '$prefix-${++_idCounter}';
 
@@ -105,6 +254,7 @@ class AppDatabase extends ChangeNotifier {
     _appointments.addAll(MockSeed.appointments());
     for (var index = 0; index < _employees.length; index++) { final employee = _employees[index]; _employeePayProfiles[employee.id] = EmployeePayProfile(employeeId: employee.id, method: index == 0 ? EmployeePaymentMethod.fixedPlusCommission : EmployeePaymentMethod.commissionOnly, monthlySalary: index == 0 ? 12000000 : 0, generalRateBps: 3000, basis: CommissionBasis.afterDiscount); }
     for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) { _createCommissionEntries(appointment); }
+    _seedBusinessFinance();
     for (final entry in List<EmployeeFinanceEntry>.of(_employeeFinanceEntries)) { _mirrorFinanceEntryToWallet(entry); }
     _seedWalletHistory();
     _seedPayrollData();
