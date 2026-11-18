@@ -78,6 +78,8 @@ void main() {
       expect(report.services.single.directCost, 300000);
       expect(report.services.single.profit, report.services.single.revenue - 300000);
       expect(report.services.single.employeeCounts[employee.fullName], 2);
+      expect(report.services.single.trend, hasLength(2));
+      expect(report.weekdayDemand, hasLength(7));
       expect(report.customerMetrics.single.customerId, customer.id);
       expect(report.customerMetrics.single.lifetimeVisits, 2);
       expect(report.customerMetrics.single.repeatVisits, 1);
