@@ -20,16 +20,70 @@ class EmployeeRecordsPage extends StatelessWidget{
     AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
      const SectionHeader(title:'مدارک و اسناد'),
      if(docs.isEmpty)EmptyState(title:'سندی ثبت نشده'),
-     for(final d in docs)ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.description_outlined),title:Text(d.title),subtitle:Text('${d.fileName} · ${d.type.name}${d.expiresAt==null?'':' · اعتبار تا ${d.expiresAt!.toString().split(' ').first}'}'),trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[Icon(d.isExpired?Icons.error_outline:d.isExpiringSoon?Icons.warning_amber:Icons.verified_outlined,color:d.isExpired?Colors.red:d.isExpiringSoon?Colors.orange:Colors.green),if(canManage)PopupMenuButton<String>(onSelected:(v){if(v=='edit')_edit(context,db,d);if(v=='delete'){try{db.deleteEmployeeDocument(d.id);AppToast.show(context,'سند حذف شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}},itemBuilder:(c)=>const [PopupMenuItem(value:'edit',child:Text('ویرایش')),PopupMenuItem(value:'delete',child:Text('حذف'))])]),onTap:()=>_preview(context,d)),
+     for(final d in docs)ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.description_outlined),title:Text(d.title),subtitle:Text('${d.fileName} · ${d.type.name}${d.expiresAt==null?'':' · اعتبار تا ${d.expiresAt!.toString().split(' ').first}'}'),trailing:Wrap(spacing:4,children:[Icon(d.isExpired?Icons.error_outline:d.isExpiringSoon?Icons.warning_amber:Icons.verified_outlined,color:d.isExpired?Colors.red:d.isExpiringSoon?Colors.orange:Colors.green),if(canManage)PopupMenuButton<String>(onSelected:(v){if(v=='edit')_edit(context,db,d);if(v=='delete'){try{db.deleteEmployeeDocument(d.id);AppToast.show(context,'سند حذف شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}},itemBuilder:(c)=>const [PopupMenuItem(value:'edit',child:Text('ویرایش')),PopupMenuItem(value:'delete',child:Text('حذف'))])]),onTap:()=>_preview(context,d)),
     ])),
     const SizedBox(height:8),const Text('فایل‌ها نمونه نمایشی هستند؛ هیچ آپلود یا سرویس آنلاین لازم نیست.',style:TextStyle(fontSize:11)),
    ]));
  }
- static Future<void> _add(BuildContext context,AppDatabase db,String id)async{
-  final title=TextEditingController(),note=TextEditingController();String file='contract-sample.pdf';EmployeeDocumentType type=EmployeeDocumentType.certificate;DateTime? expiresAt;
-  final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('ثبت سند آزمایشی'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:title,decoration:const InputDecoration(labelText:'عنوان سند')),DropdownButtonFormField<String>(value:file,decoration:const InputDecoration(labelText:'انتخاب فایل آزمایشی'),items:const ['contract-sample.pdf','identity-card-demo.png','certificate-demo.pdf','specialty-license-demo.pdf','employee-attachment-demo.pdf'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)file=v;}),DropdownButtonFormField(value:type,items:EmployeeDocumentType.values.map((v)=>DropdownMenuItem(value:v,child:Text(switch(v){EmployeeDocumentType.contract=>'قرارداد',EmployeeDocumentType.identity=>'مدرک شناسایی',EmployeeDocumentType.certificate=>'گواهی',EmployeeDocumentType.specialty=>'مدرک تخصصی',EmployeeDocumentType.attachment=>'فایل مرتبط'}))).toList(),onChanged:(v){if(v!=null)type=v;}),TextField(controller:note,decoration:const InputDecoration(labelText:'توضیحات')),StatefulBuilder(builder:(c,setState)=>ListTile(title:const Text('تاریخ اعتبار سند'),subtitle:Text(expiresAt?.toString().split(' ').first??'بدون تاریخ انقضا'),trailing:Wrap(children:[IconButton(icon:const Icon(Icons.calendar_month),onPressed:()async{final v=await showDatePicker(context:c,initialDate:DateTime.now().add(const Duration(days:30)),firstDate:DateTime(2020),lastDate:DateTime.now().add(const Duration(days:3650)));if(v!=null)setState(()=>expiresAt=v);}),if(expiresAt!=null)IconButton(icon:const Icon(Icons.clear),onPressed:()=>setState(()=>expiresAt=null))]))]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت'))]));
-  if(ok==true&&context.mounted){try{db.addEmployeeDocument(EmployeeDocument(id:db.nextId('document'),employeeId:id,title:title.text,type:type,fileName:file,addedAt:DateTime.now(),expiresAt:expiresAt,note:note.text));AppToast.show(context,'سند نمونه ثبت شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
-  title.dispose();note.dispose();
+ static Future<void> _add(BuildContext context,AppDatabase db,String id) async {
+  final title=TextEditingController();
+  final note=TextEditingController();
+  String file='contract-sample.pdf';
+  EmployeeDocumentType type=EmployeeDocumentType.certificate;
+  DateTime? expiresAt;
+  final ok=await showDialog<bool>(
+   context:context,
+   builder:(c)=>StatefulBuilder(builder:(c,setState)=>AlertDialog(
+    title:const Text('ثبت سند آزمایشی'),
+    content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+     TextField(controller:title,decoration:const InputDecoration(labelText:'عنوان سند *')),
+     DropdownButtonFormField<String>(
+      initialValue:file,
+      decoration:const InputDecoration(labelText:'انتخاب فایل آزمایشی'),
+      items:const ['contract-sample.pdf','identity-card-demo.png','certificate-demo.pdf','specialty-license-demo.pdf','employee-attachment-demo.pdf'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),
+      onChanged:(v){if(v!=null)setState(()=>file=v);},
+     ),
+     DropdownButtonFormField<EmployeeDocumentType>(
+      initialValue:type,
+      decoration:const InputDecoration(labelText:'نوع مدرک'),
+      items:EmployeeDocumentType.values.map((v)=>DropdownMenuItem(value:v,child:Text(switch(v){
+       EmployeeDocumentType.contract=>'قرارداد',
+       EmployeeDocumentType.identity=>'مدرک شناسایی',
+       EmployeeDocumentType.certificate=>'گواهی',
+       EmployeeDocumentType.specialty=>'مدرک تخصصی',
+       EmployeeDocumentType.attachment=>'فایل مرتبط',
+      }))).toList(),
+      onChanged:(v){if(v!=null)setState(()=>type=v);},
+     ),
+     TextField(controller:note,decoration:const InputDecoration(labelText:'توضیحات')),
+     ListTile(
+      contentPadding:EdgeInsets.zero,
+      title:const Text('تاریخ اعتبار سند'),
+      subtitle:Text(expiresAt==null?'بدون تاریخ انقضا':expiresAt!.toString().split(' ').first),
+      trailing:Wrap(children:[
+       IconButton(icon:const Icon(Icons.calendar_month),onPressed:()async{
+        final v=await showDatePicker(context:c,initialDate:expiresAt??DateTime.now().add(const Duration(days:30)),firstDate:DateTime(2020),lastDate:DateTime.now().add(const Duration(days:3650)));
+        if(v!=null)setState(()=>expiresAt=v);
+       }),
+       if(expiresAt!=null)IconButton(icon:const Icon(Icons.clear),onPressed:()=>setState(()=>expiresAt=null)),
+      ]),
+     ),
+    ])),
+    actions:[
+     TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),
+     FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ثبت')),
+    ],
+   )),
+  );
+  if(ok==true&&context.mounted){
+   try{
+    if(title.text.trim().isEmpty)throw ArgumentError('عنوان سند الزامی است.');
+    db.addEmployeeDocument(EmployeeDocument(id:db.nextId('document'),employeeId:id,title:title.text.trim(),type:type,fileName:file,addedAt:DateTime.now(),expiresAt:expiresAt,note:note.text.trim()));
+    AppToast.show(context,'سند نمونه ثبت شد.');
+   }catch(e){AppToast.show(context,e.toString(),success:false);}
+  }
+  title.dispose();
+  note.dispose();
  }
  static void _preview(BuildContext context,EmployeeDocument d){
   showDialog<void>(context:context,builder:(c)=>AlertDialog(
