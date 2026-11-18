@@ -231,14 +231,25 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
           _DeltaCard(label: 'تعداد نوبت', value: a.totalAppointments, previous: previous?.totalAppointments, color: pal.primaryBright),
         ]),
         const SizedBox(height: 8),
-        Row(children: [
-          Expanded(child: Text((p.hasCustomComparison ? 'مقایسه با: ' : 'مقایسه خودکار با دوره قبل: ') + p.comparisonRange.label,
-            style: TextStyle(fontSize: 10, color: pal.textMuted))),
-          TextButton(onPressed: _chooseComparisonRange, child: const Text('انتخاب بازه مقایسه')),
-          if (p.hasCustomComparison)
-            IconButton(tooltip: 'بازگشت به مقایسه خودکار', onPressed: p.clearComparisonRange,
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 17)),
-        ]),
+        LayoutBuilder(builder: (context, constraints) {
+          final comparisonLabel = (p.hasCustomComparison ? 'مقایسه با: ' : 'مقایسه خودکار با دوره قبل: ') + p.comparisonRange.label;
+          final actions = Wrap(spacing: 2, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            TextButton(onPressed: _chooseComparisonRange, child: const Text('انتخاب بازه مقایسه')),
+            if (p.hasCustomComparison)
+              IconButton(tooltip: 'بازگشت به مقایسه خودکار', onPressed: p.clearComparisonRange,
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 17)),
+          ]);
+          if (constraints.maxWidth < 370) {
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(comparisonLabel, style: TextStyle(fontSize: 10, color: pal.textMuted)),
+              actions,
+            ]);
+          }
+          return Row(children: [
+            Expanded(child: Text(comparisonLabel, style: TextStyle(fontSize: 10, color: pal.textMuted))),
+            actions,
+          ]);
+        }),
         const Divider(height: 18),
         const Text('عملکرد برتر', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
         const SizedBox(height: 6),
