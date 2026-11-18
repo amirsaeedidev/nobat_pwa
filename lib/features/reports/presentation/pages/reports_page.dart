@@ -118,7 +118,7 @@ class ReportsPage extends StatelessWidget {
                     ])),
                     const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
-                      _MetricCard(label: 'درآمد کل', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                      _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                       _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                       _MetricCard(label: 'سود خالص تخمینی', value: provider.netProfit, money: true, icon: HugeIcons.strokeRoundedChartLineData01, color: provider.netProfit >= 0 ? pal.success : pal.danger),
                       _MetricCard(label: 'تعداد نوبت', value: provider.totalAppointments, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
@@ -136,6 +136,25 @@ class ReportsPage extends StatelessWidget {
                       RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
                       const SizedBox(height: 12),
                       RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
+                    ])),
+                    const SizedBox(height: 12),
+                    AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const SectionHeader(title: 'مقایسه با دوره قبل', subtitle: 'درآمد و هزینه ثبت‌شده در دو بازه هم‌طول'),
+                      const SizedBox(height: 8),
+                      const _ChartLegend(),
+                      const SizedBox(height: 8),
+                      RevenueLineChart(
+                        data: [
+                          RevenuePoint(label: 'دوره قبل', value: provider.analytics.previousPeriodRevenue, secondary: provider.analytics.previousPeriodCost),
+                          RevenuePoint(label: 'دوره جاری', value: provider.analytics.netRevenue, secondary: provider.analytics.cost),
+                        ],
+                        height: 150,
+                        showSecondary: true,
+                      ),
+                      Text(
+                        'سود دوره قبل: ${Fmt.compactMoney(provider.analytics.previousPeriodRevenue - provider.analytics.previousPeriodCost)}  ·  سود دوره جاری: ${Fmt.compactMoney(provider.analytics.netProfit)}',
+                        style: TextStyle(fontSize: 10.5, color: pal.textMuted),
+                      ),
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
