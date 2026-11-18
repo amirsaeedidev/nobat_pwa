@@ -51,7 +51,7 @@ class MockDashboardRepository implements DashboardRepository {
     final completed = periodItems.where((a) => a.status == AppointmentStatus.completed);
     final cancelled = periodItems.where((a) => a.status == AppointmentStatus.cancelled || a.status == AppointmentStatus.noShow);
 
-    final totalRevenue = all
+    final totalRevenue = periodItems
         .where((a) => a.status == AppointmentStatus.completed)
         .fold<num>(0, (sum, a) => sum + a.price);
 
