@@ -332,6 +332,21 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
           for (final item in _history.take(5))
             ListTile(
               dense: true, contentPadding: EdgeInsets.zero,
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(item.title),
+                  content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('بازه: ' + item.range),
+                    Text('تاریخ ثبت: ' + JalaliDate.fromDateTime(item.createdAt).long),
+                    Text('درآمد: ' + Fmt.compactMoney(item.revenue)),
+                    Text('هزینه: ' + Fmt.compactMoney(item.cost)),
+                    Text('سود خالص: ' + Fmt.compactMoney(item.profit)),
+                    Text('تعداد نوبت: ' + FaNum.ofInt(item.appointments)),
+                  ]),
+                  actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن'))],
+                ),
+              ),
               title: Text(item.title, style: const TextStyle(fontSize: 11)),
               subtitle: Text(item.range + ' · ' + JalaliDate.fromDateTime(item.createdAt).short,
                 style: TextStyle(fontSize: 9, color: pal.textMuted)),
