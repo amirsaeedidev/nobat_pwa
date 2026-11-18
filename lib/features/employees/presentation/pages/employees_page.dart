@@ -118,36 +118,34 @@ class _EmployeesPageState extends State<EmployeesPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _specialty,
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'فیلتر تخصص', isDense: true),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('همه تخصص‌ها')),
-                          for (final item in specialties) DropdownMenuItem(value: item, child: Text(item)),
-                        ],
-                        onChanged: (value) => setState(() => _specialty = value),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _sort,
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'مرتب‌سازی', isDense: true),
-                        items: const [
-                          DropdownMenuItem(value: 'name', child: Text('نام')),
-                          DropdownMenuItem(value: 'start', child: Text('تاریخ همکاری')),
-                          DropdownMenuItem(value: 'performance', child: Text('تعداد نوبت')),
-                        ],
-                        onChanged: (value) => setState(() => _sort = value ?? 'name'),
-                      ),
-                    ),
-                  ],
-                ),
+                LayoutBuilder(builder: (context, constraints) {
+                  final fieldWidth = constraints.maxWidth < 430
+                    ? constraints.maxWidth
+                    : (constraints.maxWidth - 10) / 2;
+                  return Wrap(spacing: 10, runSpacing: 8, children: [
+                    SizedBox(width: fieldWidth, child: DropdownButtonFormField<String>(
+                      value: _specialty,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'فیلتر تخصص', isDense: true),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('همه تخصص‌ها')),
+                        for (final item in specialties) DropdownMenuItem(value: item, child: Text(item, overflow: TextOverflow.ellipsis)),
+                      ],
+                      onChanged: (value) => setState(() => _specialty = value),
+                    )),
+                    SizedBox(width: fieldWidth, child: DropdownButtonFormField<String>(
+                      value: _sort,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'مرتب‌سازی', isDense: true),
+                      items: const [
+                        DropdownMenuItem(value: 'name', child: Text('نام')),
+                        DropdownMenuItem(value: 'start', child: Text('تاریخ همکاری')),
+                        DropdownMenuItem(value: 'performance', child: Text('تعداد نوبت')),
+                      ],
+                      onChanged: (value) => setState(() => _sort = value ?? 'name'),
+                    )),
+                  ]);
+                }),
               ],
             ),
           ),

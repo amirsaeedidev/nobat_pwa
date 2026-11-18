@@ -2,6 +2,7 @@ import '../../core/utils/jalali.dart';
 import 'appointment.dart';
 import 'employee_wallet.dart';
 import 'business_finance.dart';
+import 'enums.dart';
 
 enum ReportPeriod {
   today('امروز'), yesterday('دیروز'), thisWeek('هفته جاری'),
@@ -74,11 +75,70 @@ class ReportEmployeeMetric {
   final num commission;
 }
 
+class ReportAnalyticsFilter {
+  const ReportAnalyticsFilter({this.serviceId, this.employeeId, this.customerId, this.status});
+  final String? serviceId, employeeId, customerId;
+  final AppointmentStatus? status;
+  bool get isEmpty => serviceId == null && employeeId == null && customerId == null && status == null;
+  bool matches(Appointment item) =>
+    (serviceId == null || item.serviceIds.contains(serviceId)) &&
+    (employeeId == null || item.employeeId == employeeId) &&
+    (customerId == null || item.customerId == customerId) &&
+    (status == null || item.status == status);
+
+  ReportAnalyticsFilter copyWith({
+    String? serviceId, String? employeeId, String? customerId,
+    AppointmentStatus? status, bool clearService = false,
+    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false,
+  }) => ReportAnalyticsFilter(
+    serviceId: clearService ? null : (serviceId ?? this.serviceId),
+    employeeId: clearEmployee ? null : (employeeId ?? this.employeeId),
+    customerId: clearCustomer ? null : (customerId ?? this.customerId),
+    status: clearStatus ? null : (status ?? this.status),
+  );
+}
+
 class ReportServiceMetric {
-  const ReportServiceMetric({required this.name, required this.revenue, required this.count});
-  final String name;
-  final num revenue;
+  const ReportServiceMetric({
+    required this.name, required this.revenue, required this.count,
+    this.serviceId = '', this.averagePrice = 0, this.directCost,
+    this.profit, this.marginPercent, this.employeeCounts = const {}, this.trend = const [],
+  });
+  final String serviceId, name;
+  final num revenue, averagePrice;
   final int count;
+  /// null یعنی حداقل یکی از نوبت‌های تاریخی این خدمت هزینه مستقیم ثبت‌شده ندارد.
+  final num? directCost, profit, marginPercent;
+  final Map<String, int> employeeCounts;
+  final List<ReportTrendPoint> trend;
+}
+
+class ReportCustomerMetric {
+  const ReportCustomerMetric({
+    required this.customerId, required this.name, required this.visits, required this.lifetimeVisits,
+    required this.totalSpent, required this.averageSpend, required this.lastVisitAt,
+    required this.firstVisitAt, required this.averageGapDays, required this.isNew,
+    required this.isLoyal, required this.isInactive, required this.isAtRisk,
+    required this.repeatVisits,
+  });
+  final String customerId, name;
+  final int visits, lifetimeVisits, repeatVisits;
+  final num totalSpent, averageSpend;
+  final DateTime? firstVisitAt, lastVisitAt;
+  final double? averageGapDays;
+  final bool isNew, isLoyal, isInactive, isAtRisk;
+}
+
+class ReportHourMetric {
+  const ReportHourMetric({required this.hour, required this.appointments, required this.scheduledMinutes, required this.bookedMinutes});
+  final int hour, appointments, scheduledMinutes, bookedMinutes;
+}
+
+class ReportWeekdayMetric {
+  const ReportWeekdayMetric({required this.weekday, required this.label, required this.appointments});
+  final int weekday;
+  final String label;
+  final int appointments;
 }
 
 class ReportCustomerDebt {
@@ -100,10 +160,28 @@ class ReportAnalytics {
     this.operatingExpense = 0, this.staffPayable = 0, this.staffPaid = 0,
     this.advancesOutstanding = 0, this.profitMarginPercent = 0,
     this.grossProfit, this.previousPeriodRevenue = 0, this.previousPeriodCost = 0,
+    this.previousPeriodAppointments = 0,
     this.paymentsByMethod = const {}, this.expensesByCategory = const {},
     this.customerDebts = const [], this.partialPayments = const [],
     this.paymentTransactions = const [], this.businessExpenses = const [],
     this.settlements = const [],
+    this.operationalAppointments = const [],
+    this.customerMetrics = const [],
+    this.hourlyDemand = const [],
+    this.weekdayDemand = const [],
+    this.repeatCustomerRate = 0,
+    this.newCustomers = 0,
+    this.oldCustomers = 0,
+    this.loyalCustomers = 0,
+    this.inactiveCustomers = 0,
+    this.atRiskCustomers = 0,
+    this.rejectedAppointments = 0,
+    this.capacityMinutes = 0,
+    this.bookedCapacityMinutes = 0,
+    this.directCostCoveragePercent = 0,
+    this.filter = const ReportAnalyticsFilter(),
+    this.operationalStatusCounts = const {},
+    this.newCustomerTrend = const [],
   });
   final ReportDateRange range;
   final num revenue, cost, commissionCost, payrollCost;
@@ -119,14 +197,30 @@ class ReportAnalytics {
   final num staffPayable, staffPaid, advancesOutstanding, profitMarginPercent;
   final num? grossProfit;
   final num previousPeriodRevenue, previousPeriodCost;
+  final int previousPeriodAppointments;
   final Map<String, num> paymentsByMethod, expensesByCategory;
   final List<ReportCustomerDebt> customerDebts;
   final List<AppointmentPayment> partialPayments, paymentTransactions;
   final List<BusinessExpense> businessExpenses;
   final List<EmployeeWalletSettlement> settlements;
+  final List<Appointment> operationalAppointments;
+  final List<ReportCustomerMetric> customerMetrics;
+  final List<ReportHourMetric> hourlyDemand;
+  final List<ReportWeekdayMetric> weekdayDemand;
+  final num repeatCustomerRate;
+  final int newCustomers, oldCustomers, loyalCustomers, inactiveCustomers, atRiskCustomers;
+  /// در مدل فعلی وضعیت مستقل «ردشده» وجود ندارد؛ مقدار صفر به‌معنی عدم پشتیبانی وضعیت است.
+  final int rejectedAppointments;
+  final int capacityMinutes, bookedCapacityMinutes;
+  final num directCostCoveragePercent;
+  final ReportAnalyticsFilter filter;
+  final Map<String, int> operationalStatusCounts;
+  final List<ReportTrendPoint> newCustomerTrend;
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
+  num get capacityUtilizationPercent => capacityMinutes <= 0 ? 0 : bookedCapacityMinutes * 100 / capacityMinutes;
+  int get emptyCapacityMinutes => (capacityMinutes - bookedCapacityMinutes).clamp(0, capacityMinutes);
 
   static ReportAnalytics empty(ReportDateRange range) => ReportAnalytics(
     range: range, revenue: 0, cost: 0, commissionCost: 0, payrollCost: 0,

@@ -24,6 +24,7 @@ import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
+import '../widgets/operational_reports_sections.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -45,11 +46,44 @@ class ReportsPage extends StatelessWidget {
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
     final canViewAll = db.hasPermission('appointments.view_all');
     final visibleAppointments = db.appointments.where((item) =>
-      canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId));
+      canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId)).toList();
+    final availableEmployees = canViewAll
+      ? db.employees
+      : db.employees.where((item) => item.id == db.currentAccessAccount.employeeId).toList();
+    final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
+    final availableCustomers = canViewAll
+      ? db.customers
+      : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
-      visibleAppointments.where((item) => item.jalali.sameDay(selectedDay)).toList();
+      visibleAppointments.where((item) => item.jalali.sameDay(selectedDay) && provider.filter.matches(item)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
-    final dayRevenue = dayCompleted.fold<num>(0, (sum, item) => sum + item.price);
+    final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
+      selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
+      (canViewAll || entry.employeeId == db.currentAccessAccount.employeeId) &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
+    final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
+    final dayCommission = db.hasPermission('finance.commission.view') ? dayFinanceEntries.fold<num>(0, (sum, item) =>
+      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount)) : 0;
+    final dayOperatingExpense = db.businessExpenses.where((item) =>
+      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
+      item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
+    final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
+      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
+      item.status == EmployeeWalletTransactionStatus.posted &&
+      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId)).toList() : <EmployeeWalletTransaction>[];
+    final dayPayrollExpense = dayWalletEntries.where((item) => {
+      EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
+      EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
+      EmployeeWalletTransactionType.adjustment,
+    }.contains(item.type)).fold<num>(0, (sum, item) => sum + item.amount);
+    final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense;
+    final dayEmployeeTotals = <String, ({int count, num revenue})>{};
+    for (final item in dayCompleted) {
+      final current = dayEmployeeTotals[item.employeeName];
+      final revenue = dayFinanceEntries.where((entry) => entry.appointmentId == item.id)
+        .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      dayEmployeeTotals[item.employeeName] = (count: (current?.count ?? 0) + 1, revenue: (current?.revenue ?? 0) + revenue);
+    }
 
     return PageScaffold(
       title: 'گزارش‌ها و تحلیل',
@@ -79,7 +113,9 @@ class ReportsPage extends StatelessWidget {
                         Wrap(spacing: 8, runSpacing: 8, children: [
                           _MetricCard(label: 'کل نوبت‌ها', value: dayAppointments.length, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
                           _MetricCard(label: 'تکمیل‌شده', value: dayCompleted.length, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
-                          _MetricCard(label: 'درآمد روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                          _MetricCard(label: 'درآمد ثبت‌شده روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
+                          _MetricCard(label: 'هزینه روز', value: dayTotalExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
+                          _MetricCard(label: 'هزینه عملیاتی', value: dayOperatingExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                         ]),
                         const SizedBox(height: 8),
                         if (dayAppointments.isEmpty)
@@ -92,6 +128,22 @@ class ReportsPage extends StatelessWidget {
                               title: Text(item.customerName),
                               subtitle: Text('${item.serviceName} · ${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}'),
                               trailing: StatusBadge.appointment(item.status, dense: true),
+                            ),
+                        const Divider(height: 18),
+                        Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
+                          style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                        const SizedBox(height: 8),
+                        const SectionHeader(title: 'عملکرد پرسنل در این روز'),
+                        if (dayEmployeeTotals.isEmpty)
+                          const EmptyState(title: 'عملکردی برای نمایش وجود ندارد', compact: true)
+                        else
+                          for (final entry in dayEmployeeTotals.entries)
+                            ListTile(
+                              dense: true, contentPadding: EdgeInsets.zero,
+                              leading: const HugeIcon(icon: HugeIcons.strokeRoundedUser, size: 18),
+                              title: Text(entry.key, style: const TextStyle(fontSize: 11)),
+                              subtitle: Text('${FaNum.ofInt(entry.value.count)} نوبت تکمیل‌شده', style: const TextStyle(fontSize: 9)),
+                              trailing: Text(Fmt.compactMoney(entry.value.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
                             ),
                       ])),
                       const SizedBox(height: 12),
@@ -117,6 +169,63 @@ class ReportsPage extends StatelessWidget {
                       Text('از ${provider.range.jalaliStart.long} تا ${provider.range.jalaliEnd.long}', style: TextStyle(fontSize: 11, color: pal.textMuted)),
                     ])),
                     const SizedBox(height: 12),
+                    AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const SectionHeader(title: 'فیلتر گزارش‌های عملیاتی', subtitle: 'فیلترها روی جدول خدمات، مشتریان، نوبت‌ها و تحلیل تقاضا اعمال می‌شوند؛ گزارش مالی کلی حفظ می‌شود.'),
+                      const SizedBox(height: 10),
+                      LayoutBuilder(builder: (context, constraints) {
+                        final width = constraints.maxWidth < 440 ? constraints.maxWidth : 205.0;
+                        return Wrap(spacing: 9, runSpacing: 9, children: [
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.serviceId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'خدمت'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه خدمات')),
+                              for (final item in db.services)
+                                DropdownMenuItem<String?>(value: item.id, child: Text(item.title, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(serviceId: value, clearService: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.employeeId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'پرسنل'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه پرسنل')),
+                              for (final item in availableEmployees)
+                                DropdownMenuItem<String?>(value: item.id, child: Text(item.fullName, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(employeeId: value, clearEmployee: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.customerId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'مشتری'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه مشتریان')),
+                              for (final item in availableCustomers)
+                                DropdownMenuItem<String?>(value: item.id, child: Text(item.fullName, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(customerId: value, clearCustomer: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<AppointmentStatus?>(
+                            value: provider.filter.status,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'وضعیت نوبت'),
+                            items: [
+                              const DropdownMenuItem<AppointmentStatus?>(value: null, child: Text('همه وضعیت‌ها')),
+                              for (final item in AppointmentStatus.values)
+                                DropdownMenuItem<AppointmentStatus?>(value: item, child: Text(item.label)),
+                            ],
+                            onChanged: (value) => provider.setFilters(status: value, clearStatus: value == null),
+                          )),
+                        ]);
+                      }),
+                      if (!provider.filter.isEmpty)
+                        Align(alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton(onPressed: provider.clearFilters, child: const Text('پاک کردن فیلترها'))),
+                    ])),
+                    const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                       _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
@@ -133,9 +242,9 @@ class ReportsPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       const _ChartLegend(),
                       const SizedBox(height: 10),
-                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
+                      RevenueBarChart(data: provider.revenueSeries, height: 180, onPointTap: (index) => _openDayReport(context, provider, index),),
                       const SizedBox(height: 12),
-                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _showTrendDetails(context, db, provider, index),),
+                      RevenueLineChart(data: provider.revenueSeries, height: 180, showSecondary: true, onPointTap: (index) => _openDayReport(context, provider, index),),
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -268,6 +377,8 @@ class ReportsPage extends StatelessWidget {
                         Expanded(flex: 5, child: Column(children: [employeeCard, const SizedBox(height: 12), serviceCard])),
                       ]);
                     }),
+                    const SizedBox(height: 12),
+                    OperationalReportsSections(analytics: provider.analytics, provider: provider),
                     const SizedBox(height: 12),
                     LayoutBuilder(builder: (context, constraints) {
                       final appointmentsCard = _RecentAppointments(items: provider.analytics.recentAppointments);
@@ -552,36 +663,11 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
   );
 }
 
-void _showTrendDetails(BuildContext context, AppDatabase database, ReportsProvider provider, int index) {
+void _openDayReport(BuildContext context, ReportsProvider provider, int index) {
   final points = provider.analytics.trend;
   if (index < 0 || index >= points.length) return;
-  final point = points[index];
-  final end = index + 1 < points.length ? points[index + 1].start : provider.range.endExclusive;
-  final canViewAll = database.hasPermission('appointments.view_all');
-  final employeeId = database.currentAccessAccount.employeeId;
-  final appointments = database.appointments.where((item) =>
-    !item.startAt.isBefore(point.start) && item.startAt.isBefore(end) &&
-    (canViewAll || (database.hasPermission('appointments.view_self') && item.employeeId == employeeId)));
-  final appointmentIds = appointments.map((item) => item.id).toSet();
-  final payments = database.appointmentPayments.where((item) =>
-    appointmentIds.contains(item.appointmentId) &&
-    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end));
-  final expenses = database.businessExpenses.where((item) =>
-    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end) &&
-    item.status == BusinessExpenseStatus.posted);
-  final wallet = database.employeeWalletTransactions.where((item) =>
-    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end) &&
-    item.status == EmployeeWalletTransactionStatus.posted &&
-    (canViewAll || item.employeeId == employeeId));
-  final details = <String>[
-    'درآمد: ${Fmt.compactMoney(point.revenue)}',
-    'هزینه: ${Fmt.compactMoney(point.cost)}',
-    for (final item in appointments) '${item.customerName} · ${item.serviceName} · ${item.status.label}',
-    for (final item in payments) '${item.description} · ${item.method.label} · ${Fmt.compactMoney(item.signedAmount)}',
-    for (final item in expenses) '${item.description} · سند ${item.sourceDocumentId} · ${Fmt.compactMoney(item.amount)}',
-    for (final item in wallet) '${item.description} · ${item.type.label} · ${Fmt.compactMoney(item.amount)}',
-  ];
-  _showFinanceSheet(context, 'جزئیات ${point.label}', details);
+  final date = JalaliDate.fromDateTime(points[index].start);
+  context.go('/reports?date=${date.iso}');
 }
 
 void _showFinanceSheet(BuildContext context, String title, List<String> details) {

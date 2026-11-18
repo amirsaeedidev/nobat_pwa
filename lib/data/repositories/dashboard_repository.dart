@@ -28,7 +28,7 @@ abstract class DashboardRepository {
 
   Future<List<RevenuePoint>> fetchServiceRevenue({int limit = 5});
 
-  Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range});
+  Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range, ReportAnalyticsFilter filter = const ReportAnalyticsFilter()});
 }
 
 class MockDashboardRepository implements DashboardRepository {
@@ -171,7 +171,7 @@ class MockDashboardRepository implements DashboardRepository {
     return [for (final e in entries.take(limit)) RevenuePoint(label: e.key, value: e.value)];
   }
   @override
-  Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range}) async {
+  Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range, ReportAnalyticsFilter filter = const ReportAnalyticsFilter()}) async {
     await _db.delay(120);
     _db.requirePermission('finance.income.view');
     final canViewAll = _db.hasPermission('appointments.view_all');
@@ -183,6 +183,12 @@ class MockDashboardRepository implements DashboardRepository {
     final appointments = _db.appointments.where((item) =>
       canSeeAppointment(item) && range.contains(item.startAt)).toList();
     final completed = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
+    final operationalAppointments = appointments.where(filter.matches).toList();
+    final operationalCompleted = operationalAppointments.where((item) => item.status == AppointmentStatus.completed).toList();
+    final operationalStatusCounts = <String, int>{
+      for (final status in AppointmentStatus.values)
+        status.label: operationalAppointments.where((item) => item.status == status).length,
+    };
     final statusCounts = <String, int>{
       for (final status in AppointmentStatus.values)
         status.label: appointments.where((item) => item.status == status).length,
@@ -322,42 +328,219 @@ class MockDashboardRepository implements DashboardRepository {
       );
     }).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
-    final serviceTotals = <String, num>{};
-    final serviceCounts = <String, int>{};
-    for (final appointment in completed) {
-      if (appointment.serviceIds.isEmpty) {
-        final name = appointment.serviceName.trim().isEmpty ? 'خدمت ثبت‌نشده' : appointment.serviceName;
-        serviceTotals[name] = (serviceTotals[name] ?? 0) + (revenueByAppointmentInRange[appointment.id] ?? 0);
-        serviceCounts[name] = (serviceCounts[name] ?? 0) + 1;
-        continue;
-      }
-      final parts = <({String name, num weight})>[];
-      for (final serviceId in appointment.serviceIds) {
+    final serviceStats = <String, ({
+      String name, num revenue, int count, num priceTotal,
+      num directCostTotal, int costKnownCount, Map<String, int> employeeCounts,
+      Map<DateTime, num> trendRevenue, Map<DateTime, int> trendCounts,
+    })>{};
+    for (final appointment in operationalCompleted) {
+      final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
+      final parts = <({String id, String name, num price, num? directCost})>[];
+      for (final serviceId in ids) {
         final snapshots = appointment.serviceSnapshots.where((item) => item['service_id'] == serviceId).toList();
         final snapshot = snapshots.isEmpty ? null : snapshots.first;
-        final savedPrice = snapshot?['price'] as num?;
         final serviceMatches = _db.services.where((item) => item.id == serviceId).toList();
-        final serviceName = serviceMatches.isEmpty
-            ? (snapshot?['service_name'] as String? ?? serviceId)
-            : serviceMatches.first.title;
-        parts.add((name: serviceName, weight: savedPrice ?? 1));
+        final service = serviceMatches.isEmpty ? null : serviceMatches.first;
+        final name = (snapshot?['title'] as String?) ??
+          (snapshot?['service_name'] as String?) ?? service?.title ??
+          (appointment.serviceName.trim().isEmpty ? 'خدمت ثبت‌نشده' : appointment.serviceName);
+        final savedPrice = snapshot?['price'] as num?;
+        final price = savedPrice ?? (ids.length == 1 ? appointment.price : appointment.price / ids.length);
+        final directCost = snapshot != null && snapshot['direct_cost'] is num
+          ? snapshot['direct_cost'] as num : null;
+        parts.add((id: serviceId, name: name, price: price, directCost: directCost));
       }
-      final weightTotal = parts.fold<num>(0, (sum, item) => sum + item.weight);
+      final weightTotal = parts.fold<num>(0, (sum, item) => sum + item.price);
       final appointmentRevenue = revenueByAppointmentInRange[appointment.id] ?? 0;
-      var allocated = 0.0;
+      var allocatedRevenue = 0.0;
       for (var index = 0; index < parts.length; index++) {
         final part = parts[index];
         final amount = index == parts.length - 1
-            ? appointmentRevenue - allocated
-            : (weightTotal == 0 ? appointmentRevenue / parts.length : appointmentRevenue * part.weight / weightTotal);
-        allocated += amount;
-        serviceTotals[part.name] = (serviceTotals[part.name] ?? 0) + amount;
-        serviceCounts[part.name] = (serviceCounts[part.name] ?? 0) + 1;
+          ? appointmentRevenue - allocatedRevenue
+          : (weightTotal == 0 ? appointmentRevenue / parts.length : appointmentRevenue * part.price / weightTotal);
+        allocatedRevenue += amount;
+        final key = part.id.isEmpty ? 'legacy:${part.name}' : part.id;
+        final current = serviceStats[key];
+        final employeeCounts = current?.employeeCounts ?? <String, int>{};
+        employeeCounts[appointment.employeeName] = (employeeCounts[appointment.employeeName] ?? 0) + 1;
+        final trendRevenue = current?.trendRevenue ?? <DateTime, num>{};
+        final trendCounts = current?.trendCounts ?? <DateTime, int>{};
+        final serviceRangeDays = range.endExclusive.difference(range.start).inDays;
+        final serviceDate = appointment.startAt;
+        final trendBucket = serviceRangeDays <= 31
+          ? DateTime(serviceDate.year, serviceDate.month, serviceDate.day)
+          : JalaliDate(JalaliDate.fromDateTime(serviceDate).year, JalaliDate.fromDateTime(serviceDate).month, 1).toDateTime();
+        trendRevenue[trendBucket] = (trendRevenue[trendBucket] ?? 0) + amount;
+        trendCounts[trendBucket] = (trendCounts[trendBucket] ?? 0) + 1;
+        serviceStats[key] = (
+          name: part.name,
+          revenue: (current?.revenue ?? 0) + amount,
+          count: (current?.count ?? 0) + 1,
+          priceTotal: (current?.priceTotal ?? 0) + part.price,
+          directCostTotal: (current?.directCostTotal ?? 0) + (part.directCost ?? 0),
+          costKnownCount: (current?.costKnownCount ?? 0) + (part.directCost != null ? 1 : 0),
+          employeeCounts: employeeCounts,
+          trendRevenue: trendRevenue,
+          trendCounts: trendCounts,
+        );
       }
     }
-    final serviceMetrics = serviceTotals.entries.map((entry) => ReportServiceMetric(
-      name: entry.key, revenue: entry.value, count: serviceCounts[entry.key] ?? 0,
-    )).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
+    final serviceMetrics = serviceStats.entries.map((entry) {
+      final item = entry.value;
+      final hasCompleteCost = item.count > 0 && item.costKnownCount == item.count;
+      final directCost = hasCompleteCost ? item.directCostTotal : null;
+      final profit = directCost == null ? null : item.revenue - directCost;
+      final trendEntries = item.trendRevenue.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+      return ReportServiceMetric(
+        serviceId: entry.key.startsWith('legacy:') ? '' : entry.key,
+        name: item.name,
+        revenue: item.revenue,
+        count: item.count,
+        averagePrice: item.count == 0 ? 0 : item.priceTotal / item.count,
+        directCost: directCost,
+        profit: profit,
+        marginPercent: profit == null || item.revenue == 0 ? null : profit * 100 / item.revenue,
+        employeeCounts: Map.unmodifiable(item.employeeCounts),
+        trend: [for (final point in trendEntries) ReportTrendPoint(
+          label: range.endExclusive.difference(range.start).inDays <= 31
+            ? JalaliDate.fromDateTime(point.key).short
+            : JalaliDate.fromDateTime(point.key).monthName,
+          start: point.key, revenue: point.value, cost: 0,
+          appointments: item.trendCounts[point.key] ?? 0,
+        )],
+      );
+    }).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
+
+    final now = DateTime.now();
+    final restrictCustomerScope = !canViewAll || filter.serviceId != null || filter.employeeId != null || filter.status != null;
+    final candidateCustomers = restrictCustomerScope
+      ? _db.customers.where((customer) => operationalAppointments.any((item) => item.customerId == customer.id))
+      : _db.customers.where((customer) => filter.customerId == null || customer.id == filter.customerId);
+    final customerMetrics = candidateCustomers.map((customer) {
+      final lifetimeVisits = _db.appointments.where((item) =>
+        canSeeAppointment(item) && item.customerId == customer.id && item.status == AppointmentStatus.completed).toList()
+        ..sort((a, b) => a.startAt.compareTo(b.startAt));
+      final periodVisits = operationalCompleted.where((item) => item.customerId == customer.id).toList();
+      final firstVisit = lifetimeVisits.isEmpty ? null : lifetimeVisits.first.startAt;
+      final lastVisit = lifetimeVisits.isEmpty ? (canViewAll ? customer.lastVisitAt : null) : lifetimeVisits.last.startAt;
+      final daysSinceVisit = lastVisit == null ? (customer.createdAt == null ? 99999 : now.difference(customer.createdAt!).inDays) : now.difference(lastVisit).inDays;
+      var totalGapDays = 0;
+      for (var i = 1; i < lifetimeVisits.length; i++) {
+        totalGapDays += lifetimeVisits[i].startAt.difference(lifetimeVisits[i - 1].startAt).inDays.abs();
+      }
+      final lifetimeAppointmentIds = lifetimeVisits.map((item) => item.id).toSet();
+      final customerIncomeEntries = _db.employeeFinanceEntries.where((entry) =>
+        lifetimeAppointmentIds.contains(entry.appointmentId) &&
+        (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
+        (canViewAll || employeeId == entry.employeeId)).toList();
+      final totalSpent = customerIncomeEntries.isEmpty
+        ? lifetimeVisits.fold<num>(0, (sum, item) => sum + item.price)
+        : customerIncomeEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
+      final isNew = firstVisit != null
+        ? range.contains(firstVisit)
+        : customer.createdAt != null && range.contains(customer.createdAt!);
+      return ReportCustomerMetric(
+        customerId: customer.id,
+        name: customer.fullName,
+        visits: periodVisits.length,
+        lifetimeVisits: lifetimeVisits.length,
+        repeatVisits: lifetimeVisits.length > 1 ? lifetimeVisits.length - 1 : 0,
+        totalSpent: totalSpent,
+        averageSpend: lifetimeVisits.isEmpty ? 0 : totalSpent / lifetimeVisits.length,
+        firstVisitAt: firstVisit ?? customer.createdAt,
+        lastVisitAt: lastVisit,
+        averageGapDays: lifetimeVisits.length < 2 ? null : totalGapDays / (lifetimeVisits.length - 1),
+        isNew: isNew,
+        isLoyal: lifetimeVisits.length >= 4,
+        isInactive: lastVisit != null && daysSinceVisit >= 90 || (lastVisit == null && customer.createdAt != null && daysSinceVisit >= 90),
+        isAtRisk: (lastVisit != null || customer.createdAt != null) && daysSinceVisit >= 60 && daysSinceVisit < 90,
+      );
+    }).toList()..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
+
+    final activePeriodCustomers = customerMetrics.where((item) => item.visits > 0).toList();
+    final repeatPeriodCustomers = activePeriodCustomers.where((item) => item.visits >= 2).length;
+    final repeatCustomerRate = activePeriodCustomers.isEmpty ? 0.0 : repeatPeriodCustomers * 100 / activePeriodCustomers.length;
+    final newCustomers = customerMetrics.where((item) => item.isNew).length;
+    final oldCustomers = activePeriodCustomers.where((item) => !item.isNew).length;
+    final loyalCustomers = customerMetrics.where((item) => item.isLoyal).length;
+    final inactiveCustomers = customerMetrics.where((item) => item.isInactive).length;
+    final atRiskCustomers = customerMetrics.where((item) => item.isAtRisk).length;
+    final newCustomerBuckets = <DateTime, int>{};
+    final rangeDaysForAcquisition = range.endExclusive.difference(range.start).inDays;
+    for (final customer in customerMetrics.where((item) => item.isNew)) {
+      final date = customer.firstVisitAt;
+      if (date == null || !range.contains(date)) continue;
+      final bucket = rangeDaysForAcquisition <= 31
+        ? DateTime(date.year, date.month, date.day)
+        : JalaliDate(JalaliDate.fromDateTime(date).year, JalaliDate.fromDateTime(date).month, 1).toDateTime();
+      newCustomerBuckets[bucket] = (newCustomerBuckets[bucket] ?? 0) + 1;
+    }
+    final newCustomerTrend = newCustomerBuckets.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    final hourlyCounts = <int, int>{};
+    final hourlyScheduled = <int, int>{};
+    final hourlyBooked = <int, int>{};
+    final weekdayCounts = <int, int>{for (var weekday = 1; weekday <= 7; weekday++) weekday: 0};
+    final daysInRange = range.endExclusive.difference(range.start).inDays;
+    var capacityMinutes = 0;
+    var bookedCapacityMinutes = 0;
+    if (daysInRange > 0 && daysInRange <= 366) {
+      final capacityEmployeeId = canViewAll ? filter.employeeId : employeeId;
+      final activeEmployees = _db.employees.where((item) =>
+        item.isActive && (capacityEmployeeId == null || item.id == capacityEmployeeId)).toList();
+      for (var dayIndex = 0; dayIndex < daysInRange; dayIndex++) {
+        final day = DateTime(range.start.year, range.start.month, range.start.day + dayIndex);
+        for (final employee in activeEmployees) {
+          for (final shift in _db.employeeShiftsForDate(employee.id, day)) {
+            final shiftStart = shift.startMinutes;
+            final shiftEnd = shift.endMinutes;
+            capacityMinutes += (shiftEnd - shiftStart).clamp(0, 1440).toInt();
+            for (var hour = shiftStart ~/ 60; hour <= (shiftEnd - 1) ~/ 60; hour++) {
+              final overlap = (shiftEnd < (hour + 1) * 60 ? shiftEnd : (hour + 1) * 60) -
+                (shiftStart > hour * 60 ? shiftStart : hour * 60);
+              if (overlap > 0) hourlyScheduled[hour] = (hourlyScheduled[hour] ?? 0) + overlap;
+            }
+          }
+        }
+      }
+      for (final appointment in operationalAppointments.where((item) =>
+        item.status != AppointmentStatus.cancelled && item.status != AppointmentStatus.noShow)) {
+        hourlyCounts[appointment.startAt.hour] = (hourlyCounts[appointment.startAt.hour] ?? 0) + 1;
+        final weekday = appointment.startAt.weekday;
+        weekdayCounts[weekday] = (weekdayCounts[weekday] ?? 0) + 1;
+        bookedCapacityMinutes += appointment.durationMinutes;
+        var cursor = appointment.startAt;
+        var remaining = appointment.durationMinutes;
+        while (remaining > 0) {
+          final hour = cursor.hour;
+          final available = 60 - cursor.minute;
+          final booked = remaining < available ? remaining : available;
+          hourlyBooked[hour] = (hourlyBooked[hour] ?? 0) + booked;
+          remaining -= booked;
+          cursor = cursor.add(Duration(minutes: booked));
+        }
+      }
+    } else {
+      for (final appointment in operationalAppointments.where((item) =>
+        item.status != AppointmentStatus.cancelled && item.status != AppointmentStatus.noShow)) {
+        hourlyCounts[appointment.startAt.hour] = (hourlyCounts[appointment.startAt.hour] ?? 0) + 1;
+        weekdayCounts[appointment.startAt.weekday] = (weekdayCounts[appointment.startAt.weekday] ?? 0) + 1;
+        bookedCapacityMinutes += appointment.durationMinutes;
+      }
+    }
+    final hourKeys = <int>{...hourlyScheduled.keys, ...hourlyCounts.keys, ...hourlyBooked.keys}.toList()..sort();
+    final hourlyDemand = [for (final hour in hourKeys)
+      ReportHourMetric(hour: hour, appointments: hourlyCounts[hour] ?? 0,
+        scheduledMinutes: hourlyScheduled[hour] ?? 0, bookedMinutes: hourlyBooked[hour] ?? 0)];
+    final weekdayDemand = weekdayCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final weekdayMetrics = [for (final item in weekdayDemand)
+      ReportWeekdayMetric(weekday: item.key,
+        label: JalaliDate.fromDateTime(DateTime(2024, 1, 1).add(Duration(days: item.key - 1))).weekdayName,
+        appointments: item.value)];
+    final directCostCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.costKnownCount);
+    final serviceCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.count);
+    final directCostCoveragePercent = serviceCount == 0 ? 0.0 : directCostCount * 100 / serviceCount;
 
     int costBetween(DateTime from, DateTime to) {
       final commission = (canViewCommission ? allVisibleFinanceEntries : <EmployeeFinanceEntry>[]).where((item) =>
@@ -439,6 +622,9 @@ class MockDashboardRepository implements DashboardRepository {
         previousEnd = range.start;
         break;
     }
+    final previousPeriodAppointments = _db.appointments.where((item) =>
+      canSeeAppointment(item) && !item.startAt.isBefore(previousStart) &&
+      item.startAt.isBefore(previousEnd) && filter.matches(item)).length;
     final previousEntries = allVisibleFinanceEntries.where((item) =>
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
@@ -487,7 +673,27 @@ class MockDashboardRepository implements DashboardRepository {
       statusCounts: statusCounts,
       trend: trend,
       employees: employeeMetrics,
-      services: serviceMetrics.take(5).toList(),
+      services: serviceMetrics,
+      operationalAppointments: operationalAppointments,
+      customerMetrics: customerMetrics,
+      hourlyDemand: hourlyDemand,
+      weekdayDemand: weekdayMetrics,
+      repeatCustomerRate: repeatCustomerRate,
+      newCustomers: newCustomers,
+      oldCustomers: oldCustomers,
+      loyalCustomers: loyalCustomers,
+      inactiveCustomers: inactiveCustomers,
+      atRiskCustomers: atRiskCustomers,
+      rejectedAppointments: 0,
+      capacityMinutes: capacityMinutes,
+      bookedCapacityMinutes: bookedCapacityMinutes,
+      directCostCoveragePercent: directCostCoveragePercent,
+      filter: filter,
+      operationalStatusCounts: operationalStatusCounts,
+      newCustomerTrend: [for (final item in newCustomerTrend) ReportTrendPoint(
+        label: rangeDaysForAcquisition <= 31 ? JalaliDate.fromDateTime(item.key).short : JalaliDate.fromDateTime(item.key).monthName,
+        start: item.key, revenue: 0, cost: 0, appointments: item.value,
+      )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
       costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!canViewCommission || !canViewSalary ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
@@ -502,6 +708,7 @@ class MockDashboardRepository implements DashboardRepository {
       grossProfit: null,
       previousPeriodRevenue: previousRevenue,
       previousPeriodCost: previousCost,
+      previousPeriodAppointments: previousPeriodAppointments,
       paymentsByMethod: paymentsByMethod,
       expensesByCategory: expensesByCategory,
       customerDebts: customerDebts,

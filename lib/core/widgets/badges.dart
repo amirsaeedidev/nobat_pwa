@@ -19,7 +19,7 @@ class StatusBadge extends StatelessWidget {
       StatusBadge(label: status.label, color: status.color, dense: dense);
 
   factory StatusBadge.sms(SmsStatus status, {bool dense = false}) =>
-      StatusBadge(label: status.label, color: status.color, dense: dense, icon: status == SmsStatus.failed ? Icons.error_outline_rounded : null);
+      StatusBadge(label: status.label, color: status.color, dense: dense);
 
   final String label;
   final Color color;

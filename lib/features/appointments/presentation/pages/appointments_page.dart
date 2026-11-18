@@ -361,37 +361,44 @@ class _FilterDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: pal.surfaceAlt,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: pal.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: pal.textMuted),
-          const SizedBox(width: 6),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              value: value,
-              dropdownColor: pal.surfaceAlt,
-              borderRadius: AppRadius.brSm,
-              isDense: true,
-              style: TextStyle(fontSize: 11.5, color: pal.textPrimary, fontFamily: 'Lalezar'),
-              icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: pal.textMuted),
-              items: [
-                for (final item in items)
-                  DropdownMenuItem<T>(
-                    value: item,
-                    child: Text(labelOf(item), style: TextStyle(fontSize: 11.5, color: pal.textPrimary)),
-                  ),
-              ],
-              onChanged: (v) => onChanged(v as T),
+    final maxWidth = MediaQuery.sizeOf(context).width < 600 ? 220.0 : 280.0;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: pal.surfaceAlt,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: pal.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: pal.textMuted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<T>(
+                  value: value,
+                  isExpanded: true,
+                  dropdownColor: pal.surfaceAlt,
+                  borderRadius: AppRadius.brSm,
+                  isDense: true,
+                  style: TextStyle(fontSize: 11.5, color: pal.textPrimary, fontFamily: 'Lalezar'),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: pal.textMuted),
+                  items: [
+                    for (final item in items)
+                      DropdownMenuItem<T>(
+                        value: item,
+                        child: Text(labelOf(item), maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11.5, color: pal.textPrimary)),
+                      ),
+                  ],
+                  onChanged: (v) => onChanged(v as T),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

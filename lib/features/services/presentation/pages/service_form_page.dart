@@ -31,6 +31,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   final _title = TextEditingController();
   final _description = TextEditingController();
   final _price = TextEditingController();
+  final _directCost = TextEditingController();
   final _duration = TextEditingController(text: '45');
   final _prep = TextEditingController(text: '0');
   final _buffer = TextEditingController(text: '5');
@@ -59,6 +60,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         _title.text = service.title;
         _description.text = service.description;
         _price.text = service.price.toString();
+        _directCost.text = service.directCost?.toString() ?? '';
         _duration.text = service.durationMinutes.toString();
         _prep.text = service.prepMinutes.toString();
         _buffer.text = service.bufferMinutes.toString();
@@ -77,6 +79,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     _title.dispose();
     _description.dispose();
     _price.dispose();
+    _directCost.dispose();
     _duration.dispose();
     _prep.dispose();
     _buffer.dispose();
@@ -93,6 +96,8 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       title: _title.text.trim(),
       description: _description.text.trim(),
       price: num.tryParse(FaNum.toLatin(_price.text)) ?? 0,
+      directCost: _directCost.text.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(_directCost.text)),
+      clearDirectCost: _directCost.text.trim().isEmpty,
       durationMinutes: int.tryParse(FaNum.toLatin(_duration.text)) ?? 45,
       prepMinutes: int.tryParse(FaNum.toLatin(_prep.text)) ?? 0,
       bufferMinutes: int.tryParse(FaNum.toLatin(_buffer.text)) ?? 5,
@@ -180,6 +185,22 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      AppTextField(
+                        controller: _directCost,
+                        label: 'هزینه مستقیم هر بار ارائه (تومان)',
+                        hint: 'اختیاری؛ مواد مصرفی و هزینه مستقیم',
+                        icon: Icons.sell_outlined,
+                        keyboardType: TextInputType.number,
+                        numericFa: true,
+                        helper: 'خالی بماند یعنی هزینه مستقیم این خدمت ثبت نشده است؛ در گزارش سود تخمینی نمایش داده نمی‌شود.',
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) return null;
+                          final amount = num.tryParse(FaNum.toLatin(value));
+                          if (amount == null || amount < 0) return 'هزینه باید عددی و صفر یا بیشتر باشد.';
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       Row(
