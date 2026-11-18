@@ -85,6 +85,17 @@ class ReportAnalyticsFilter {
     (employeeId == null || item.employeeId == employeeId) &&
     (customerId == null || item.customerId == customerId) &&
     (status == null || item.status == status);
+
+  ReportAnalyticsFilter copyWith({
+    String? serviceId, String? employeeId, String? customerId,
+    AppointmentStatus? status, bool clearService = false,
+    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false,
+  }) => ReportAnalyticsFilter(
+    serviceId: clearService ? null : (serviceId ?? this.serviceId),
+    employeeId: clearEmployee ? null : (employeeId ?? this.employeeId),
+    customerId: clearCustomer ? null : (customerId ?? this.customerId),
+    status: clearStatus ? null : (status ?? this.status),
+  );
 }
 
 class ReportServiceMetric {
@@ -103,14 +114,14 @@ class ReportServiceMetric {
 
 class ReportCustomerMetric {
   const ReportCustomerMetric({
-    required this.customerId, required this.name, required this.visits,
+    required this.customerId, required this.name, required this.visits, required this.lifetimeVisits,
     required this.totalSpent, required this.averageSpend, required this.lastVisitAt,
     required this.firstVisitAt, required this.averageGapDays, required this.isNew,
     required this.isLoyal, required this.isInactive, required this.isAtRisk,
     required this.repeatVisits,
   });
   final String customerId, name;
-  final int visits, repeatVisits;
+  final int visits, lifetimeVisits, repeatVisits;
   final num totalSpent, averageSpend;
   final DateTime? firstVisitAt, lastVisitAt;
   final double? averageGapDays;
@@ -201,6 +212,8 @@ class ReportAnalytics {
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
+  num get capacityUtilizationPercent => capacityMinutes <= 0 ? 0 : bookedCapacityMinutes * 100 / capacityMinutes;
+  int get emptyCapacityMinutes => (capacityMinutes - bookedCapacityMinutes).clamp(0, capacityMinutes);
 
   static ReportAnalytics empty(ReportDateRange range) => ReportAnalytics(
     range: range, revenue: 0, cost: 0, commissionCost: 0, payrollCost: 0,
