@@ -8,10 +8,11 @@ import '../../../../data/models/dashboard_stats.dart';
 
 /// نمودار میله‌ای + خطی عملکرد هفته (بازسازی دقیق نمودار تصویر مرجع).
 class PerformanceChart extends StatelessWidget {
-  const PerformanceChart({super.key, required this.data, this.height = 216});
+  const PerformanceChart({super.key, required this.data, this.height = 216, this.onPointTap});
 
   final List<WeekdayPerformance> data;
   final double height;
+  final ValueChanged<WeekdayPerformance>? onPointTap;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +24,14 @@ class PerformanceChart extends StatelessWidget {
       builder: (context, progress, _) => SizedBox(
       height: height,
       width: double.infinity,
-      child: CustomPaint(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapUp: (details) {
+          if (data.isEmpty || onPointTap == null) return;
+          final index = ((details.localPosition.dx / context.size!.width) * data.length).floor().clamp(0, data.length - 1);
+          onPointTap!(data[index]);
+        },
+        child: CustomPaint(
         painter: _PerformancePainter(
           data: data,
           barColor: pal.primary.withValues(alpha: 0.42),
@@ -34,7 +42,7 @@ class PerformanceChart extends StatelessWidget {
           dotFill: pal.isDark ? Colors.white : pal.surface,
           revealProgress: progress,
         ),
-      ),
+      )),
     ));
   }
 }
@@ -70,11 +78,13 @@ class _PerformancePainter extends CustomPainter {
     final chartBottom = size.height - _bottomPad;
     final chartHeight = chartBottom - chartTop;
     final columnWidth = (size.width - 8) / data.length;
+    final maxCount = data.map((e) => e.count).fold<int>(0, (a, b) => a > b ? a : b).clamp(1, 999999);
+    final maxRevenue = data.map((e) => e.revenue.toDouble()).fold<double>(0, (a, b) => a > b ? a : b);
     const leftInset = 4.0;
     final barWidth = math.min(34.0, columnWidth * 0.58);
 
     canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width * revealProgress.clamp(0.0, 1.0), size.height));
+    canvas.clipRect(Rect.fromLTWH(size.width * (1 - revealProgress.clamp(0.0, 1.0)), 0, size.width * revealProgress.clamp(0.0, 1.0), size.height));
 
     // خطوط راهنمای افقی
     final gridPaint = Paint()
@@ -89,8 +99,8 @@ class _PerformancePainter extends CustomPainter {
     for (var i = 0; i < data.length; i++) {
       final item = data[i];
       final cx = leftInset + columnWidth * i + columnWidth / 2;
-      final ratio = item.isPeak ? 0.80 : (0.18 + 0.32 * (item.percent / 100).clamp(0.0, 1.0));
-      final barHeight = chartHeight * ratio;
+      final ratio = item.count / maxCount;
+      final barHeight = chartHeight * (0.08 + 0.72 * ratio) * revealProgress.clamp(0.0, 1.0);
       final rect = RRect.fromRectAndRadius(
         Rect.fromLTWH(cx - barWidth / 2, chartBottom - barHeight, barWidth, barHeight),
         Radius.circular(barWidth / 2),
@@ -113,8 +123,8 @@ class _PerformancePainter extends CustomPainter {
     for (var i = 0; i < data.length; i++) {
       final item = data[i];
       final cx = leftInset + columnWidth * i + columnWidth / 2;
-      final ratio = (item.percent / 100).clamp(0.0, 1.0);
-      final y = chartBottom - chartHeight * (0.26 + 0.58 * ratio);
+      final ratio = maxRevenue == 0 ? 0.0 : (item.revenue.toDouble() / maxRevenue).clamp(0.0, 1.0);
+      final y = chartBottom - chartHeight * (0.18 + 0.68 * ratio);
       points.add(Offset(cx, y));
     }
 
@@ -157,7 +167,7 @@ class _PerformancePainter extends CustomPainter {
       );
       _paintText(
         canvas,
-        '${FaNum.ofInt(data[i].percent)}٪',
+        FaNum.ofInt((data[i].count * revealProgress).round()),
         Offset(p.dx, p.dy - 20),
         color: labelColor,
         fontSize: 10,
@@ -205,7 +215,7 @@ class _PerformancePainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
-          fontFamily: 'Vazirmatn',
+          fontFamily: 'Lalezar',
           fontSize: fontSize,
           fontWeight: weight,
           color: color,
