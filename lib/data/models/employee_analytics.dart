@@ -224,6 +224,16 @@ class EmployeeAnalyticsCalculator {
 
     // توزیع تعداد نوبت‌ها بر ساعت شروع؛ فقط ساعت‌هایی که داده دارند نمایش داده می‌شوند.
     final hourlyBookings = <int, int>{};
+    for (var dayIndex = 0; dayIndex < days; dayIndex++) {
+      final day = DateTime(filter.from.year, filter.from.month, filter.from.day + dayIndex);
+      for (final shift in db.employeeShiftsForDate(employee.id, day)) {
+        final firstHour = shift.startMinutes ~/ 60;
+        final lastHour = (shift.endMinutes - 1) ~/ 60;
+        for (var hour = firstHour; hour <= lastHour; hour++) {
+          hourlyBookings.putIfAbsent(hour, () => 0);
+        }
+      }
+    }
     for (final appointment in appointments.where((item) =>
       item.status != AppointmentStatus.cancelled && item.status != AppointmentStatus.noShow)) {
       hourlyBookings[appointment.startAt.hour] = (hourlyBookings[appointment.startAt.hour] ?? 0) + 1;
