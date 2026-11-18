@@ -169,10 +169,8 @@ class ReportsPage extends StatelessWidget {
                         final methodChart = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const SectionHeader(title: 'ترکیب روش‌های پرداخت', subtitle: 'مبالغ خالص دریافتی پس از کسر برگشت وجه'),
                           const SizedBox(height: 8),
-                          Row(children: [
-                            StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(children: [
+                          LayoutBuilder(builder: (context, inner) {
+                            final legend = Column(children: [
                               for (final item in methodEntries)
                                 InkWell(
                                   onTap: () => _showFinanceSheet(context, 'پرداخت‌های ${item.key}', [
@@ -183,8 +181,11 @@ class ReportsPage extends StatelessWidget {
                                     Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
                                   ])),
                                 ),
-                            ])),
-                          ]),
+                            ]);
+                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118);
+                            if (inner.maxWidth < 340) return Column(children: [Center(child: donut), const SizedBox(height: 8), legend]);
+                            return Row(children: [donut, const SizedBox(width: 12), Expanded(child: legend)]);
+                          }),
                         ]));
                         final expenseCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const SectionHeader(title: 'ترکیب هزینه‌ها', subtitle: 'هر قلم فقط از منبع اصلی خودش شمرده شده است'),
