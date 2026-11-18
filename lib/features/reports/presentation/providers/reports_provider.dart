@@ -71,7 +71,7 @@ class ReportsProvider extends DbBoundProvider {
         return ReportDateRange.preset(ReportPeriod.lastMonth);
       case ReportPeriod.thisYear:
         final year = _range.jalaliStart.year;
-        return ReportDateRange.custom(JalaliDate(year - 1, 1, 1), JalaliDate(year - 1, 12, 29));
+        return ReportDateRange.custom(JalaliDate(year - 1, 1, 1), JalaliDate(year, 1, 1).addDays(-1));
       case ReportPeriod.yesterday:
         return _shiftRange(const Duration(days: 1));
       case ReportPeriod.lastWeek:
