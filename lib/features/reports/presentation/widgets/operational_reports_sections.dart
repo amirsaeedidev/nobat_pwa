@@ -291,7 +291,7 @@ class OperationalReportsSections extends StatelessWidget {
               SizedBox(width: 48, child: Text('${item.hour.toString().padLeft(2, '0')}:00', style: TextStyle(fontSize: 10, color: pal.textSecondary))),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 LinearProgressIndicator(
-                  value: item.scheduledMinutes <= 0 ? 0 : (item.bookedMinutes / item.scheduledMinutes).clamp(0, 1),
+                  value: item.scheduledMinutes <= 0 ? 0 : (item.bookedMinutes / item.scheduledMinutes).clamp(0, 1).toDouble(),
                   minHeight: 7, backgroundColor: pal.surfaceAlt,
                   valueColor: AlwaysStoppedAnimation(item.appointments == 0 ? pal.warning : pal.success),
                 ),
