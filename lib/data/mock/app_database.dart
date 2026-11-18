@@ -735,6 +735,22 @@ class AppDatabase extends ChangeNotifier {
 
   void _seedPayrollData() {
     final now = DateTime.now();
+    void addSeedAdjustment(PayrollAdjustment adjustment) {
+      final walletType = adjustment.isBonus ? EmployeeWalletTransactionType.bonus : EmployeeWalletTransactionType.deduction;
+      final walletEntry = EmployeeWalletTransaction(
+        id: nextId('wallet'), employeeId: adjustment.employeeId, createdAt: adjustment.date,
+        amount: adjustment.isBonus ? adjustment.amount : -adjustment.amount,
+        type: walletType, description: adjustment.description,
+        idempotencyKey: 'payroll-adjustment-${adjustment.id}',
+      );
+      _employeeWalletTransactions.add(walletEntry);
+      addSeedAdjustment(PayrollAdjustment(
+        id: adjustment.id, employeeId: adjustment.employeeId, amount: adjustment.amount,
+        date: adjustment.date, description: adjustment.description, createdBy: adjustment.createdBy,
+        status: adjustment.status, bonusType: adjustment.bonusType, deductionType: adjustment.deductionType,
+        sourceWalletTransactionId: walletEntry.id,
+      ));
+    }
     for (var index = 0; index < _employees.length && index < 5; index++) {
       final employee = _employees[index];
       _salaryContracts[employee.id] = [SalaryContract(
