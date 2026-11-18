@@ -19,6 +19,7 @@ import '../../../../data/models/appointment.dart';
 import '../../../../data/models/business_finance.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/employee_wallet.dart';
+import '../../../../data/models/employee_finance.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../providers/reports_provider.dart';
