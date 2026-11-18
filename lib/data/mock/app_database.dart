@@ -846,6 +846,21 @@ class AppDatabase extends ChangeNotifier {
     final original = matches.first;
     if (_employeeWalletTransactions.any((entry) => entry.reversalOfId == transactionId)) throw StateError('این تراکنش قبلاً اصلاح شده است.');
     if (correctedAmount == 0 || description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات اصلاحیه معتبر نیست.');
+    // سندهای مشتق از قرارداد، پورسانت، برگشت وجه، پرداخت حقوق و قانون حضور
+    // باید از مسیر تخصصی خود اصلاح شوند تا دفتر کل و منبع محاسبه از هم جدا نشوند.
+    if (original.sourceFinanceEntryId != null ||
+        original.type == EmployeeWalletTransactionType.fixedSalary ||
+        original.type == EmployeeWalletTransactionType.commission ||
+        original.type == EmployeeWalletTransactionType.refund ||
+        original.type == EmployeeWalletTransactionType.salaryPayment ||
+        (original.type == EmployeeWalletTransactionType.adjustment &&
+          original.idempotencyKey?.startsWith('payroll-attendance-') == true)) {
+      throw StateError('این سند به منبع محاسباتی متصل است؛ اصلاح آن باید از مسیر تخصصی همان منبع انجام شود.');
+    }
+    if ((original.amount > 0) != (correctedAmount > 0) &&
+        original.type != EmployeeWalletTransactionType.adjustment) {
+      throw ArgumentError('جهت مبلغ اصلاحی باید با نوع سند اصلی یکسان باشد.');
+    }
     final reversal = EmployeeWalletTransaction(
       id: nextId('wallet'),
       employeeId: original.employeeId,
@@ -865,6 +880,27 @@ class AppDatabase extends ChangeNotifier {
       reversalOfId: original.id,
     );
     _employeeWalletTransactions.addAll([reversal, correction]);
+    // به‌روزرسانی مقدار سند منبع حقوق/مساعده با حفظ شناسه و تاریخچه اسناد کیف پول.
+    final adjustmentIndex = _payrollAdjustments.indexWhere((item) => item.sourceWalletTransactionId == original.id);
+    if (adjustmentIndex >= 0) {
+      final item = _payrollAdjustments[adjustmentIndex];
+      _payrollAdjustments[adjustmentIndex] = PayrollAdjustment(
+        id: item.id, employeeId: item.employeeId, amount: correctedAmount.abs(),
+        date: item.date, description: item.description, createdBy: item.createdBy,
+        status: item.status, bonusType: item.bonusType, deductionType: item.deductionType,
+        relatedAdvanceId: item.relatedAdvanceId, sourceWalletTransactionId: item.sourceWalletTransactionId,
+      );
+    }
+    final advanceIndex = _payrollAdvances.indexWhere((item) => item.sourceWalletTransactionId == original.id);
+    if (advanceIndex >= 0) {
+      final item = _payrollAdvances[advanceIndex];
+      _payrollAdvances[advanceIndex] = PayrollAdvance(
+        id: item.id, employeeId: item.employeeId, amount: correctedAmount.abs(),
+        requestedAt: item.requestedAt, description: item.description, status: item.status,
+        paidAt: item.paidAt, deductedAmount: item.deductedAmount.clamp(0, correctedAmount.abs()),
+        sourceWalletTransactionId: item.sourceWalletTransactionId,
+      );
+    }
     log(ActivityType.settingsChanged, 'اصلاح سند مالی', 'تراکنش ${original.id} با سند معکوس و اصلاحیه جایگزین شد.', entity: 'کیف پول پرسنل');
     _commit();
     return [reversal, correction];
