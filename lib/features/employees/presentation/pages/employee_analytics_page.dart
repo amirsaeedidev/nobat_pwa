@@ -13,9 +13,17 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_analytics.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/enums.dart';
 
 enum _RangePreset { today, yesterday, week, month, lastMonth, custom }
+enum _RankingMetric {
+  revenue('درآمد'), completed('نوبت تکمیل‌شده'), customers('مشتری یکتا'),
+  commission('کمیسیون'), attendance('حضور واقعی'), completion('نرخ تکمیل'),
+  utilization('بهره‌وری');
+  const _RankingMetric(this.label);
+  final String label;
+}
 
 class EmployeeAnalyticsPage extends StatefulWidget {
   const EmployeeAnalyticsPage({super.key, this.employeeId});
@@ -33,7 +41,17 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
   String? _serviceId;
   AppointmentStatus? _status;
   final Set<String> _comparisonIds = {};
+  _RankingMetric _rankingMetric = _RankingMetric.revenue;
 
+  num _rankingValue(EmployeeAnalytics report) => switch (_rankingMetric) {
+    _RankingMetric.revenue => report.netRevenue,
+    _RankingMetric.completed => report.completed,
+    _RankingMetric.customers => report.uniqueCustomers,
+    _RankingMetric.commission => report.commission,
+    _RankingMetric.attendance => report.actualWorkedMinutes,
+    _RankingMetric.completion => report.completionRate,
+    _RankingMetric.utilization => report.utilizationRate,
+  };
   @override
   void initState() {
     super.initState();
@@ -101,8 +119,22 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
       ['سهم مجموعه', report.companyShare.toString(), 'تومان'],
       ['میانگین هر نوبت', report.averageTicket.toString(), 'تومان'],
       ['مشتریان یکتا', report.uniqueCustomers.toString(), 'نفر'],
-      ['استفاده از ساعات کاری', report.utilizationRate.toStringAsFixed(1), 'درصد'],
+      ['استفاده از ظرفیت برنامه', report.utilizationRate.toStringAsFixed(1), 'درصد'],
+      ['ساعات برنامه‌ریزی‌شده', report.workingMinutes.toString(), 'دقیقه'],
+      ['ساعات حضور واقعی', report.actualWorkedMinutes.toString(), 'دقیقه'],
+      ['روزهای حضور', report.attendanceDays.toString(), 'روز'],
+      ['غیبت', report.absentDays.toString(), 'روز'],
+      ['مرخصی تأییدشده', report.leaveCount.toString(), 'مورد'],
+      if (report.salaryDataAvailable) ...[
+        ['حقوق ثابت ثبت‌شده', report.fixedSalary.toString(), 'تومان'],
+        ['پاداش', report.bonusAmount.toString(), 'تومان'],
+        ['کسورات', report.deductionAmount.toString(), 'تومان'],
+        ['مساعده', report.advanceAmount.toString(), 'تومان'],
+        ['پرداخت حقوق', report.salaryPaid.toString(), 'تومان'],
+        ['مانده دفتر کیف پول', report.salaryBalance.toString(), 'تومان'],
+      ],
       ...report.services.map((s) => ['خدمت: ${s.name}', s.revenue.toString(), 'تومان']),
+      ...report.services.map((s) => ['کمیسیون خدمت: ${s.name}', s.commission.toString(), 'تومان']),
     ];
     final csv = '\uFEFF' + rows.map((row) => row.map((cell) => '"${cell.replaceAll('"', '""')}"').join(',')).join('\r\n');
     final exported = await downloadCsv('employee-analytics-${employee.id}.csv', csv);
@@ -126,8 +158,21 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
       ['سهم مجموعه', _money(report.companyShare)],
       ['میانگین مبلغ هر نوبت', _money(report.averageTicket)],
       ['مشتریان یکتا', FaNum.ofInt(report.uniqueCustomers)],
-      ['استفاده از ساعات کاری', '${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪'],
+      ['استفاده از ظرفیت برنامه', '${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪'],
+      ['ساعات حضور واقعی', FaNum.ofInt(report.actualWorkedMinutes ~/ 60)],
+      ['روزهای حضور', FaNum.ofInt(report.attendanceDays)],
+      ['غیبت', FaNum.ofInt(report.absentDays)],
+      ['مرخصی تأییدشده', FaNum.ofInt(report.leaveCount)],
+      if (report.salaryDataAvailable) ...[
+        ['حقوق ثابت ثبت‌شده', _money(report.fixedSalary)],
+        ['پاداش', _money(report.bonusAmount)],
+        ['کسورات', _money(report.deductionAmount)],
+        ['مساعده', _money(report.advanceAmount)],
+        ['پرداخت حقوق', _money(report.salaryPaid)],
+        ['مانده کیف پول', _money(report.salaryBalance)],
+      ],
       ...report.services.map((s) => ['خدمت: ${s.name}', _money(s.revenue)]),
+      ...report.services.map((s) => ['کمیسیون خدمت: ${s.name}', _money(s.commission)]),
     ];
     final table = rows.map((row) => '<tr><td>${_escapeHtml(row[0])}</td><td>${_escapeHtml(row[1])}</td></tr>').join();
     final html = '''
@@ -165,7 +210,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
     final comparison = employees.where((e) => _comparisonIds.contains(e.id)).toList();
     final comparisonReports = comparison.map((e) => (employee: e, report: EmployeeAnalyticsCalculator.calculate(
       db: db, employee: e, filter: EmployeeAnalyticsFilter(from: _from, to: _to, serviceId: _serviceId, status: _status),
-    ))).toList()..sort((a, b) => b.report.netRevenue.compareTo(a.report.netRevenue));
+    ))).toList()..sort((a, b) => _rankingValue(b.report).compareTo(_rankingValue(a.report)));
 
     return PageScaffold(
       title: 'تحلیل عملکرد پرسنل',
@@ -223,8 +268,8 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           ]),
         ])),
         const SizedBox(height: 12),
-        if (report.totalAppointments == 0)
-          const EmptyState(title: 'در این بازه نوبتی ثبت نشده است', description: 'فیلترها یا بازه زمانی را تغییر دهید.')
+        if (report.totalAppointments == 0 && !report.attendanceDataAvailable && report.leaves.isEmpty && !report.salaryDataAvailable)
+          const EmptyState(title: 'در این بازه داده‌ای ثبت نشده است', description: 'فیلترها یا بازه زمانی را تغییر دهید.')
         else ...[
           LayoutBuilder(builder: (context, constraints) {
             final count = constraints.maxWidth > 850 ? 4 : constraints.maxWidth > 520 ? 3 : 2;
@@ -242,6 +287,16 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
               _Metric('مشتری یکتا', FaNum.ofInt(report.uniqueCustomers), Icons.groups, pal.info),
               _Metric('استفاده از ساعات', '${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪', Icons.schedule, pal.warning),
               _Metric('تغییر درآمد', '${report.revenueChange >= 0 ? '+' : ''}${FaNum.convert(report.revenueChange.toStringAsFixed(1))}٪', Icons.trending_up, report.revenueChange >= 0 ? pal.success : pal.danger),
+              _Metric('ساعت برنامه', FaNum.ofInt(report.workingMinutes ~/ 60), Icons.calendar_month, pal.info),
+              _Metric('حضور واقعی', report.attendanceDataAvailable ? FaNum.ofInt(report.actualWorkedMinutes ~/ 60) : 'بدون داده', Icons.fingerprint, pal.primaryBright),
+              if (report.salaryDataAvailable) ...[
+                _Metric('حقوق ثابت', _money(report.fixedSalary), Icons.account_balance_wallet, pal.primary),
+                _Metric('پاداش', _money(report.bonusAmount), Icons.redeem, pal.success),
+                _Metric('کسورات', _money(report.deductionAmount), Icons.remove_circle_outline, pal.danger),
+                _Metric('مساعده', _money(report.advanceAmount), Icons.payments_outlined, pal.warning),
+                _Metric('پرداخت‌شده', _money(report.salaryPaid), Icons.check_circle, pal.success),
+                _Metric('مانده کیف پول', _money(report.salaryBalance), Icons.account_balance, pal.info),
+              ],
             ];
             return Wrap(spacing: 9, runSpacing: 9, children: [for (final metric in cards) SizedBox(width: width, child: _MetricCard(metric: metric))]);
           }),
@@ -255,7 +310,13 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
             Text('میانگین درآمد روزانه: ${_money(report.dailyRevenue.isEmpty ? 0 : report.netRevenue / report.dailyRevenue.length)}', style: TextStyle(fontSize: 11, color: pal.textSecondary)),
             Text('میانگین درآمد هر مشتری: ${_money(report.revenuePerCustomer)}', style: TextStyle(fontSize: 11, color: pal.textSecondary)),
             const SizedBox(height: 4),
-            Text('هدف فروش برای این پرسنل تعریف نشده است.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
+            Text('برنامه کاری: ${FaNum.ofInt(report.workingMinutes ~/ 60)} ساعت • رزرو: ${FaNum.ofInt(report.bookedMinutes ~/ 60)} ساعت', style: TextStyle(fontSize: 10, color: pal.textSecondary)),
+            Text(report.attendanceDataAvailable
+              ? 'حضور ثبت‌شده: ${FaNum.ofInt(report.actualWorkedMinutes ~/ 60)} ساعت • تأخیر: ${FaNum.ofInt(report.lateMinutes)} دقیقه • اضافه‌کاری: ${FaNum.ofInt(report.overtimeMinutes)} دقیقه'
+              : 'برای این بازه رکورد ورود و خروج ثبت نشده است؛ ساعات حضور واقعی قابل محاسبه نیست.',
+              style: TextStyle(fontSize: 10, color: pal.textMuted)),
+            if (report.customerSatisfactionScore == null)
+              Text('رضایت مشتری: داده امتیازدهی ثبت نشده است.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
           ])),
           const SizedBox(height: 12),
           _ChartCard(title: 'درآمد روزانه', points: report.dailyRevenue, color: pal.success, money: true),
@@ -268,15 +329,68 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           const SizedBox(height: 12),
           _ChartCard(title: 'پورسانت روزانه', points: report.dailyCommission, color: pal.purple, money: true),
           const SizedBox(height: 12),
+          if (report.busyHours.isNotEmpty) ...[
+            _ChartCard(title: 'توزیع نوبت بر اساس ساعت شروع', points: report.busyHours, color: pal.info),
+            const SizedBox(height: 12),
+          ],
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SectionHeader(title: 'خدمات پرفروش'),
+            const SectionHeader(title: 'خدمات و کمیسیون هر خدمت'),
             const SizedBox(height: 8),
             if (report.services.isEmpty) const EmptyState(compact: true, title: 'داده‌ای وجود ندارد')
             else ...[
               _ChartCard(title: 'درآمد خدمات', points: [for (final s in report.services.take(6)) AnalyticsPoint(s.name, s.revenue)], color: pal.success, money: true),
               for (final item in report.services.take(6))
-              Material(color: Colors.transparent, child: ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(item.name, style: const TextStyle(fontSize: 11)), subtitle: Text('${FaNum.ofInt(item.bookings)} نوبت', style: const TextStyle(fontSize: 9)), trailing: Text(_money(item.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)))),
+              Material(color: Colors.transparent, child: ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(item.name, style: const TextStyle(fontSize: 11)), subtitle: Text('${FaNum.ofInt(item.bookings)} نوبت • کمیسیون ${_money(item.commission)}', style: const TextStyle(fontSize: 9)), trailing: Text(_money(item.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)))),
             ],
+          ])),
+          const SizedBox(height: 12),
+          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SectionHeader(title: 'سوابق نوبت‌های تکمیل‌شده'),
+            if (report.completedAppointments.isEmpty)
+              const EmptyState(compact: true, title: 'نوبت تکمیل‌شده‌ای در این بازه نیست')
+            else
+              for (final appointment in report.completedAppointments)
+                ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle_outline, size: 18),
+                  title: Text(appointment.serviceName, style: const TextStyle(fontSize: 11)),
+                  subtitle: Text('${appointment.customerName} • ${JalaliDate.fromDateTime(appointment.startAt).numeric}', style: const TextStyle(fontSize: 9)),
+                  trailing: Text(_money(appointment.price), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                ),
+          ])),
+          const SizedBox(height: 12),
+          if (report.salaryDataAvailable) ...[
+            AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SectionHeader(title: 'حقوق و تسویه'),
+              Text('مانده خالص دفتر کیف پول در بازه: ${_money(report.salaryBalance)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              Text('پرداخت حقوق ثبت‌شده: ${_money(report.salaryPaid)} • مساعده: ${_money(report.advanceAmount)}', style: const TextStyle(fontSize: 10)),
+              if (report.settlements.isEmpty)
+                const Padding(padding: EdgeInsets.only(top: 8), child: Text('سند تسویه‌ای در این بازه ثبت نشده است.', style: TextStyle(fontSize: 10)))
+              else
+                for (final settlement in report.settlements)
+                  ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.receipt_long, size: 18),
+                    title: Text('${_money(settlement.paidAmount)} پرداخت‌شده', style: const TextStyle(fontSize: 11)),
+                    subtitle: Text('${_money(settlement.dueAmount)} مبلغ دوره • باقی‌مانده ${_money(settlement.remainingAfter)}', style: const TextStyle(fontSize: 9)),
+                    trailing: Text(settlement.status == EmployeeWalletSettlementStatus.completed ? 'تسویه کامل' : 'تسویه جزئی', style: const TextStyle(fontSize: 9)),
+                  ),
+            ])),
+            const SizedBox(height: 12),
+          ],
+          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SectionHeader(title: 'حضور و غیاب و مرخصی'),
+            if (!report.attendanceDataAvailable)
+              const Text('برای این بازه سابقه ورود و خروج ثبت نشده است.')
+            else
+              Text('حضور ${FaNum.ofInt(report.attendanceDays)} روز • غیبت ${FaNum.ofInt(report.absentDays)} روز • کارکرد واقعی ${FaNum.ofInt(report.actualWorkedMinutes ~/ 60)} ساعت'),
+            if (report.leaves.isEmpty)
+              const Text('مرخصی ثبت‌شده‌ای در این بازه وجود ندارد.')
+            else
+              for (final leave in report.leaves)
+                ListTile(dense: true, contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event_busy, size: 18),
+                  title: Text(leave.type.label, style: const TextStyle(fontSize: 11)),
+                  subtitle: Text('${JalaliDate.fromDateTime(leave.startAt).numeric} تا ${JalaliDate.fromDateTime(leave.endAt).numeric} • ${leave.status.label}', style: const TextStyle(fontSize: 9)),
+                ),
           ])),
         ],
         const SizedBox(height: 12),
@@ -287,9 +401,17 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
             for (final e in employees)
               FilterChip(label: Text(e.fullName), selected: _comparisonIds.contains(e.id), onSelected: (value) => setState(() { value ? _comparisonIds.add(e.id) : _comparisonIds.remove(e.id); })),
           ]),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<_RankingMetric>(
+            value: _rankingMetric,
+            decoration: const InputDecoration(labelText: 'رتبه‌بندی بر اساس'),
+            items: [for (final metric in _RankingMetric.values)
+              DropdownMenuItem(value: metric, child: Text(metric.label))],
+            onChanged: (value) => setState(() => _rankingMetric = value ?? _RankingMetric.revenue),
+          ),
           if (comparisonReports.isNotEmpty) ...[
             const Divider(height: 20),
-            _ChartCard(title: 'مقایسه درآمد پرسنل', points: [for (final item in comparisonReports) AnalyticsPoint(item.employee.fullName, item.report.netRevenue)], color: pal.primaryBright, money: true),
+            _ChartCard(title: 'مقایسه بر اساس ${_rankingMetric.label}', points: [for (final item in comparisonReports) AnalyticsPoint(item.employee.fullName, _rankingValue(item.report))], color: pal.primaryBright),
             const SizedBox(height: 8),
             for (var i = 0; i < comparisonReports.length; i++)
               _CompareRow(rank: i + 1, employee: comparisonReports[i].employee, report: comparisonReports[i].report),
@@ -411,7 +533,7 @@ class _CompareRow extends StatelessWidget {
     const SizedBox(width: 8),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(employee.fullName, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-      Text('${FaNum.ofInt(report.completed)} تکمیل • میانگین ${Fmt.compactMoney(report.averageTicket)} • ${FaNum.ofInt(report.uniqueCustomers)} مشتری • لغو ${FaNum.convert(report.cancellationRate.toStringAsFixed(0))}٪ • بهره‌وری ${FaNum.convert(report.utilizationRate.toStringAsFixed(0))}٪', style: TextStyle(fontSize: 8.5, color: context.pal.textMuted)),
+      Text('${FaNum.ofInt(report.completed)} تکمیل • ${FaNum.ofInt(report.uniqueCustomers)} مشتری • کمیسیون ${Fmt.compactMoney(report.commission)} • حضور ${FaNum.ofInt(report.actualWorkedMinutes ~/ 60)} ساعت • تکمیل ${FaNum.convert(report.completionRate.toStringAsFixed(0))}٪ • بهره‌وری ${FaNum.convert(report.utilizationRate.toStringAsFixed(0))}٪', style: TextStyle(fontSize: 8.5, color: context.pal.textMuted)),
     ])),
     Text('${Fmt.compactMoney(report.netRevenue)} تومان', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
   ]));

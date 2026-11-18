@@ -3,6 +3,7 @@ import 'package:datetime/core/utils/jalali.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
 import 'package:datetime/data/models/employee.dart';
+import 'package:datetime/data/models/employee_analytics.dart';
 import 'package:datetime/data/models/employee_finance.dart';
 import 'package:datetime/data/models/employee_hr.dart';
 import 'package:datetime/data/models/employee_payroll.dart';
@@ -122,6 +123,16 @@ void main() {
         durationMinutes: service.totalMinutes,
       ), isTrue);
 
+      final attendanceDate = DateTime(appointmentDay.year, appointmentDay.month, appointmentDay.day);
+      db.recordAttendance(AttendanceRecord(
+        id: 'phase10-analytics-in', employeeId: employee.id, date: attendanceDate,
+        type: AttendanceEventType.checkIn, at: attendanceDate.add(const Duration(hours: 9)),
+      ));
+      db.recordAttendance(AttendanceRecord(
+        id: 'phase10-analytics-out', employeeId: employee.id, date: attendanceDate,
+        type: AttendanceEventType.checkOut, at: attendanceDate.add(const Duration(hours: 18)),
+      ));
+
       final customer = db.customers.first;
       final appointment = Appointment(
         id: 'phase10-integration-appointment',
@@ -181,6 +192,24 @@ void main() {
       final due = db.walletPeriodDue(employee.id, monthStart, periodEnd);
       expect(due, payroll.payable);
 
+      final analyticsRange = EmployeeAnalyticsFilter(
+        from: monthStart,
+        to: appointmentDay.add(const Duration(days: 1)),
+      );
+      final beforeSettlement = EmployeeAnalyticsCalculator.calculate(
+        db: db, employee: employee, filter: analyticsRange,
+      );
+      expect(beforeSettlement.totalAppointments, 1);
+      expect(beforeSettlement.completed, 1);
+      expect(beforeSettlement.commission, commission.commissionAmount);
+      expect(beforeSettlement.fixedSalary, 2000000);
+      expect(beforeSettlement.bonusAmount, 500000);
+      expect(beforeSettlement.advanceAmount, 200000);
+      expect(beforeSettlement.deductionAmount, 50000);
+      expect(beforeSettlement.actualWorkedMinutes, 540);
+      expect(beforeSettlement.completedAppointments, hasLength(1));
+
+      expect(beforeSettlement.salaryBalance, due);
       final settlement = db.settleEmployeeWallet(
         employeeId: employee.id,
         periodStart: monthStart,
@@ -192,6 +221,13 @@ void main() {
       expect(settlement.remainingAfter, 0);
       expect(db.walletBalanceFor(employee.id), 0);
       expect(db.payrollFor(employee.id, at: now).payable, 0);
+
+      final afterSettlement = EmployeeAnalyticsCalculator.calculate(
+        db: db, employee: employee, filter: analyticsRange,
+      );
+      expect(afterSettlement.salaryPaid, due);
+      expect(afterSettlement.salaryBalance, 0);
+      expect(afterSettlement.settlements, hasLength(1));
     });
 
     test('commission refunds and attendance policy flow into payroll preview', () {
