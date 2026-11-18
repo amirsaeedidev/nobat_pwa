@@ -524,7 +524,8 @@ class AppDatabase extends ChangeNotifier {
       if (item.appliesAt(date) && (contract == null || item.effectiveFrom.isAfter(contract.effectiveFrom))) contract = item;
     }
     final commission = _employeeFinanceEntries.where((entry) =>
-      entry.employeeId == employeeId && entry.type == FinanceEntryType.commission &&
+      entry.employeeId == employeeId &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
       entry.createdAt.year == date.year && entry.createdAt.month == date.month)
       .fold<int>(0, (sum, entry) => sum + entry.commissionAmount);
     final adjustments = _payrollAdjustments.where((item) =>
@@ -535,8 +536,12 @@ class AppDatabase extends ChangeNotifier {
       item.employeeId == employeeId && item.type == EmployeeWalletTransactionType.salaryPayment &&
       item.createdAt.year == date.year && item.createdAt.month == date.month)
       .fold<int>(0, (sum, item) => sum + item.amount.abs());
+    final attendanceStart = DateTime(date.year, date.month, 1);
+    final attendanceEnd = DateTime(date.year, date.month + 1, 1).subtract(const Duration(microseconds: 1));
+    final attendanceAdjustment = attendancePayrollPreview(employeeId, from: attendanceStart, to: attendanceEnd).netAdjustment;
     return EmployeePayrollCalculator.calculate(contract: contract, at: date,
-      approvedCommission: commission, adjustments: adjustments, advances: advances, previousPayments: paid);
+      approvedCommission: commission, adjustments: adjustments, advances: advances,
+      previousPayments: paid, attendanceAdjustment: attendanceAdjustment);
   }
 
   void _seedPayrollData() {
@@ -580,7 +585,10 @@ class AppDatabase extends ChangeNotifier {
     final profile = payProfileFor(appointment.employeeId);
     final grossTotal = appointment.price.round();
     final receivedTotal = finalPaidAmount ?? (grossTotal - discountAmount);
-    if (grossTotal < 0 || discountAmount < 0 || discountAmount > grossTotal || receivedTotal < 0 || receivedTotal > grossTotal) throw ArgumentError('مبلغ خدمت، تخفیف یا دریافتی معتبر نیست.');
+    if (grossTotal < 0 || discountAmount < 0 || discountAmount > grossTotal ||
+        receivedTotal < 0 || receivedTotal > grossTotal - discountAmount) {
+      throw ArgumentError('مبلغ خدمت، تخفیف یا دریافتی معتبر نیست.');
+    }
     final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
     final snapshots = appointment.serviceSnapshots;
     final grossParts = <int>[];
@@ -631,6 +639,7 @@ class AppDatabase extends ChangeNotifier {
     return true;
   }
   bool recordCommissionRefund(String entryId, int refundAmount) {
+    requirePermission('finance.payment.create');
     if (refundAmount <= 0) throw ArgumentError('مبلغ برگشت باید بیشتر از صفر باشد.');
     EmployeeFinanceEntry? original;
     for (final entry in _employeeFinanceEntries) { if (entry.id == entryId && entry.type == FinanceEntryType.commission) { original = entry; break; } }
@@ -647,19 +656,8 @@ class AppDatabase extends ChangeNotifier {
   }
   void _createCommissionEntries(Appointment appointment) {
     if (appointment.status != AppointmentStatus.completed || hasCommissionForAppointment(appointment.id)) return;
-    final profile = payProfileFor(appointment.employeeId);
-    final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
-    final total = appointment.price.round();
-    for (var index = 0; index < ids.length; index++) {
-      final serviceId = ids[index];
-      final amount = total ~/ ids.length + (index == 0 ? total % ids.length : 0);
-      final service = serviceById(serviceId);
-      final rule = profile.ruleFor(serviceId: serviceId, category: service?.category ?? '', date: appointment.startAt);
-      final rate = rule?.rateBps ?? profile.generalRateBps;
-      final fixed = rule?.fixedAmount ?? 0;
-      final commission = profile.method == EmployeePaymentMethod.fixedMonthly ? 0 : profile.method == EmployeePaymentMethod.fixedPerService ? fixed : CommissionCalculator.commission(baseAmount: amount, rateBps: rate, fixedAmount: fixed);
-      _employeeFinanceEntries.add(EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: appointment.updatedAt ?? appointment.startAt, type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: amount, discountAmount: 0, receivedAmount: amount, calculationBase: amount, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: amount - commission));
-    }
+    // Seeded completed appointments use the same calculation path and snapshots as UI completions.
+    finalizeCompletedAppointment(appointment.id);
   }
 
   // کیف پول و دفتر کل مالی پرسنل — تمام ارقام از تراکنش‌های ثبت‌شده محاسبه می‌شوند.
@@ -1018,7 +1016,22 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('services.manage');
     final index = _services.indexWhere((s) => s.id == service.id);
     if (index == -1) return;
-    _services[index] = service;
+    final validEmployeeIds = service.employeeIds.where((id) => _employees.any((employee) => employee.id == id)).toSet();
+    _services[index] = service.copyWith(employeeIds: validEmployeeIds.toList());
+    for (var employeeIndex = 0; employeeIndex < _employees.length; employeeIndex++) {
+      final employee = _employees[employeeIndex];
+      final assigned = validEmployeeIds.contains(employee.id);
+      final serviceIds = employee.serviceIds.where((id) => id != service.id).toList();
+      if (assigned) serviceIds.add(service.id);
+      _employees[employeeIndex] = employee.copyWith(serviceIds: serviceIds);
+      final key = _serviceConfigKey(employee.id, service.id);
+      final config = _employeeServiceConfigs[key];
+      if (config == null && assigned) {
+        _employeeServiceConfigs[key] = EmployeeServiceConfig(employeeId: employee.id, serviceId: service.id);
+      } else if (config != null && config.active != assigned) {
+        _employeeServiceConfigs[key] = config.copyWith(active: assigned);
+      }
+    }
     log(ActivityType.serviceModified, 'ویرایش خدمت', 'خدمت «${service.title}» به‌روزرسانی شد.', entity: 'خدمت');
     _commit();
   }
@@ -1121,13 +1134,33 @@ class AppDatabase extends ChangeNotifier {
     if (_attendanceRecords.any((item)=>item.id==record.id)) throw StateError('شناسه حضور تکراری است.');
     if ([record.overtimeMinutes,record.lateMinutes,record.earlyLeaveMinutes].any((value)=>value<0)) throw ArgumentError('دقایق حضور و غیاب نمی‌توانند منفی باشند.');
     if (record.date.year != record.at.year || record.date.month != record.at.month || record.date.day != record.at.day) throw ArgumentError('تاریخ رکورد با زمان ثبت‌شده یکسان نیست.');
-    if (record.type == AttendanceEventType.absence && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day && (item.type==AttendanceEventType.checkIn || item.type==AttendanceEventType.absence))) throw StateError('برای این روز حضور یا غیبت قبلاً ثبت شده است.');
-    if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.absence && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('برای این روز غیبت ثبت شده است.');
-    if (record.type == AttendanceEventType.checkIn && _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day)) throw StateError('ورود امروز قبلاً ثبت شده است.');
-    if (record.type == AttendanceEventType.checkOut) {
-      final checkIns = _attendanceRecords.where((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkIn && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day).toList();
-      final closed = _attendanceRecords.any((item)=>item.employeeId==record.employeeId && item.type==AttendanceEventType.checkOut && item.date.year==record.date.year && item.date.month==record.date.month && item.date.day==record.date.day);
-      if (checkIns.isEmpty || closed || !record.at.isAfter(checkIns.last.at)) throw StateError('ورود ثبت‌نشده، خروج تکراری یا ساعت خروج نامعتبر است.');
+    final sameDayEvents = _attendanceRecords.where((item) =>
+      item.employeeId == record.employeeId && item.date.year == record.date.year &&
+      item.date.month == record.date.month && item.date.day == record.date.day &&
+      (item.type == AttendanceEventType.checkIn || item.type == AttendanceEventType.checkOut))
+      .toList()..sort((a, b) => a.at.compareTo(b.at));
+    DateTime? openCheckIn;
+    for (final event in sameDayEvents) {
+      if (event.type == AttendanceEventType.checkIn) {
+        openCheckIn = event.at;
+      } else if (event.type == AttendanceEventType.checkOut && openCheckIn != null) {
+        openCheckIn = null;
+      }
+    }
+    final sameDayRecords = _attendanceRecords.where((item) =>
+      item.employeeId == record.employeeId && item.date.year == record.date.year &&
+      item.date.month == record.date.month && item.date.day == record.date.day);
+    if (record.type == AttendanceEventType.absence &&
+        sameDayRecords.any((item) => item.type == AttendanceEventType.checkIn ||
+          item.type == AttendanceEventType.absence || item.type == AttendanceEventType.mission)) {
+      throw StateError('برای این روز حضور، مأموریت یا غیبت قبلاً ثبت شده است.');
+    }
+    if (record.type == AttendanceEventType.checkIn) {
+      if (sameDayRecords.any((item) => item.type == AttendanceEventType.absence)) throw StateError('برای این روز غیبت ثبت شده است.');
+      if (openCheckIn != null) throw StateError('ابتدا باید خروج شیفت قبلی ثبت شود.');
+    }
+    if (record.type == AttendanceEventType.checkOut && (openCheckIn == null || !record.at.isAfter(openCheckIn))) {
+      throw StateError('برای این خروج، ورود باز و معتبر وجود ندارد.');
     }
     _attendanceRecords.add(record);
     final employee=employeeById(record.employeeId)!;
@@ -1147,12 +1180,16 @@ class AppDatabase extends ChangeNotifier {
 
   AttendanceSummary attendanceSummary(String employeeId,{required DateTime from,required DateTime to}) {
     final rows=attendanceFor(employeeId,from:from,to:to);
-    final present=rows.where((r)=>r.type==AttendanceEventType.checkIn).map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
+    final present=rows.where((r)=>r.type==AttendanceEventType.checkIn || r.type==AttendanceEventType.mission)
+      .map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
     final absent=rows.where((r)=>r.type==AttendanceEventType.absence).map((r)=>DateTime(r.date.year,r.date.month,r.date.day)).toSet();
     var worked=0, overtime=0, late=0, early=0;
-    for(final checkIn in rows.where((r)=>r.type==AttendanceEventType.checkIn)){
-      final checkout=rows.where((r)=>r.type==AttendanceEventType.checkOut && r.date.year==checkIn.date.year && r.date.month==checkIn.date.month && r.date.day==checkIn.date.day).toList();
-      if(checkout.isNotEmpty) worked+=checkout.first.at.difference(checkIn.at).inMinutes;
+    final sessions=rows.where((r)=>r.type==AttendanceEventType.checkIn || r.type==AttendanceEventType.checkOut).toList()
+      ..sort((a,b)=>a.at.compareTo(b.at));
+    DateTime? open;
+    for(final event in sessions){
+      if(event.type==AttendanceEventType.checkIn) { open=event.at; }
+      else if(event.type==AttendanceEventType.checkOut && open!=null) { worked+=event.at.difference(open).inMinutes; open=null; }
     }
     for(final row in rows){overtime+=row.overtimeMinutes;late+=row.lateMinutes;early+=row.earlyLeaveMinutes;}
     return AttendanceSummary(presentDays:present.length,absentDays:absent.length,workedMinutes:worked,overtimeMinutes:overtime,lateMinutes:late,earlyLeaveMinutes:early);
@@ -1257,6 +1294,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void saveEmployeeScheduleException(EmployeeScheduleException exception) {
+    requirePermission('employees.edit', employeeId: exception.employeeId);
     final employee = employeeById(exception.employeeId);
     if (employee == null) throw StateError('پرسنل یافت نشد.');
     final parsed = DateTime.tryParse(exception.dateKey);
@@ -1269,6 +1307,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void deleteEmployeeScheduleException(String employeeId, String dateKey) {
+    requirePermission('employees.edit', employeeId: employeeId);
     _employeeScheduleExceptions.remove(_employeeScheduleKey(employeeId, dateKey));
     _commit();
   }
@@ -1313,6 +1352,9 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void deleteEmployeeLeave(String id) {
+    final matches = _employeeLeaves.where((leave) => leave.id == id).toList();
+    if (matches.isEmpty) return;
+    requirePermission('employees.edit', employeeId: matches.first.employeeId);
     _employeeLeaves.removeWhere((leave) => leave.id == id);
     _commit();
   }
@@ -1349,7 +1391,7 @@ class AppDatabase extends ChangeNotifier {
     final service = serviceById(serviceId);
     if (employee == null || service == null || !employee.isAvailableForBooking || !service.isActive) return false;
     final config = employeeServiceConfig(employeeId, serviceId);
-    return config == null ? employee.serviceIds.contains(serviceId) && service.employeeIds.contains(employeeId) : config.active;
+    return employee.serviceIds.contains(serviceId) && service.employeeIds.contains(employeeId) && (config?.active ?? true);
   }
 
   List<Employee> eligibleEmployeesForService(String serviceId) =>
@@ -1368,6 +1410,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void saveEmployeeServiceConfig(EmployeeServiceConfig config) {
+    requirePermission('employees.edit', employeeId: config.employeeId);
     final employee = employeeById(config.employeeId);
     final service = serviceById(config.serviceId);
     if (employee == null || service == null) throw StateError('پرسنل یا خدمت انتخاب‌شده وجود ندارد.');
@@ -1387,6 +1430,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void removeEmployeeServiceConfig(String employeeId, String serviceId) {
+    requirePermission('employees.edit', employeeId: employeeId);
     final employee = employeeById(employeeId);
     if (employee == null) return;
     _employeeServiceConfigs.remove(_serviceConfigKey(employeeId, serviceId));
@@ -1404,6 +1448,13 @@ class AppDatabase extends ChangeNotifier {
       final ids = service.employeeIds.where((id) => id != employee.id).toList();
       if (assigned) ids.add(employee.id);
       _services[index] = service.copyWith(employeeIds: ids);
+      final key = _serviceConfigKey(employee.id, service.id);
+      final config = _employeeServiceConfigs[key];
+      if (config == null && assigned) {
+        _employeeServiceConfigs[key] = EmployeeServiceConfig(employeeId: employee.id, serviceId: service.id);
+      } else if (config != null && config.active != assigned) {
+        _employeeServiceConfigs[key] = config.copyWith(active: assigned);
+      }
     }
   }
 
