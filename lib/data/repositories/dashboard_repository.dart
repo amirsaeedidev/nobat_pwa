@@ -402,7 +402,7 @@ class MockDashboardRepository implements DashboardRepository {
         ..sort((a, b) => a.startAt.compareTo(b.startAt));
       final periodVisits = operationalCompleted.where((item) => item.customerId == customer.id).toList();
       final firstVisit = lifetimeVisits.isEmpty ? null : lifetimeVisits.first.startAt;
-      final lastVisit = lifetimeVisits.isEmpty ? customer.lastVisitAt : lifetimeVisits.last.startAt;
+      final lastVisit = lifetimeVisits.isEmpty ? (canViewAll ? customer.lastVisitAt : null) : lifetimeVisits.last.startAt;
       final daysSinceVisit = lastVisit == null ? (customer.createdAt == null ? 99999 : now.difference(customer.createdAt!).inDays) : now.difference(lastVisit).inDays;
       var totalGapDays = 0;
       for (var i = 1; i < lifetimeVisits.length; i++) {
