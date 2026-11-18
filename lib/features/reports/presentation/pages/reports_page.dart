@@ -25,6 +25,7 @@ import '../../../../data/models/report_analytics.dart';
 import '../utils/report_table_export.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
+import '../widgets/operational_reports_sections.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -373,6 +374,8 @@ class ReportsPage extends StatelessWidget {
                       ]);
                     }),
                     const SizedBox(height: 12),
+                    OperationalReportsSections(analytics: provider.analytics, provider: provider),
+                    const SizedBox(height: 12),
                     LayoutBuilder(builder: (context, constraints) {
                       final appointmentsCard = _RecentAppointments(items: provider.analytics.recentAppointments);
                       final transactionsCard = _RecentTransactions(items: provider.analytics.recentTransactions);
@@ -656,36 +659,11 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
   );
 }
 
-void _showTrendDetails(BuildContext context, AppDatabase database, ReportsProvider provider, int index) {
+void _openDayReport(BuildContext context, ReportsProvider provider, int index) {
   final points = provider.analytics.trend;
   if (index < 0 || index >= points.length) return;
-  final point = points[index];
-  final end = index + 1 < points.length ? points[index + 1].start : provider.range.endExclusive;
-  final canViewAll = database.hasPermission('appointments.view_all');
-  final employeeId = database.currentAccessAccount.employeeId;
-  final appointments = database.appointments.where((item) =>
-    !item.startAt.isBefore(point.start) && item.startAt.isBefore(end) &&
-    (canViewAll || (database.hasPermission('appointments.view_self') && item.employeeId == employeeId)));
-  final appointmentIds = appointments.map((item) => item.id).toSet();
-  final payments = database.appointmentPayments.where((item) =>
-    appointmentIds.contains(item.appointmentId) &&
-    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end));
-  final expenses = database.businessExpenses.where((item) =>
-    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end) &&
-    item.status == BusinessExpenseStatus.posted);
-  final wallet = database.employeeWalletTransactions.where((item) =>
-    !item.createdAt.isBefore(point.start) && item.createdAt.isBefore(end) &&
-    item.status == EmployeeWalletTransactionStatus.posted &&
-    (canViewAll || item.employeeId == employeeId));
-  final details = <String>[
-    'درآمد: ${Fmt.compactMoney(point.revenue)}',
-    'هزینه: ${Fmt.compactMoney(point.cost)}',
-    for (final item in appointments) '${item.customerName} · ${item.serviceName} · ${item.status.label}',
-    for (final item in payments) '${item.description} · ${item.method.label} · ${Fmt.compactMoney(item.signedAmount)}',
-    for (final item in expenses) '${item.description} · سند ${item.sourceDocumentId} · ${Fmt.compactMoney(item.amount)}',
-    for (final item in wallet) '${item.description} · ${item.type.label} · ${Fmt.compactMoney(item.amount)}',
-  ];
-  _showFinanceSheet(context, 'جزئیات ${point.label}', details);
+  final date = JalaliDate.fromDateTime(points[index].start);
+  context.go('/reports?date=${date.iso}');
 }
 
 void _showFinanceSheet(BuildContext context, String title, List<String> details) {
