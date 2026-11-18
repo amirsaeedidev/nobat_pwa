@@ -6,6 +6,7 @@ import '../models/enums.dart';
 
 /// بازه زمانی گزارش پیشخوان.
 enum StatsPeriod {
+  daily('روزانه'),
   weekly('هفتگی'),
   monthly('ماهانه');
 
@@ -35,10 +36,17 @@ class MockDashboardRepository implements DashboardRepository {
     final today = JalaliDate.today();
     final now = DateTime.now();
 
-    final periodStart = period == StatsPeriod.weekly
-        ? today.addDays(-today.weekday)
-        : JalaliDate(today.year, today.month, 1);
-    final periodItems = all.where((a) => !a.jalali.isBefore(periodStart)).toList();
+    final weekStart = today.addDays(-today.weekday);
+    final monthStart = JalaliDate(today.year, today.month, 1);
+    final periodStart = switch (period) {
+      StatsPeriod.daily => today,
+      StatsPeriod.weekly => weekStart,
+      StatsPeriod.monthly => monthStart,
+    };
+    final periodItems = all.where((a) {
+      if (period == StatsPeriod.daily) return a.jalali.sameDay(today);
+      return !a.jalali.isBefore(periodStart);
+    }).toList();
 
     final completed = periodItems.where((a) => a.status == AppointmentStatus.completed);
     final cancelled = periodItems.where((a) => a.status == AppointmentStatus.cancelled || a.status == AppointmentStatus.noShow);
@@ -55,32 +63,32 @@ class MockDashboardRepository implements DashboardRepository {
     final activeEmployees = _db.employees.where((e) => e.isActive).length;
     final slotsPerDay = activeEmployees == 0 ? 1 : activeEmployees * 4;
 
-    // نمودار عملکرد هفته جاری (شنبه تا جمعه).
-    final weekStart = today.addDays(-today.weekday);
+    // نمودار عملکرد بر اساس بازه انتخاب‌شده؛ میله‌ها حجم نوبت و خط درآمد را نشان می‌دهند.
+    final performanceDates = switch (period) {
+      StatsPeriod.daily => <JalaliDate>[today],
+      StatsPeriod.weekly => List.generate(7, (i) => weekStart.addDays(i)),
+      StatsPeriod.monthly => List.generate(today.day, (i) => monthStart.addDays(i)),
+    };
     final performance = <WeekdayPerformance>[];
-    for (var i = 0; i < 7; i++) {
-      final date = weekStart.addDays(i);
+    for (final date in performanceDates) {
       final dayItems = all.where((a) => a.jalali.sameDay(date) && a.status != AppointmentStatus.cancelled).toList();
-      final percent = ((dayItems.length / slotsPerDay) * 100).clamp(8, 100).round();
-      performance.add(
-        WeekdayPerformance(
-          label: JalaliDate.weekdayNames[i],
-          percent: percent,
-          count: dayItems.length,
-          revenue: dayItems.fold<num>(0, (sum, a) => sum + a.price),
-        ),
-      );
+      final completedDayItems = dayItems.where((a) => a.status == AppointmentStatus.completed);
+      final percent = ((dayItems.length / slotsPerDay) * 100).clamp(0, 100).round();
+      performance.add(WeekdayPerformance(
+        label: period == StatsPeriod.daily ? 'امروز' : period == StatsPeriod.weekly ? date.weekdayName : date.day.toString(),
+        percent: percent,
+        count: dayItems.length,
+        revenue: completedDayItems.fold<num>(0, (sum, a) => sum + a.price),
+        dateIso: date.iso,
+      ));
     }
-    final maxIndex = performance.isEmpty
-        ? 0
-        : performance.indexWhere((p) => p.percent == performance.map((e) => e.percent).reduce((a, b) => a > b ? a : b));
     if (performance.isNotEmpty) {
+      final maxCount = performance.map((p) => p.count).reduce((a, b) => a > b ? a : b);
+      final maxIndex = performance.indexWhere((p) => p.count == maxCount);
+      final peak = performance[maxIndex];
       performance[maxIndex] = WeekdayPerformance(
-        label: performance[maxIndex].label,
-        percent: performance[maxIndex].percent,
-        count: performance[maxIndex].count,
-        revenue: performance[maxIndex].revenue,
-        isPeak: true,
+        label: peak.label, percent: peak.percent, count: peak.count,
+        revenue: peak.revenue, dateIso: peak.dateIso, isPeak: true,
       );
     }
 
