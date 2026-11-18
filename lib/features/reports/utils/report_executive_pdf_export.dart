@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/report_analytics.dart';
 
 class ReportExecutivePdfExport {
@@ -61,7 +62,7 @@ class ReportExecutivePdfExport {
             pw.SizedBox(height: 5),
             pw.Text('بازه گزارش: ${analytics.range.label}',
               style: pw.TextStyle(font: font, fontSize: 9, color: PdfColors.grey700)),
-            pw.Text('تاریخ تولید: ${generatedAt.toIso8601String().substring(0, 16)}',
+            pw.Text('تاریخ تولید: ${JalaliDate.fromDateTime(generatedAt).long}',
               style: pw.TextStyle(font: font, fontSize: 8, color: PdfColors.grey700)),
             pw.SizedBox(height: 14),
             pw.Text('خلاصه مدیریتی', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
