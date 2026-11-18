@@ -133,14 +133,13 @@ class AppDatabase extends ChangeNotifier {
     required BusinessPaymentMethod method,
     required String description,
     DateTime? createdAt,
-    String? idempotencyKey,
+    required String idempotencyKey,
   }) {
     requirePermission('finance.payment.create');
     final matches = _appointments.where((item) => item.id == appointmentId).toList();
     if (matches.isEmpty) throw StateError('نوبت مورد نظر پیدا نشد.');
     if (amount <= 0 || description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات پرداخت معتبر نیست.');
-    if (idempotencyKey != null &&
-        (idempotencyKey.trim().isEmpty || _appointmentPayments.any((item) => item.idempotencyKey == idempotencyKey))) {
+    if (idempotencyKey.trim().isEmpty || _appointmentPayments.any((item) => item.idempotencyKey == idempotencyKey)) {
       throw StateError('این پرداخت قبلاً ثبت شده است.');
     }
     final appointment = matches.first;
@@ -168,15 +167,14 @@ class AppDatabase extends ChangeNotifier {
     required int amount,
     required String description,
     DateTime? createdAt,
-    String? idempotencyKey,
+    required String idempotencyKey,
   }) {
     requirePermission('finance.payment.create');
     final matches = _appointmentPayments.where((item) => item.id == paymentId && item.type == BusinessPaymentType.receipt).toList();
     if (matches.isEmpty) throw StateError('رسید دریافت پیدا نشد.');
     final original = matches.first;
     if (amount <= 0 || description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات برگشت معتبر نیست.');
-    if (idempotencyKey != null &&
-        (idempotencyKey.trim().isEmpty || _appointmentPayments.any((item) => item.idempotencyKey == idempotencyKey))) {
+    if (idempotencyKey.trim().isEmpty || _appointmentPayments.any((item) => item.idempotencyKey == idempotencyKey)) {
       throw StateError('این برگشت قبلاً ثبت شده است.');
     }
     final refunded = _appointmentPayments.where((item) => item.type == BusinessPaymentType.refund && item.reversesPaymentId == paymentId)
