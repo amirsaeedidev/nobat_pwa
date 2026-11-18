@@ -270,6 +270,8 @@ class BookingProvider extends DbBoundProvider {
       }
 
       final reference = 'OT-${1500 + db.appointments.length}';
+      final bookedPrice = db.effectiveServicePrice(employee.id, service.id);
+      final bookedDuration = db.effectiveServiceDuration(employee.id, service.id);
       final appointment = Appointment(
         id: 'apt-${DateTime.now().millisecondsSinceEpoch}',
         reference: reference,
@@ -281,9 +283,17 @@ class BookingProvider extends DbBoundProvider {
         employeeId: employee.id,
         employeeName: employee.fullName,
         startAt: slot.start,
-        durationMinutes: service.durationMinutes,
+        durationMinutes: bookedDuration,
         status: db.settings.bookingRules.requireConfirmation ? AppointmentStatus.pending : AppointmentStatus.confirmed,
-        price: service.price,
+        price: bookedPrice,
+        serviceSnapshots: [{
+          'service_id': service.id,
+          'title': service.title,
+          'category': service.category,
+          'price': bookedPrice,
+          'direct_cost': service.directCost,
+          'duration_minutes': bookedDuration,
+        }],
         note: _note,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
