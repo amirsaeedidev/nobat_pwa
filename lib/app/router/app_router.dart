@@ -22,7 +22,6 @@ import '../../features/employees/presentation/pages/employee_finance_page.dart';
 import '../../features/employees/presentation/pages/employee_wallet_page.dart';
 import '../../features/employees/presentation/pages/employee_analytics_page.dart';
 import '../../features/employees/presentation/pages/employee_attendance_page.dart';
-import '../../features/employees/presentation/pages/employee_records_page.dart';
 import '../../features/employees/presentation/pages/employee_leave_requests_page.dart';
 import '../../features/employees/presentation/pages/employee_notices_page.dart';
 import '../../features/employees/presentation/pages/employee_profile_page.dart';
@@ -122,7 +121,6 @@ GoRouter buildRouter(AppDatabase database) {
                   GoRoute(path: 'schedule', builder: (context, state) => EmployeeSchedulePage(employeeId: state.pathParameters['id']!)),
                   GoRoute(path: 'analytics', builder: (context, state) => EmployeeAnalyticsPage(employeeId: state.pathParameters['id']!)),
                   GoRoute(path: 'attendance', builder: (context, state) => EmployeeAttendancePage(employeeId: state.pathParameters['id']!)),
-                  GoRoute(path: 'records', builder: (context, state) => EmployeeRecordsPage(employeeId: state.pathParameters['id']!)),
                   GoRoute(path: 'leaves', builder: (context, state) => EmployeeLeaveRequestsPage(employeeId: state.pathParameters['id']!)),
                   GoRoute(path: 'notices', builder: (context, state) => EmployeeNoticesPage(employeeId: state.pathParameters['id']!)),
                 ],
