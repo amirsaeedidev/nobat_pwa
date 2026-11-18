@@ -26,22 +26,55 @@ class EmployeePerformanceTarget {
   double progress(int actual) => targetValue <= 0 ? 0 : (actual / targetValue).clamp(0, 1).toDouble();
 }
 class PayrollCalculation {
-  const PayrollCalculation({required this.baseSalary, required this.approvedCommission, required this.approvedBonuses, required this.deductions, required this.advanceDeducted, required this.previousPayments});
+  const PayrollCalculation({
+    required this.baseSalary,
+    required this.approvedCommission,
+    required this.approvedBonuses,
+    required this.deductions,
+    required this.advanceDeducted,
+    required this.previousPayments,
+    this.commissionRefunds = 0,
+    this.attendanceAdjustment = 0,
+  });
   final int baseSalary, approvedCommission, approvedBonuses, deductions, advanceDeducted, previousPayments;
+  /// برگشت پورسانت، به‌عنوان کسری مستقل از پورسانت مثبت ثبت می‌شود.
+  final int commissionRefunds;
+  /// خروجی قانون حضور و غیاب؛ مثبت = پرداخت اضافه‌کاری، منفی = کسورات.
+  final int attendanceAdjustment;
   int get gross => baseSalary + approvedCommission + approvedBonuses;
-  int get totalDeductions => deductions + advanceDeducted + previousPayments;
-  int get payable => gross - totalDeductions;
+  int get totalDeductions => deductions + advanceDeducted + previousPayments + commissionRefunds;
+  int get payable => gross - totalDeductions + attendanceAdjustment;
   int get debt => payable < 0 ? -payable : 0;
   int get remainingPayable => payable > 0 ? payable : 0;
 }
 class EmployeePayrollCalculator {
   const EmployeePayrollCalculator._();
-  static PayrollCalculation calculate({required SalaryContract? contract, required DateTime at, required int approvedCommission, required Iterable<PayrollAdjustment> adjustments, required Iterable<PayrollAdvance> advances, required int previousPayments}) {
-    if (approvedCommission < 0 || previousPayments < 0) throw ArgumentError('پورسانت و پرداخت قبلی نمی‌توانند منفی باشند.');
+  static PayrollCalculation calculate({
+    required SalaryContract? contract,
+    required DateTime at,
+    required int approvedCommission,
+    required Iterable<PayrollAdjustment> adjustments,
+    required Iterable<PayrollAdvance> advances,
+    required int previousPayments,
+    int commissionRefunds = 0,
+    int attendanceAdjustment = 0,
+  }) {
+    if (approvedCommission < 0 || previousPayments < 0 || commissionRefunds < 0) {
+      throw ArgumentError('پورسانت، برگشت پورسانت و پرداخت قبلی معتبر نیستند.');
+    }
     final salary = contract != null && contract.appliesAt(at) ? contract.monthlyBase : 0;
     var bonuses = 0, deductions = 0;
     for (final item in adjustments) { if (item.status != PayrollRecordStatus.approved) continue; if (item.isBonus) { bonuses += item.amount; } else { deductions += item.amount; } }
     final advanceDeducted = advances.where((item) => item.status == AdvanceStatus.paid || item.status == AdvanceStatus.deducted).fold<int>(0, (sum, item) => sum + item.deductedAmount);
-    return PayrollCalculation(baseSalary: salary, approvedCommission: approvedCommission, approvedBonuses: bonuses, deductions: deductions, advanceDeducted: advanceDeducted, previousPayments: previousPayments);
+    return PayrollCalculation(
+      baseSalary: salary,
+      approvedCommission: approvedCommission,
+      approvedBonuses: bonuses,
+      deductions: deductions,
+      advanceDeducted: advanceDeducted,
+      previousPayments: previousPayments,
+      commissionRefunds: commissionRefunds,
+      attendanceAdjustment: attendanceAdjustment,
+    );
   }
 }
