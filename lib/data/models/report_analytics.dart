@@ -1,6 +1,7 @@
 import '../../core/utils/jalali.dart';
 import 'appointment.dart';
 import 'employee_wallet.dart';
+import 'business_finance.dart';
 
 enum ReportPeriod {
   today('امروز'), yesterday('دیروز'), thisWeek('هفته جاری'),
@@ -80,6 +81,12 @@ class ReportServiceMetric {
   final int count;
 }
 
+class ReportCustomerDebt {
+  const ReportCustomerDebt({required this.customerId, required this.customerName, required this.amount, required this.appointmentCount});
+  final String customerId, customerName;
+  final int amount, appointmentCount;
+}
+
 class ReportAnalytics {
   const ReportAnalytics({
     required this.range, required this.revenue, required this.cost,
@@ -89,6 +96,14 @@ class ReportAnalytics {
     required this.uniqueCustomers, required this.statusCounts, required this.trend,
     required this.employees, required this.services, required this.recentAppointments,
     required this.recentTransactions, required this.costNote,
+    this.grossRevenue = 0, this.collectedRevenue = 0, this.receivables = 0,
+    this.operatingExpense = 0, this.staffPayable = 0, this.staffPaid = 0,
+    this.advancesOutstanding = 0, this.profitMarginPercent = 0,
+    this.grossProfit, this.previousPeriodRevenue = 0, this.previousPeriodCost = 0,
+    this.paymentsByMethod = const {}, this.expensesByCategory = const {},
+    this.customerDebts = const [], this.partialPayments = const [],
+    this.paymentTransactions = const [], this.businessExpenses = const [],
+    this.settlements = const [],
   });
   final ReportDateRange range;
   final num revenue, cost, commissionCost, payrollCost;
@@ -100,7 +115,18 @@ class ReportAnalytics {
   final List<Appointment> recentAppointments;
   final List<EmployeeWalletTransaction> recentTransactions;
   final String costNote;
+  final num grossRevenue, collectedRevenue, receivables, operatingExpense;
+  final num staffPayable, staffPaid, advancesOutstanding, profitMarginPercent;
+  final num? grossProfit;
+  final num previousPeriodRevenue, previousPeriodCost;
+  final Map<String, num> paymentsByMethod, expensesByCategory;
+  final List<ReportCustomerDebt> customerDebts;
+  final List<AppointmentPayment> partialPayments, paymentTransactions;
+  final List<BusinessExpense> businessExpenses;
+  final List<EmployeeWalletSettlement> settlements;
   num get netProfit => revenue - cost;
+  num get netRevenue => revenue;
+  num get discounts => grossRevenue - revenue;
 
   static ReportAnalytics empty(ReportDateRange range) => ReportAnalytics(
     range: range, revenue: 0, cost: 0, commissionCost: 0, payrollCost: 0,
