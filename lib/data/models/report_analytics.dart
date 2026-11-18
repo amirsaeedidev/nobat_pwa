@@ -102,7 +102,7 @@ class ReportServiceMetric {
   const ReportServiceMetric({
     required this.name, required this.revenue, required this.count,
     this.serviceId = '', this.averagePrice = 0, this.directCost,
-    this.profit, this.marginPercent, this.employeeCounts = const {},
+    this.profit, this.marginPercent, this.employeeCounts = const {}, this.trend = const [],
   });
   final String serviceId, name;
   final num revenue, averagePrice;
@@ -110,6 +110,7 @@ class ReportServiceMetric {
   /// null یعنی حداقل یکی از نوبت‌های تاریخی این خدمت هزینه مستقیم ثبت‌شده ندارد.
   final num? directCost, profit, marginPercent;
   final Map<String, int> employeeCounts;
+  final List<ReportTrendPoint> trend;
 }
 
 class ReportCustomerMetric {
@@ -159,6 +160,7 @@ class ReportAnalytics {
     this.operatingExpense = 0, this.staffPayable = 0, this.staffPaid = 0,
     this.advancesOutstanding = 0, this.profitMarginPercent = 0,
     this.grossProfit, this.previousPeriodRevenue = 0, this.previousPeriodCost = 0,
+    this.previousPeriodAppointments = 0,
     this.paymentsByMethod = const {}, this.expensesByCategory = const {},
     this.customerDebts = const [], this.partialPayments = const [],
     this.paymentTransactions = const [], this.businessExpenses = const [],
@@ -195,6 +197,7 @@ class ReportAnalytics {
   final num staffPayable, staffPaid, advancesOutstanding, profitMarginPercent;
   final num? grossProfit;
   final num previousPeriodRevenue, previousPeriodCost;
+  final int previousPeriodAppointments;
   final Map<String, num> paymentsByMethod, expensesByCategory;
   final List<ReportCustomerDebt> customerDebts;
   final List<AppointmentPayment> partialPayments, paymentTransactions;
