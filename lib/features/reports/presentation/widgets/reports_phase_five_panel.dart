@@ -43,7 +43,14 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
   Future<void> _loadStore() async {
     try {
       final saved = await _store.loadViews();
-      final history = await _store.loadHistory();
+      final db = widget.database;
+      final allSalary = db.employees.every((item) => db.hasPermission('finance.salary.view', employeeId: item.id));
+      final allCommission = db.employees.every((item) => db.hasPermission('finance.commission.view', employeeId: item.id));
+      final history = await _store.loadHistory(
+        accountId: db.currentAccessAccount.id,
+        canViewSalary: allSalary,
+        canViewCommission: allCommission,
+      );
       if (!mounted) return;
       setState(() { _saved = saved; _history = history; _loadingStore = false; });
     } catch (_) {
@@ -111,6 +118,11 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       id: DateTime.now().microsecondsSinceEpoch.toString(), title: 'گزارش مدیریتی',
       range: a.range.label, createdAt: DateTime.now(), revenue: a.revenue,
       cost: a.cost, appointments: a.totalAppointments,
+      accountId: widget.database.currentAccessAccount.id,
+      includesSalary: widget.database.employees.every((item) =>
+        widget.database.hasPermission('finance.salary.view', employeeId: item.id)),
+      includesCommission: widget.database.employees.every((item) =>
+        widget.database.hasPermission('finance.commission.view', employeeId: item.id)),
     ));
     await _loadStore();
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
