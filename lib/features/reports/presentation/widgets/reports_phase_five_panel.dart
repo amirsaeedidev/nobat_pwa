@@ -387,7 +387,10 @@ class _DeltaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final delta = previous == null || value == null ? null : ReportInsightEngine.compare(value, previous!);
+    final currentValue = value;
+    final previousValue = previous;
+    final delta = currentValue == null || previousValue == null
+      ? null : ReportInsightEngine.compare(currentValue, previousValue);
     final change = delta?.percent;
     return Container(
       constraints: const BoxConstraints(minWidth: 130, maxWidth: 220),
