@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check legacy brand references
         shell: bash
@@ -32,7 +32,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: "3.50.0"
           cache: true
 
       - name: Flutter version
@@ -149,6 +149,20 @@ jobs:
         if: always() && steps.analyze.outcome == 'success'
         run: flutter build web --release
 
+      - name: Verify offline web assets
+        if: always() && steps.analyze.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/web/index.html
+          test -s build/web/flutter_bootstrap.js
+          test -s build/web/flutter_service_worker.js
+          if grep -Eiq '<script[^>]+src="https?://' build/web/index.html; then
+            echo "::error::External script dependency found in web/index.html"
+            exit 1
+          fi
+          echo "Offline web shell and Flutter service worker are present." | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Add test result to summary
         if: always()
         shell: bash
@@ -163,7 +177,7 @@ jobs:
 
       - name: Upload analysis and test logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: flutter-diagnostics
           path: |
