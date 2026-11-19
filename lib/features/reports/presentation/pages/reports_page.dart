@@ -803,7 +803,7 @@ class _MetricCard extends StatelessWidget {
         if (value is num)
           TweenAnimationBuilder<double>(
             key: ValueKey('$label-$value'),
-            tween: Tween(begin: 0, end: value.toDouble()),
+            tween: Tween(begin: 0, end: (value as num).toDouble()),
             duration: const Duration(milliseconds: 650),
             curve: Curves.easeOutCubic,
             builder: (context, current, _) => Text(
