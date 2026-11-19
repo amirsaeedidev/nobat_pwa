@@ -36,13 +36,12 @@ class MockDashboardRepository implements DashboardRepository {
 
   final AppDatabase _db;
 
-  int _recognizedRevenueForAppointments(Iterable<Appointment> appointments) {
-    final ids = appointments.map((item) => item.id).toSet();
-    return _db.employeeFinanceEntries.where((entry) =>
-      ids.contains(entry.appointmentId) &&
-      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund))
-      .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
-  }
+  int _recognizedRevenueBetween(DateTime from, DateTime to) =>
+      _db.employeeFinanceEntries.where((entry) =>
+        !entry.createdAt.isBefore(from) && entry.createdAt.isBefore(to) &&
+        (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
+        _db.hasPermission('finance.income.view', employeeId: entry.employeeId))
+        .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
 
   int _directCostForEntry(EmployeeFinanceEntry entry) {
     if (entry.type != FinanceEntryType.commission) return 0;
@@ -82,11 +81,10 @@ class MockDashboardRepository implements DashboardRepository {
     final completed = periodItems.where((a) => a.status == AppointmentStatus.completed);
     final cancelled = periodItems.where((a) => a.status == AppointmentStatus.cancelled || a.status == AppointmentStatus.noShow);
 
-    final totalRevenue = _recognizedRevenueForAppointments(
-      periodItems.where((a) => a.status == AppointmentStatus.completed));
+    final totalRevenue = _recognizedRevenueBetween(periodStart.toDateTime(), periodEnd.toDateTime());
 
-    final monthRevenue = _recognizedRevenueForAppointments(
-      all.where((a) => a.status == AppointmentStatus.completed && !a.jalali.isBefore(monthStart)));
+    final monthRevenue = _recognizedRevenueBetween(
+      monthStart.toDateTime(), monthStart.addMonths(1).toDateTime());
 
     final activeEmployees = _db.employees.where((e) => e.isActive).length;
     final slotsPerDay = activeEmployees == 0 ? 1 : activeEmployees * 4;
@@ -106,7 +104,7 @@ class MockDashboardRepository implements DashboardRepository {
         label: period == StatsPeriod.daily ? 'امروز' : period == StatsPeriod.weekly ? date.weekdayName : date.day.toString(),
         percent: percent,
         count: dayItems.length,
-        revenue: _recognizedRevenueForAppointments(completedDayItems),
+        revenue: _recognizedRevenueBetween(date.toDateTime(), date.addDays(1).toDateTime()),
         dateIso: date.iso,
       ));
     }
@@ -163,8 +161,7 @@ class MockDashboardRepository implements DashboardRepository {
         final j = a.jalali;
         return !j.isBefore(monthDate) && j.isBefore(nextMonth);
       }).toList();
-      final revenue = _recognizedRevenueForAppointments(
-        items.where((a) => a.status == AppointmentStatus.completed));
+      final revenue = _recognizedRevenueBetween(monthDate.toDateTime(), nextMonth.toDateTime());
       result.add(
         RevenuePoint(
           label: monthDate.monthName,
@@ -183,7 +180,8 @@ class MockDashboardRepository implements DashboardRepository {
     final totals = <String, num>{};
     final names = <String, String>{};
     for (final entry in _db.employeeFinanceEntries.where((item) =>
-      item.type == FinanceEntryType.commission || item.type == FinanceEntryType.refund)) {
+      (item.type == FinanceEntryType.commission || item.type == FinanceEntryType.refund) &&
+      _db.hasPermission('finance.income.view', employeeId: item.employeeId))) {
       final appointment = _db.appointmentById(entry.appointmentId);
       if (appointment == null) continue;
       final snapshot = appointment.serviceSnapshots.where((item) => item['service_id'] == entry.serviceId).firstOrNull;
@@ -482,9 +480,9 @@ class MockDashboardRepository implements DashboardRepository {
         (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
         (canViewAll || employeeId == entry.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId)).toList();
-      final totalSpent = customerIncomeEntries.isEmpty
-        ? lifetimeVisits.fold<num>(0, (sum, item) => sum + item.price)
-        : customerIncomeEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
+      // مبلغ خرید فقط از اسناد مالی ثبت‌شده خوانده می‌شود؛ قیمت رزرو جایگزین سند درآمد نیست.
+      final totalSpent = customerIncomeEntries.fold<num>(
+        0, (sum, item) => sum + item.receivedAmount);
       final isNew = firstVisit != null
         ? range.contains(firstVisit)
         : customer.createdAt != null && range.contains(customer.createdAt!);
