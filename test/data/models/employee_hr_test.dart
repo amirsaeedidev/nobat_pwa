@@ -24,7 +24,7 @@ void main(){
   expect(report.presentDays,1); expect(report.workedMinutes,540); expect(report.lateMinutes,12); expect(report.overtimeMinutes,60);
  });
  test('leave requests generate notification and approved leave remains linked',(){
-  final db=AppDatabase(); final employee=db.employees.first; final start=DateTime(2026,12,2);
+  final db=AppDatabase(); final employee=db.employees.first; final start=DateTime(2030,12,2);
   final leave=EmployeeLeave(id:'leave-hr-test',employeeId:employee.id,startAt:start,endAt:start.add(const Duration(days:1)),type:EmployeeLeaveType.daily,status:EmployeeLeaveStatus.pending,description:'آزمایش',createdAt:date);
   db.addEmployeeLeave(leave);
   expect(db.noticesFor(employee.id).any((n)=>n.type==EmployeeNoticeType.leaveRequested),true);

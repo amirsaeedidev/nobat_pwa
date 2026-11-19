@@ -215,6 +215,10 @@ class MobileBottomNav extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             dest.label,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 10,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

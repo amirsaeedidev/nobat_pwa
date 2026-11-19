@@ -115,16 +115,19 @@ void main() {
 
     test('permission overrides cannot bypass employee scope or personal-income privacy', () {
       final db = AppDatabase();
+      final manager = db.accessAccounts.firstWhere((account) => account.id == 'demo-manager');
+      final managerEmployeeId = manager.employeeId!;
       db.assignEmployeeAccess(
-        employeeId: 'emp-amir',
+        employeeId: managerEmployeeId,
         roleId: 'manager',
         overrides: const {'finance.income.view': true},
         canViewOtherEmployees: false,
         canViewPersonalIncome: false,
       );
       db.switchMockAccount('demo-manager');
-      expect(db.hasPermission('finance.income.view', employeeId: 'emp-zahra'), isFalse);
-      expect(db.hasPermission('finance.income.view', employeeId: 'emp-amir'), isFalse);
+      final otherEmployeeId = db.employees.firstWhere((employee) => employee.id != managerEmployeeId).id;
+      expect(db.hasPermission('finance.income.view', employeeId: otherEmployeeId), isFalse);
+      expect(db.hasPermission('finance.income.view', employeeId: managerEmployeeId), isFalse);
     });
 
     test('customer repository checks permission for direct ID lookup', () async {
