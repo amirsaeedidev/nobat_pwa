@@ -928,9 +928,18 @@ class AppDatabase extends ChangeNotifier {
     EmployeeFinanceEntry? original;
     for (final entry in _employeeFinanceEntries) { if (entry.id == entryId && entry.type == FinanceEntryType.commission) { original = entry; break; } }
     if (original == null) return false;
-    final refunded = _employeeFinanceEntries.where((entry) => entry.type == FinanceEntryType.refund && entry.reversesEntryId == entryId).fold<int>(0, (sum, entry) => sum - entry.receivedAmount);
+    final priorRefundEntries = _employeeFinanceEntries.where((entry) =>
+      entry.type == FinanceEntryType.refund && entry.reversesEntryId == entryId).toList();
+    final refunded = priorRefundEntries.fold<int>(0, (sum, entry) => sum - entry.receivedAmount);
     if (refunded + refundAmount > original.receivedAmount) throw ArgumentError('مبلغ برگشت از دریافتی این خدمت بیشتر است.');
-    final commissionRefund = original.receivedAmount == 0 ? 0 : (original.commissionAmount * refundAmount + original.receivedAmount ~/ 2) ~/ original.receivedAmount;
+    final priorCommissionRefund = priorRefundEntries.fold<int>(
+      0, (sum, entry) => sum - entry.commissionAmount);
+    // کمیسیون هر بخش برگشت، اختلاف سهم تجمعی جدید و قبلی است؛ از خطای گردکردن در Refundهای چندمرحله‌ای جلوگیری می‌کند.
+    final cumulativeRefund = refunded + refundAmount;
+    final cumulativeCommissionRefund = original.receivedAmount == 0 ? 0 :
+      (original.commissionAmount * cumulativeRefund + original.receivedAmount ~/ 2) ~/ original.receivedAmount;
+    final commissionRefund = (cumulativeCommissionRefund - priorCommissionRefund)
+      .clamp(0, original.commissionAmount - priorCommissionRefund).toInt();
     final refundEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: original.employeeId, appointmentId: original.appointmentId, serviceId: original.serviceId, createdAt: DateTime.now(), type: FinanceEntryType.refund, methodSnapshot: original.methodSnapshot, basisSnapshot: original.basisSnapshot, grossAmount: -refundAmount, discountAmount: 0, receivedAmount: -refundAmount, calculationBase: -refundAmount, rateBps: original.rateBps, fixedAmount: 0, commissionAmount: -commissionRefund, companyShare: -(refundAmount - commissionRefund), reversesEntryId: entryId);
     _employeeFinanceEntries.add(refundEntry);
     _mirrorFinanceEntryToWallet(refundEntry);
