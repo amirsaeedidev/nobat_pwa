@@ -31,7 +31,7 @@ abstract class AppointmentRepository {
 
   Future<void> update(Appointment appointment);
 
-  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason});
+  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, int discountAmount = 0, int? finalPaidAmount});
 
   Future<void> reschedule(Appointment appointment, DateTime newStart, {bool byCustomer = false});
 
@@ -123,9 +123,9 @@ class MockAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason}) async {
+  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, int discountAmount = 0, int? finalPaidAmount}) async {
     await _db.delay(160);
-    _db.changeStatus(appointment, status, reason: reason);
+    _db.changeStatus(appointment, status, reason: reason, discountAmount: discountAmount, finalPaidAmount: finalPaidAmount);
   }
 
   @override
