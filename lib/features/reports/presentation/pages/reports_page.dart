@@ -53,6 +53,8 @@ class ReportsPage extends StatelessWidget {
     final availableCustomers = canViewAll
       ? db.customers
       : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
+    final expenseRangeConfirmed = db.isBusinessExpenseRangeConfirmed(
+      provider.range.start, provider.range.endExclusive);
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
       visibleAppointments.where((item) => item.jalali.sameDay(selectedDay) && provider.filter.matches(item)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
@@ -241,7 +243,14 @@ class ReportsPage extends StatelessWidget {
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                       _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
-                      _MetricCard(label: 'سود خالص تخمینی', value: provider.netProfit, money: true, icon: HugeIcons.strokeRoundedChartLineData01, color: provider.netProfit >= 0 ? pal.success : pal.danger),
+                      _MetricCard(
+                        label: provider.analytics.profitIsComplete ? 'سود خالص' : 'سود خالص · نامشخص',
+                        value: provider.analytics.profitIsComplete ? provider.netProfit : 'نامشخص',
+                        money: true, icon: HugeIcons.strokeRoundedChartLineData01,
+                        color: provider.analytics.profitIsComplete
+                          ? (provider.netProfit >= 0 ? pal.success : pal.danger)
+                          : pal.textMuted,
+                      ),
                       _MetricCard(label: 'تعداد نوبت', value: provider.totalAppointments, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
                       _MetricCard(label: 'مشتری یکتا', value: provider.totalCustomers, icon: HugeIcons.strokeRoundedUser, color: pal.purple),
                       _MetricCard(label: 'نوبت تکمیل‌شده', value: provider.completedAppointments, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
@@ -273,13 +282,47 @@ class ReportsPage extends StatelessWidget {
                         showSecondary: true,
                       ),
                       Text(
-                        'سود دوره قبل: ${Fmt.compactMoney(provider.analytics.previousPeriodRevenue - provider.analytics.previousPeriodCost)}  ·  سود دوره جاری: ${Fmt.compactMoney(provider.analytics.netProfit)}',
+                        provider.analytics.profitIsComplete &&
+                          (provider.comparisonAnalytics?.profitIsComplete ?? false)
+                          ? 'سود دوره قبل: ${Fmt.compactMoney(provider.comparisonAnalytics!.netProfit)}  ·  سود دوره جاری: ${Fmt.compactMoney(provider.analytics.netProfit)}'
+                          : 'سود دوره قبل و جاری به‌دلیل ناقص بودن پوشش هزینه‌ها قابل اعلام قطعی نیست.',
                         style: TextStyle(fontSize: 10.5, color: pal.textMuted),
                       ),
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const SectionHeader(title: 'تحلیل مالی و سود و زیان', subtitle: 'درآمد شناسایی‌شده، مبالغ وصولی و هزینه‌های ثبت‌شده از هم تفکیک شده‌اند'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8, runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            expenseRangeConfirmed
+                              ? 'ثبت هزینه‌های عملیاتی این بازه تأیید شده است.'
+                              : 'برای محاسبه سود قطعی، ابتدا کامل بودن هزینه‌های این بازه را تأیید کنید.',
+                            style: TextStyle(fontSize: 10, color: expenseRangeConfirmed ? pal.success : pal.warning),
+                          ),
+                          if (db.hasPermission('finance.payment.create'))
+                            OutlinedButton.icon(
+                              onPressed: () => db.setBusinessExpenseRangeConfirmed(
+                                from: provider.range.start,
+                                endExclusive: provider.range.endExclusive,
+                                confirmed: !expenseRangeConfirmed,
+                              ),
+                              icon: HugeIcon(
+                                icon: expenseRangeConfirmed
+                                  ? HugeIcons.strokeRoundedCancel01
+                                  : HugeIcons.strokeRoundedCheckmarkCircle01,
+                                size: 16,
+                              ),
+                              label: Text(expenseRangeConfirmed ? 'لغو تأیید هزینه‌ها' : 'تأیید تکمیل ثبت هزینه‌ها'),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(provider.analytics.profitStatusNote,
+                        style: TextStyle(fontSize: 10, color: pal.textMuted)),
                       const SizedBox(height: 10),
                       Wrap(spacing: 9, runSpacing: 9, children: [
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد ناخالص', [
@@ -294,7 +337,13 @@ class ReportsPage extends StatelessWidget {
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
                           for (final item in provider.analytics.partialPayments) 'پرداخت ناقص: ${item.description} · ${Fmt.compactMoney(item.signedAmount)}',
                         ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedAppointment01, color: pal.warning)),
-                        _MetricCard(label: 'حاشیه سود', value: provider.analytics.profitMarginPercent, icon: HugeIcons.strokeRoundedChartLineData01, color: pal.success),
+                        _MetricCard(
+                          label: provider.analytics.profitIsComplete ? 'حاشیه سود' : 'حاشیه سود · نامشخص',
+                          value: provider.analytics.profitIsComplete
+                            ? provider.analytics.profitMarginPercent : 'نامشخص',
+                          icon: HugeIcons.strokeRoundedChartLineData01,
+                          color: provider.analytics.profitIsComplete ? pal.success : pal.textMuted,
+                        ),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مانده پرداخت پرسنل', [
                           'مانده قابل پرداخت: ${Fmt.compactMoney(provider.analytics.staffPayable)}',
                           'پرداخت‌شده در بازه: ${Fmt.compactMoney(provider.analytics.staffPaid)}',
@@ -736,7 +785,7 @@ class _LegendItem extends StatelessWidget {
 class _MetricCard extends StatelessWidget {
   const _MetricCard({required this.label, required this.value, required this.icon, required this.color, this.money = false});
   final String label;
-  final num value;
+  final Object value;
   final List<List<dynamic>> icon;
   final Color color;
   final bool money;
@@ -751,17 +800,22 @@ class _MetricCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         HugeIcon(icon: icon, color: color, size: 25),
         const SizedBox(height: 10),
-        TweenAnimationBuilder<double>(
-          key: ValueKey('$label-$value'),
-          tween: Tween(begin: 0, end: value.toDouble()),
-          duration: const Duration(milliseconds: 650),
-          curve: Curves.easeOutCubic,
-          builder: (context, current, _) => Text(
-            money ? Fmt.compactMoney(current.round()) : FaNum.ofInt(current.round()),
+        if (value is num)
+          TweenAnimationBuilder<double>(
+            key: ValueKey('$label-$value'),
+            tween: Tween(begin: 0, end: value.toDouble()),
+            duration: const Duration(milliseconds: 650),
+            curve: Curves.easeOutCubic,
+            builder: (context, current, _) => Text(
+              money ? Fmt.compactMoney(current.round()) : FaNum.ofInt(current.round()),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
+          )
+        else
+          Text(value.toString(),
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-          ),
-        ),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
         Text(label, style: TextStyle(fontSize: 10, color: pal.textMuted)),
       ]),
     );
