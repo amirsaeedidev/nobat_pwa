@@ -94,7 +94,10 @@ void main() {
       Object? exception;
       do {
         exception = tester.takeException();
-        if (exception != null) failures.add('${width.toInt()}px $path: $exception');
+        if (exception != null) {
+          final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
+          failures.add('${width.toInt()}px $path: $details');
+        }
       } while (exception != null);
     }
     expect(failures, isEmpty, reason: failures.join('\n'));

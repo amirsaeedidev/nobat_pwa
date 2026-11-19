@@ -68,7 +68,11 @@ void main() {
       tester.view.devicePixelRatio = 2;
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.takeException(), isNull, reason: 'Viewport width: $width');
+      final exception = tester.takeException();
+      if (exception != null) {
+        final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
+        fail('Viewport width: $width\\n$details');
+      }
     }
   });
 }
