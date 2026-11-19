@@ -11,7 +11,7 @@ class ReportTableExport {
   static String toCsv(List<String> headers, List<List<Object?>> rows) {
     String field(Object? value) {
       var text = value?.toString() ?? '';
-      if (text.isNotEmpty && RegExp(r'^[=+@-]').hasMatch(text)) text = "'$text";
+      if (text.isNotEmpty && RegExp(r'^[\\t\\r ]*[=+\\-@]').hasMatch(text)) text = "'$text";
       return '"${text.replaceAll('"', '""')}"';
     }
     return [
