@@ -53,7 +53,7 @@ void main() {
       expect(report.commissionCost, db.employeeFinanceEntries.fold<int>(0, (sum, entry) => sum + entry.commissionAmount));
       expect(report.collectedRevenue, db.appointmentPayments.fold<int>(0, (sum, item) => sum + item.signedAmount));
       expect(report.paymentsByMethod.values.fold<num>(0, (sum, value) => sum + value), report.collectedRevenue);
-      expect(report.cost, report.commissionCost + report.payrollCost + report.operatingExpense);
+      expect(report.cost, report.commissionCost + report.payrollCost + report.operatingExpense + report.directServiceCost);
       expect(report.customerDebts.any((item) => item.customerId == pending.customerId), isTrue);
       expect(expectedRevenue, greaterThan(0));
       expect(expectedCommission, greaterThanOrEqualTo(0));
