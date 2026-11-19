@@ -593,6 +593,10 @@ class AppDatabase extends ChangeNotifier {
       return true;
     }
     final financialFieldsChanged = previous.customerId != appointment.customerId ||
+      previous.customerName != appointment.customerName ||
+      previous.serviceName != appointment.serviceName ||
+      previous.employeeName != appointment.employeeName ||
+      previous.reference != appointment.reference ||
       previous.employeeId != appointment.employeeId ||
       !listEquals(previous.serviceIds, appointment.serviceIds) ||
       previous.startAt != appointment.startAt ||
