@@ -13,10 +13,10 @@ void main() {
     });
 
     test('computes positive and negative balances from posted transactions', () {
-      db.addWalletTransaction(employeeId: employeeId, amount: 500000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش تست');
+      db.addWalletTransaction(employeeId: employeeId, amount: 500000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش تست', idempotencyKey: 'bonus-test');
       expect(db.walletBalanceFor(employeeId), greaterThan(0));
       final debtEmployee = db.employees.last.id;
-      db.addWalletTransaction(employeeId: debtEmployee, amount: -50000000, type: EmployeeWalletTransactionType.advance, description: 'مساعده آزمایشی');
+      db.addWalletTransaction(employeeId: debtEmployee, amount: -50000000, type: EmployeeWalletTransactionType.advance, description: 'مساعده آزمایشی', idempotencyKey: 'advance-test');
       expect(db.walletBalanceFor(debtEmployee), lessThan(0));
     });
 
@@ -24,7 +24,7 @@ void main() {
       final now = DateTime.now();
       final start = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
       final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
-      db.addWalletTransaction(employeeId: employeeId, amount: 1000000, type: EmployeeWalletTransactionType.bonus, description: 'درآمد دوره', createdAt: start.add(const Duration(hours: 1)));
+      db.addWalletTransaction(employeeId: employeeId, amount: 1000000, type: EmployeeWalletTransactionType.bonus, description: 'درآمد دوره', createdAt: start.add(const Duration(hours: 1)), idempotencyKey: 'bonus-period');
       final first = db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 300000, idempotencyKey: 'partial-once');
       expect(first.status, EmployeeWalletSettlementStatus.partial);
       expect(first.remainingAfter, 700000);
@@ -39,7 +39,7 @@ void main() {
       final now = DateTime.now();
       final start = DateTime(now.year, now.month, now.day).add(const Duration(days: 2));
       final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
-      db.addWalletTransaction(employeeId: employeeId, amount: 200000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش', createdAt: start.add(const Duration(hours: 1)));
+      db.addWalletTransaction(employeeId: employeeId, amount: 200000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش', createdAt: start.add(const Duration(hours: 1)), idempotencyKey: 'bonus-payment-period');
       db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 100000, idempotencyKey: 'payment-key');
       expect(
         () => db.settleEmployeeWallet(employeeId: employeeId, periodStart: start, periodEnd: end, periodType: EmployeeWalletPeriodType.monthly, paidAmount: 100000, idempotencyKey: 'payment-key'),
@@ -53,7 +53,7 @@ void main() {
 
     test('corrects a transaction using reversal and keeps payroll synchronized', () {
       final payrollBefore = db.payrollFor(employeeId).approvedBonuses;
-      final entry = db.addWalletTransaction(employeeId: employeeId, amount: 500000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش اولیه');
+      final entry = db.addWalletTransaction(employeeId: employeeId, amount: 500000, type: EmployeeWalletTransactionType.bonus, description: 'پاداش اولیه', idempotencyKey: 'bonus-correction-source');
       final before = db.walletBalanceFor(employeeId);
       expect(db.payrollFor(employeeId).approvedBonuses, payrollBefore + 500000);
       final correction = db.correctWalletTransaction(transactionId: entry.id, correctedAmount: 350000, description: 'اصلاح مبلغ پاداش');
@@ -75,7 +75,7 @@ void main() {
       );
       final salary = db.addWalletTransaction(
         employeeId: employeeId, amount: -100000, type: EmployeeWalletTransactionType.salaryPayment,
-        description: 'پرداخت آزمایشی',
+        description: 'پرداخت آزمایشی', idempotencyKey: 'salary-payment-source',
       );
       expect(
         () => db.correctWalletTransaction(transactionId: salary.id, correctedAmount: -50000, description: 'اصلاح پرداخت'),
