@@ -293,7 +293,6 @@ class AppDatabase extends ChangeNotifier {
       final last = completed.isEmpty
           ? null
           : (completed.map((a) => a.startAt).reduce((a, b) => a.isAfter(b) ? a : b));
-      final spent = completed.fold<num>(0, (sum, a) => sum + a.price);
       final completedIds = completed.map((item) => item.id).toSet();
       final spent = _employeeFinanceEntries.where((entry) =>
         completedIds.contains(entry.appointmentId) &&
@@ -595,7 +594,7 @@ class AppDatabase extends ChangeNotifier {
     }
     final financialFieldsChanged = previous.customerId != appointment.customerId ||
       previous.employeeId != appointment.employeeId ||
-      previous.serviceIds.join('|') != appointment.serviceIds.join('|') ||
+      !listEquals(previous.serviceIds, appointment.serviceIds) ||
       previous.startAt != appointment.startAt ||
       previous.durationMinutes != appointment.durationMinutes ||
       previous.price != appointment.price ||
