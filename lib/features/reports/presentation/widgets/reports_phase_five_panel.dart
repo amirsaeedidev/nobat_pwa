@@ -154,7 +154,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             switch (key) {
               'درآمد' => item.revenue.round(),
               'هزینه' => item.directCost?.round() ?? 'ثبت نشده',
-              'سود خالص' => item.profit?.round() ?? 'نامشخص',
+              'سود خالص' => 'نامشخص',
               'نوبت' || 'تکمیل‌شده' => item.count,
               _ => '—',
             },
