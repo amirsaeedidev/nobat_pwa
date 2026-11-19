@@ -80,7 +80,7 @@ void main() {
   });
 
   test('لغو نوبت دلیل را ثبت می‌کند', () async {
-    final target = db.appointments.first;
+    final target = db.appointments.firstWhere((item) => item.status == AppointmentStatus.pending);
     await provider.changeStatus(target, AppointmentStatus.cancelled, reason: 'درخواست مشتری');
     final after = db.appointmentById(target.id)!;
     expect(after.status, AppointmentStatus.cancelled);
