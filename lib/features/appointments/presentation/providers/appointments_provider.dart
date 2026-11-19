@@ -175,8 +175,8 @@ class AppointmentsProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason}) async {
-    await _repository.changeStatus(appointment, status, reason: reason);
+  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, int discountAmount = 0, int? finalPaidAmount}) async {
+    await _repository.changeStatus(appointment, status, reason: reason, discountAmount: discountAmount, finalPaidAmount: finalPaidAmount);
   }
 
   Future<void> reschedule(Appointment appointment, DateTime newStart) async {
