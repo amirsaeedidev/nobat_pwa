@@ -108,7 +108,7 @@ void main(){
   final db=AppDatabase();final employee=db.employees.first;
   db.saveSalaryContract(SalaryContract(id:'notice-salary',employeeId:employee.id,monthlyBase:9000000,effectiveFrom:date));
   expect(db.noticesFor(employee.id).any((n)=>n.type==EmployeeNoticeType.salaryChanged),true);
-  db.addWalletTransaction(employeeId:employee.id,amount:-1000,type:EmployeeWalletTransactionType.salaryPayment,description:'پرداخت آزمایشی');
+  db.addWalletTransaction(employeeId:employee.id,amount:-1000,type:EmployeeWalletTransactionType.salaryPayment,description:'پرداخت آزمایشی',idempotencyKey:'hr-payment-test');
   expect(db.noticesFor(employee.id).any((n)=>n.type==EmployeeNoticeType.paymentRecorded),true);
  });
  test('mock data includes contract-expiry and schedule notices',(){
