@@ -36,6 +36,26 @@ class MockDashboardRepository implements DashboardRepository {
 
   final AppDatabase _db;
 
+  int _recognizedRevenueForAppointments(Iterable<Appointment> appointments) {
+    final ids = appointments.map((item) => item.id).toSet();
+    return _db.employeeFinanceEntries.where((entry) =>
+      ids.contains(entry.appointmentId) &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund))
+      .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+  }
+
+  int _directCostForEntry(EmployeeFinanceEntry entry) {
+    if (entry.type != FinanceEntryType.commission) return 0;
+    final appointment = _db.appointmentById(entry.appointmentId);
+    if (appointment == null) return 0;
+    for (final snapshot in appointment.serviceSnapshots) {
+      if (snapshot['service_id'] == entry.serviceId && snapshot['direct_cost'] is num) {
+        return (snapshot['direct_cost'] as num).round();
+      }
+    }
+    return 0;
+  }
+
   @override
   Future<DashboardStats> fetchStats({StatsPeriod period = StatsPeriod.weekly}) async {
     await _db.delay(180);
@@ -62,13 +82,11 @@ class MockDashboardRepository implements DashboardRepository {
     final completed = periodItems.where((a) => a.status == AppointmentStatus.completed);
     final cancelled = periodItems.where((a) => a.status == AppointmentStatus.cancelled || a.status == AppointmentStatus.noShow);
 
-    final totalRevenue = periodItems
-        .where((a) => a.status == AppointmentStatus.completed)
-        .fold<num>(0, (sum, a) => sum + a.price);
+    final totalRevenue = _recognizedRevenueForAppointments(
+      periodItems.where((a) => a.status == AppointmentStatus.completed));
 
-    final monthRevenue = all
-        .where((a) => a.status == AppointmentStatus.completed && !a.jalali.isBefore(monthStart))
-        .fold<num>(0, (sum, a) => sum + a.price);
+    final monthRevenue = _recognizedRevenueForAppointments(
+      all.where((a) => a.status == AppointmentStatus.completed && !a.jalali.isBefore(monthStart)));
 
     final activeEmployees = _db.employees.where((e) => e.isActive).length;
     final slotsPerDay = activeEmployees == 0 ? 1 : activeEmployees * 4;
@@ -88,7 +106,7 @@ class MockDashboardRepository implements DashboardRepository {
         label: period == StatsPeriod.daily ? 'امروز' : period == StatsPeriod.weekly ? date.weekdayName : date.day.toString(),
         percent: percent,
         count: dayItems.length,
-        revenue: completedDayItems.fold<num>(0, (sum, a) => sum + a.price),
+        revenue: _recognizedRevenueForAppointments(completedDayItems),
         dateIso: date.iso,
       ));
     }
@@ -145,9 +163,8 @@ class MockDashboardRepository implements DashboardRepository {
         final j = a.jalali;
         return !j.isBefore(monthDate) && j.isBefore(nextMonth);
       }).toList();
-      final revenue = items
-          .where((a) => a.status == AppointmentStatus.completed)
-          .fold<num>(0, (sum, a) => sum + a.price);
+      final revenue = _recognizedRevenueForAppointments(
+        items.where((a) => a.status == AppointmentStatus.completed));
       result.add(
         RevenuePoint(
           label: monthDate.monthName,
@@ -164,11 +181,19 @@ class MockDashboardRepository implements DashboardRepository {
   Future<List<RevenuePoint>> fetchServiceRevenue({int limit = 5}) async {
     await _db.delay(120);
     final totals = <String, num>{};
-    for (final a in _db.appointments.where((a) => a.status == AppointmentStatus.completed)) {
-      totals[a.serviceName] = (totals[a.serviceName] ?? 0) + a.price;
+    final names = <String, String>{};
+    for (final entry in _db.employeeFinanceEntries.where((item) =>
+      item.type == FinanceEntryType.commission || item.type == FinanceEntryType.refund)) {
+      final appointment = _db.appointmentById(entry.appointmentId);
+      if (appointment == null) continue;
+      final snapshot = appointment.serviceSnapshots.where((item) => item['service_id'] == entry.serviceId).firstOrNull;
+      final service = _db.services.where((item) => item.id == entry.serviceId).firstOrNull;
+      final name = snapshot?['title'] as String? ?? service?.title ?? appointment.serviceName;
+      names[entry.serviceId] = name;
+      totals[entry.serviceId] = (totals[entry.serviceId] ?? 0) + entry.receivedAmount;
     }
     final entries = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    return [for (final e in entries.take(limit)) RevenuePoint(label: e.key, value: e.value)];
+    return [for (final e in entries.take(limit)) RevenuePoint(label: names[e.key] ?? e.key, value: e.value)];
   }
   @override
   Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range, ReportAnalyticsFilter filter = const ReportAnalyticsFilter()}) async {
@@ -208,6 +233,8 @@ class MockDashboardRepository implements DashboardRepository {
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
       (canViewAll || employeeId == entry.employeeId) &&
       _db.hasPermission('finance.income.view', employeeId: entry.employeeId)).toList();
+    final directServiceCost = revenueEntries.where((entry) => entry.type == FinanceEntryType.commission)
+      .fold<int>(0, (sum, entry) => sum + _directCostForEntry(entry));
     final revenueByAppointmentInRange = <String, int>{};
     for (final entry in revenueEntries) {
       revenueByAppointmentInRange[entry.appointmentId] =
@@ -267,7 +294,7 @@ class MockDashboardRepository implements DashboardRepository {
     final businessExpenses = _db.businessExpenses.where((item) =>
       range.contains(item.createdAt) && item.status == BusinessExpenseStatus.posted).toList();
     final operatingExpense = businessExpenses.fold<int>(0, (sum, item) => sum + item.amount);
-    final cost = commissionCost + payrollCost + operatingExpense;
+    final cost = commissionCost + payrollCost + operatingExpense + directServiceCost;
 
     final allVisiblePayments = _db.appointmentPayments.where((item) {
       final appointment = _db.appointmentById(item.appointmentId);
@@ -286,6 +313,7 @@ class MockDashboardRepository implements DashboardRepository {
     final expensesByCategory = <String, num>{
       'کمیسیون پرسنل': commissionCost,
       'حقوق و مزایا': payrollCost,
+      'هزینه مستقیم خدمات': directServiceCost,
       for (final category in BusinessExpenseCategory.values)
         category.label: businessExpenses.where((item) => item.category == category)
             .fold<int>(0, (sum, item) => sum + item.amount),
@@ -562,6 +590,21 @@ class MockDashboardRepository implements DashboardRepository {
     final directCostCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.costKnownCount);
     final serviceCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.count);
     final directCostCoveragePercent = serviceCount == 0 ? 0.0 : directCostCount * 100 / serviceCount;
+    final hasPendingExpenses = _db.businessExpenses.any((item) =>
+      item.status == BusinessExpenseStatus.pending && range.contains(item.createdAt));
+    final expenseCoverageConfirmed = _db.isBusinessExpenseRangeConfirmed(range.start, range.endExclusive);
+    final profitStatusReasons = <String>[
+      if (!hasFullIncomeScope || !hasFullCommissionScope || !hasFullSalaryScope)
+        'دسترسی کامل به همه اقلام درآمد و هزینه وجود ندارد',
+      if (!expenseCoverageConfirmed) 'کامل بودن ثبت هزینه‌های عملیاتی این بازه تأیید نشده است',
+      if (hasPendingExpenses) 'هزینه ثبت‌نشده یا در انتظار تأیید در این بازه وجود دارد',
+      if (serviceCount > 0 && directCostCount < serviceCount)
+        'هزینه مستقیم همه خدمات تکمیل‌شده ثبت نشده است',
+    ];
+    final profitIsComplete = profitStatusReasons.isEmpty;
+    final profitStatusNote = profitIsComplete
+      ? 'پوشش هزینه‌ها و دسترسی مالی برای این بازه تأیید شده است.'
+      : profitStatusReasons.join('؛ ');
 
     int costBetween(DateTime from, DateTime to) {
       final commission = (canViewCommission ? allVisibleFinanceEntries : <EmployeeFinanceEntry>[]).where((item) =>
@@ -574,7 +617,11 @@ class MockDashboardRepository implements DashboardRepository {
         item.status == BusinessExpenseStatus.posted &&
         !item.createdAt.isBefore(from) && item.createdAt.isBefore(to))
         .fold<int>(0, (sum, item) => sum + item.amount);
-      return commission + payroll + operations;
+      final direct = allVisibleFinanceEntries.where((item) =>
+        item.type == FinanceEntryType.commission &&
+        !item.createdAt.isBefore(from) && item.createdAt.isBefore(to))
+        .fold<int>(0, (sum, item) => sum + _directCostForEntry(item));
+      return commission + payroll + operations + direct;
     }
 
     final trend = <ReportTrendPoint>[];
@@ -662,7 +709,10 @@ class MockDashboardRepository implements DashboardRepository {
       item.status == BusinessExpenseStatus.posted &&
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd))
       .fold<int>(0, (sum, item) => sum + item.amount);
-    final previousCost = previousCommission + previousPayroll + previousOperations;
+    final previousDirectCost = previousEntries.where((item) =>
+      item.type == FinanceEntryType.commission)
+      .fold<int>(0, (sum, item) => sum + _directCostForEntry(item));
+    final previousCost = previousCommission + previousPayroll + previousOperations + previousDirectCost;
 
     final staffPaid = walletEntries.where((item) => item.type == EmployeeWalletTransactionType.salaryPayment)
         .fold<int>(0, (sum, item) => sum + item.amount.abs());
@@ -722,17 +772,20 @@ class MockDashboardRepository implements DashboardRepository {
       )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
-      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!hasFullIncomeScope ? ' بخشی از درآمد به‌دلیل محدودیت دسترسی پرسنلی در گزارش لحاظ نشده است.' : '')
-        + (!hasFullCommissionScope || !hasFullSalaryScope ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
+      costNote: 'درآمد خدمات از دفتر مالی، وصول از رسیدها، کمیسیون از اسناد کمیسیون، حقوق و مزایا از دفتر کیف پول، هزینه مستقیم از snapshot خدمات و هزینه عملیاتی از اسناد هزینه محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند. ' + profitStatusNote,
       grossRevenue: grossRevenue,
       collectedRevenue: collectedRevenue,
       receivables: receivables,
       operatingExpense: operatingExpense,
+      directServiceCost: directServiceCost,
+      profitIsComplete: profitIsComplete,
+      profitStatusNote: profitStatusNote,
+      grossProfit: profitIsComplete ? revenue - cost : null,
       staffPayable: staffPayable,
       staffPaid: staffPaid,
       advancesOutstanding: advancesOutstanding,
-      profitMarginPercent: margin,
-      grossProfit: null,
+      profitMarginPercent: profitIsComplete ? margin : 0,
+
       previousPeriodRevenue: previousRevenue,
       previousPeriodCost: previousCost,
       previousPeriodAppointments: previousPeriodAppointments,
