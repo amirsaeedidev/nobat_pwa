@@ -20,7 +20,7 @@ void main() {
       expect(report.totalAppointments, db.appointments.length);
       expect(report.completedAppointments, completed.length);
       expect(report.revenue, expectedRevenue);
-      expect(report.cost, report.commissionCost + report.payrollCost + report.operatingExpense);
+      expect(report.cost, report.commissionCost + report.payrollCost + report.operatingExpense + report.directServiceCost);
       expect(report.netProfit, report.revenue - report.cost);
       expect(report.statusCounts.values.fold<int>(0, (sum, value) => sum + value), report.totalAppointments);
       expect(report.trend, isNotEmpty);
