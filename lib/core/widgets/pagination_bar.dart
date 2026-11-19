@@ -38,46 +38,90 @@ class PaginationBar extends StatelessWidget {
       pages = [1, -1, page - 1, page, page + 1, -1, totalPages];
     }
 
-    return Row(
+    final summary = Text(
+      totalItems == 0
+          ? 'موردی برای نمایش نیست'
+          : 'نمایش ${FaNum.ofInt(start)} تا ${FaNum.ofInt(end)} از ${FaNum.ofInt(totalItems)} مورد',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 11.5, color: pal.textMuted),
+    );
+
+    final navigation = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: Text(
-            totalItems == 0
-                ? 'موردی برای نمایش نیست'
-                : 'نمایش ${FaNum.ofInt(start)} تا ${FaNum.ofInt(end)} از ${FaNum.ofInt(totalItems)} مورد',
-            style: TextStyle(fontSize: 11.5, color: pal.textMuted),
-          ),
+        _ArrowButton(
+          icon: Icons.chevron_right_rounded,
+          enabled: page > 1,
+          onTap: () => onPageChanged(page - 1),
         ),
-        Row(
-          children: [
-            _ArrowButton(
-              icon: Icons.chevron_right_rounded,
-              enabled: page > 1,
-              onTap: () => onPageChanged(page - 1),
+        const SizedBox(width: 4),
+        for (final p in pages) ...[
+          if (p == -1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text('…', style: TextStyle(color: pal.textMuted, fontSize: 12)),
+            )
+          else
+            _PageButton(
+              page: p,
+              selected: p == page,
+              onTap: () => onPageChanged(p),
             ),
-            const SizedBox(width: 4),
-            for (final p in pages) ...[
-              if (p == -1)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('…', style: TextStyle(color: pal.textMuted, fontSize: 12)),
-                )
-              else
-                _PageButton(
-                  page: p,
-                  selected: p == page,
-                  onTap: () => onPageChanged(p),
-                ),
-              const SizedBox(width: 4),
-            ],
-            _ArrowButton(
-              icon: Icons.chevron_left_rounded,
-              enabled: page < totalPages,
-              onTap: () => onPageChanged(page + 1),
-            ),
-          ],
+          const SizedBox(width: 4),
+        ],
+        _ArrowButton(
+          icon: Icons.chevron_left_rounded,
+          enabled: page < totalPages,
+          onTap: () => onPageChanged(page + 1),
         ),
       ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 560) {
+          // در موبایل خلاصه و کنترل‌ها در دو ردیف مستقل قرار می‌گیرند.
+          // شماره صفحه همچنان امکان رفتن به ابتدا/انتها را از طریق فلش‌ها حفظ می‌کند.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(alignment: AlignmentDirectional.centerStart, child: summary),
+              const SizedBox(height: 8),
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ArrowButton(
+                      icon: Icons.chevron_right_rounded,
+                      enabled: page > 1,
+                      onTap: () => onPageChanged(page - 1),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${FaNum.ofInt(page)} از ${FaNum.ofInt(totalPages)}',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: pal.textSecondary),
+                    ),
+                    const SizedBox(width: 12),
+                    _ArrowButton(
+                      icon: Icons.chevron_left_rounded,
+                      enabled: page < totalPages,
+                      onTap: () => onPageChanged(page + 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: summary),
+            const SizedBox(width: 12),
+            navigation,
+          ],
+        );
+      },
     );
   }
 }

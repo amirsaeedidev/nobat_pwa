@@ -81,7 +81,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: isDesktop ? 2.5 : 1.55,
+            childAspectRatio: isDesktop ? 2.5 : (MediaQuery.sizeOf(context).width < 360 ? 1.25 : 1.45),
             children: [
               _CountCard(title: 'کل پرسنل', value: provider.totalCount, icon: Icons.groups_rounded, color: pal.primaryBright),
               _CountCard(title: 'فعال', value: provider.activeCount, icon: Icons.check_circle_outline, color: pal.success),
@@ -218,8 +218,8 @@ class _CountCard extends StatelessWidget {
       Icon(icon, color: color, size: 22),
       const SizedBox(width: 8),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(title, style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
-        Text(FaNum.ofInt(value), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
+        Text(FaNum.ofInt(value), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
       ])),
     ]),
   );
@@ -275,8 +275,8 @@ class EmployeeCard extends StatelessWidget {
                   )),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(employee.fullName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary)),
-            Text('${employee.title} • ${employee.role.label}', style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
+            Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+            Text('${employee.title} • ${employee.role.label}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
           ])),
           StatusBadge(label: employee.employmentStatus.label, color: statusColor, dense: true),
         ]),
