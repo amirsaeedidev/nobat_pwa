@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'core/services/supabase_service.dart';
+import 'data/repositories/supabase_auth_repository.dart';
+import 'data/repositories/supabase_repository.dart';
+
 import 'app/app.dart';
 import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
@@ -58,6 +62,11 @@ Future<void> main() async {
     }
   };
 
+  // Supabase is opt-in and initialized locally only. No network request is
+  // required for startup; if configuration or local session restoration fails,
+  // the app continues in its Datamonck offline mode.
+  await SupabaseService.initialize();
+
   if (!kIsWeb) {
     try {
       await SystemChrome.setPreferredOrientations([
@@ -86,6 +95,16 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
+        Provider<SupabaseRepository?>.value(
+          value: SupabaseService.client == null
+              ? null
+              : SupabaseRepository(SupabaseService.client!),
+        ),
+        Provider<SupabaseAuthRepository?>.value(
+          value: SupabaseService.client == null
+              ? null
+              : SupabaseAuthRepository(SupabaseService.client!),
+        ),
         ChangeNotifierProvider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
         Provider<CustomerRepository>.value(value: customerRepository),
