@@ -157,9 +157,9 @@ class ReportAnalytics {
     required this.employees, required this.services, required this.recentAppointments,
     required this.recentTransactions, required this.costNote,
     this.grossRevenue = 0, this.collectedRevenue = 0, this.receivables = 0,
-    this.operatingExpense = 0, this.staffPayable = 0, this.staffPaid = 0,
+    this.operatingExpense = 0, this.directServiceCost = 0, this.staffPayable = 0, this.staffPaid = 0,
     this.advancesOutstanding = 0, this.profitMarginPercent = 0,
-    this.grossProfit, this.previousPeriodRevenue = 0, this.previousPeriodCost = 0,
+    this.grossProfit, this.profitIsComplete = false, this.profitStatusNote = 'کامل بودن ثبت هزینه‌ها تأیید نشده است.', this.previousPeriodRevenue = 0, this.previousPeriodCost = 0,
     this.previousPeriodAppointments = 0,
     this.paymentsByMethod = const {}, this.expensesByCategory = const {},
     this.customerDebts = const [], this.partialPayments = const [],
@@ -193,9 +193,12 @@ class ReportAnalytics {
   final List<Appointment> recentAppointments;
   final List<EmployeeWalletTransaction> recentTransactions;
   final String costNote;
-  final num grossRevenue, collectedRevenue, receivables, operatingExpense;
+  final num grossRevenue, collectedRevenue, receivables, operatingExpense, directServiceCost;
   final num staffPayable, staffPaid, advancesOutstanding, profitMarginPercent;
   final num? grossProfit;
+  /// سود فقط وقتی قطعی نمایش داده می‌شود که دسترسی و پوشش هزینه‌ها کامل تأیید شده باشد.
+  final bool profitIsComplete;
+  final String profitStatusNote;
   final num previousPeriodRevenue, previousPeriodCost;
   final int previousPeriodAppointments;
   final Map<String, num> paymentsByMethod, expensesByCategory;
@@ -217,6 +220,7 @@ class ReportAnalytics {
   final Map<String, int> operationalStatusCounts;
   final List<ReportTrendPoint> newCustomerTrend;
   num get netProfit => revenue - cost;
+  num? get verifiedNetProfit => profitIsComplete ? netProfit : null;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
   num get capacityUtilizationPercent => capacityMinutes <= 0 ? 0 : bookedCapacityMinutes * 100 / capacityMinutes;
