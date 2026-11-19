@@ -615,7 +615,7 @@ class AppDatabase extends ChangeNotifier {
     _commit();
   }
 
-  void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String actor = 'پذیرش'}) {
+  void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String actor = 'پذیرش', int discountAmount = 0, int? finalPaidAmount}) {
     requirePermission(status == AppointmentStatus.cancelled ? 'appointments.cancel' : status == AppointmentStatus.completed ? 'appointments.complete' : 'appointments.edit');
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
@@ -627,6 +627,18 @@ class AppDatabase extends ChangeNotifier {
         _appointmentPayments.where((payment) => payment.appointmentId == appointment.id)
           .fold<int>(0, (sum, payment) => sum + payment.signedAmount) > 0) {
       throw StateError('ابتدا تمام مبالغ دریافتی این نوبت را مسترد کنید، سپس آن را لغو یا عدم حضور ثبت کنید.');
+    }
+    if (status == AppointmentStatus.completed) {
+      final gross = appointment.price.round();
+      final net = finalPaidAmount ?? (gross - discountAmount);
+      if (gross < 0 || discountAmount < 0 || discountAmount > gross || net < 0 || net > gross - discountAmount) {
+        throw ArgumentError('مبلغ خدمت، تخفیف یا مبلغ نهایی معتبر نیست.');
+      }
+      final collected = _appointmentPayments.where((payment) => payment.appointmentId == appointment.id)
+        .fold<int>(0, (sum, payment) => sum + payment.signedAmount);
+      if (collected > net) {
+        throw StateError('مبلغ پیش‌پرداخت از مبلغ نهایی پس از تخفیف بیشتر است؛ ابتدا مبلغ اضافه را مسترد کنید.');
+      }
     }
     _appointments[index] = appointment.copyWith(status: status, cancelReason: reason, updatedAt: DateTime.now());
     final type = switch (status) {
@@ -643,7 +655,9 @@ class AppDatabase extends ChangeNotifier {
       undoAction: 'appointment_restore',
       undoData: previous.toJson(),
     );
-    if (status == AppointmentStatus.completed) finalizeCompletedAppointment(appointment.id);
+    if (status == AppointmentStatus.completed) {
+      finalizeCompletedAppointment(appointment.id, discountAmount: discountAmount, finalPaidAmount: finalPaidAmount);
+    }
     _commit();
   }
 
@@ -846,7 +860,8 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('appointments.complete');
     final appointment = appointmentById(appointmentId);
     if (appointment == null || appointment.status != AppointmentStatus.completed || hasCommissionForAppointment(appointmentId)) return false;
-    final profile = payProfileFor(appointment.employeeId);
+    // عملیات داخلی نهایی‌سازی به مجوز مشاهده حقوق وابسته نیست؛ مجوز تکمیل نوبت در فراخوانی کنترل شده است.
+    final profile = _employeePayProfiles[appointment.employeeId] ?? EmployeePayProfile(employeeId: appointment.employeeId);
     final grossTotal = appointment.price.round();
     final receivedTotal = finalPaidAmount ?? (grossTotal - discountAmount);
     if (grossTotal < 0 || discountAmount < 0 || discountAmount > grossTotal ||
