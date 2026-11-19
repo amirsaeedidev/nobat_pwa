@@ -73,7 +73,8 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             decoration: BoxDecoration(color: pal.borderStrong, borderRadius: BorderRadius.circular(4)),
           ),
           const SizedBox(height: 12),
-          ListTile(
+          if (appointment.status != AppointmentStatus.completed)
+            ListTile(
             leading: Icon(Icons.verified_rounded, color: pal.success, size: 20),
             title: const Text('تأیید نوبت'),
             onTap: () async {
