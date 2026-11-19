@@ -282,7 +282,7 @@ class EmployeeProfilePage extends StatelessWidget {
                   child: const Row(mainAxisSize: MainAxisSize.min, children: [
                     HugeIcon(icon: HugeIcons.strokeRoundedPercent, size: 16),
                     SizedBox(width: 6),
-                    Text('قرارداد و پورسانت'),
+                    Expanded(child: Text('قرارداد و پورسانت', maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                 ),
                 OutlinedButton(
@@ -290,7 +290,7 @@ class EmployeeProfilePage extends StatelessWidget {
                   child: const Row(mainAxisSize: MainAxisSize.min, children: [
                     HugeIcon(icon: HugeIcons.strokeRoundedWallet01, size: 16),
                     SizedBox(width: 6),
-                    Text('کیف پول و تسویه'),
+                    Expanded(child: Text('کیف پول و تسویه', maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                 ),
               ]),
