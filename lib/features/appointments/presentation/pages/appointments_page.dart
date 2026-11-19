@@ -59,10 +59,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             onChanged: provider.setQuery,
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               Text('وضعیت نوبت', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.textPrimary)),
-              const Spacer(),
               Text('انتخاب وضعیت برای محدودکردن فهرست', style: TextStyle(fontSize: 9.5, color: pal.textMuted)),
             ],
           ),

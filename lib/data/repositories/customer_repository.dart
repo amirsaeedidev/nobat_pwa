@@ -81,7 +81,10 @@ class MockCustomerRepository implements CustomerRepository {
   Future<List<Customer>> fetchAll({String query = ''}) async => _filtered(query);
 
   @override
-  Future<Customer?> findById(String id) async => _db.customerById(id);
+  Future<Customer?> findById(String id) async {
+    _db.requirePermission('customers.view');
+    return _db.customerById(id);
+  }
 
   @override
   Future<void> create(Customer customer) async {

@@ -257,29 +257,71 @@ class EmployeeCard extends StatelessWidget {
       onTap: onTap,
       radius: AppRadius.xl,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Container(width: 48, height: 48, alignment: Alignment.center,
-            decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.6)])),
-            child: employee.avatarAsset.isEmpty
-                ? Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))
-                : ClipOval(
-                    child: Image.asset(
-                      employee.avatarAsset,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) => Center(
-                        child: Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final avatar = Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.6)]),
+              ),
+              child: employee.avatarAsset.isEmpty
+                  ? Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))
+                  : ClipOval(
+                      child: Image.asset(
+                        employee.avatarAsset,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) => Center(
+                          child: Text(employee.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                        ),
                       ),
                     ),
-                  )),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(employee.fullName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary)),
-            Text('${employee.title} • ${employee.role.label}', style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
-          ])),
-          StatusBadge(label: employee.employmentStatus.label, color: statusColor, dense: true),
-        ]),
+            );
+            final identity = Row(
+              children: [
+                avatar,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+                      Text('${employee.title} • ${employee.role.label}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            final status = StatusBadge(label: employee.employmentStatus.label, color: statusColor, dense: true);
+            if (constraints.maxWidth < 360) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  identity,
+                  const SizedBox(height: 8),
+                  Align(alignment: AlignmentDirectional.centerEnd, child: status),
+                ],
+              );
+            }
+            return Row(children: [
+              avatar,
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(employee.fullName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+                Text('${employee.title} • ${employee.role.label}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
+              ])),
+              status,
+            ]);
+          },
+        ),
         const SizedBox(height: 10),
         Wrap(spacing: 10, runSpacing: 6, children: [
           _Meta(icon: Icons.star_rounded, text: FaNum.convert(employee.rating.toStringAsFixed(1))),

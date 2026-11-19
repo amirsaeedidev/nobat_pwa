@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/repositories/appointment_repository.dart';
+import 'package:datetime/data/repositories/customer_repository.dart';
 import 'package:datetime/data/repositories/employee_repository.dart';
 
 void main() {
@@ -110,6 +111,35 @@ void main() {
       db.switchMockAccount('demo-manager');
       expect(db.canViewEmployee('emp-zahra'), isFalse);
       expect(db.canViewEmployeeIncome('emp-shima'), isFalse);
+    });
+
+    test('permission overrides cannot bypass employee scope or personal-income privacy', () {
+      final db = AppDatabase();
+      db.assignEmployeeAccess(
+        employeeId: 'emp-amir',
+        roleId: 'manager',
+        overrides: const {'finance.income.view': true},
+        canViewOtherEmployees: false,
+        canViewPersonalIncome: false,
+      );
+      db.switchMockAccount('demo-manager');
+      expect(db.hasPermission('finance.income.view', employeeId: 'emp-zahra'), isFalse);
+      expect(db.hasPermission('finance.income.view', employeeId: 'emp-amir'), isFalse);
+    });
+
+    test('customer repository checks permission for direct ID lookup', () async {
+      final db = AppDatabase();
+      db.assignEmployeeAccess(
+        employeeId: 'emp-amir',
+        roleId: 'custom_limited',
+        overrides: const {'customers.view': false},
+      );
+      db.switchMockAccount('demo-custom');
+      final repository = MockCustomerRepository(db);
+      await expectLater(
+        repository.findById(db.customers.first.id),
+        throwsA(isA<AccessDeniedException>()),
+      );
     });
   });
 }

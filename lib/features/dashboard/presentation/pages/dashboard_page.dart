@@ -336,31 +336,39 @@ class _HeroStatsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: StatTile(
-                  label: 'تکمیل شده',
-                  value: '${FaNum.ofInt(stats.completedAppointments)} نوبت',
-                  icon: Icons.assignment_turned_in_rounded,
-                  tint: pal.primaryBright,
-                  background: pal.surfaceAlt.withValues(alpha: 0.55),
-                  borderColor: pal.borderStrong.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: StatTile(
-                  label: 'درآمد تخمینی',
-                  value: Fmt.compactMoneyShort(stats.monthRevenue),
-                  icon: Icons.account_balance_wallet_rounded,
-                  tint: pal.success,
-                  background: pal.successSoft,
-                  borderColor: pal.success.withValues(alpha: 0.28),
-                  valueSize: 13.5,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final completed = StatTile(
+                label: 'تکمیل شده',
+                value: '${FaNum.ofInt(stats.completedAppointments)} نوبت',
+                icon: Icons.assignment_turned_in_rounded,
+                tint: pal.primaryBright,
+                background: pal.surfaceAlt.withValues(alpha: 0.55),
+                borderColor: pal.borderStrong.withValues(alpha: 0.6),
+              );
+              final revenue = StatTile(
+                label: 'درآمد تخمینی',
+                value: Fmt.compactMoneyShort(stats.monthRevenue),
+                icon: Icons.account_balance_wallet_rounded,
+                tint: pal.success,
+                background: pal.successSoft,
+                borderColor: pal.success.withValues(alpha: 0.28),
+                valueSize: 13.5,
+              );
+              if (constraints.maxWidth < 360) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [completed, const SizedBox(height: 8), revenue],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: completed),
+                  const SizedBox(width: 10),
+                  Expanded(child: revenue),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 10),
           Row(

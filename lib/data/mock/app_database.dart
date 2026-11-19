@@ -367,12 +367,16 @@ class AppDatabase extends ChangeNotifier {
     final subjectId = account.employeeId;
     final assignment = subjectId == null ? null : _accessAssignments[subjectId];
     final override = assignment?.overrides[permissionId];
-    if (override != null) return override;
     final roleId = assignment?.roleId ?? account.roleId;
-    final allowed = _accessRoles[roleId]?.permissionIds.contains(permissionId) ?? false;
+    final roleAllows = _accessRoles[roleId]?.permissionIds.contains(permissionId) ?? false;
+    final allowed = override ?? roleAllows;
     if (!allowed) return false;
+
+    // Explicit grants may override a role's permission list, but must never
+    // bypass employee visibility or the personal-income privacy setting.
     if (permissionId.startsWith('finance.') && employeeId != null) {
-      return canViewEmployee(employeeId) && (employeeId != subjectId || (assignment?.canViewPersonalIncome ?? true));
+      return canViewEmployee(employeeId) &&
+          (employeeId != subjectId || (assignment?.canViewPersonalIncome ?? true));
     }
     return true;
   }
