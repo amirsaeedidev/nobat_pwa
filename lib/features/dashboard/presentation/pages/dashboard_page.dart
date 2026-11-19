@@ -347,7 +347,7 @@ class _HeroStatsCard extends StatelessWidget {
                 borderColor: pal.borderStrong.withValues(alpha: 0.6),
               );
               final revenue = StatTile(
-                label: 'درآمد تخمینی',
+                label: 'درآمد ثبت‌شده',
                 value: Fmt.compactMoneyShort(stats.monthRevenue),
                 icon: Icons.account_balance_wallet_rounded,
                 tint: pal.success,
