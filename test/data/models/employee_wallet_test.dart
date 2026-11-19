@@ -20,6 +20,21 @@ void main() {
       expect(db.walletBalanceFor(debtEmployee), lessThan(0));
     });
 
+    test('manual wallet transaction rejects a repeated idempotency key', () {
+      db.addWalletTransaction(
+        employeeId: employeeId, amount: 100000,
+        type: EmployeeWalletTransactionType.bonus,
+        description: 'پاداش با کلید یکتا',
+        idempotencyKey: 'manual-wallet-once',
+      );
+      expect(() => db.addWalletTransaction(
+        employeeId: employeeId, amount: 100000,
+        type: EmployeeWalletTransactionType.bonus,
+        description: 'تکرار درخواست',
+        idempotencyKey: 'manual-wallet-once',
+      ), throwsStateError);
+    });
+
     test('supports partial then full settlement and keeps both receipts', () {
       final now = DateTime.now();
       final start = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
