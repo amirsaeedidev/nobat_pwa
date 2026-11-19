@@ -3,9 +3,56 @@ import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/utils/fa_num.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/appointments_provider.dart';
+
+Future<int?> _askAppointmentDiscount(BuildContext context, Appointment appointment) async {
+  final controller = TextEditingController(text: '0');
+  String? error;
+  final result = await showDialog<int>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('تکمیل نوبت'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('مبلغ ناخالص: ${FaNum.ofInt(appointment.price.round())} تومان'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'تخفیف (تومان)',
+                errorText: error,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('انصراف')),
+          FilledButton(
+            onPressed: () {
+              final raw = FaNum.toLatin(controller.text).replaceAll(',', '').replaceAll('٬', '').trim();
+              final amount = int.tryParse(raw);
+              if (amount == null || amount < 0 || amount > appointment.price.round()) {
+                setDialogState(() => error = 'تخفیف باید بین صفر و مبلغ ناخالص باشد.');
+                return;
+              }
+              Navigator.pop(dialogContext, amount);
+            },
+            child: const Text('تأیید تکمیل'),
+          ),
+        ],
+      ),
+    ),
+  );
+  controller.dispose();
+  return result;
+}
 
 /// منوی اقدامات سریع نوبت (تأیید، تکمیل، لغو، حذف).
 Future<void> showAppointmentActions(BuildContext context, Appointment appointment) async {
@@ -47,8 +94,18 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             title: const Text('تکمیل نوبت'),
             onTap: () async {
               Navigator.of(sheetContext).pop();
-              await provider.changeStatus(appointment, AppointmentStatus.completed);
-              if (context.mounted) AppToast.show(context, 'نوبت تکمیل شد');
+              final discount = await _askAppointmentDiscount(context, appointment);
+              if (discount == null || !context.mounted) return;
+              try {
+                await provider.changeStatus(
+                  appointment,
+                  AppointmentStatus.completed,
+                  discountAmount: discount,
+                );
+                if (context.mounted) AppToast.show(context, 'نوبت تکمیل شد و مبلغ خالص ثبت شد');
+              } catch (error) {
+                if (context.mounted) AppToast.show(context, 'تکمیل نوبت انجام نشد: $error', success: false);
+              }
             },
           ),
           ListTile(
