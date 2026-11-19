@@ -43,16 +43,19 @@ class MockDashboardRepository implements DashboardRepository {
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId))
         .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
 
-  int _directCostForEntry(EmployeeFinanceEntry entry) {
-    if (entry.type != FinanceEntryType.commission) return 0;
+  bool _hasDirectCostForEntry(EmployeeFinanceEntry entry) {
+    if (entry.type != FinanceEntryType.commission) return false;
     final appointment = _db.appointmentById(entry.appointmentId);
-    if (appointment == null) return 0;
-    for (final snapshot in appointment.serviceSnapshots) {
-      if (snapshot['service_id'] == entry.serviceId && snapshot['direct_cost'] is num) {
-        return (snapshot['direct_cost'] as num).round();
-      }
-    }
-    return 0;
+    return appointment != null && appointment.serviceSnapshots.any((snapshot) =>
+      snapshot['service_id'] == entry.serviceId && snapshot['direct_cost'] is num);
+  }
+
+  int _directCostForEntry(EmployeeFinanceEntry entry) {
+    if (!_hasDirectCostForEntry(entry)) return 0;
+    final appointment = _db.appointmentById(entry.appointmentId)!;
+    final snapshot = appointment.serviceSnapshots.firstWhere((item) =>
+      item['service_id'] == entry.serviceId && item['direct_cost'] is num);
+    return (snapshot['direct_cost'] as num).round();
   }
 
   @override
@@ -587,14 +590,12 @@ class MockDashboardRepository implements DashboardRepository {
     final directCostCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.costKnownCount);
     final serviceCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.count);
     final directCostCoveragePercent = serviceCount == 0 ? 0.0 : directCostCount * 100 / serviceCount;
-    // کامل بودن سود کل باید همه نوبت‌های مالی بازه را بسنجد، نه فقط جدول عملیاتی فیلترشده.
-    final financialServiceCount = completed.fold<int>(
-      0, (sum, item) => sum + (item.serviceIds.isEmpty ? 1 : item.serviceIds.length));
-    final financialDirectCostCount = completed.fold<int>(0, (sum, appointment) {
-      final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
-      return sum + ids.where((id) => appointment.serviceSnapshots.any((snapshot) =>
-        snapshot['service_id'] == id && snapshot['direct_cost'] is num)).length;
-    });
+    // کامل بودن سود بر مبنای همان اسناد درآمد بازه سنجیده می‌شود؛ تاریخ ثبت سند ممکن است با تاریخ شروع نوبت متفاوت باشد.
+    final financialServiceEntries = revenueEntries.where((entry) =>
+      entry.type == FinanceEntryType.commission).toList();
+    final financialServiceCount = financialServiceEntries.length;
+    final financialDirectCostCount = financialServiceEntries
+      .where(_hasDirectCostForEntry).length;
     final hasPendingExpenses = _db.businessExpenses.any((item) =>
       item.status == BusinessExpenseStatus.pending && range.contains(item.createdAt));
     final expenseCoverageConfirmed = _db.isBusinessExpenseRangeConfirmed(range.start, range.endExclusive);
