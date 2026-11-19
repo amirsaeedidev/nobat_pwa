@@ -182,53 +182,59 @@ class CalendarDayCard extends StatelessWidget {
       borderColor: isToday ? pal.primary.withValues(alpha: 0.5) : pal.border,
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DateBadge(date: date, highlighted: isToday),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      date.weekdayName,
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: pal.textPrimary),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${FaNum.ofInt(active)} نوبت فعال',
-                      style: TextStyle(fontSize: 11, color: pal.textMuted),
-                    ),
-                    if (isToday)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: StatusBadge(label: 'امروز', color: pal.primaryBright, dense: true),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
+          LayoutBuilder(builder: (context, constraints) {
+            final dayInfo = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(date.weekdayName,
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+                const SizedBox(height: 3),
+                Text('${FaNum.ofInt(active)} نوبت فعال',
+                  style: TextStyle(fontSize: 11, color: pal.textMuted)),
+                if (isToday)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: StatusBadge(label: 'امروز', color: pal.primaryBright, dense: true),
+                  ),
+              ],
+            );
+            final addAction = _MiniActionButton(
+              label: 'نوبت جدید', icon: Icons.add_rounded,
+              color: pal.primary, onTap: onAdd,
+            );
+            final broadcastAction = _MiniActionButton(
+              label: 'پیام همگانی', icon: Icons.sms_rounded,
+              color: pal.purple, onTap: onBroadcast,
+            );
+            if (constraints.maxWidth < 420) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _MiniActionButton(
-                    label: 'نوبت جدید',
-                    icon: Icons.add_rounded,
-                    color: pal.primary,
-                    onTap: onAdd,
-                  ),
-                  const SizedBox(height: 6),
-                  _MiniActionButton(
-                    label: 'پیام همگانی',
-                    icon: Icons.sms_rounded,
-                    color: pal.purple,
-                    onTap: onBroadcast,
-                  ),
+                  Row(children: [
+                    _DateBadge(date: date, highlighted: isToday),
+                    const SizedBox(width: 10),
+                    Expanded(child: dayInfo),
+                  ]),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 6, runSpacing: 6, children: [addAction, broadcastAction]),
                 ],
-              ),
-            ],
-          ),
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DateBadge(date: date, highlighted: isToday),
+                const SizedBox(width: 10),
+                Expanded(child: dayInfo),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [addAction, const SizedBox(height: 6), broadcastAction],
+                ),
+              ],
+            );
+          }),
           if (appointments.isNotEmpty) ...[
             const SizedBox(height: 10),
             for (final appointment in appointments) ...[
