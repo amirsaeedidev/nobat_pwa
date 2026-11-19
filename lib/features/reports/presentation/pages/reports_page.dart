@@ -70,6 +70,14 @@ class ReportsPage extends StatelessWidget {
     final dayOperatingExpense = db.businessExpenses.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
+    final dayDirectServiceCost = dayFinanceEntries.where((entry) =>
+      entry.type == FinanceEntryType.commission).fold<num>(0, (sum, entry) {
+        final appointment = db.appointmentById(entry.appointmentId);
+        if (appointment == null) return sum;
+        final snapshots = appointment.serviceSnapshots.where((item) =>
+          item['service_id'] == entry.serviceId && item['direct_cost'] is num);
+        return sum + (snapshots.isEmpty ? 0 : snapshots.first['direct_cost'] as num);
+      });
     final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == EmployeeWalletTransactionStatus.posted &&
@@ -80,7 +88,7 @@ class ReportsPage extends StatelessWidget {
       EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
       EmployeeWalletTransactionType.adjustment,
     }.contains(item.type)).fold<num>(0, (sum, item) => sum + item.amount);
-    final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense;
+    final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense + dayDirectServiceCost;
     final dayEmployeeTotals = <String, ({int count, num revenue})>{};
     for (final item in dayCompleted.where((item) => db.canViewEmployee(item.employeeId))) {
       final current = dayEmployeeTotals[item.employeeName];
@@ -120,6 +128,7 @@ class ReportsPage extends StatelessWidget {
                           _MetricCard(label: 'درآمد ثبت‌شده روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                           _MetricCard(label: 'هزینه روز', value: dayTotalExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                           _MetricCard(label: 'هزینه عملیاتی', value: dayOperatingExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
+                          _MetricCard(label: 'هزینه مستقیم خدمات', value: dayDirectServiceCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                         ]),
                         const SizedBox(height: 8),
                         if (dayAppointments.isEmpty)
@@ -134,7 +143,7 @@ class ReportsPage extends StatelessWidget {
                               trailing: StatusBadge.appointment(item.status, dense: true),
                             ),
                         const Divider(height: 18),
-                        Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
+                        Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)} · هزینه مستقیم ${Fmt.compactMoney(dayDirectServiceCost)}',
                           style: TextStyle(fontSize: 10, color: pal.textMuted)),
                         if (!db.employees.every((item) => db.hasPermission('finance.income.view', employeeId: item.id)) ||
                             !db.employees.every((item) => db.hasPermission('finance.commission.view', employeeId: item.id)) ||
