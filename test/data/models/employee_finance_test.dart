@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
+import 'package:datetime/data/models/business_finance.dart';
 import 'package:datetime/data/models/employee_finance.dart';
 import 'package:datetime/data/models/enums.dart';
 
@@ -83,6 +84,39 @@ void main() {
       expect(refund.commissionAmount, -1500000);
       expect(db.financeEntriesFor(employee.id).firstWhere((e) => e.id == entry.id).commissionAmount, 3000000);
       expect(() => db.recordCommissionRefund(entry.id, 6000000), throwsArgumentError);
+    });
+
+    test('cumulative partial refunds reverse exactly the original rounded commission', () {
+      final db = AppDatabase();
+      final appointment = pendingAppointment(db, 'appt-refund-rounding', price: 3).copyWith(
+        serviceSnapshots: [{
+          'service_id': db.services.first.id,
+          'price': 3,
+          'commission_rate_bps': 3000,
+          'commission_basis': 'afterDiscount',
+        }],
+      );
+      db.addAppointment(appointment);
+      db.changeStatus(appointment, AppointmentStatus.completed);
+      final original = db.employeeFinanceEntries.singleWhere((entry) =>
+        entry.appointmentId == appointment.id && entry.type == FinanceEntryType.commission);
+      expect(original.commissionAmount, 1);
+      final receipt = db.recordAppointmentPayment(
+        appointmentId: appointment.id, amount: 3,
+        method: BusinessPaymentMethod.cash, description: 'رسید تست گردکردن',
+        idempotencyKey: 'rounding-receipt',
+      );
+      for (var i = 0; i < 3; i++) {
+        db.refundAppointmentPayment(
+          paymentId: receipt.id, amount: 1,
+          description: 'برگشت جزئی ${i + 1}',
+          idempotencyKey: 'rounding-refund-${i + 1}',
+        );
+      }
+      final refunds = db.employeeFinanceEntries.where((entry) =>
+        entry.type == FinanceEntryType.refund && entry.reversesEntryId == original.id);
+      expect(refunds.fold<int>(0, (sum, entry) => sum + entry.commissionAmount), -1);
+      expect(refunds.fold<int>(0, (sum, entry) => sum - entry.receivedAmount), 3);
     });
 
     test('changing future rate does not rewrite existing ledger snapshots', () {
