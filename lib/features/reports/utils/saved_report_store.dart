@@ -39,6 +39,7 @@ class ReportHistorySnapshot {
     required this.accountId,
     this.includesSalary = false,
     this.includesCommission = false,
+    this.profitComplete = false,
   });
 
   final String id, title, range;
@@ -46,8 +47,9 @@ class ReportHistorySnapshot {
   final num revenue, cost;
   final int appointments;
   final String accountId;
-  final bool includesSalary, includesCommission;
+  final bool includesSalary, includesCommission, profitComplete;
   num get profit => revenue - cost;
+  num? get verifiedProfit => profitComplete ? profit : null;
 
   Map<String, Object?> toJson() => {
     'id': id, 'title': title, 'range': range,
@@ -55,6 +57,7 @@ class ReportHistorySnapshot {
     'revenue': revenue, 'cost': cost, 'appointments': appointments,
     'accountId': accountId, 'includesSalary': includesSalary,
     'includesCommission': includesCommission,
+    'profitComplete': profitComplete,
   };
 
   factory ReportHistorySnapshot.fromJson(Map<String, dynamic> json) => ReportHistorySnapshot(
@@ -66,6 +69,7 @@ class ReportHistorySnapshot {
     accountId: json['accountId'] as String? ?? '',
     includesSalary: json['includesSalary'] as bool? ?? false,
     includesCommission: json['includesCommission'] as bool? ?? false,
+    profitComplete: json['profitComplete'] as bool? ?? false,
   );
 }
 
