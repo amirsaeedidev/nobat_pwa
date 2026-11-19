@@ -121,6 +121,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       accountId: widget.database.currentAccessAccount.id,
       includesSalary: widget.database.hasPermission('finance.salary.view'),
       includesCommission: widget.database.hasPermission('finance.commission.view'),
+      profitComplete: a.profitIsComplete,
     ));
     await _loadStore();
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
@@ -136,7 +137,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       final columns = _allColumns.where(_columns.contains).toList();
       final all = <String, Object?>{
         'درآمد': a.revenue.round(), 'هزینه': a.cost.round(),
-        'سود خالص': a.netProfit.round(), 'نوبت': a.totalAppointments,
+        'سود خالص': a.profitIsComplete ? a.netProfit.round() : 'نامشخص', 'نوبت': a.totalAppointments,
         'تکمیل‌شده': a.completedAppointments, 'مشتری یکتا': a.uniqueCustomers,
         'نرخ بازگشت': a.repeatCustomerRate.toStringAsFixed(1) + '٪',
       };
@@ -227,7 +228,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         Wrap(spacing: 8, runSpacing: 8, children: [
           _DeltaCard(label: 'درآمد', value: a.revenue, previous: previous?.revenue, money: true, color: pal.success),
           _DeltaCard(label: 'هزینه', value: a.cost, previous: previous?.cost, money: true, inverse: true, color: pal.warning),
-          _DeltaCard(label: 'سود خالص', value: a.netProfit, previous: previous?.netProfit, money: true, color: a.netProfit >= 0 ? pal.success : pal.danger),
+          _DeltaCard(label: 'سود خالص', value: a.profitIsComplete ? a.netProfit : null, previous: previous?.profitIsComplete == true ? previous!.netProfit : null, money: true, color: a.profitIsComplete ? (a.netProfit >= 0 ? pal.success : pal.danger) : pal.textMuted),
           _DeltaCard(label: 'تعداد نوبت', value: a.totalAppointments, previous: previous?.totalAppointments, color: pal.primaryBright),
         ]),
         const SizedBox(height: 8),
@@ -352,7 +353,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
                     Text('تاریخ ثبت: ' + JalaliDate.fromDateTime(item.createdAt).long),
                     Text('درآمد: ' + Fmt.compactMoney(item.revenue)),
                     Text('هزینه: ' + Fmt.compactMoney(item.cost)),
-                    Text('سود خالص: ' + Fmt.compactMoney(item.profit)),
+                    Text('سود خالص: ' + (item.verifiedProfit == null ? 'نامشخص' : Fmt.compactMoney(item.verifiedProfit!))),
                     Text('تعداد نوبت: ' + FaNum.ofInt(item.appointments)),
                   ]),
                   actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن'))],
@@ -361,8 +362,8 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
               title: Text(item.title, style: const TextStyle(fontSize: 11)),
               subtitle: Text(item.range + ' · ' + JalaliDate.fromDateTime(item.createdAt).short,
                 style: TextStyle(fontSize: 9, color: pal.textMuted)),
-              trailing: Text(Fmt.compactMoney(item.profit), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                color: item.profit >= 0 ? pal.success : pal.danger)),
+              trailing: Text(item.verifiedProfit == null ? 'نامشخص' : Fmt.compactMoney(item.verifiedProfit!), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                color: item.verifiedProfit == null ? pal.textMuted : (item.verifiedProfit! >= 0 ? pal.success : pal.danger))),
             ),
       ])),
     ]);
@@ -378,7 +379,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
 class _DeltaCard extends StatelessWidget {
   const _DeltaCard({required this.label, required this.value, required this.previous, required this.color, this.money = false, this.inverse = false});
   final String label;
-  final num value;
+  final num? value;
   final num? previous;
   final Color color;
   final bool money;
@@ -386,7 +387,7 @@ class _DeltaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final delta = previous == null ? null : ReportInsightEngine.compare(value, previous!);
+    final delta = previous == null || value == null ? null : ReportInsightEngine.compare(value, previous!);
     final change = delta?.percent;
     return Container(
       constraints: const BoxConstraints(minWidth: 130, maxWidth: 220),
@@ -398,14 +399,17 @@ class _DeltaCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label, style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
         const SizedBox(height: 4),
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: value.toDouble()),
-          duration: const Duration(milliseconds: 700), curve: Curves.easeOutCubic,
-          builder: (context, animated, _) => Text(
-            money ? Fmt.compactMoney(animated) : FaNum.ofInt(animated.round()),
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color),
-          ),
-        ),
+        if (value != null)
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: value!.toDouble()),
+            duration: const Duration(milliseconds: 700), curve: Curves.easeOutCubic,
+            builder: (context, animated, _) => Text(
+              money ? Fmt.compactMoney(animated) : FaNum.ofInt(animated.round()),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color),
+            ),
+          )
+        else
+          Text('نامشخص', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
         if (change != null)
           Text((delta!.increased ? '▲ ' : delta.decreased ? '▼ ' : '• ') +
             change.abs().toStringAsFixed(1) + '٪ نسبت به قبل',
