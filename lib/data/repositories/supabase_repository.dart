@@ -138,6 +138,34 @@ class SupabaseRepository {
         .eq('updated_by', userId);
   }
 
+  /// Creates a business for the signed-in user and grants that user owner access.
+  /// The two inserts are intentionally sequential; if membership creation fails,
+  /// the business remains owned by the creator and can be recovered safely.
+  Future<String> createBusiness({required String name}) async {
+    final userId = _requireUserId();
+    final normalizedName = name.trim();
+    if (normalizedName.isEmpty || normalizedName.length > 160) {
+      throw ArgumentError.value(name, 'name', 'Business name must contain 1 to 160 characters.');
+    }
+
+    final business = await _client
+        .from('businesses')
+        .insert({'name': normalizedName, 'created_by': userId})
+        .select('id')
+        .single();
+    final businessId = business['id'] as String;
+
+    await _client.from('business_memberships').insert({
+      'business_id': businessId,
+      'user_id': userId,
+      'role': 'owner',
+      'permissions': <String, dynamic>{},
+      'is_active': true,
+    });
+
+    return businessId;
+  }
+
   Future<List<Map<String, dynamic>>> fetchMyBusinesses() async {
     final userId = _requireUserId();
     final rows = await _client
