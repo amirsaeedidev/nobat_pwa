@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:datetime/app/app.dart';
@@ -70,6 +71,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       final exception = tester.takeException();
       if (exception != null) {
+        debugPrint('--- RENDER TREE AT VIEWPORT $width ---');
+        debugDumpRenderTree();
         final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
         fail('Viewport width: $width\\n$details');
       }

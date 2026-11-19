@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -95,6 +96,8 @@ void main() {
       do {
         exception = tester.takeException();
         if (exception != null) {
+          debugPrint('--- RENDER TREE AT ROUTE $path ---');
+          debugDumpRenderTree();
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
           failures.add('${width.toInt()}px $path: $details');
         }
