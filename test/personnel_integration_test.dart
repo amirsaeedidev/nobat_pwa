@@ -167,15 +167,15 @@ void main() {
 
       db.addWalletTransaction(
         employeeId: employee.id, amount: 500000,
-        type: EmployeeWalletTransactionType.bonus, description: 'پاداش عملکرد سناریو',
+        type: EmployeeWalletTransactionType.bonus, description: 'پاداش عملکرد سناریو', idempotencyKey: 'scenario-bonus-${employee.id}',
       );
       db.addWalletTransaction(
         employeeId: employee.id, amount: -200000,
-        type: EmployeeWalletTransactionType.advance, description: 'مساعده سناریو',
+        type: EmployeeWalletTransactionType.advance, description: 'مساعده سناریو', idempotencyKey: 'scenario-advance-${employee.id}',
       );
       db.addWalletTransaction(
         employeeId: employee.id, amount: -50000,
-        type: EmployeeWalletTransactionType.deduction, description: 'کسورات سناریو',
+        type: EmployeeWalletTransactionType.deduction, description: 'کسورات سناریو', idempotencyKey: 'scenario-deduction-${employee.id}',
       );
 
       final payroll = db.payrollFor(employee.id, at: now);
