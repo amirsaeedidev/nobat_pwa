@@ -1037,7 +1037,7 @@ class AppDatabase extends ChangeNotifier {
     required EmployeeWalletTransactionType type,
     required String description,
     DateTime? createdAt,
-    String? idempotencyKey,
+    required String idempotencyKey,
   }) {
     requirePermission(type == EmployeeWalletTransactionType.advance ? 'finance.advance.create' : 'finance.payment.create');
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
@@ -1046,7 +1046,7 @@ class AppDatabase extends ChangeNotifier {
     final creditOnly = type == EmployeeWalletTransactionType.fixedSalary || type == EmployeeWalletTransactionType.bonus || type == EmployeeWalletTransactionType.commission;
     final debitOnly = type == EmployeeWalletTransactionType.advance || type == EmployeeWalletTransactionType.penalty || type == EmployeeWalletTransactionType.deduction || type == EmployeeWalletTransactionType.refund || type == EmployeeWalletTransactionType.salaryPayment;
     if ((creditOnly && amount < 0) || (debitOnly && amount > 0)) throw ArgumentError('جهت مبلغ با نوع تراکنش هم‌خوانی ندارد.');
-    if (idempotencyKey != null && (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey))) {
+    if (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
       throw StateError('این عملیات مالی قبلاً ثبت شده است.');
     }
     final entry = EmployeeWalletTransaction(
