@@ -1,39 +1,41 @@
+import com.android.build.api.dsl.ApplicationExtension
+
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // AGP 9 provides Kotlin support natively; do not apply kotlin-android.
+    // The Flutter Gradle Plugin must be applied after the Android plugin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-android {
+val flutterCompileSdk = flutter.compileSdkVersion
+val flutterNdkVersion = flutter.ndkVersion
+val flutterMinSdk = flutter.minSdkVersion
+val flutterTargetSdk = flutter.targetSdkVersion
+val flutterVersionCode = flutter.versionCode
+val flutterVersionName = flutter.versionName
+
+extensions.configure<ApplicationExtension> {
     namespace = "com.datetime.datetime"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = flutterCompileSdk
+    ndkVersion = flutterNdkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.datetime.datetime"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = flutterMinSdk
+        targetSdk = flutterTargetSdk
+        versionCode = flutterVersionCode
+        versionName = flutterVersionName
     }
 
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+        getByName("release") {
+            // Debug signing is intentionally retained for downloadable test APKs.
+            // A production signing key must be configured before store distribution.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
