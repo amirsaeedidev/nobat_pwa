@@ -48,7 +48,12 @@ class ReportExecutivePdfExport {
           pw.TableRow(children: [cell(column), cell(values[column]!)]),
     ];
 
-    final maxRevenue = analytics.trend.fold<double>(0,
+    // برای بازه‌های طولانی، نقاط نمودار را یکنواخت نمونه‌برداری می‌کنیم تا PDF صدها صفحه نشود.
+    final trendPoints = analytics.trend.length <= 24
+      ? analytics.trend
+      : List.generate(24, (index) => analytics.trend[
+          (index * (analytics.trend.length - 1) / 23).round()]);
+    final maxRevenue = trendPoints.fold<double>(0,
       (max, item) => item.revenue > max ? item.revenue.toDouble() : max);
 
     document.addPage(pw.MultiPage(
@@ -78,7 +83,7 @@ class ReportExecutivePdfExport {
             pw.SizedBox(height: 14),
             pw.Text('نمودار روند درآمد', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 6),
-            for (final point in analytics.trend)
+            for (final point in trendPoints)
               pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2), child: pw.Row(children: [
                 pw.SizedBox(width: 45, child: pw.Text(point.label, style: pw.TextStyle(font: font, fontSize: 7))),
                 pw.Expanded(child: pw.Container(height: 8,
