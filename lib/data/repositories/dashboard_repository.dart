@@ -98,7 +98,6 @@ class MockDashboardRepository implements DashboardRepository {
     final performance = <WeekdayPerformance>[];
     for (final date in performanceDates) {
       final dayItems = all.where((a) => a.jalali.sameDay(date) && a.status != AppointmentStatus.cancelled).toList();
-      final completedDayItems = dayItems.where((a) => a.status == AppointmentStatus.completed);
       final percent = ((dayItems.length / slotsPerDay) * 100).clamp(0, 100).round();
       performance.add(WeekdayPerformance(
         label: period == StatsPeriod.daily ? 'امروز' : period == StatsPeriod.weekly ? date.weekdayName : date.day.toString(),
