@@ -10,6 +10,7 @@ import 'package:datetime/data/repositories/dashboard_repository.dart';
 import 'package:datetime/features/reports/utils/report_executive_pdf_export.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('Report table exports', () {
     test('CSV preserves Persian text, quotes delimiters and protects formula cells', () {
       final csv = ReportTableExport.toCsv(
