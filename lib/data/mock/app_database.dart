@@ -47,6 +47,7 @@ class AppDatabase extends ChangeNotifier {
   final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
   final List<AppointmentPayment> _appointmentPayments = [];
   final List<BusinessExpense> _businessExpenses = [];
+  final List<({DateTime start, DateTime endExclusive})> _confirmedExpenseRanges = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
   final Map<String, EmployeeScheduleException> _employeeScheduleExceptions = {};
   final List<EmployeeLeave> _employeeLeaves = [];
@@ -144,6 +145,9 @@ class AppDatabase extends ChangeNotifier {
       throw StateError('این پرداخت قبلاً ثبت شده است.');
     }
     final appointment = matches.first;
+    if (appointment.status == AppointmentStatus.cancelled || appointment.status == AppointmentStatus.noShow) {
+      throw StateError('برای نوبت لغوشده یا عدم حضور امکان ثبت دریافت جدید وجود ندارد.');
+    }
     final revenueDocuments = _employeeFinanceEntries.where((entry) =>
       entry.appointmentId == appointmentId &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
@@ -236,6 +240,9 @@ class AppDatabase extends ChangeNotifier {
       throw StateError('شناسه هزینه یا سند منبع تکراری است.');
     }
     _businessExpenses.add(expense);
+    // افزودن هزینه جدید، تأیید کامل بودن همان بازه را باطل می‌کند.
+    _confirmedExpenseRanges.removeWhere((range) =>
+      !expense.createdAt.isBefore(range.start) && expense.createdAt.isBefore(range.endExclusive));
     log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} با سند ${expense.sourceDocumentId} ثبت شد.', entity: 'امور مالی مجموعه');
     _commit();
   }
@@ -287,6 +294,11 @@ class AppDatabase extends ChangeNotifier {
           ? null
           : (completed.map((a) => a.startAt).reduce((a, b) => a.isAfter(b) ? a : b));
       final spent = completed.fold<num>(0, (sum, a) => sum + a.price);
+      final completedIds = completed.map((item) => item.id).toSet();
+      final spent = _employeeFinanceEntries.where((entry) =>
+        completedIds.contains(entry.appointmentId) &&
+        (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund))
+        .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
       _customers[i] = customer.copyWith(
         visitCount: completed.length,
         totalSpent: spent,
@@ -571,6 +583,26 @@ class AppDatabase extends ChangeNotifier {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
+    final hasFinancialActivity = previous.status == AppointmentStatus.completed ||
+      _employeeFinanceEntries.any((entry) => entry.appointmentId == previous.id) ||
+      _appointmentPayments.any((payment) => payment.appointmentId == previous.id);
+    bool sameSnapshots() {
+      if (previous.serviceSnapshots.length != appointment.serviceSnapshots.length) return false;
+      for (var i = 0; i < previous.serviceSnapshots.length; i++) {
+        if (!mapEquals(previous.serviceSnapshots[i], appointment.serviceSnapshots[i])) return false;
+      }
+      return true;
+    }
+    final financialFieldsChanged = previous.customerId != appointment.customerId ||
+      previous.employeeId != appointment.employeeId ||
+      previous.serviceIds.join('|') != appointment.serviceIds.join('|') ||
+      previous.startAt != appointment.startAt ||
+      previous.durationMinutes != appointment.durationMinutes ||
+      previous.price != appointment.price ||
+      !sameSnapshots();
+    if (hasFinancialActivity && financialFieldsChanged) {
+      throw StateError('نوبتی که سند مالی یا پرداخت دارد قابل تغییر در مشخصات مالی و تاریخی نیست؛ برای اصلاح از سند اصلاحی استفاده کنید.');
+    }
     _appointments[index] = appointment.copyWith(updatedAt: DateTime.now());
     log(
       ActivityType.appointmentUpdated,
@@ -589,6 +621,14 @@ class AppDatabase extends ChangeNotifier {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
+    if (previous.status == AppointmentStatus.completed && status != AppointmentStatus.completed) {
+      throw StateError('نوبت تکمیل‌شده سند درآمد و کمیسیون دارد؛ تغییر وضعیت آن بدون سند اصلاحی مجاز نیست.');
+    }
+    if ((status == AppointmentStatus.cancelled || status == AppointmentStatus.noShow) &&
+        _appointmentPayments.where((payment) => payment.appointmentId == appointment.id)
+          .fold<int>(0, (sum, payment) => sum + payment.signedAmount) > 0) {
+      throw StateError('ابتدا تمام مبالغ دریافتی این نوبت را مسترد کنید، سپس آن را لغو یا عدم حضور ثبت کنید.');
+    }
     _appointments[index] = appointment.copyWith(status: status, cancelReason: reason, updatedAt: DateTime.now());
     final type = switch (status) {
       AppointmentStatus.cancelled => ActivityType.appointmentCancelled,
@@ -786,6 +826,23 @@ class AppDatabase extends ChangeNotifier {
     return _employeeFinanceEntries.where((entry) => entry.employeeId == employeeId).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
   bool hasCommissionForAppointment(String appointmentId) => _employeeFinanceEntries.any((entry) => entry.appointmentId == appointmentId && entry.type == FinanceEntryType.commission);
+  bool isBusinessExpenseRangeConfirmed(DateTime from, DateTime endExclusive) =>
+      _confirmedExpenseRanges.any((range) => range.start == from && range.endExclusive == endExclusive);
+
+  void setBusinessExpenseRangeConfirmed({
+    required DateTime from,
+    required DateTime endExclusive,
+    required bool confirmed,
+  }) {
+    requirePermission('finance.payment.create');
+    if (!endExclusive.isAfter(from)) throw ArgumentError('بازه تأیید هزینه معتبر نیست.');
+    _confirmedExpenseRanges.removeWhere((range) => range.start == from && range.endExclusive == endExclusive);
+    if (confirmed) _confirmedExpenseRanges.add((start: from, endExclusive: endExclusive));
+    log(ActivityType.settingsChanged, confirmed ? 'تأیید تکمیل هزینه‌ها' : 'لغو تأیید تکمیل هزینه‌ها',
+      'وضعیت ثبت هزینه‌های عملیاتی بازه انتخاب‌شده تغییر کرد.', entity: 'امور مالی مجموعه');
+    _commit();
+  }
+
   bool finalizeCompletedAppointment(String appointmentId, {int discountAmount = 0, int? finalPaidAmount}) {
     requirePermission('appointments.complete');
     final appointment = appointmentById(appointmentId);
@@ -839,7 +896,7 @@ class AppDatabase extends ChangeNotifier {
       final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
       final calculatedCommission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
       final commission = calculatedCommission.clamp(0, received).toInt();
-      final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
+      final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: appointment.updatedAt ?? appointment.startAt, type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
       _employeeFinanceEntries.add(financeEntry);
       _mirrorFinanceEntryToWallet(financeEntry);
     }
@@ -1235,6 +1292,11 @@ class AppDatabase extends ChangeNotifier {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
+    if (previous.status == AppointmentStatus.completed ||
+        _employeeFinanceEntries.any((entry) => entry.appointmentId == previous.id) ||
+        _appointmentPayments.any((payment) => payment.appointmentId == previous.id)) {
+      throw StateError('نوبت دارای سابقه مالی قابل جابه‌جایی نیست.');
+    }
     _appointments[index] = appointment.copyWith(
       startAt: newStart,
       rescheduleCount: appointment.rescheduleCount + 1,
@@ -1256,6 +1318,12 @@ class AppDatabase extends ChangeNotifier {
   void deleteAppointment(String id) {
     requirePermission('appointments.cancel');
     final appointment = appointmentById(id);
+    if (appointment != null &&
+        (appointment.status == AppointmentStatus.completed ||
+         _employeeFinanceEntries.any((entry) => entry.appointmentId == id) ||
+         _appointmentPayments.any((payment) => payment.appointmentId == id))) {
+      throw StateError('نوبت دارای سابقه مالی قابل حذف نیست؛ برای حفظ زنجیره حسابداری آن را نگه دارید.');
+    }
     _appointments.removeWhere((a) => a.id == id);
     if (appointment != null) {
       log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت', undoAction: 'appointment_deleted', undoData: appointment.toJson());
