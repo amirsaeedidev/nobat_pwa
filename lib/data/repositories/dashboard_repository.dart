@@ -587,6 +587,14 @@ class MockDashboardRepository implements DashboardRepository {
     final directCostCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.costKnownCount);
     final serviceCount = serviceStats.values.fold<int>(0, (sum, item) => sum + item.count);
     final directCostCoveragePercent = serviceCount == 0 ? 0.0 : directCostCount * 100 / serviceCount;
+    // کامل بودن سود کل باید همه نوبت‌های مالی بازه را بسنجد، نه فقط جدول عملیاتی فیلترشده.
+    final financialServiceCount = completed.fold<int>(
+      0, (sum, item) => sum + (item.serviceIds.isEmpty ? 1 : item.serviceIds.length));
+    final financialDirectCostCount = completed.fold<int>(0, (sum, appointment) {
+      final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
+      return sum + ids.where((id) => appointment.serviceSnapshots.any((snapshot) =>
+        snapshot['service_id'] == id && snapshot['direct_cost'] is num)).length;
+    });
     final hasPendingExpenses = _db.businessExpenses.any((item) =>
       item.status == BusinessExpenseStatus.pending && range.contains(item.createdAt));
     final expenseCoverageConfirmed = _db.isBusinessExpenseRangeConfirmed(range.start, range.endExclusive);
@@ -595,8 +603,8 @@ class MockDashboardRepository implements DashboardRepository {
         'دسترسی کامل به همه اقلام درآمد و هزینه وجود ندارد',
       if (!expenseCoverageConfirmed) 'کامل بودن ثبت هزینه‌های عملیاتی این بازه تأیید نشده است',
       if (hasPendingExpenses) 'هزینه ثبت‌نشده یا در انتظار تأیید در این بازه وجود دارد',
-      if (serviceCount > 0 && directCostCount < serviceCount)
-        'هزینه مستقیم همه خدمات تکمیل‌شده ثبت نشده است',
+      if (financialServiceCount > 0 && financialDirectCostCount < financialServiceCount)
+        'هزینه مستقیم همه خدمات تکمیل‌شده این بازه ثبت نشده است',
     ];
     final profitIsComplete = profitStatusReasons.isEmpty;
     final profitStatusNote = profitIsComplete
@@ -769,7 +777,7 @@ class MockDashboardRepository implements DashboardRepository {
       )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
-      costNote: 'درآمد خدمات از دفتر مالی، وصول از رسیدها، کمیسیون از اسناد کمیسیون، حقوق و مزایا از دفتر کیف پول، هزینه مستقیم از snapshot خدمات و هزینه عملیاتی از اسناد هزینه محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند. ' + profitStatusNote,
+      costNote: 'درآمد خدمات از دفتر مالی، وصول از رسیدها، کمیسیون از اسناد کمیسیون، حقوق و مزایا از دفتر کیف پول، هزینه مستقیم از snapshot خدمات و هزینه عملیاتی از اسناد هزینه محاسبه می‌شود. یک هزینه را هم‌زمان در snapshot خدمت و سند هزینه عملیاتی ثبت نکنید. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند. ' + profitStatusNote,
       grossRevenue: grossRevenue,
       collectedRevenue: collectedRevenue,
       receivables: receivables,
