@@ -404,7 +404,7 @@ class GlobalSearchRepository {
       required String route,
       required Iterable<Object?> searchable,
       DateTime? date,
-      bool isRemote,
+      required bool isRemote,
     }) add,
     String businessId,
   ) async {
