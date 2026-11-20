@@ -113,6 +113,14 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
       final config = _db.employeeServiceConfig(employee.id, service.id);
       final rule = payProfile.ruleFor(serviceId: service.id, category: service.category, date: _date.toDateTime());
+      final hasServiceCommissionOverride =
+          config?.commissionRateBps != null || config?.fixedCommissionAmount != null;
+      final effectiveRate = hasServiceCommissionOverride
+          ? (config?.commissionRateBps ?? 0)
+          : (rule?.rateBps ?? payProfile.generalRateBps);
+      final effectiveFixed = hasServiceCommissionOverride
+          ? (config?.fixedCommissionAmount ?? 0)
+          : (rule?.fixedAmount ?? 0);
       return <String, dynamic>{
         'service_id': service.id,
         'title': previous?['title'] as String? ?? service.title,
@@ -121,8 +129,11 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
         // هزینه مستقیم و قیمت نوبت قبلی با تغییر بعدی کاتالوگ خدمات بازنویسی نمی‌شوند.
         'direct_cost': previous == null ? service.directCost : previous['direct_cost'],
         'duration_minutes': previous?['duration_minutes'] as num? ?? _db.effectiveServiceDuration(employee.id, service.id),
-        'commission_rate_bps': previous?['commission_rate_bps'] as num? ?? config?.commissionRateBps ?? rule?.rateBps ?? payProfile.generalRateBps,
-        'fixed_commission_amount': previous?['fixed_commission_amount'] as num? ?? config?.fixedCommissionAmount ?? rule?.fixedAmount ?? 0,
+        'commission_rate_bps': previous?['commission_rate_bps'] as num? ?? effectiveRate,
+        'fixed_commission_amount': previous?['fixed_commission_amount'] as num? ?? effectiveFixed,
+        'service_commission_override': previous == null
+            ? hasServiceCommissionOverride
+            : previous['service_commission_override'] == true,
         'commission_basis': previous?['commission_basis'] as String? ?? payProfile.basis.name,
       };
     }).toList();
