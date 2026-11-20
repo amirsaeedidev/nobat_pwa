@@ -64,7 +64,7 @@ void main() {
     expect(find.text('پیشخوان'), findsWidgets);
 
     // پوسته اصلی در عرض‌های موبایل کوچک، موبایل معمولی، تبلت و دسکتاپ باید بدون overflow بماند.
-    for (final width in [320.0, 360.0, 390.0, 600.0, 768.0, 1024.0, 1440.0]) {
+    for (final width in [320.0, 360.0, 375.0, 390.0, 414.0, 600.0, 768.0, 1024.0, 1280.0, 1440.0]) {
       tester.view.physicalSize = Size(width * 2, 800 * 2);
       tester.view.devicePixelRatio = 2;
       await tester.pump();
