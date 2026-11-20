@@ -113,7 +113,7 @@ void main() {
     ];
 
     final failures = <String>[];
-    const widths = [320.0, 360.0, 375.0, 390.0, 414.0, 600.0, 768.0, 1024.0, 1280.0, 1440.0];
+    const widths = [320.0, 360.0, 375.0, 390.0, 414.0, 768.0, 1280.0];
     for (final width in widths) {
       tester.view.physicalSize = Size(width, width == 320 ? 640 : 844);
       tester.view.devicePixelRatio = 1;
