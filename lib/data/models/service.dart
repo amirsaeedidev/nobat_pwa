@@ -9,6 +9,10 @@ class Service {
     this.bufferMinutes = 5,
     this.prepMinutes = 0,
     this.directCost,
+    this.imageUrl,
+    this.discountPrice,
+    this.discountStartsAt,
+    this.discountEndsAt,
     this.isActive = true,
     this.employeeIds = const [],
     this.category = 'عمومی',
@@ -26,24 +30,33 @@ class Service {
   /// هزینه مستقیم هر بار ارائه خدمت؛ null یعنی هزینه ثبت نشده است.
   final num? directCost;
   final int durationMinutes;
-
-  /// زمان استراحت/آماده‌سازی بین دو نوبت.
   final int bufferMinutes;
-
-  /// زمان آماده‌سازی قبل از شروع خدمت.
   final int prepMinutes;
+  /// آدرس تصویر خدمت؛ در حالت آفلاین می‌تواند مسیر asset باشد.
+  final String? imageUrl;
+  /// قیمت تخفیفی؛ فقط در بازه اعتبار اعمال می‌شود.
+  final num? discountPrice;
+  final DateTime? discountStartsAt;
+  final DateTime? discountEndsAt;
   final bool isActive;
   final List<String> employeeIds;
   final String category;
   final int totalBookings;
-
-  /// حداکثر تعداد رزرو این خدمت در یک روز.
   final int? maxPerDay;
   final int advanceDays;
   final bool requiresConfirmation;
   final int order;
 
   int get totalMinutes => prepMinutes + durationMinutes + bufferMinutes;
+
+  bool isDiscountActiveAt(DateTime at) {
+    if (discountPrice == null || discountPrice! < 0 || discountPrice! >= price) return false;
+    if (discountStartsAt != null && at.isBefore(discountStartsAt!)) return false;
+    if (discountEndsAt != null && at.isAfter(discountEndsAt!)) return false;
+    return true;
+  }
+
+  num priceAt(DateTime at) => isDiscountActiveAt(at) ? discountPrice! : price;
 
   Service copyWith({
     String? id,
@@ -55,6 +68,14 @@ class Service {
     int? durationMinutes,
     int? bufferMinutes,
     int? prepMinutes,
+    String? imageUrl,
+    bool clearImageUrl = false,
+    num? discountPrice,
+    bool clearDiscountPrice = false,
+    DateTime? discountStartsAt,
+    bool clearDiscountStartsAt = false,
+    DateTime? discountEndsAt,
+    bool clearDiscountEndsAt = false,
     bool? isActive,
     List<String>? employeeIds,
     String? category,
@@ -73,6 +94,10 @@ class Service {
       durationMinutes: durationMinutes ?? this.durationMinutes,
       bufferMinutes: bufferMinutes ?? this.bufferMinutes,
       prepMinutes: prepMinutes ?? this.prepMinutes,
+      imageUrl: clearImageUrl ? null : (imageUrl ?? this.imageUrl),
+      discountPrice: clearDiscountPrice ? null : (discountPrice ?? this.discountPrice),
+      discountStartsAt: clearDiscountStartsAt ? null : (discountStartsAt ?? this.discountStartsAt),
+      discountEndsAt: clearDiscountEndsAt ? null : (discountEndsAt ?? this.discountEndsAt),
       isActive: isActive ?? this.isActive,
       employeeIds: employeeIds ?? this.employeeIds,
       category: category ?? this.category,
@@ -93,6 +118,10 @@ class Service {
         'duration_minutes': durationMinutes,
         'buffer_minutes': bufferMinutes,
         'prep_minutes': prepMinutes,
+        'image_url': imageUrl,
+        'discount_price': discountPrice,
+        'discount_starts_at': discountStartsAt?.toUtc().toIso8601String(),
+        'discount_ends_at': discountEndsAt?.toUtc().toIso8601String(),
         'is_active': isActive,
         'employee_ids': employeeIds,
         'category': category,
@@ -112,6 +141,10 @@ class Service {
         durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 30,
         bufferMinutes: (json['buffer_minutes'] as num?)?.toInt() ?? 5,
         prepMinutes: (json['prep_minutes'] as num?)?.toInt() ?? 0,
+        imageUrl: json['image_url'] as String?,
+        discountPrice: json['discount_price'] as num?,
+        discountStartsAt: json['discount_starts_at'] == null ? null : DateTime.tryParse(json['discount_starts_at'] as String)?.toLocal(),
+        discountEndsAt: json['discount_ends_at'] == null ? null : DateTime.tryParse(json['discount_ends_at'] as String)?.toLocal(),
         isActive: json['is_active'] as bool? ?? true,
         employeeIds: (json['employee_ids'] as List?)?.cast<String>() ?? const [],
         category: json['category'] as String? ?? 'عمومی',
