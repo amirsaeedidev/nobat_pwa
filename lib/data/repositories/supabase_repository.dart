@@ -10,6 +10,8 @@ class SupabaseRepository {
 
   final SupabaseClient _client;
 
+  bool get isAuthenticated => _client.auth.currentUser != null;
+
   static const Set<String> supportedEntityTypes = {
     'appointments',
     'customers',
