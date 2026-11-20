@@ -27,6 +27,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
   final _focusNode = FocusNode();
   late GlobalSearchRepository _repository;
   AppDatabase? _database;
+  String? _accountId;
   Timer? _debounce;
   List<GlobalSearchResult> _results = const [];
   List<String> _recent = const [];
@@ -41,6 +42,8 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     if (_initialized) return;
     _initialized = true;
     _database = context.read<AppDatabase>();
+    _accountId = _database!.currentAccessAccount.id;
+    _database!.addListener(_handleDatabaseChanged);
     _repository = GlobalSearchRepository(
       _database!,
       customerRepository: context.read<CustomerRepository>(),
@@ -52,8 +55,33 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     _loadRecent();
   }
 
+  void _handleDatabaseChanged() {
+    final database = _database;
+    if (database == null) return;
+    final nextAccountId = database.currentAccessAccount.id;
+    if (nextAccountId != _accountId) {
+      _accountId = nextAccountId;
+      _debounce?.cancel();
+      _requestId++;
+      _controller.clear();
+      if (mounted) {
+        setState(() {
+          _results = const [];
+          _filter = null;
+          _loading = false;
+        });
+        _loadRecent();
+      }
+      return;
+    }
+    if (_controller.text.trim().isNotEmpty && mounted) {
+      _onQueryChanged(_controller.text);
+    }
+  }
+
   @override
   void dispose() {
+    _database?.removeListener(_handleDatabaseChanged);
     _debounce?.cancel();
     _controller.dispose();
     _focusNode.dispose();
@@ -123,18 +151,18 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     await _repository.rememberSearch(_controller.text);
     await _loadRecent();
     if (!mounted) return;
-    if (result.isRemote) {
-      if (!(_database?.canOpenRoute('/search/result') ?? false)) return;
-      context.push('/search/result', extra: result);
-      return;
-    }
-    if (!(_database?.canOpenRoute(result.route) ?? false)) {
+    final database = _database;
+    if (database == null || !canOpenGlobalSearchResult(database, result)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('دسترسی شما به این نتیجه مجاز نیست.')),
       );
       return;
     }
-    context.push(result.route);
+    if (result.isRemote) {
+      context.push('/search/result', extra: result);
+    } else {
+      context.push(result.route);
+    }
   }
 
   List<GlobalSearchResult> get _visibleResults =>
@@ -443,6 +471,16 @@ class GlobalSearchResultDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
+    final database = context.watch<AppDatabase>();
+    if (!canOpenGlobalSearchResult(database, result)) {
+      return PageScaffold(
+        title: 'دسترسی محدود',
+        subtitle: 'مجوز مشاهده این نتیجه تغییر کرده است',
+        icon: Icons.lock_outline_rounded,
+        showGlobalSearch: false,
+        child: const Center(child: Text('این نتیجه دیگر برای حساب فعال قابل مشاهده نیست.')),
+      );
+    }
     return PageScaffold(
       title: result.type.label,
       subtitle: 'جزئیات نتیجه جست‌وجو',
