@@ -116,6 +116,11 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     await _repository.rememberSearch(_controller.text);
     await _loadRecent();
     if (!mounted) return;
+    if (result.isRemote) {
+      if (!(_database?.canOpenRoute('/search/result') ?? false)) return;
+      context.push('/search/result', extra: result);
+      return;
+    }
     if (!(_database?.canOpenRoute(result.route) ?? false)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('دسترسی شما به این نتیجه مجاز نیست.')),
@@ -415,6 +420,54 @@ class _ResultTile extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Icon(Icons.chevron_left_rounded, color: pal.textMuted, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class GlobalSearchResultDetailsPage extends StatelessWidget {
+  const GlobalSearchResultDetailsPage({super.key, required this.result});
+
+  final GlobalSearchResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    return PageScaffold(
+      title: result.type.label,
+      subtitle: 'جزئیات نتیجه جست‌وجو',
+      icon: Icons.description_outlined,
+      showGlobalSearch: false,
+      child: AppCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(result.title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+            if (result.subtitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(result.subtitle, style: TextStyle(fontSize: 12, color: pal.textSecondary)),
+            ],
+            if (result.details.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Text(result.details, style: TextStyle(fontSize: 12, height: 1.8, color: pal.textPrimary)),
+            ],
+            const SizedBox(height: 16),
+            Text('شناسه: ${result.id}', textDirection: TextDirection.ltr,
+              style: TextStyle(fontSize: 10, color: pal.textMuted)),
+            if (result.date != null) ...[
+              const SizedBox(height: 6),
+              Text('تاریخ: ${result.date}', style: TextStyle(fontSize: 10, color: pal.textMuted)),
+            ],
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('بازگشت به نتایج'),
+            ),
           ],
         ),
       ),
