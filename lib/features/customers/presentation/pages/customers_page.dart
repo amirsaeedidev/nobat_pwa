@@ -113,7 +113,7 @@ class _CustomersPageState extends State<CustomersPage> {
           ),
           const SizedBox(height: 16),
           if (provider.loading)
-            const LoadingState()
+            const LoadingState(kind: SkeletonKind.customers)
           else if (provider.items.isEmpty)
             const EmptyState(
               title: 'مشتری‌ای یافت نشد',
