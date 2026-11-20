@@ -85,6 +85,52 @@ void main() {
       expect(hiddenIncome.where((item) => item.type == GlobalSearchType.transaction), isEmpty);
     });
 
+    test('searches finance documents and activity history when permissions allow', () async {
+      final db = AppDatabase();
+      final repository = GlobalSearchRepository(db);
+
+      final expense = db.businessExpenses.first;
+      final expenseResults = await repository.search(expense.sourceDocumentId);
+      expect(expenseResults.any((item) =>
+          item.type == GlobalSearchType.transaction && item.id == expense.id), isTrue);
+
+      final activity = db.activityLogs.first;
+      final activityResults = await repository.search(activity.title);
+      expect(activityResults.any((item) =>
+          item.type == GlobalSearchType.activity && item.id == activity.id), isTrue);
+
+      if (db.employeeDocuments.isNotEmpty) {
+        final document = db.employeeDocuments.first;
+        final documentResults = await repository.search(document.title);
+        expect(documentResults.any((item) =>
+            item.type == GlobalSearchType.document && item.id == document.id), isTrue);
+      }
+    });
+
+    test('invalidates cached results after changing the active mock account', () async {
+      final db = AppDatabase();
+      final repository = GlobalSearchRepository(db);
+      final customer = db.customers.first;
+      final results = await repository.search(customer.fullName);
+      final result = results.firstWhere((item) =>
+          item.type == GlobalSearchType.customer && item.id == customer.id);
+      expect(canOpenGlobalSearchResult(db, result), isTrue);
+
+      db.switchMockAccount('demo-custom');
+      expect(canOpenGlobalSearchResult(db, result), isFalse);
+    });
+
+    test('local search completes without waiting for any network service', () async {
+      final db = AppDatabase();
+      final repository = GlobalSearchRepository(db);
+      final stopwatch = Stopwatch()..start();
+      final results = await repository.search('سارا');
+      stopwatch.stop();
+
+      expect(results, isNotEmpty);
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    });
+
     test('persists, deduplicates and clears recent searches per account', () async {
       final db = AppDatabase();
       final repository = GlobalSearchRepository(db);
