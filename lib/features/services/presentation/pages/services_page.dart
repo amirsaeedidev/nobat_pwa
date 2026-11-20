@@ -55,6 +55,43 @@ class ServicesPage extends StatelessWidget {
             onChanged: provider.search,
           ),
           const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<String?>(
+                  value: provider.categoryFilter,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'دسته‌بندی', isDense: true),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('همه دسته‌ها')),
+                    ...provider.categories.map((name) => DropdownMenuItem<String?>(value: name, child: Text(name))),
+                  ],
+                  onChanged: provider.setCategoryFilter,
+                ),
+              ),
+              SizedBox(width: 120, child: TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'حداقل قیمت', isDense: true),
+                onChanged: (value) => provider.setPriceRange(
+                  minimum: value.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(value)),
+                  maximum: null,
+                ),
+              )),
+              SizedBox(width: 120, child: TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'حداکثر قیمت', isDense: true),
+                onChanged: (value) => provider.setPriceRange(
+                  minimum: null,
+                  maximum: value.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(value)),
+                ),
+              )),
+            ],
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               PillToggle(
