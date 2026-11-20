@@ -537,7 +537,7 @@ class GlobalSearchRepository {
         (type == null || type == GlobalSearchType.customer)) {
       for (final row in await fetch('customers')) {
         final id = row['id'] as String? ?? '';
-        final canViewHistory = _hasRemotePermission('customers.history');
+        final canViewHistory = _database.hasPermission('customers.history');
         add(id: id, type: GlobalSearchType.customer,
           title: row['full_name'] as String? ?? '', subtitle: row['phone'] as String? ?? '',
           details: canViewHistory ? row['notes'] as String? ?? '' : '',
