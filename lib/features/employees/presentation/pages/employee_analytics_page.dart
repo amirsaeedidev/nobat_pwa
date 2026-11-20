@@ -226,6 +226,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           const SectionHeader(title: 'فیلتر گزارش'),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
+            isExpanded: true,
             value: selected.id,
             decoration: const InputDecoration(labelText: 'پرسنل'),
             items: [for (final e in employees) DropdownMenuItem(value: e.id, child: Text(e.fullName))],
@@ -248,6 +249,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           Text(_periodLabel(), style: TextStyle(fontSize: 11, color: pal.textMuted)),
           const SizedBox(height: 10),
           DropdownButtonFormField<String?>(
+            isExpanded: true,
             value: _serviceId,
             decoration: const InputDecoration(labelText: 'خدمت'),
             items: [const DropdownMenuItem<String?>(value: null, child: Text('همه خدمات')), for (final s in db.services) DropdownMenuItem(value: s.id, child: Text(s.title))],
@@ -255,6 +257,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<AppointmentStatus?>(
+            isExpanded: true,
             value: _status,
             decoration: const InputDecoration(labelText: 'وضعیت نوبت'),
             items: [const DropdownMenuItem<AppointmentStatus?>(value: null, child: Text('همه وضعیت‌ها')), for (final s in AppointmentStatus.values) DropdownMenuItem(value: s, child: Text(s.label))],
