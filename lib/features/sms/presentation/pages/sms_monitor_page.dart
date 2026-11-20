@@ -247,12 +247,13 @@ class _SmsTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.start,
             children: [
               _MetaChip(icon: Icons.local_offer_outlined, label: message.templateLabel),
-              const SizedBox(width: 8),
               _MetaChip(icon: Icons.send_rounded, label: Fmt.jalaliDateTime(message.sentAt ?? message.createdAt)),
-              const Spacer(),
               if (message.deliveredAt != null)
                 _MetaChip(icon: Icons.done_all_rounded, label: Fmt.clock(message.deliveredAt!), color: pal.success),
             ],
