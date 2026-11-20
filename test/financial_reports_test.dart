@@ -5,6 +5,8 @@ import 'package:datetime/data/models/business_finance.dart';
 import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/models/report_analytics.dart';
 import 'package:datetime/data/models/employee_wallet.dart';
+import 'package:datetime/data/models/employee_finance.dart';
+import 'package:datetime/data/models/employee_service_config.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
 
 void main() {
@@ -109,6 +111,55 @@ void main() {
         expectedWalletCommission,
       );
       expect(report.collectedRevenue, db.appointmentPayments.fold<int>(0, (sum, item) => sum + item.signedAmount));
+    });
+
+    test('service commission override is snapshotted and honored over fixed monthly default', () {
+      final db = AppDatabase();
+      final source = db.appointments.firstWhere((item) => item.status == AppointmentStatus.pending);
+      final serviceId = source.serviceIds.first;
+      final service = db.serviceById(serviceId)!;
+      final profile = db.payProfileFor(source.employeeId);
+      db.savePayProfile(profile.copyWith(
+        method: EmployeePaymentMethod.fixedMonthly,
+        generalRateBps: 0,
+      ));
+      db.saveEmployeeServiceConfig(EmployeeServiceConfig(
+        employeeId: source.employeeId,
+        serviceId: serviceId,
+        commissionRateBps: 1500,
+        fixedCommissionAmount: 5000,
+      ));
+
+      final snapshot = <String, dynamic>{
+        'service_id': serviceId,
+        'title': service.title,
+        'category': service.category,
+        'price': 100000,
+        'duration_minutes': 45,
+        'commission_rate_bps': 1500,
+        'fixed_commission_amount': 5000,
+        'commission_basis': 'afterDiscount',
+        'service_commission_override': true,
+      };
+      final appointment = source.copyWith(
+        id: 'service-commission-override-test',
+        reference: 'TEST-COMMISSION',
+        serviceIds: [serviceId],
+        serviceName: service.title,
+        price: 100000,
+        durationMinutes: 45,
+        serviceSnapshots: [snapshot],
+      );
+      db.addAppointment(appointment);
+      db.changeStatus(appointment, AppointmentStatus.completed);
+
+      final entry = db.employeeFinanceEntries.singleWhere(
+        (item) => item.appointmentId == appointment.id && item.serviceId == serviceId,
+      );
+      expect(entry.rateBps, 1500);
+      expect(entry.fixedAmount, 5000);
+      expect(entry.commissionAmount, 20000);
+      expect(entry.companyShare, 80000);
     });
 
     test('requires a source document and prevents duplicate expense documents', () {
