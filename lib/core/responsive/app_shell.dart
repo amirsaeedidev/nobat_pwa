@@ -184,7 +184,7 @@ class MobileBottomNav extends StatelessWidget {
           ),
         ),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.more_horiz_rounded, size: 22, color: selected ? pal.primaryBright : pal.textMuted),
+          Icon(HugeIcons.strokeRoundedLayer, size: 22, color: selected ? pal.primaryBright : pal.textMuted),
           const SizedBox(height: 2),
           Text('بیشتر', style: TextStyle(fontSize: 10, color: selected ? pal.primaryBright : pal.textMuted)),
         ]),
