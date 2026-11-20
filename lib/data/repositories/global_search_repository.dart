@@ -149,18 +149,25 @@ class GlobalSearchRepository {
 
     if (_database.hasPermission('customers.view')) {
       for (final customer in _database.customers) {
+        final canViewHistory = _database.hasPermission('customers.history');
         add(
           id: customer.id,
           type: GlobalSearchType.customer,
           title: customer.fullName,
           subtitle: customer.phone,
-          details: [
-            if (customer.tags.isNotEmpty) customer.tags.join('، '),
-            if (customer.visitCount > 0) '${customer.visitCount} مراجعه',
-            if (customer.notes.isNotEmpty) customer.notes,
-          ].join(' • '),
-          route: '/customers/${customer.id}',
-          searchable: [customer.fullName, customer.phone, customer.notes, customer.tags, customer.id],
+          details: canViewHistory
+              ? [
+                  if (customer.tags.isNotEmpty) customer.tags.join('، '),
+                  if (customer.visitCount > 0) '${customer.visitCount} مراجعه',
+                  if (customer.notes.isNotEmpty) customer.notes,
+                ].join(' • ')
+              : '',
+          route: canViewHistory ? '/customers/${customer.id}' : '/customers',
+          searchable: [
+            customer.fullName,
+            customer.phone,
+            if (canViewHistory) ...[customer.notes, customer.tags, customer.id],
+          ],
           date: customer.lastVisitAt ?? customer.createdAt,
         );
       }
@@ -172,16 +179,22 @@ class GlobalSearchRepository {
       for (final employee in _database.employees) {
         if (!_database.canViewEmployee(employee.id)) continue;
         if (!canListEmployees && _database.currentAccessAccount.employeeId != employee.id) continue;
-        final route = '/employees/${employee.id}';
-        if (!_database.canOpenRoute(route)) continue;
+        final canViewProfile = _database.canOpenRoute('/employees/${employee.id}');
+        final route = canViewProfile ? '/employees/${employee.id}' : '/employees';
         add(
           id: employee.id,
           type: GlobalSearchType.employee,
           title: employee.fullName,
           subtitle: employee.title.isEmpty ? employee.phone : '${employee.title} • ${employee.phone}',
-          details: [employee.email, employee.specialties.join('، '), employee.notes].where((v) => v.isNotEmpty).join(' • '),
+          details: canViewProfile
+              ? [employee.email, employee.specialties.join('، '), employee.notes].where((v) => v.isNotEmpty).join(' • ')
+              : '',
           route: route,
-          searchable: [employee.fullName, employee.phone, employee.email, employee.title, employee.specialties, employee.notes, employee.id],
+          searchable: [
+            employee.fullName,
+            employee.phone,
+            if (canViewProfile) ...[employee.email, employee.title, employee.specialties, employee.notes, employee.id],
+          ],
         );
       }
     }
@@ -382,10 +395,14 @@ class GlobalSearchRepository {
 
     if (_database.hasPermission('customers.view') && (type == null || type == GlobalSearchType.customer)) {
       for (final row in await fetch('customers')) {
-        add(id: row['id'] as String? ?? '', type: GlobalSearchType.customer,
+        final id = row['id'] as String? ?? '';
+        final canViewHistory = _database.hasPermission('customers.history');
+        add(id: id, type: GlobalSearchType.customer,
           title: row['full_name'] as String? ?? '', subtitle: row['phone'] as String? ?? '',
-          details: row['notes'] as String? ?? '', route: '/customers/${row['id']}',
-          searchable: row.values, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+          details: canViewHistory ? row['notes'] as String? ?? '' : '',
+          route: canViewHistory ? '/customers/$id' : '/customers',
+          searchable: canViewHistory ? row.values : [row['full_name'], row['phone']],
+          date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
     if ((_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile')) &&
@@ -393,10 +410,12 @@ class GlobalSearchRepository {
       for (final row in await fetch('employees')) {
         final id = row['id']?.toString() ?? '';
         if (id.isEmpty || !_database.canViewEmployee(id)) continue;
+        final canViewProfile = _database.canOpenRoute('/employees/$id');
         add(id: id, type: GlobalSearchType.employee, title: row['full_name']?.toString() ?? '',
           subtitle: row['title']?.toString() ?? row['phone']?.toString() ?? '',
-          details: row['email']?.toString() ?? '', route: '/employees/$id',
-          searchable: row.values);
+          details: canViewProfile ? row['email']?.toString() ?? '' : '',
+          route: canViewProfile ? '/employees/$id' : '/employees',
+          searchable: canViewProfile ? row.values : [row['full_name'], row['phone']]);
       }
     }
     if (_database.hasPermission('services.manage') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
