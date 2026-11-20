@@ -163,8 +163,8 @@ class PageScaffold extends StatelessWidget {
                                     actions: [
                                         ...actions,
                                         if (showGlobalSearch)
-                                          CircleIconButton(
-                                            icon: Icons.search_rounded,
+                                          HugeIconCircleButton(
+                                            icon: HugeIcons.strokeRoundedSearch01,
                                             size: 40,
                                             tooltip: 'جست‌وجوی سراسری',
                                             onTap: () => context.push('/search'),
