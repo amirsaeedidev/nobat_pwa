@@ -1371,9 +1371,29 @@ class AppDatabase extends ChangeNotifier {
 
   void addService(Service service) {
     requirePermission('services.manage');
-    _services.add(service);
-    if (!_serviceCategories.contains(service.category)) { _serviceCategories.add(service.category); _serviceCategories.sort(); }
-    log(ActivityType.serviceModified, 'افزودن خدمت', 'خدمت «${service.title}» اضافه شد.', entity: 'خدمت');
+    if (_services.any((item) => item.id == service.id)) throw StateError('شناسه خدمت تکراری است.');
+    final validEmployeeIds = service.employeeIds.where((id) => _employees.any((employee) => employee.id == id)).toSet();
+    final normalized = service.copyWith(employeeIds: validEmployeeIds.toList());
+    _services.add(normalized);
+    if (!_serviceCategories.contains(normalized.category)) {
+      _serviceCategories.add(normalized.category);
+      _serviceCategories.sort();
+    }
+    for (var index = 0; index < _employees.length; index++) {
+      final employee = _employees[index];
+      final assigned = validEmployeeIds.contains(employee.id);
+      final ids = employee.serviceIds.where((id) => id != normalized.id).toList();
+      if (assigned) ids.add(normalized.id);
+      _employees[index] = employee.copyWith(serviceIds: ids);
+      if (assigned) {
+        final key = _serviceConfigKey(employee.id, normalized.id);
+        _employeeServiceConfigs.putIfAbsent(
+          key,
+          () => EmployeeServiceConfig(employeeId: employee.id, serviceId: normalized.id),
+        );
+      }
+    }
+    log(ActivityType.serviceModified, 'افزودن خدمت', 'خدمت «${normalized.title}» اضافه شد.', entity: 'خدمت');
     _commit();
   }
 
@@ -1794,7 +1814,10 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void saveEmployeeServiceConfig(EmployeeServiceConfig config) {
-    requirePermission('employees.edit', employeeId: config.employeeId);
+    // تنظیم رابطه خدمت/پرسنل از صفحه مدیریت خدمات نیز مجاز است.
+    if (!hasPermission('services.manage')) {
+      requirePermission('employees.edit', employeeId: config.employeeId);
+    }
     final employee = employeeById(config.employeeId);
     final service = serviceById(config.serviceId);
     if (employee == null || service == null) throw StateError('پرسنل یا خدمت انتخاب‌شده وجود ندارد.');
