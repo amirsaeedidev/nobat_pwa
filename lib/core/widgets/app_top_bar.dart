@@ -138,7 +138,7 @@ class AppTopBar extends StatelessWidget {
                     ...actions,
                     if (actions.isNotEmpty) const SizedBox(width: 8),
                     if (onSearch != null) ...[
-                      CircleIconButton(icon: Icons.search_rounded, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
+                      HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                       const SizedBox(width: 8),
                     ],
                     if (onBell != null) ...[
