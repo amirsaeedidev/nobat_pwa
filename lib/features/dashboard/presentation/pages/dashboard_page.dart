@@ -55,7 +55,6 @@ class DashboardPage extends StatelessWidget {
                     if (!wide) {
                       return _MobileDashboard(
                         stats: stats!,
-                        upcoming: provider.upcoming,
                         period: provider.period,
                         onPeriodChanged: provider.setPeriod,
                         revenueSeries: provider.revenueSeries,
@@ -67,7 +66,6 @@ class DashboardPage extends StatelessWidget {
                     }
                     return _DesktopDashboard(
                       stats: stats!,
-                      upcoming: provider.upcoming,
                       period: provider.period,
                       onPeriodChanged: provider.setPeriod,
                       revenueSeries: provider.revenueSeries,
@@ -176,19 +174,23 @@ class _MobileDashboard extends StatelessWidget {
 class _DesktopDashboard extends StatelessWidget {
   const _DesktopDashboard({
     required this.stats,
-    required this.upcoming,
     required this.period,
     required this.onPeriodChanged,
     required this.revenueSeries,
     required this.logs,
+    required this.selectedDay,
+    required this.dayAppointments,
+    required this.onDaySelected,
   });
 
   final DashboardStats stats;
-  final List<Appointment> upcoming;
   final StatsPeriod period;
   final ValueChanged<StatsPeriod> onPeriodChanged;
   final List<RevenuePoint> revenueSeries;
   final List logs;
+  final DateTime selectedDay;
+  final List<Appointment> dayAppointments;
+  final ValueChanged<DateTime> onDaySelected;
 
   @override
   Widget build(BuildContext context) {
