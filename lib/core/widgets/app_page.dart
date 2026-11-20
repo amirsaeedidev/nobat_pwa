@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
@@ -124,8 +125,8 @@ class PageScaffold extends StatelessWidget {
                                       actions: [
                                         ...actions,
                                         if (showGlobalSearch)
-                                          CircleIconButton(
-                                            icon: Icons.search_rounded,
+                                          HugeIconCircleButton(
+                                            icon: HugeIcons.strokeRoundedSearch01,
                                             size: 40,
                                             tooltip: 'جست‌وجوی سراسری',
                                             onTap: () => context.push('/search'),
