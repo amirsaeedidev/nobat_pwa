@@ -42,6 +42,7 @@ class ServicesPage extends StatelessWidget {
         CircleIconButton(icon: Icons.settings_rounded, size: 38, onTap: () => context.push('/settings')),
       ],
       mobileActions: [
+        CircleIconButton(icon: Icons.category_outlined, size: 38, onTap: () => _manageCategories(context)),
         CircleIconButton(icon: Icons.refresh_rounded, size: 38, onTap: provider.load),
         CircleIconButton(icon: Icons.add_rounded, size: 38, onTap: () => context.push('/services/new')),
       ],

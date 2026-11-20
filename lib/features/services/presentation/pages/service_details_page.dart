@@ -39,7 +39,17 @@ class ServiceDetailsPage extends StatelessWidget {
             _Metric(label: 'مدت خدمت', value: Fmt.duration(service.durationMinutes)),
             _Metric(label: 'دسته‌بندی', value: service.category),
           ]),
-          if (service.imageUrl != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text('تصویر: ' + service.imageUrl!)),
+          if (service.imageUrl != null && service.imageUrl!.isNotEmpty) Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: service.imageUrl!.startsWith('assets/')
+                  ? Image.asset(service.imageUrl!, height: 170, width: double.infinity, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink())
+                  : Image.network(service.imageUrl!, height: 170, width: double.infinity, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+            ),
+          ),
         ])),
         const SizedBox(height: 12),
         Row(children: [
