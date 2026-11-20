@@ -165,8 +165,8 @@ class CircleIconButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: SizedBox(
-            width: size < 44 ? 44 : size,
-            height: size < 44 ? 44 : size,
+            width: size < 44 ? 44.0 : size,
+            height: size < 44 ? 44.0 : size,
             child: Center(child: content),
           ),
         ),
@@ -207,8 +207,8 @@ class HugeIconCircleButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: SizedBox(
-            width: size < 44 ? 44 : size,
-            height: size < 44 ? 44 : size,
+            width: size < 44 ? 44.0 : size,
+            height: size < 44 ? 44.0 : size,
             child: Center(
               child: Container(
             width: size,
