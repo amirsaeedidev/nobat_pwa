@@ -654,23 +654,33 @@ class GlobalSearchRepository {
   }
 
   Future<List<String>> recentSearches() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_historyKey) ?? const [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getStringList(_historyKey) ?? const [];
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> rememberSearch(String query) async {
     final normalized = query.trim();
     if (normalized.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    final recent = prefs.getStringList(_historyKey) ?? <String>[];
-    recent.removeWhere((item) => normalize(item) == normalize(normalized));
-    recent.insert(0, normalized);
-    await prefs.setStringList(_historyKey, recent.take(_historyLimit).toList());
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recent = prefs.getStringList(_historyKey) ?? <String>[];
+      recent.removeWhere((item) => normalize(item) == normalize(normalized));
+      recent.insert(0, normalized);
+      await prefs.setStringList(_historyKey, recent.take(_historyLimit).toList());
+    } catch (_) {
+      // Search itself must remain available even when browser storage is blocked.
+    }
   }
 
   Future<void> clearHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_historyKey);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_historyKey);
+    } catch (_) {}
   }
 }
 
