@@ -94,7 +94,10 @@ class ServicesPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 8,
             children: [
               PillToggle(
                 options: const ['همه خدمات', 'فقط فعال', 'فقط غیرفعال'],
@@ -108,7 +111,6 @@ class ServicesPage extends StatelessWidget {
                 },
                 dense: true,
               ),
-              const Spacer(),
               Text(
                 '${FaNum.ofInt(services.length)} خدمت',
                 style: TextStyle(fontSize: 11, color: pal.textMuted),
@@ -333,24 +335,20 @@ class ServiceCard extends StatelessWidget {
           const SizedBox(height: 12),
           Divider(color: pal.border.withValues(alpha: 0.8), height: 1),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    SoftButton(label: 'جزئیات', icon: Icons.visibility_outlined, dense: true, onTap: onDetails),
-                    const SizedBox(width: 6),
-                    SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, dense: true, onTap: onEdit),
-                    const SizedBox(width: 8),
-                    SoftButton(
-                      label: 'حذف',
-                      icon: Icons.delete_outline_rounded,
-                      dense: true,
-                      color: pal.danger,
-                      onTap: onDelete,
-                    ),
-                  ],
-                ),
+              SoftButton(label: 'جزئیات', icon: Icons.visibility_outlined, dense: true, onTap: onDetails),
+              SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, dense: true, onTap: onEdit),
+              SoftButton(
+                label: 'حذف',
+                icon: Icons.delete_outline_rounded,
+                dense: true,
+                color: pal.danger,
+                onTap: onDelete,
               ),
               StatusBadge(
                 label: service.isActive ? 'فعال' : 'غیرفعال',
