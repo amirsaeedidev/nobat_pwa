@@ -115,10 +115,8 @@ class _CustomersPageState extends State<CustomersPage> {
           ),
           const SizedBox(height: 16),
           if (provider.loadNotice != null)
-            OfflineDataNotice(message: provider.loadNotice!)
-          if (provider.loading)
-            const LoadingState(kind: SkeletonKind.customers)
-          else if (provider.items.isEmpty && provider.loadNotice != null)
+            OfflineDataNotice(message: provider.loadNotice!),
+          if (provider.items.isEmpty && provider.loadNotice != null)
             ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
           else if (provider.items.isEmpty)
             const EmptyState(
