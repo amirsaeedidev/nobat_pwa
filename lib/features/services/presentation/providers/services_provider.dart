@@ -15,6 +15,7 @@ class ServicesProvider extends DbBoundProvider {
   bool _loading = true;
   String _query = '';
   bool _activeOnly = false;
+  bool _inactiveOnly = false;
   String? _categoryFilter;
   num? _minimumPrice;
   num? _maximumPrice;
@@ -23,6 +24,7 @@ class ServicesProvider extends DbBoundProvider {
   bool get loading => _loading;
   String get query => _query;
   bool get activeOnly => _activeOnly;
+  bool get inactiveOnly => _inactiveOnly;
   List<String> get categories => db.serviceCategories;
   String? get categoryFilter => _categoryFilter;
   num? get minimumPrice => _minimumPrice;
@@ -56,6 +58,13 @@ class ServicesProvider extends DbBoundProvider {
 
   void setActiveOnly(bool value) {
     _activeOnly = value;
+    _inactiveOnly = false;
+    load();
+  }
+
+  void setInactiveOnly(bool value) {
+    _inactiveOnly = value;
+    _activeOnly = false;
     load();
   }
 
@@ -71,6 +80,7 @@ class ServicesProvider extends DbBoundProvider {
     final q = _query.trim();
     return _items.where((s) {
       if (_activeOnly && !s.isActive) return false;
+      if (_inactiveOnly && s.isActive) return false;
       if (_categoryFilter != null && s.category != _categoryFilter) return false;
       if (_minimumPrice != null && s.price < _minimumPrice!) return false;
       if (_maximumPrice != null && s.price > _maximumPrice!) return false;
