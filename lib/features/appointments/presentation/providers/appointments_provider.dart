@@ -1,6 +1,7 @@
 import '../../../../core/models/page_result.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
@@ -17,6 +18,7 @@ class AppointmentsProvider extends DbBoundProvider {
   PageResult<Appointment> _page = PageResult.empty(pageSize: 8);
   AppointmentFilter _filter = const AppointmentFilter();
   bool _loading = true;
+  String? _loadNotice;
   bool _busy = false;
   int _pageNumber = 1;
   int _pageSize = 8;
@@ -26,6 +28,7 @@ class AppointmentsProvider extends DbBoundProvider {
   List<Appointment> get items => _page.items;
   AppointmentFilter get filter => _filter;
   bool get loading => _loading;
+  String? get loadNotice => _loadNotice;
   bool get busy => _busy;
   int get pageNumber => _pageNumber;
   int get pageSize => _pageSize;
@@ -34,13 +37,15 @@ class AppointmentsProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     try {
+      _loadNotice = null;
       _page = await _repository.fetchAppointments(
         filter: _filter,
         page: _pageNumber,
         pageSize: _pageSize,
         ascending: _ascending,
       );
-    } catch (_) {
+    } catch (error) {
+      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       final all = db.appointments;
       _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
     } finally {
