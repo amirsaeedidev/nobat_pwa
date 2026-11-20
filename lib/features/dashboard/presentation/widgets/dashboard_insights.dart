@@ -26,7 +26,7 @@ class DashboardInsights extends StatelessWidget {
         final cols = c.maxWidth < 380 ? 1 : 2;
         return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: cols, mainAxisSpacing: 8, crossAxisSpacing: 8,
-          childAspectRatio: cols == 1 ? 3.6 : 2.1,
+          childAspectRatio: cols == 1 ? 2.8 : 1.75,
           children: [
             _MetricTile('درآمد خالص', Fmt.compactMoneyShort(analytics.netRevenue), pal.success),
             _MetricTile('پورسانت پرسنل', Fmt.compactMoneyShort(analytics.commissionCost), pal.warning),
