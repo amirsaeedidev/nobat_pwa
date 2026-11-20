@@ -112,7 +112,6 @@ void main() {
       '/book/manage',
     ];
 
-    final failures = <String>[];
     const widths = [320.0, 360.0, 375.0, 390.0, 414.0, 768.0, 1280.0];
     for (final width in widths) {
       tester.view.physicalSize = Size(width, width == 320 ? 640 : 844);
@@ -120,19 +119,20 @@ void main() {
       await tester.pump();
       for (final path in paths) {
         router.go(path);
-        await tester.pump(const Duration(milliseconds: 90));
-        Object? exception;
-        do {
-          exception = tester.takeException();
-          if (exception != null) {
-            final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
-            failures.add('${width.toInt()}px $path: $details');
-          }
-        } while (exception != null);
+        try {
+          await tester.pump(const Duration(milliseconds: 90));
+        } catch (error) {
+          fail('Responsive route failure at ${width.toInt()}px $path: $error');
+        }
+        final exception = tester.takeException();
+        if (exception != null) {
+          final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
+          fail('Responsive route failure at ${width.toInt()}px $path: $details');
+        }
       }
     }
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
-    expect(failures, isEmpty, reason: failures.join('\n'));
+    expect(true, isTrue);
   });
 }
