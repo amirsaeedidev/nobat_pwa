@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_palette.dart';
 import 'app_buttons.dart';
@@ -60,7 +61,7 @@ class AppTopBar extends StatelessWidget {
                       const _DateTimeLogo(),
                       const Spacer(),
                       if (onSearch != null) ...[
-                        CircleIconButton(icon: Icons.search_rounded, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
+                        HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                         const SizedBox(width: 8),
                       ],
                       if (!compactLogoHeader) ...actions,
