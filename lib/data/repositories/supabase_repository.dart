@@ -23,7 +23,6 @@ class SupabaseRepository {
     'payroll',
     'leave_requests',
     'employee_services',
-    'service_categories',
     'roles',
   };
 
@@ -125,18 +124,20 @@ class SupabaseRepository {
     required String entityType,
     required String recordId,
   }) async {
-    final userId = _requireUserId();
+    _requireUserId();
     _validateBusinessId(businessId);
     _validateEntityType(entityType);
     _validateRecordId(recordId);
 
+    // Row-level security is the authorization boundary. Do not restrict
+    // deletion to the user who last edited the record; any active member
+    // with the entity's manage permission may delete it.
     await _client
         .from('app_records')
         .delete()
         .eq('business_id', businessId)
         .eq('entity_type', entityType)
-        .eq('record_id', recordId)
-        .eq('updated_by', userId);
+        .eq('record_id', recordId);
   }
 
   /// Creates a business for the signed-in user and grants that user owner access.
