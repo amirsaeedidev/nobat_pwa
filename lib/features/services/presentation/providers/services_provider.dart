@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/models/employee_service_config.dart';
@@ -16,6 +17,7 @@ class ServicesProvider extends DbBoundProvider {
   List<String> _categories = const [];
   final Map<String, EmployeeServiceConfig> _employeeConfigs = {};
   bool _loading = true;
+  String? _loadNotice;
   String _query = '';
   bool _activeOnly = false;
   bool _inactiveOnly = false;
@@ -25,6 +27,7 @@ class ServicesProvider extends DbBoundProvider {
 
   List<Service> get items => _items;
   bool get loading => _loading;
+  String? get loadNotice => _loadNotice;
   String get query => _query;
   bool get activeOnly => _activeOnly;
   bool get inactiveOnly => _inactiveOnly;
@@ -46,6 +49,7 @@ class ServicesProvider extends DbBoundProvider {
         _repository.fetchCategories(),
         _repository.fetchEmployeeServiceConfigs(),
       ]);
+      _loadNotice = null;
       _items = results[0] as List<Service>;
       _categories = results[1] as List<String>;
       _employeeConfigs
@@ -53,7 +57,8 @@ class ServicesProvider extends DbBoundProvider {
         ..addEntries((results[2] as List<EmployeeServiceConfig>).map(
           (config) => MapEntry('${config.employeeId}::${config.serviceId}', config),
         ));
-    } catch (_) {
+    } catch (error) {
+      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _items = db.services;
       _categories = db.serviceCategories;
       _employeeConfigs
