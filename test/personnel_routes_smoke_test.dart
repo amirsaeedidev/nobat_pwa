@@ -123,14 +123,12 @@ void main() {
           await tester.pump(const Duration(milliseconds: 90));
         } catch (error) {
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
-          debugDumpRenderTree();
           fail('Responsive route failure at ${width.toInt()}px $path: $error');
         }
         final exception = tester.takeException();
         if (exception != null) {
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
-          debugDumpRenderTree();
           fail('Responsive route failure at ${width.toInt()}px $path: $details');
         }
       }
