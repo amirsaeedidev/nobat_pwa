@@ -1,4 +1,5 @@
 import '../../core/models/page_result.dart';
+import '../../core/models/app_failure.dart';
 import '../mock/app_database.dart';
 import '../models/customer.dart';
 
@@ -67,14 +68,16 @@ class MockCustomerRepository implements CustomerRepository {
     int pageSize = 8,
     String sortBy = 'createdAt',
   }) async {
-    await _db.delay(160);
-    final list = _filtered(query);
-    final start = (page - 1) * pageSize;
-    if (start >= list.length) {
-      return PageResult(items: const [], total: list.length, page: page, pageSize: pageSize);
-    }
-    final end = (start + pageSize).clamp(0, list.length);
-    return PageResult(items: list.sublist(start, end), total: list.length, page: page, pageSize: pageSize);
+    return AppFailure.guard(() async {
+      await _db.delay(160);
+      final list = _filtered(query);
+      final start = (page - 1) * pageSize;
+      if (start >= list.length) {
+        return PageResult(items: const [], total: list.length, page: page, pageSize: pageSize);
+      }
+      final end = (start + pageSize).clamp(0, list.length);
+      return PageResult(items: list.sublist(start, end), total: list.length, page: page, pageSize: pageSize);
+    }, fallback: AppErrorKind.fetch);
   }
 
   @override
@@ -88,19 +91,25 @@ class MockCustomerRepository implements CustomerRepository {
 
   @override
   Future<void> create(Customer customer) async {
-    await _db.delay(220);
-    _db.addCustomer(customer);
+    await AppFailure.guard(() async {
+      await _db.delay(220);
+      _db.addCustomer(customer);
+    }, fallback: AppErrorKind.save);
   }
 
   @override
   Future<void> update(Customer customer) async {
-    await _db.delay(200);
-    _db.updateCustomer(customer);
+    await AppFailure.guard(() async {
+      await _db.delay(200);
+      _db.updateCustomer(customer);
+    }, fallback: AppErrorKind.save);
   }
 
   @override
   Future<void> delete(String id) async {
-    await _db.delay(160);
-    _db.deleteCustomer(id);
+    await AppFailure.guard(() async {
+      await _db.delay(160);
+      _db.deleteCustomer(id);
+    }, fallback: AppErrorKind.save);
   }
 }
