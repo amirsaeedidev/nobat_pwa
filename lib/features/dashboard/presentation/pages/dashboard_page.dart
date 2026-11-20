@@ -46,7 +46,7 @@ class DashboardPage extends StatelessWidget {
       ],
       scrollable: true,
       child: provider.loading && stats == null
-          ? const LoadingState()
+          ? const LoadingState(kind: SkeletonKind.dashboard)
           : stats == null
               ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Text('دریافت اطلاعات پیشخوان ناموفق بود'),
