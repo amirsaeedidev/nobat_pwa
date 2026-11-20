@@ -32,6 +32,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   final _description = TextEditingController();
   final _price = TextEditingController();
   final _directCost = TextEditingController();
+  final _imageUrl = TextEditingController();
+  final _discountPrice = TextEditingController();
+  final _discountStartsAt = TextEditingController();
+  final _discountEndsAt = TextEditingController();
   final _duration = TextEditingController(text: '45');
   final _prep = TextEditingController(text: '0');
   final _buffer = TextEditingController(text: '5');
@@ -61,6 +65,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         _description.text = service.description;
         _price.text = service.price.toString();
         _directCost.text = service.directCost?.toString() ?? '';
+        _imageUrl.text = service.imageUrl ?? '';
+        _discountPrice.text = service.discountPrice?.toString() ?? '';
+        _discountStartsAt.text = service.discountStartsAt?.toIso8601String().substring(0, 10) ?? '';
+        _discountEndsAt.text = service.discountEndsAt?.toIso8601String().substring(0, 10) ?? '';
         _duration.text = service.durationMinutes.toString();
         _prep.text = service.prepMinutes.toString();
         _buffer.text = service.bufferMinutes.toString();
@@ -80,6 +88,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     _description.dispose();
     _price.dispose();
     _directCost.dispose();
+    _imageUrl.dispose();
+    _discountPrice.dispose();
+    _discountStartsAt.dispose();
+    _discountEndsAt.dispose();
     _duration.dispose();
     _prep.dispose();
     _buffer.dispose();
@@ -90,6 +102,12 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final discountStart = _discountStartsAt.text.trim().isEmpty ? null : DateTime.tryParse(_discountStartsAt.text.trim());
+    final discountEnd = _discountEndsAt.text.trim().isEmpty ? null : DateTime.tryParse(_discountEndsAt.text.trim());
+    if (discountStart != null && discountEnd != null && discountEnd.isBefore(discountStart)) {
+      AppToast.show(context, 'پایان تخفیف نمی‌تواند قبل از شروع آن باشد', success: false);
+      return;
+    }
     setState(() => _saving = true);
     final provider = context.read<ServicesProvider>();
     final service = (_existing ?? Service(id: provider.nextId(), title: '', price: 0, durationMinutes: 45)).copyWith(
@@ -98,6 +116,14 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       price: num.tryParse(FaNum.toLatin(_price.text)) ?? 0,
       directCost: _directCost.text.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(_directCost.text)),
       clearDirectCost: _directCost.text.trim().isEmpty,
+      imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
+      clearImageUrl: _imageUrl.text.trim().isEmpty,
+      discountPrice: _discountPrice.text.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(_discountPrice.text)),
+      clearDiscountPrice: _discountPrice.text.trim().isEmpty,
+      discountStartsAt: _discountStartsAt.text.trim().isEmpty ? null : DateTime.tryParse(_discountStartsAt.text.trim()),
+      clearDiscountStartsAt: _discountStartsAt.text.trim().isEmpty,
+      discountEndsAt: _discountEndsAt.text.trim().isEmpty ? null : DateTime.tryParse(_discountEndsAt.text.trim()),
+      clearDiscountEndsAt: _discountEndsAt.text.trim().isEmpty,
       durationMinutes: int.tryParse(FaNum.toLatin(_duration.text)) ?? 45,
       prepMinutes: int.tryParse(FaNum.toLatin(_prep.text)) ?? 0,
       bufferMinutes: int.tryParse(FaNum.toLatin(_buffer.text)) ?? 5,
@@ -186,6 +212,49 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      AppTextField(
+                        controller: _imageUrl,
+                        label: 'تصویر خدمت (مسیر فایل یا نشانی تصویر)',
+                        hint: 'assets/image/service.png',
+                        icon: Icons.image_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      AppTextField(
+                        controller: _discountPrice,
+                        label: 'قیمت تخفیفی (تومان)',
+                        hint: 'اختیاری',
+                        icon: Icons.local_offer_outlined,
+                        keyboardType: TextInputType.number,
+                        numericFa: true,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) return null;
+                          final discount = num.tryParse(FaNum.toLatin(value));
+                          final price = num.tryParse(FaNum.toLatin(_price.text));
+                          if (discount == null || discount < 0 || price == null || discount >= price) {
+                            return 'قیمت تخفیفی باید کمتر از قیمت اصلی باشد.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(child: AppTextField(
+                          controller: _discountStartsAt,
+                          label: 'شروع تخفیف',
+                          hint: 'YYYY-MM-DD',
+                          icon: Icons.event_available_outlined,
+                          validator: (value) => value != null && value.trim().isNotEmpty && DateTime.tryParse(value.trim()) == null ? 'تاریخ معتبر وارد کنید.' : null,
+                        )),
+                        const SizedBox(width: 10),
+                        Expanded(child: AppTextField(
+                          controller: _discountEndsAt,
+                          label: 'پایان تخفیف',
+                          hint: 'YYYY-MM-DD',
+                          icon: Icons.event_busy_outlined,
+                          validator: (value) => value != null && value.trim().isNotEmpty && DateTime.tryParse(value.trim()) == null ? 'تاریخ معتبر وارد کنید.' : null,
+                        )),
+                      ]),
                       const SizedBox(height: 12),
                       AppTextField(
                         controller: _directCost,
