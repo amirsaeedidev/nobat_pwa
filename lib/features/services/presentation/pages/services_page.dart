@@ -31,6 +31,7 @@ class ServicesPage extends StatelessWidget {
       subtitle: '${FaNum.ofInt(provider.activeCount)} خدمت فعال از ${FaNum.ofInt(provider.items.length)}',
       icon: Icons.content_cut_rounded,
       actions: [
+        SoftButton(label: 'دسته‌بندی‌ها', icon: Icons.category_outlined, onTap: () => _manageCategories(context)),
         SoftButton(label: 'بازآوری', icon: Icons.refresh_rounded, onTap: provider.load),
         SolidButton(
           label: 'خدمت جدید',
@@ -91,6 +92,7 @@ class ServicesPage extends StatelessWidget {
                     child: ServiceCard(
                       service: service,
                       onEdit: () => context.push('/services/${service.id}/edit'),
+                      onDetails: () => context.push('/services/${service.id}'),
                       onDelete: () => _delete(context, service),
                       onToggle: () => provider.toggle(service.id, !service.isActive),
                     ),
@@ -102,6 +104,7 @@ class ServicesPage extends StatelessWidget {
               ServiceCard(
                 service: service,
                 onEdit: () => context.push('/services/${service.id}/edit'),
+                onDetails: () => context.push('/services/${service.id}'),
                 onDelete: () => _delete(context, service),
                 onToggle: () => provider.toggle(service.id, !service.isActive),
               ),
@@ -128,6 +131,54 @@ class ServicesPage extends StatelessWidget {
     );
   }
 
+  Future<void> _manageCategories(BuildContext context) async {
+    final provider = context.read<ServicesProvider>();
+    final controller = TextEditingController();
+    String? selected = provider.categories.isEmpty ? null : provider.categories.first;
+    String? moveTo;
+    await showDialog<void>(context: context, builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setDialogState) => AlertDialog(
+        title: const Text('مدیریت دسته‌بندی خدمات'),
+        content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: controller, decoration: const InputDecoration(labelText: 'نام دسته‌بندی جدید / نام جدید')),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: selected,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'دسته‌بندی برای ویرایش یا حذف'),
+            items: provider.categories.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
+            onChanged: (value) => setDialogState(() { selected = value; moveTo = null; }),
+          ),
+          if (selected != null) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: moveTo,
+              decoration: const InputDecoration(labelText: 'انتقال خدمات وابسته هنگام حذف'),
+              items: provider.categories.where((item) => item != selected).map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
+              onChanged: (value) => setDialogState(() => moveTo = value),
+            ),
+          ],
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن')),
+          TextButton(onPressed: () {
+            try { provider.addCategory(controller.text); Navigator.pop(dialogContext); }
+            catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
+          }, child: const Text('افزودن')),
+          TextButton(onPressed: selected == null ? null : () {
+            try { provider.renameCategory(selected!, controller.text); Navigator.pop(dialogContext); }
+            catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
+          }, child: const Text('تغییر نام')),
+          TextButton(onPressed: selected == null ? null : () {
+            try { provider.deleteCategory(selected!, moveServicesTo: moveTo); Navigator.pop(dialogContext); }
+            catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
+          }, child: const Text('حذف')),
+        ],
+      ),
+    ));
+    controller.dispose();
+  }
+
   Future<void> _delete(BuildContext context, Service service) async {
     final confirmed = await showConfirmDialog(
       context,
@@ -152,12 +203,14 @@ class ServiceCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onToggle,
+    required this.onDetails,
   });
 
   final Service service;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onToggle;
+  final VoidCallback onDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +288,8 @@ class ServiceCard extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
+                    SoftButton(label: 'جزئیات', icon: Icons.visibility_outlined, dense: true, onTap: onDetails),
+                    const SizedBox(width: 6),
                     SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, dense: true, onTap: onEdit),
                     const SizedBox(width: 8),
                     SoftButton(
