@@ -143,6 +143,32 @@ class ErrorStateView extends StatelessWidget {
   }
 }
 
+/// اطلاع‌رسانی غیرمسدودکننده هنگام استفاده از نسخه محلی داده‌ها.
+class OfflineDataNotice extends StatelessWidget {
+  const OfflineDataNotice({super.key, required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: pal.info.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: pal.info.withValues(alpha: 0.24)),
+      ),
+      child: Row(children: [
+        Icon(Icons.cloud_off_rounded, size: 17, color: pal.info),
+        const SizedBox(width: 8),
+        Expanded(child: Text(message, style: TextStyle(fontSize: 10.5, color: pal.textSecondary, height: 1.6))),
+      ]),
+    );
+  }
+}
+
 /// نمایش پیام کوتاه (SnackBar) با استایل اپلیکیشن.
 class AppToast {
   const AppToast._();
