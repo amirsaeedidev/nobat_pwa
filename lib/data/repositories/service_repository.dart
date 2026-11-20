@@ -1,5 +1,6 @@
 import '../mock/app_database.dart';
 import '../models/service.dart';
+import '../models/employee_service_config.dart';
 
 abstract class ServiceRepository {
   Future<List<Service>> fetchServices({bool onlyActive = false, String query = ''});
@@ -13,6 +14,14 @@ abstract class ServiceRepository {
   Future<void> delete(String id);
 
   Future<void> toggle(String id, bool isActive);
+
+  Future<List<String>> fetchCategories();
+  Future<void> addCategory(String name);
+  Future<void> renameCategory(String oldName, String newName);
+  Future<void> deleteCategory(String name, {String? moveServicesTo});
+
+  Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs();
+  Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig config);
 }
 
 class MockServiceRepository implements ServiceRepository {
@@ -55,5 +64,41 @@ class MockServiceRepository implements ServiceRepository {
   Future<void> toggle(String id, bool isActive) async {
     await _db.delay(120);
     _db.toggleService(id, isActive);
+  }
+
+  @override
+  Future<List<String>> fetchCategories() async {
+    await _db.delay(60);
+    return _db.serviceCategories;
+  }
+
+  @override
+  Future<void> addCategory(String name) async {
+    await _db.delay(80);
+    _db.addServiceCategory(name);
+  }
+
+  @override
+  Future<void> renameCategory(String oldName, String newName) async {
+    await _db.delay(80);
+    _db.renameServiceCategory(oldName, newName);
+  }
+
+  @override
+  Future<void> deleteCategory(String name, {String? moveServicesTo}) async {
+    await _db.delay(80);
+    _db.deleteServiceCategory(name, moveServicesTo: moveServicesTo);
+  }
+
+  @override
+  Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async {
+    await _db.delay(80);
+    return _db.employees.expand((employee) => _db.employeeServiceConfigsFor(employee.id)).toList();
+  }
+
+  @override
+  Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig config) async {
+    await _db.delay(80);
+    _db.saveEmployeeServiceConfig(config);
   }
 }
