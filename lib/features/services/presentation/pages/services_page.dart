@@ -97,9 +97,15 @@ class ServicesPage extends StatelessWidget {
           Row(
             children: [
               PillToggle(
-                options: const ['همه خدمات', 'فقط فعال'],
-                selectedIndex: provider.activeOnly ? 1 : 0,
-                onChanged: (i) => provider.setActiveOnly(i == 1),
+                options: const ['همه خدمات', 'فقط فعال', 'فقط غیرفعال'],
+                selectedIndex: provider.inactiveOnly ? 2 : (provider.activeOnly ? 1 : 0),
+                onChanged: (i) {
+                  if (i == 2) {
+                    provider.setInactiveOnly(true);
+                  } else {
+                    provider.setActiveOnly(i == 1);
+                  }
+                },
                 dense: true,
               ),
               const Spacer(),
