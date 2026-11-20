@@ -181,7 +181,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 ),
                 const SizedBox(height: 10),
                 if (provider.loading)
-                  const LoadingState(compact: true)
+                  const LoadingState(compact: true, kind: SkeletonKind.appointments)
                 else if (provider.items.isEmpty)
                   const EmptyState(
                     title: 'نوبتی یافت نشد',
