@@ -21,7 +21,6 @@ class GlobalSearchPage extends StatefulWidget {
 class _GlobalSearchPageState extends State<GlobalSearchPage> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
-  final Map<GlobalSearchType, List<GlobalSearchResult>> _grouped = {};
   late GlobalSearchRepository _repository;
   AppDatabase? _database;
   Timer? _debounce;
@@ -308,7 +307,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final item in const ['مشتریان', 'پرسنل', 'خدمات', 'نوبت‌ها', 'تراکنش‌های مالی'])
+            for (final item in const ['سارا', 'ژلیش', 'OT-', '0912', 'اجاره'])
               ActionChip(
                 avatar: const Icon(Icons.trending_up_rounded, size: 15),
                 label: Text(item),
