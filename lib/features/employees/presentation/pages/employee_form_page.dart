@@ -445,7 +445,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                       ),
                     ],
                   ),
-                ),,
+                ),
             if (enabled)
               Align(
                 alignment: Alignment.centerRight,
