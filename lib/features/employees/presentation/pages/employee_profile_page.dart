@@ -277,13 +277,10 @@ class EmployeeProfilePage extends StatelessWidget {
                   icon: const Icon(Icons.query_stats_rounded, size: 16),
                   label: const Text('گزارش‌های مجموعه'),
                 ),
-                OutlinedButton(
+                OutlinedButton.icon(
                   onPressed: () => context.push('/employees/${employee.id}/finance'),
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    HugeIcon(icon: HugeIcons.strokeRoundedPercent, size: 16),
-                    SizedBox(width: 6),
-                    Text('قرارداد و پورسانت'),
-                  ]),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedPercent, size: 16),
+                  label: const Text('قرارداد و پورسانت', maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => context.push('/employees/${employee.id}/wallet'),
