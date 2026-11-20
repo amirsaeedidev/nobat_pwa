@@ -417,7 +417,7 @@ class GlobalSearchRepository {
         add(id: id, type: GlobalSearchType.customer,
           title: row['full_name'] as String? ?? '', subtitle: row['phone'] as String? ?? '',
           details: canViewHistory ? row['notes'] as String? ?? '' : '',
-          route: canViewHistory ? '/customers/$id' : '/customers',
+          route: _database.customerById(id) != null && canViewHistory ? '/customers/$id' : '/customers',
           searchable: canViewHistory ? row.values : [row['full_name'], row['phone']],
           date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
@@ -431,7 +431,7 @@ class GlobalSearchRepository {
         add(id: id, type: GlobalSearchType.employee, title: row['full_name']?.toString() ?? '',
           subtitle: row['title']?.toString() ?? row['phone']?.toString() ?? '',
           details: canViewProfile ? row['email']?.toString() ?? '' : '',
-          route: canViewProfile ? '/employees/$id' : '/employees',
+          route: _database.employeeById(id) != null && canViewProfile ? '/employees/$id' : '/employees',
           searchable: canViewProfile ? row.values : [row['full_name'], row['phone']]);
       }
     }
@@ -444,7 +444,7 @@ class GlobalSearchRepository {
         } else {
           add(id: id, type: GlobalSearchType.service, title: row['title']?.toString() ?? '',
             subtitle: row['category']?.toString() ?? '', details: row['description']?.toString() ?? '',
-            route: '/services/$id', searchable: row.values);
+            route: _database.serviceById(id) == null ? '/services' : '/services/$id', searchable: row.values);
         }
       }
     }
@@ -459,7 +459,7 @@ class GlobalSearchRepository {
           title: '${row['customer_name'] ?? 'نوبت'} • ${row['reference'] ?? id}',
           subtitle: '${row['service_name'] ?? ''} • ${row['employee_name'] ?? ''}',
           details: '${row['customer_phone'] ?? ''} • ${row['status'] ?? ''}',
-          route: '/appointments/$id', searchable: row.values,
+          route: _database.appointmentById(id) == null ? '/appointments' : '/appointments/$id', searchable: row.values,
           date: DateTime.tryParse(row['start_at']?.toString() ?? ''));
       }
     }
