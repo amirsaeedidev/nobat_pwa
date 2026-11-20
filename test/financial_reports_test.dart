@@ -89,6 +89,25 @@ void main() {
       final appointmentRevenue = db.employeeFinanceEntries.where((entry) => entry.appointmentId == pending.id)
           .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
       expect(appointmentRevenue, 0);
+
+      // Every non-zero commission/refund document must have exactly one
+      // immutable wallet mirror, and both ledgers must reconcile after refund.
+      final appointmentFinance = db.employeeFinanceEntries
+          .where((entry) => entry.appointmentId == pending.id)
+          .toList();
+      final expectedWalletCommission = appointmentFinance.fold<int>(
+        0, (sum, entry) => sum + entry.commissionAmount,
+      );
+      final mirroredWalletEntries = db.employeeWalletTransactions.where((wallet) =>
+          appointmentFinance.any((entry) => entry.id == wallet.sourceFinanceEntryId));
+      expect(
+        mirroredWalletEntries.length,
+        appointmentFinance.where((entry) => entry.commissionAmount != 0).length,
+      );
+      expect(
+        mirroredWalletEntries.fold<int>(0, (sum, entry) => sum + entry.amount),
+        expectedWalletCommission,
+      );
       expect(report.collectedRevenue, db.appointmentPayments.fold<int>(0, (sum, item) => sum + item.signedAmount));
     });
 
