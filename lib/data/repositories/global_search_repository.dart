@@ -451,7 +451,7 @@ class GlobalSearchRepository {
       try {
         final businessId = await _resolveBusinessId();
         if (businessId != null) {
-          await _appendRemoteResults(type, results, add, businessId);
+          await _appendRemoteResults(query, type, results, add, businessId);
         }
       } catch (_) {
         // Remote search is optional; retain local/offline results when unavailable.
@@ -498,6 +498,7 @@ class GlobalSearchRepository {
   }
 
   Future<void> _appendRemoteResults(
+    String query,
     GlobalSearchType? type,
     List<GlobalSearchResult> results,
     void Function({
@@ -518,7 +519,12 @@ class GlobalSearchRepository {
   ) async {
     final remote = _remote!;
     Future<List<Map<String, dynamic>>> fetch(String entity) =>
-        remote.fetchRecords(businessId: businessId, entityType: entity);
+        remote.searchRecords(
+          businessId: businessId,
+          entityType: entity,
+          query: query,
+          limit: 60,
+        );
 
     if (_hasRemotePermission('customers.view') && (type == null || type == GlobalSearchType.customer)) {
       for (final row in await fetch('customers')) {
