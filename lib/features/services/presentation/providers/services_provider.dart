@@ -1,6 +1,7 @@
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/service.dart';
+import '../../../../data/models/employee_service_config.dart';
 import '../../../../data/repositories/service_repository.dart';
 
 /// مدیریت خدمات.
@@ -12,6 +13,8 @@ class ServicesProvider extends DbBoundProvider {
   final ServiceRepository _repository;
 
   List<Service> _items = const [];
+  List<String> _categories = const [];
+  final Map<String, EmployeeServiceConfig> _employeeConfigs = {};
   bool _loading = true;
   String _query = '';
   bool _activeOnly = false;
@@ -25,7 +28,9 @@ class ServicesProvider extends DbBoundProvider {
   String get query => _query;
   bool get activeOnly => _activeOnly;
   bool get inactiveOnly => _inactiveOnly;
-  List<String> get categories => db.serviceCategories;
+  List<String> get categories => _categories;
+  EmployeeServiceConfig? employeeServiceConfig(String employeeId, String serviceId) =>
+      _employeeConfigs['$employeeId::$serviceId'];
   String? get categoryFilter => _categoryFilter;
   num? get minimumPrice => _minimumPrice;
   num? get maximumPrice => _maximumPrice;
@@ -36,9 +41,26 @@ class ServicesProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     try {
-      _items = await _repository.fetchServices(onlyActive: _activeOnly);
+      final results = await Future.wait([
+        _repository.fetchServices(onlyActive: _activeOnly),
+        _repository.fetchCategories(),
+        _repository.fetchEmployeeServiceConfigs(),
+      ]);
+      _items = results[0] as List<Service>;
+      _categories = results[1] as List<String>;
+      _employeeConfigs
+        ..clear()
+        ..addEntries((results[2] as List<EmployeeServiceConfig>).map(
+          (config) => MapEntry('${config.employeeId}::${config.serviceId}', config),
+        ));
     } catch (_) {
       _items = db.services;
+      _categories = db.serviceCategories;
+      _employeeConfigs
+        ..clear()
+        ..addEntries(db.employees
+            .expand((employee) => db.employeeServiceConfigsFor(employee.id))
+            .map((config) => MapEntry('${config.employeeId}::${config.serviceId}', config)));
     } finally {
       _loading = false;
       notifyListeners();
@@ -48,6 +70,12 @@ class ServicesProvider extends DbBoundProvider {
   @override
   void onDatabaseChanged() {
     _items = db.services;
+    _categories = db.serviceCategories;
+    _employeeConfigs
+      ..clear()
+      ..addEntries(db.employees
+          .expand((employee) => db.employeeServiceConfigsFor(employee.id))
+          .map((config) => MapEntry('${config.employeeId}::${config.serviceId}', config)));
     notifyListeners();
   }
 
@@ -105,15 +133,29 @@ class ServicesProvider extends DbBoundProvider {
 
   Future<void> toggle(String id, bool active) => _repository.toggle(id, active);
 
-  void addCategory(String name) { db.addServiceCategory(name); notifyListeners(); }
-  void renameCategory(String oldName, String newName) {
-    db.renameServiceCategory(oldName, newName);
+  Future<void> addCategory(String name) async {
+    await _repository.addCategory(name);
+    _categories = await _repository.fetchCategories();
+    notifyListeners();
+  }
+
+  Future<void> renameCategory(String oldName, String newName) async {
+    await _repository.renameCategory(oldName, newName);
+    _categories = await _repository.fetchCategories();
     if (_categoryFilter == oldName) _categoryFilter = newName.trim();
     notifyListeners();
   }
-  void deleteCategory(String name, {String? moveServicesTo}) {
-    db.deleteServiceCategory(name, moveServicesTo: moveServicesTo);
+
+  Future<void> deleteCategory(String name, {String? moveServicesTo}) async {
+    await _repository.deleteCategory(name, moveServicesTo: moveServicesTo);
+    _categories = await _repository.fetchCategories();
     if (_categoryFilter == name) _categoryFilter = null;
+    await load();
+  }
+
+  Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig config) async {
+    await _repository.saveEmployeeServiceConfig(config);
+    _employeeConfigs['${config.employeeId}::${config.serviceId}'] = config;
     notifyListeners();
   }
 
