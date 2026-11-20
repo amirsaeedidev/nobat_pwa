@@ -133,6 +133,5 @@ void main() {
     }
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
-    expect(true, isTrue);
   });
 }
