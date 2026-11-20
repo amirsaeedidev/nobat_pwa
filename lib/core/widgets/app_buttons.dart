@@ -164,7 +164,11 @@ class CircleIconButton extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: content,
+          child: SizedBox(
+            width: size < 44 ? 44 : size,
+            height: size < 44 ? 44 : size,
+            child: Center(child: content),
+          ),
         ),
       ),
     );
@@ -202,7 +206,11 @@ class HugeIconCircleButton extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: Container(
+          child: SizedBox(
+            width: size < 44 ? 44 : size,
+            height: size < 44 ? 44 : size,
+            child: Center(
+              child: Container(
             width: size,
             height: size,
             decoration: BoxDecoration(
@@ -214,6 +222,8 @@ class HugeIconCircleButton extends StatelessWidget {
               icon: icon,
               size: size * 0.46,
               color: active ? pal.primaryBright : tint,
+            ),
+              ),
             ),
           ),
         ),
