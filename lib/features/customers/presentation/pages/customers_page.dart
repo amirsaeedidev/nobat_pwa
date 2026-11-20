@@ -78,7 +78,9 @@ class _CustomersPageState extends State<CustomersPage> {
         CircleIconButton(icon: Icons.refresh_rounded, size: 38, onTap: provider.load),
         CircleIconButton(icon: Icons.person_add_alt_1_rounded, size: 38, onTap: () => context.push('/customers/new')),
       ],
-      child: Column(
+      child: provider.loading
+          ? const LoadingState(kind: SkeletonKind.customers)
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SearchField(
