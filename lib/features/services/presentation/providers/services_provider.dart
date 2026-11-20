@@ -20,6 +20,7 @@ class ServicesProvider extends DbBoundProvider {
   bool get loading => _loading;
   String get query => _query;
   bool get activeOnly => _activeOnly;
+  List<String> get categories => db.serviceCategories;
   List<Service> get activeServices => _items.where((s) => s.isActive).toList();
   int get activeCount => _items.where((s) => s.isActive).length;
 
@@ -76,6 +77,13 @@ class ServicesProvider extends DbBoundProvider {
   Future<void> remove(String id) => _repository.delete(id);
 
   Future<void> toggle(String id, bool active) => _repository.toggle(id, active);
+
+  void addCategory(String name) { db.addServiceCategory(name); notifyListeners(); }
+  void renameCategory(String oldName, String newName) { db.renameServiceCategory(oldName, newName); notifyListeners(); }
+  void deleteCategory(String name, {String? moveServicesTo}) {
+    db.deleteServiceCategory(name, moveServicesTo: moveServicesTo);
+    notifyListeners();
+  }
 
   String nextId() => 'srv-${DateTime.now().millisecondsSinceEpoch}';
 }

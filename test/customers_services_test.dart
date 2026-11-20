@@ -66,6 +66,17 @@ void main() {
       expect(provider.items.every((s) => s.isActive), isTrue);
     });
 
+    test('مدیریت دسته‌بندی و جلوگیری از حذف دسته دارای خدمت', () {
+      final category = db.serviceCategories.first;
+      expect(() => db.deleteServiceCategory(category), throwsStateError);
+      final target = db.serviceCategories.firstWhere((item) => item != category);
+      db.renameServiceCategory(category, 'دسته آزمایشی');
+      expect(db.services.where((item) => item.category == 'دسته آزمایشی'), isNotEmpty);
+      db.deleteServiceCategory('دسته آزمایشی', moveServicesTo: target);
+      expect(db.services.any((item) => item.category == 'دسته آزمایشی'), isFalse);
+      expect(db.serviceCategories.contains('دسته آزمایشی'), isFalse);
+    });
+
     test('ساخت خدمت جدید با شناسه یکتا', () async {
       final before = db.services.length;
       final id = provider.nextId();
