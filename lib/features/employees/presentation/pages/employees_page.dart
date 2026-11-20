@@ -222,8 +222,13 @@ class _CountCard extends StatelessWidget {
       Icon(icon, color: color, size: 22),
       const SizedBox(width: 8),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(title, style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
-        Text(FaNum.ofInt(value), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(FaNum.ofInt(value), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+        ),
       ])),
     ]),
   );
