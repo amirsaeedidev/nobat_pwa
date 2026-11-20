@@ -404,9 +404,13 @@ class GlobalSearchRepository {
     return _resolvedBusinessId;
   }
 
-  bool _hasRemotePermission(String permissionId, {String? employeeId}) {
+  bool _hasRemotePermission(
+    String permissionId, {
+    String? employeeId,
+    String? remotePermissionId,
+  }) {
     if (!_database.hasPermission(permissionId, employeeId: employeeId)) return false;
-    return _remoteOwner || _remotePermissions.contains(permissionId);
+    return _remoteOwner || _remotePermissions.contains(remotePermissionId ?? permissionId);
   }
 
   Future<void> _appendRemoteResults(
@@ -455,7 +459,7 @@ class GlobalSearchRepository {
           isRemote: true);
       }
     }
-    if (_hasRemotePermission('services.manage') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
+    if (_hasRemotePermission('services.manage', remotePermissionId: 'services.view') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
       for (final row in await fetch('services')) {
         final id = row['id']?.toString() ?? '';
         if (id.startsWith(_categoryPrefix)) {
@@ -468,7 +472,8 @@ class GlobalSearchRepository {
         }
       }
     }
-    if ((_hasRemotePermission('appointments.view_all') || _hasRemotePermission('appointments.view_self')) &&
+    if ((_hasRemotePermission('appointments.view_all', remotePermissionId: 'appointments.view') ||
+        _hasRemotePermission('appointments.view_self', remotePermissionId: 'appointments.view')) &&
         (type == null || type == GlobalSearchType.appointment)) {
       for (final row in await fetch('appointments')) {
         final id = row['id']?.toString() ?? '';
@@ -483,46 +488,64 @@ class GlobalSearchRepository {
           date: DateTime.tryParse(row['start_at']?.toString() ?? ''));
       }
     }
-    if (type == null || type == GlobalSearchType.transaction) {
-      if (_hasRemotePermission('finance.commission.view')) {
+    if (type == null || type == GlobalSearchType.transaction || type == GlobalSearchType.document) {
+      final canReadFinance = _hasRemotePermission('finance.income.view', remotePermissionId: 'finance.view') ||
+          _hasRemotePermission('finance.commission.view', remotePermissionId: 'finance.view') ||
+          _hasRemotePermission('finance.salary.view', remotePermissionId: 'finance.view');
+      if (canReadFinance) {
         for (final row in await fetch('finance')) {
           final employeeId = row['employee_id']?.toString();
-          if (employeeId == null || !_hasRemotePermission('finance.commission.view', employeeId: employeeId)) continue;
-          add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
-            title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش پورسانت',
-            subtitle: '${row['commission_amount'] ?? ''} تومان',
-            details: row['appointment_id']?.toString() ?? '', route: '/search/result',
-            searchable: row.values, isRemote: true, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
-        }
-      }
-      if (_hasRemotePermission('finance.salary.view') || _hasRemotePermission('finance.settlement.view')) {
-        for (final row in await fetch('employee_wallets')) {
-          final employeeId = row['employee_id']?.toString() ?? '';
-          final canViewSalary = _hasRemotePermission('finance.salary.view', employeeId: employeeId);
-          final canViewSettlement = _hasRemotePermission('finance.settlement.view', employeeId: employeeId);
-          if (!_database.canViewEmployeeIncome(employeeId) || (!canViewSalary && !canViewSettlement)) continue;
-          add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
-            title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش کیف پول',
-            subtitle: '${row['amount'] ?? ''} تومان', details: row['status']?.toString() ?? '',
+          if (employeeId == null) {
+            if (!_database.hasPermission('finance.income.view')) continue;
+          } else {
+            final canViewCommission = _hasRemotePermission('finance.commission.view',
+                employeeId: employeeId, remotePermissionId: 'finance.view');
+            final canViewSalary = _hasRemotePermission('finance.salary.view',
+                employeeId: employeeId, remotePermissionId: 'finance.view');
+            if (!canViewCommission && !canViewSalary) continue;
+          }
+          final isDocument = row['record_kind']?.toString() == 'document' ||
+              row['source_document_id'] != null;
+          if (isDocument && type != null && type != GlobalSearchType.document &&
+              type != GlobalSearchType.transaction) continue;
+          add(id: row['id']?.toString() ?? '',
+            type: isDocument && type == GlobalSearchType.document
+                ? GlobalSearchType.document
+                : GlobalSearchType.transaction,
+            title: row['description']?.toString() ?? row['title']?.toString() ??
+                row['type']?.toString() ?? 'تراکنش مالی',
+            subtitle: row['amount'] == null
+                ? (row['commission_amount']?.toString() ?? '')
+                : '${row['amount']} تومان',
+            details: row['appointment_id']?.toString() ??
+                row['source_document_id']?.toString() ?? '',
             route: '/search/result', searchable: row.values, isRemote: true,
             date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
-      if (_hasRemotePermission('finance.income.view')) {
-        for (final entity in ['appointment_payments', 'business_expenses']) {
-          for (final row in await fetch(entity)) {
-            final id = row['id']?.toString() ?? '';
-            add(id: id, type: GlobalSearchType.transaction,
-              title: row['description']?.toString() ?? row['category']?.toString() ?? 'تراکنش مالی',
-              subtitle: '${row['amount'] ?? ''} تومان',
-              details: row['appointment_id']?.toString() ?? row['source_document_id']?.toString() ?? '',
-              route: '/search/result', searchable: row.values, isRemote: true,
-              date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
-          }
+      final canReadWallet = _hasRemotePermission('finance.salary.view',
+              remotePermissionId: 'finance.employee_wallet.view') ||
+          _hasRemotePermission('finance.settlement.view',
+              remotePermissionId: 'finance.employee_wallet.view');
+      if (canReadWallet) {
+        for (final row in await fetch('employee_wallets')) {
+          final employeeId = row['employee_id']?.toString() ?? '';
+          final canViewSalary = _hasRemotePermission('finance.salary.view',
+              employeeId: employeeId, remotePermissionId: 'finance.employee_wallet.view');
+          final canViewSettlement = _hasRemotePermission('finance.settlement.view',
+              employeeId: employeeId, remotePermissionId: 'finance.employee_wallet.view');
+          if (!_database.canViewEmployeeIncome(employeeId) ||
+              (!canViewSalary && !canViewSettlement)) continue;
+          add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
+            title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش کیف پول',
+            subtitle: '${row['amount'] ?? ''} تومان',
+            details: row['status']?.toString() ?? '', route: '/search/result',
+            searchable: row.values, isRemote: true,
+            date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
     }
-    if (_hasRemotePermission('settings.view') && (type == null || type == GlobalSearchType.activity)) {
+    if (_hasRemotePermission('settings.view', remotePermissionId: 'activity.view') && (type == null || type == GlobalSearchType.activity)) {
       for (final row in await fetch('activity_logs')) {
         add(id: row['id']?.toString() ?? '', type: GlobalSearchType.activity,
           title: row['title']?.toString() ?? '', subtitle: row['entity_name']?.toString() ?? '',
@@ -530,14 +553,25 @@ class GlobalSearchRepository {
           date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
-    if (_hasRemotePermission('employees.view_profile') && (type == null || type == GlobalSearchType.document)) {
-      for (final row in await fetch('employee_documents')) {
-        final employeeId = row['employee_id']?.toString() ?? '';
-        if (!_database.canViewEmployee(employeeId)) continue;
-        add(id: row['id']?.toString() ?? '', type: GlobalSearchType.document,
-          title: row['title']?.toString() ?? '', subtitle: row['file_name']?.toString() ?? '',
-          details: row['note']?.toString() ?? '', route: '/search/result',
-          searchable: row.values, isRemote: true);
+    // Some deployments embed personnel document metadata in the employee record.
+    if (_hasRemotePermission('employees.view_profile', remotePermissionId: 'employees.view_list') &&
+        (type == null || type == GlobalSearchType.document || type == GlobalSearchType.employee)) {
+      for (final row in await fetch('employees')) {
+        final employeeId = row['id']?.toString() ?? '';
+        if (employeeId.isEmpty || !_database.canViewEmployee(employeeId)) continue;
+        final documents = row['documents'];
+        if (documents is! List) continue;
+        for (final item in documents.whereType<Map>()) {
+          final document = Map<String, dynamic>.from(item);
+          add(id: document['id']?.toString() ?? '${employeeId}-document',
+            type: GlobalSearchType.document,
+            title: document['title']?.toString() ?? document['file_name']?.toString() ?? 'سند پرسنل',
+            subtitle: row['full_name']?.toString() ?? '',
+            details: document['note']?.toString() ?? '',
+            route: '/search/result',
+            searchable: [...document.values, row['full_name']], isRemote: true,
+            date: DateTime.tryParse(document['created_at']?.toString() ?? ''));
+        }
       }
     }
   }
