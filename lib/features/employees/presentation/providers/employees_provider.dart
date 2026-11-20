@@ -38,6 +38,7 @@ class EmployeesProvider extends DbBoundProvider {
     } catch (error) {
       _items = db.employees;
       _error = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
+      _loadNotice = _error;
     } finally {
       _loading = false;
       notifyListeners();
