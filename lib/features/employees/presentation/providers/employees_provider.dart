@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
@@ -13,12 +14,14 @@ class EmployeesProvider extends DbBoundProvider {
   final EmployeeRepository _repository;
   List<Employee> _items = const [];
   bool _loading = true;
+  String? _loadNotice;
   String? _error;
 
   List<Employee> get items => _items;
   List<Employee> get activeItems => _items.where((e) => e.isAvailableForBooking).toList();
   bool get loading => _loading;
   String? get error => _error;
+  String? get loadNotice => _loadNotice;
   int get totalCount => _items.length;
   int get activeCount => _items.where((e) => e.employmentStatus == EmployeeStatus.active).length;
   int get inactiveCount => _items.where((e) => e.employmentStatus == EmployeeStatus.inactive).length;
@@ -31,9 +34,10 @@ class EmployeesProvider extends DbBoundProvider {
     notifyListeners();
     try {
       _items = await _repository.fetchEmployees();
+      _loadNotice = null;
     } catch (error) {
       _items = db.employees;
-      _error = 'بارگذاری از داده‌های محلی انجام شد.';
+      _error = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
     } finally {
       _loading = false;
       notifyListeners();
