@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/customer.dart';
 import 'package:datetime/data/models/service.dart';
+import 'package:datetime/data/models/employee_service_config.dart';
 import 'package:datetime/data/repositories/customer_repository.dart';
 import 'package:datetime/data/repositories/service_repository.dart';
 import 'package:datetime/features/customers/presentation/providers/customers_provider.dart';
@@ -60,10 +61,50 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 60));
     });
 
-    test('فیلتر فقط فعال', () async {
+    test('فیلتر فعال و غیرفعال', () async {
       provider.setActiveOnly(true);
       await provider.load();
       expect(provider.items.every((s) => s.isActive), isTrue);
+
+      await provider.create(const Service(
+        id: 'inactive-filter-test',
+        title: 'خدمت غیرفعال آزمایشی',
+        price: 100000,
+        durationMinutes: 30,
+        isActive: false,
+      ));
+      provider.setInactiveOnly(true);
+      await provider.load();
+      expect(provider.filtered.any((s) => s.id == 'inactive-filter-test'), isTrue);
+      expect(provider.filtered.every((s) => !s.isActive), isTrue);
+    });
+
+    test('ایجاد خدمت، ارتباط پرسنل و تنظیم قیمت، مدت و پورسانت اختصاصی', () async {
+      final employee = db.employees.first;
+      const serviceId = 'service-staff-config-test';
+      await provider.create(Service(
+        id: serviceId,
+        title: 'خدمت اختصاصی پرسنل',
+        price: 200000,
+        durationMinutes: 40,
+        employeeIds: [employee.id],
+      ));
+
+      expect(db.employeeById(employee.id)!.serviceIds, contains(serviceId));
+      expect(db.serviceById(serviceId)!.employeeIds, contains(employee.id));
+
+      db.saveEmployeeServiceConfig(EmployeeServiceConfig(
+        employeeId: employee.id,
+        serviceId: serviceId,
+        customPrice: 175000,
+        customDurationMinutes: 55,
+        commissionRateBps: 1500,
+        fixedCommissionAmount: 5000,
+      ));
+      expect(db.effectiveServicePrice(employee.id, serviceId), 175000);
+      expect(db.effectiveServiceDuration(employee.id, serviceId), 55);
+      expect(db.employeeServiceConfig(employee.id, serviceId)?.commissionRateBps, 1500);
+      expect(db.employeeServiceConfig(employee.id, serviceId)?.fixedCommissionAmount, 5000);
     });
 
     test('مدیریت دسته‌بندی و جلوگیری از حذف دسته دارای خدمت', () {
