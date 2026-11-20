@@ -39,6 +39,9 @@ class GlobalSearchResult {
     this.date,
     this.score = 0,
     this.isRemote = false,
+    this.accountId = '',
+    this.requiredPermission,
+    this.employeeId,
   });
 
   final String id;
@@ -50,6 +53,9 @@ class GlobalSearchResult {
   final DateTime? date;
   final int score;
   final bool isRemote;
+  final String accountId;
+  final String? requiredPermission;
+  final String? employeeId;
 }
 
 /// جست‌وجوی مشترک؛ منبع پیش‌فرض Mock برای عملکرد کامل آفلاین است.
@@ -175,6 +181,8 @@ class GlobalSearchRepository {
       required Iterable<Object?> searchable,
       DateTime? date,
       bool isRemote = false,
+      String? requiredPermission,
+      String? employeeId,
     }) {
       if (filterType != null && type != filterType) return;
       if (!_matches(query, [...searchable, title, subtitle, details, id])) return;
@@ -190,6 +198,9 @@ class GlobalSearchRepository {
         date: date,
         score: _score(query, title),
         isRemote: isRemote,
+        accountId: _database.currentAccessAccount.id,
+        requiredPermission: requiredPermission,
+        employeeId: employeeId,
       ));
     }
 
@@ -210,6 +221,7 @@ class GlobalSearchRepository {
                 ].join(' • ')
               : '',
           route: canViewHistory ? '/customers/${customer.id}' : '/customers',
+          requiredPermission: canViewHistory ? 'customers.history' : 'customers.view',
           searchable: [
             customer.fullName,
             customer.phone,
@@ -237,6 +249,8 @@ class GlobalSearchRepository {
               ? [employee.email, employee.specialties.join('، '), employee.notes].where((v) => v.isNotEmpty).join(' • ')
               : '',
           route: route,
+          requiredPermission: canViewProfile ? 'employees.view_profile' : 'employees.view_list',
+          employeeId: employee.id,
           searchable: [
             employee.fullName,
             employee.phone,
@@ -255,6 +269,7 @@ class GlobalSearchRepository {
           subtitle: service.category,
           details: '${service.price} تومان • ${service.durationMinutes} دقیقه • ${service.isActive ? 'فعال' : 'غیرفعال'} • ${service.description}',
           route: '/services/${service.id}',
+          requiredPermission: 'services.manage',
           searchable: [service.title, service.description, service.category, service.price, service.durationMinutes, service.id],
         );
       }
@@ -266,6 +281,7 @@ class GlobalSearchRepository {
           subtitle: 'دسته‌بندی خدمات',
           details: '${_database.services.where((service) => service.category == category).length} خدمت',
           route: '/services',
+          requiredPermission: 'services.manage',
           searchable: [category],
         );
       }
@@ -284,6 +300,8 @@ class GlobalSearchRepository {
           subtitle: '${appointment.serviceName} • ${appointment.employeeName}',
           details: '${appointment.customerPhone} • ${appointment.status.key} • ${appointment.startAt.toLocal()} • ${appointment.price} تومان • ${appointment.note}',
           route: route,
+          requiredPermission: canViewAllAppointments ? 'appointments.view_all' : 'appointments.view_self',
+          employeeId: appointment.employeeId,
           searchable: [
             appointment.reference,
             appointment.customerName,
@@ -315,6 +333,7 @@ class GlobalSearchRepository {
           subtitle: '${payment.amount} تومان • ${payment.method.label}',
           details: '${payment.description} • کد نوبت: ${appointment?.reference ?? payment.appointmentId}',
           route: route,
+          requiredPermission: 'finance.income.view',
           searchable: [payment.id, payment.appointmentId, payment.customerId, payment.description, payment.amount, payment.method.label, payment.type.name],
           date: payment.createdAt,
         );
@@ -327,6 +346,7 @@ class GlobalSearchRepository {
           subtitle: '${expense.amount} تومان • ${expense.status.name}',
           details: '${expense.description} • سند: ${expense.sourceDocumentId} • ثبت‌کننده: ${expense.createdBy}',
           route: '/reports',
+          requiredPermission: 'finance.income.view',
           searchable: [expense.id, expense.description, expense.category.label, expense.sourceDocumentId, expense.createdBy, expense.amount, expense.status.name],
           date: expense.createdAt,
         );
@@ -345,6 +365,8 @@ class GlobalSearchRepository {
             subtitle: '${employee.fullName} • ${document.fileName}',
             details: '${document.type.name} • ${document.note} • ${document.expiresAt ?? ''}',
             route: '/employees/${employee.id}',
+            requiredPermission: 'employees.view_profile',
+            employeeId: employee.id,
             searchable: [document.id, document.title, document.fileName, document.note, document.type.name, employee.fullName, document.expiresAt],
             date: document.addedAt,
           );
@@ -365,6 +387,8 @@ class GlobalSearchRepository {
               subtitle: '${entry.commissionAmount} تومان • ${employee.fullName}',
               details: 'نوبت: ${entry.appointmentId} • خدمت: ${entry.serviceId} • سهم مجموعه: ${entry.companyShare} تومان',
               route: route,
+              requiredPermission: 'finance.commission.view',
+              employeeId: employee.id,
               searchable: [entry.id, entry.appointmentId, entry.serviceId, entry.type.name, entry.commissionAmount, entry.companyShare, entry.receivedAmount, employee.fullName],
               date: entry.createdAt,
             );
@@ -380,6 +404,8 @@ class GlobalSearchRepository {
               subtitle: '${entry.amount} تومان • ${employee.fullName}',
               details: '${entry.description} • ${entry.status.name}',
               route: route,
+              requiredPermission: canViewSalary ? 'finance.salary.view' : 'finance.settlement.view',
+              employeeId: employee.id,
               searchable: [entry.id, entry.type.label, entry.description, entry.amount, entry.status.name, employee.fullName, entry.settlementId],
               date: entry.createdAt,
             );
@@ -398,6 +424,7 @@ class GlobalSearchRepository {
           subtitle: '${log.entityName} • ${log.actor}',
           details: log.description,
           route: route,
+          requiredPermission: 'settings.view',
           searchable: [log.id, log.title, log.description, log.entityName, log.entityId, log.actor, log.type.key],
           date: log.createdAt,
         );
@@ -467,6 +494,8 @@ class GlobalSearchRepository {
       required Iterable<Object?> searchable,
       DateTime? date,
       required bool isRemote,
+      String? requiredPermission,
+      String? employeeId,
     }) add,
     String businessId,
   ) async {
