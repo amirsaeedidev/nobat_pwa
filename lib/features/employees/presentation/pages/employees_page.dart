@@ -152,8 +152,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
           const SizedBox(height: 14),
           if (provider.loading)
             const LoadingState(kind: SkeletonKind.personnel)
-          else if (false)
-            const LoadingState()
           else if (provider.items.isEmpty)
             const EmptyState(title: 'پرسنلی ثبت نشده', description: 'اولین عضو تیم را اضافه کنید.')
           else if (filtered.isEmpty)
