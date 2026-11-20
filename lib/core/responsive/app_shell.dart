@@ -197,7 +197,10 @@ class MobileBottomNav extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: () => onSelect(navIndex),
-      child: Column(
+      child: SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AnimatedSlide(
@@ -228,6 +231,8 @@ class MobileBottomNav extends StatelessWidget {
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }
