@@ -101,10 +101,7 @@ class ReportsPage extends StatelessWidget {
       child: provider.loading
           ? const LoadingState(kind: SkeletonKind.reports)
           : provider.error != null
-              ? AppCard(child: EmptyState(
-                  title: 'دسترسی یا دریافت گزارش ممکن نیست',
-                  description: 'برای مشاهده گزارش مدیریتی، مجوز مشاهده درآمد و نوبت‌ها لازم است.\n${provider.error}',
-                ))
+              ? ErrorStateView(kind: provider.errorKind ?? AppErrorKind.fetch, description: provider.error, onRetry: provider.load)
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
