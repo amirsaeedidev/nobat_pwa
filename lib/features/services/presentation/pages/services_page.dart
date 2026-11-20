@@ -48,7 +48,9 @@ class ServicesPage extends StatelessWidget {
         CircleIconButton(icon: Icons.add_rounded, size: 38, onTap: () => context.push('/services/new')),
       ],
       leading: CircleIconButton(icon: Icons.settings_rounded, size: 40, onTap: () => context.push('/settings')),
-      child: Column(
+      child: provider.loading
+          ? const LoadingState(kind: SkeletonKind.services)
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SearchField(
