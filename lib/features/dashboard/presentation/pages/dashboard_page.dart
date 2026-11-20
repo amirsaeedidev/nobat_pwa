@@ -73,7 +73,7 @@ class DashboardPage extends StatelessWidget {
                       );
                     }
                     return _DesktopDashboard(
-                      stats: stats!,
+                      stats: stats,
                       period: provider.period,
                       onPeriodChanged: provider.setPeriod,
                       revenueSeries: provider.revenueSeries,
