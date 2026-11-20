@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
+import 'async_states.dart';
+
+export 'async_states.dart';
 
 /// حالت خالی با آیکون و توضیح.
 class EmptyState extends StatelessWidget {
@@ -62,99 +65,77 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// اسکلتون بارگذاری با حفظ ابعاد کارت‌ها تا زمان آماده‌شدن داده‌ها.
+/// اسکلتون مشترک صفحات با الگوی متناسب با نوع محتوا.
 class LoadingState extends StatelessWidget {
-  const LoadingState({super.key, this.label = 'در حال آماده‌سازی...', this.compact = false});
+  const LoadingState({
+    super.key,
+    this.label = 'در حال آماده‌سازی...',
+    this.compact = false,
+    this.kind = SkeletonKind.generic,
+  });
 
   final String label;
   final bool compact;
+  final SkeletonKind kind;
 
   @override
-  Widget build(BuildContext context) {
-    final pal = context.pal;
-    final count = compact ? 2 : 3;
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: compact ? 12 : 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < count; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.55, end: 1),
-                duration: Duration(milliseconds: 650 + i * 120),
-                curve: Curves.easeInOut,
-                builder: (context, opacity, child) => Opacity(opacity: opacity, child: child),
-                child: Container(
-                  height: compact ? 54 : 76,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: pal.surfaceAlt,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: pal.border),
-                  ),
-                  child: Row(children: [
-                    Container(width: 42, height: 42, decoration: BoxDecoration(color: pal.surfaceHigh, borderRadius: BorderRadius.circular(12))),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Container(height: 10, width: 120, decoration: BoxDecoration(color: pal.surfaceHigh, borderRadius: BorderRadius.circular(8))),
-                      const SizedBox(height: 9),
-                      Container(height: 8, width: 190, decoration: BoxDecoration(color: pal.surfaceHigh.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(8))),
-                    ])),
-                    Container(width: 26, height: 26, decoration: BoxDecoration(color: pal.surfaceHigh, shape: BoxShape.circle)),
-                  ]),
-                ),
-              ),
-            ),
-          if (!compact) Center(child: Text(label, style: TextStyle(fontSize: 11, color: pal.textMuted))),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => PageSkeleton(kind: kind, compact: compact);
 }
 
-/// حالت خطا با امکان تلاش مجدد.
+/// خطای یکپارچه؛ پیام‌ها بر اساس نوع خطا و امکان تلاش مجدد تعیین می‌شوند.
 class ErrorStateView extends StatelessWidget {
   const ErrorStateView({
     super.key,
-    this.title = 'خطا در دریافت اطلاعات',
-    this.description = 'اتصال خود را بررسی کنید و دوباره تلاش کنید.',
+    this.title,
+    this.description,
     this.onRetry,
+    this.kind = AppErrorKind.fetch,
   });
 
-  final String title;
-  final String description;
+  final String? title;
+  final String? description;
   final VoidCallback? onRetry;
+  final AppErrorKind kind;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
+    final message = AppFailure(kind).persianMessage;
+    final canRetry = onRetry != null && AppFailure(kind).canRetry;
+    final icon = switch (kind) {
+      AppErrorKind.connection => Icons.wifi_off_rounded,
+      AppErrorKind.fetch => Icons.cloud_download_outlined,
+      AppErrorKind.save => Icons.save_outlined,
+      AppErrorKind.validation => Icons.rule_rounded,
+      AppErrorKind.access => Icons.lock_outline_rounded,
+      AppErrorKind.server => Icons.dns_outlined,
+      AppErrorKind.unknown => Icons.error_outline_rounded,
+    };
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.wifi_off_rounded, size: 34, color: pal.danger),
-            const SizedBox(height: 12),
-            Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-            const SizedBox(height: 6),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: pal.textMuted, height: 1.7),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('تلاش مجدد'),
-              ),
-            ],
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 38, color: pal.danger),
+          const SizedBox(height: 12),
+          Text(title ?? switch (kind) {
+            AppErrorKind.connection => 'عدم برقراری ارتباط',
+            AppErrorKind.fetch => 'خطا در دریافت اطلاعات',
+            AppErrorKind.save => 'ذخیره‌سازی ناموفق بود',
+            AppErrorKind.validation => 'اطلاعات نیاز به اصلاح دارد',
+            AppErrorKind.access => 'دسترسی مجاز نیست',
+            AppErrorKind.server => 'خطای سرور',
+            AppErrorKind.unknown => 'عملیات ناموفق بود',
+          }, textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+          const SizedBox(height: 6),
+          Text(description ?? message, textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: pal.textMuted, height: 1.7)),
+          if (canRetry) ...[
+            const SizedBox(height: 16),
+            TextButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('تلاش مجدد')),
           ],
-        ),
+        ]),
       ),
     );
   }
