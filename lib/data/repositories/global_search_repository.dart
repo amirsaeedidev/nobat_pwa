@@ -33,6 +33,7 @@ class GlobalSearchResult {
     required this.route,
     this.date,
     this.score = 0,
+    this.isRemote = false,
   });
 
   final String id;
@@ -43,6 +44,7 @@ class GlobalSearchResult {
   final String route;
   final DateTime? date;
   final int score;
+  final bool isRemote;
 }
 
 /// جست‌وجوی مشترک؛ منبع پیش‌فرض Mock برای عملکرد کامل آفلاین است.
@@ -132,10 +134,12 @@ class GlobalSearchRepository {
       required String route,
       required Iterable<Object?> searchable,
       DateTime? date,
+      bool isRemote = false,
     }) {
       if (filterType != null && type != filterType) return;
       if (!_matches(query, [...searchable, title, subtitle, details, id])) return;
       if (!_database.canOpenRoute(route)) return;
+      if (results.any((item) => item.type == type && item.id == id)) return;
       results.add(GlobalSearchResult(
         id: id,
         type: type,
@@ -145,6 +149,7 @@ class GlobalSearchRepository {
         route: route,
         date: date,
         score: _score(query, title),
+        isRemote: isRemote,
       ));
     }
 
@@ -403,6 +408,7 @@ class GlobalSearchRepository {
       required String route,
       required Iterable<Object?> searchable,
       DateTime? date,
+      bool isRemote,
     }) add,
     String businessId,
   ) async {
@@ -444,7 +450,7 @@ class GlobalSearchRepository {
         } else {
           add(id: id, type: GlobalSearchType.service, title: row['title']?.toString() ?? '',
             subtitle: row['category']?.toString() ?? '', details: row['description']?.toString() ?? '',
-            route: _database.serviceById(id) == null ? '/services' : '/services/$id', searchable: row.values);
+            route: '/search/result', searchable: row.values, isRemote: true);
         }
       }
     }
@@ -459,7 +465,7 @@ class GlobalSearchRepository {
           title: '${row['customer_name'] ?? 'نوبت'} • ${row['reference'] ?? id}',
           subtitle: '${row['service_name'] ?? ''} • ${row['employee_name'] ?? ''}',
           details: '${row['customer_phone'] ?? ''} • ${row['status'] ?? ''}',
-          route: _database.appointmentById(id) == null ? '/appointments' : '/appointments/$id', searchable: row.values,
+          route: '/search/result', searchable: row.values, isRemote: true,
           date: DateTime.tryParse(row['start_at']?.toString() ?? ''));
       }
     }
@@ -474,8 +480,8 @@ class GlobalSearchRepository {
           add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
             title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش پورسانت',
             subtitle: '${row['commission_amount'] ?? ''} تومان',
-            details: row['appointment_id']?.toString() ?? '', route: route,
-            searchable: row.values, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+            details: row['appointment_id']?.toString() ?? '', route: '/search/result',
+            searchable: row.values, isRemote: true, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
       if (_database.hasPermission('finance.salary.view') || _database.hasPermission('finance.settlement.view')) {
@@ -502,7 +508,7 @@ class GlobalSearchRepository {
               title: row['description']?.toString() ?? row['category']?.toString() ?? 'تراکنش مالی',
               subtitle: '${row['amount'] ?? ''} تومان',
               details: row['appointment_id']?.toString() ?? row['source_document_id']?.toString() ?? '',
-              route: '/reports', searchable: row.values,
+              route: '/search/result', searchable: row.values, isRemote: true,
               date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
           }
         }
@@ -512,7 +518,7 @@ class GlobalSearchRepository {
       for (final row in await fetch('activity_logs')) {
         add(id: row['id']?.toString() ?? '', type: GlobalSearchType.activity,
           title: row['title']?.toString() ?? '', subtitle: row['entity_name']?.toString() ?? '',
-          details: row['description']?.toString() ?? '', route: '/activity', searchable: row.values,
+          details: row['description']?.toString() ?? '', route: '/search/result', searchable: row.values, isRemote: true,
           date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
@@ -522,8 +528,8 @@ class GlobalSearchRepository {
         if (!_database.canViewEmployee(employeeId)) continue;
         add(id: row['id']?.toString() ?? '', type: GlobalSearchType.document,
           title: row['title']?.toString() ?? '', subtitle: row['file_name']?.toString() ?? '',
-          details: row['note']?.toString() ?? '', route: '/employees/$employeeId',
-          searchable: row.values);
+          details: row['note']?.toString() ?? '', route: '/search/result',
+          searchable: row.values, isRemote: true);
       }
     }
   }
