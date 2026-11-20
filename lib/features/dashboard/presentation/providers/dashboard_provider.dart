@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/dashboard_stats.dart';
@@ -23,6 +24,7 @@ class DashboardProvider extends DbBoundProvider {
   List<RevenuePoint> _revenueSeries = const [];
   bool _loading = true;
   bool _error = false;
+  AppFailure? _failure;
   StatsPeriod _period = StatsPeriod.weekly;
   ReportAnalytics? _analytics;
   ReportAnalyticsFilter _analyticsFilter = const ReportAnalyticsFilter();
@@ -33,6 +35,7 @@ class DashboardProvider extends DbBoundProvider {
   List<RevenuePoint> get revenueSeries => _revenueSeries;
   bool get loading => _loading;
   bool get error => _error;
+  AppFailure? get failure => _failure;
   StatsPeriod get period => _period;
   ReportAnalytics? get analytics => _analytics;
   ReportAnalyticsFilter get analyticsFilter => _analyticsFilter;
@@ -43,6 +46,7 @@ class DashboardProvider extends DbBoundProvider {
   Future<void> load() async {
     _loading = true;
     _error = false;
+    _failure = null;
     notifyListeners();
     try {
       _stats = await _repository.fetchStats(period: _period);
@@ -50,8 +54,9 @@ class DashboardProvider extends DbBoundProvider {
       _dayAppointments = await _appointmentRepository?.fetchForDay(_selectedDay) ?? _upcoming.where((item) => _sameDay(item.startAt, _selectedDay)).toList();
       _revenueSeries = await _repository.fetchRevenueSeries(months: 6);
       await _loadAnalytics();
-    } catch (_) {
+    } catch (error) {
       _error = true;
+      _failure = AppFailure.from(error, fallback: AppErrorKind.fetch);
     } finally {
       _loading = false;
       notifyListeners();
