@@ -158,7 +158,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       );
       return;
     }
-    if (result.isRemote) {
+    if (result.isRemote || result.showDetailsPage) {
       context.push('/search/result', extra: result);
     } else {
       context.push(result.route);
