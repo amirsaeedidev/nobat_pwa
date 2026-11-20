@@ -64,45 +64,71 @@ void main() {
     final shell = find.byType(AppShell);
     expect(shell, findsOneWidget);
     final router = GoRouter.of(tester.element(shell));
-    const paths = [
+    final employeeId = db.employees.first.id;
+    final customerId = db.customers.first.id;
+    final serviceId = db.services.first.id;
+    final appointmentId = db.appointments.first.id;
+    final paths = [
+      '/dashboard',
+      '/appointments',
+      '/appointments/new',
+      '/appointments/$appointmentId',
+      '/calendar',
+      '/customers',
+      '/customers/new',
+      '/customers/$customerId',
+      '/services',
+      '/services/new',
+      '/services/$serviceId',
       '/employees',
       '/employees/new',
-      '/employees/emp-fateme',
-      '/employees/emp-fateme/edit',
-      '/employees/emp-fateme/finance',
-      '/employees/emp-fateme/wallet',
-      '/employees/emp-fateme/schedule',
-      '/employees/emp-fateme/analytics',
-      '/employees/emp-fateme/attendance',
-      '/employees/emp-fateme/records',
-      '/employees/emp-fateme/leaves',
-      '/employees/emp-fateme/notices',
-      '/calendar',
-      '/appointments',
-      '/services',
+      '/employees/$employeeId',
+      '/employees/$employeeId/edit',
+      '/employees/$employeeId/finance',
+      '/employees/$employeeId/wallet',
+      '/employees/$employeeId/schedule',
+      '/employees/$employeeId/analytics',
+      '/employees/$employeeId/attendance',
+      '/employees/$employeeId/records',
+      '/employees/$employeeId/leaves',
+      '/employees/$employeeId/notices',
+      '/reports',
       '/reports/personnel',
+      '/search',
+      '/activity',
+      '/settings',
       '/settings/permissions',
+      '/settings/appearance',
+      '/sms',
+      '/sms/settings',
+      '/sms/templates',
+      '/book',
+      '/book/manage',
     ];
 
     final failures = <String>[];
-    const width = 390.0;
-    tester.view.physicalSize = const Size(390, 844);
-    await tester.pump();
-    for (final path in paths) {
-      router.go(path);
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump(const Duration(milliseconds: 300));
-      Object? exception;
-      do {
-        exception = tester.takeException();
-        if (exception != null) {
-          debugPrint('--- RENDER TREE AT ROUTE $path ---');
-          debugDumpRenderTree();
-          final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
-          failures.add('${width.toInt()}px $path: $details');
-        }
-      } while (exception != null);
+    const widths = [320.0, 360.0, 375.0, 390.0, 414.0, 600.0, 768.0, 1024.0, 1280.0, 1440.0];
+    for (final width in widths) {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      await tester.pump();
+      for (final path in paths) {
+        router.go(path);
+        await tester.pump(const Duration(milliseconds: 90));
+        Object? exception;
+        do {
+          exception = tester.takeException();
+          if (exception != null) {
+            debugPrint('--- RENDER TREE AT VIEWPORT $width ROUTE $path ---');
+            debugDumpRenderTree();
+            final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
+            failures.add('${width.toInt()}px $path: $details');
+          }
+        } while (exception != null);
+      }
     }
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
     expect(failures, isEmpty, reason: failures.join('\n'));
   });
 }
