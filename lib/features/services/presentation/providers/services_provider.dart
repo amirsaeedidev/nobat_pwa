@@ -25,6 +25,8 @@ class ServicesProvider extends DbBoundProvider {
   bool get activeOnly => _activeOnly;
   List<String> get categories => db.serviceCategories;
   String? get categoryFilter => _categoryFilter;
+  num? get minimumPrice => _minimumPrice;
+  num? get maximumPrice => _maximumPrice;
   List<Service> get activeServices => _items.where((s) => s.isActive).toList();
   int get activeCount => _items.where((s) => s.isActive).length;
 

@@ -78,14 +78,14 @@ class ServicesPage extends StatelessWidget {
                 decoration: const InputDecoration(labelText: 'حداقل قیمت', isDense: true),
                 onChanged: (value) => provider.setPriceRange(
                   minimum: value.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(value)),
-                  maximum: null,
+                  maximum: provider.maximumPrice,
                 ),
               )),
               SizedBox(width: 120, child: TextField(
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'حداکثر قیمت', isDense: true),
                 onChanged: (value) => provider.setPriceRange(
-                  minimum: null,
+                  minimum: provider.minimumPrice,
                   maximum: value.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(value)),
                 ),
               )),
