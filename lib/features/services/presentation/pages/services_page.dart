@@ -120,8 +120,6 @@ class ServicesPage extends StatelessWidget {
           const SizedBox(height: 12),
           if (provider.loading)
             const LoadingState(kind: SkeletonKind.services)
-          else if (false)
-            const LoadingState()
           else if (services.isEmpty)
             const EmptyState(
               title: 'خدمتی یافت نشد',
