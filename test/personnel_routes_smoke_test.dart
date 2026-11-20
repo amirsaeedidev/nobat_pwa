@@ -125,8 +125,6 @@ void main() {
         do {
           exception = tester.takeException();
           if (exception != null) {
-            debugPrint('--- RENDER TREE AT VIEWPORT $width ROUTE $path ---');
-            debugDumpRenderTree();
             final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
             failures.add('${width.toInt()}px $path: $details');
           }
