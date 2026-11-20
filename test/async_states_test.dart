@@ -27,7 +27,7 @@ void main() {
       for (final kind in SkeletonKind.values) {
         await tester.pumpWidget(MaterialApp(
           theme: ThemeData(extensions: const [AppPalette.creamBrown]),
-          home: Scaffold(body: PageSkeleton(kind: kind)),
+          home: Scaffold(body: SingleChildScrollView(child: PageSkeleton(kind: kind))),
         ));
         await tester.pump(const Duration(milliseconds: 30));
         expect(find.bySemanticsLabel('در حال بارگذاری اطلاعات'), findsOneWidget);
