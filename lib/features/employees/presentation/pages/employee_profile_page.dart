@@ -285,13 +285,10 @@ class EmployeeProfilePage extends StatelessWidget {
                     Text('قرارداد و پورسانت'),
                   ]),
                 ),
-                OutlinedButton(
+                OutlinedButton.icon(
                   onPressed: () => context.push('/employees/${employee.id}/wallet'),
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    HugeIcon(icon: HugeIcons.strokeRoundedWallet01, size: 16),
-                    SizedBox(width: 6),
-                    Text('کیف پول و تسویه'),
-                  ]),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedWallet01, size: 16),
+                  label: const Text('کیف پول و تسویه', maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ]),
             ]),
