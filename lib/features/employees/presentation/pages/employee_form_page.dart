@@ -369,6 +369,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
           border: Border.all(color: enabled ? pal.primary.withValues(alpha: 0.35) : pal.border),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
@@ -446,7 +447,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                           endField,
                         ],
                       );
-                      if (constraints.maxWidth < 420) {
+                      if (MediaQuery.sizeOf(context).width < 600 || constraints.maxWidth < 420) {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
