@@ -150,6 +150,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
             ),
           ),
           const SizedBox(height: 14),
+          if (provider.loadNotice != null)
+            OfflineDataNotice(message: provider.loadNotice!)
           if (provider.loading)
             const LoadingState(kind: SkeletonKind.personnel)
           else if (provider.items.isEmpty)
