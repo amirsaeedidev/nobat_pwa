@@ -204,11 +204,12 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: selectedDay ? pal.primary : pal.border.withValues(alpha: inMonth ? 0.65 : 0.25)),
                   ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(FaNum.ofInt(day.day), style: TextStyle(fontSize: 11, color: inMonth ? pal.textPrimary : pal.textMuted.withValues(alpha: 0.45), fontWeight: selectedDay ? FontWeight.w800 : FontWeight.w500)),
-                    const SizedBox(height: 3),
-                    if (inMonth && (hasShift || onLeave || exception != null))
-                      Container(width: 5, height: 5, decoration: BoxDecoration(color: tint, shape: BoxShape.circle)),
+                  child: Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text(FaNum.ofInt(day.day), style: TextStyle(fontSize: 10.5, height: 1.1, color: inMonth ? pal.textPrimary : pal.textMuted.withValues(alpha: 0.45), fontWeight: selectedDay ? FontWeight.w800 : FontWeight.w500)),
+                    if (inMonth && (hasShift || onLeave || exception != null)) ...[
+                      const SizedBox(height: 1),
+                      Container(width: 4, height: 4, decoration: BoxDecoration(color: tint, shape: BoxShape.circle)),
+                    ],
                   ]),
                 ),
               );
