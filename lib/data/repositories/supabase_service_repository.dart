@@ -16,18 +16,20 @@ class SupabaseServiceRepository implements ServiceRepository {
   final String businessId;
 
   static const _services = 'services';
-  static const _categories = 'service_categories';
+  static const _categoryPrefix = '__category__::';
   static const _employeeServices = 'employee_services';
   static const _employees = 'employees';
   static const _appointments = 'appointments';
 
   String _configId(String employeeId, String serviceId) => '$employeeId::$serviceId';
+  String _categoryId(String name) => '$_categoryPrefix$name';
 
   @override
   Future<List<Service>> fetchServices({bool onlyActive = false, String query = ''}) async {
     final normalizedQuery = query.trim().toLowerCase();
     final rows = await _records.fetchRecords(businessId: businessId, entityType: _services);
     return rows
+        .where((row) => !(row['id'] as String? ?? '').startsWith(_categoryPrefix))
         .map(Service.fromJson)
         .where((service) => (!onlyActive || service.isActive) &&
             (normalizedQuery.isEmpty ||
@@ -121,9 +123,11 @@ class SupabaseServiceRepository implements ServiceRepository {
   Future<List<String>> fetchServiceCategories() async {
     final rows = await _records.fetchRecords(
       businessId: businessId,
-      entityType: _categories,
+      entityType: _services,
     );
     return rows
+        .where((row) => (row['id'] as String? ?? '').startsWith(_categoryPrefix))
+        .where((row) => row['is_active'] != false)
         .map((row) => (row['name'] as String? ?? '').trim())
         .where((name) => name.isNotEmpty)
         .toSet()
@@ -145,9 +149,9 @@ class SupabaseServiceRepository implements ServiceRepository {
     }
     await _records.upsertRecord(
       businessId: businessId,
-      entityType: _categories,
-      recordId: normalized,
-      payload: {'name': normalized},
+      entityType: _services,
+      recordId: _categoryId(normalized),
+      payload: {'name': normalized, 'is_active': true, 'record_kind': 'service_category'},
     );
   }
 
@@ -164,10 +168,11 @@ class SupabaseServiceRepository implements ServiceRepository {
       await update(service.copyWith(category: normalized));
     }
     await upsertServiceCategory(normalized);
-    await _records.deleteRecord(
+    await _records.upsertRecord(
       businessId: businessId,
-      entityType: _categories,
-      recordId: oldName,
+      entityType: _services,
+      recordId: _categoryId(oldName),
+      payload: {'name': oldName, 'is_active': false, 'record_kind': 'service_category'},
     );
   }
 
@@ -185,10 +190,11 @@ class SupabaseServiceRepository implements ServiceRepository {
         await update(service.copyWith(category: target));
       }
     }
-    await _records.deleteRecord(
+    await _records.upsertRecord(
       businessId: businessId,
-      entityType: _categories,
-      recordId: name,
+      entityType: _services,
+      recordId: _categoryId(name),
+      payload: {'name': name, 'is_active': false, 'record_kind': 'service_category'},
     );
   }
 
