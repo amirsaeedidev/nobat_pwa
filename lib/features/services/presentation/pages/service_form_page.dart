@@ -13,6 +13,8 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/service.dart';
+import '../../../../data/models/employee_service_config.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../providers/services_provider.dart';
 
@@ -46,6 +48,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   bool _isActive = true;
   bool _requiresConfirmation = false;
   List<String> _employeeIds = [];
+  final Map<String, _EmployeeServiceFields> _employeeFields = {};
   bool _saving = false;
   bool _prefilled = false;
   Service? _existing;
@@ -96,6 +99,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     _buffer.dispose();
     _maxPerDay.dispose();
     _advanceDays.dispose();
+    for (final fields in _employeeFields.values) {
+      fields.dispose();
+    }
     super.dispose();
   }
 
@@ -107,9 +113,25 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       AppToast.show(context, 'پایان تخفیف نمی‌تواند قبل از شروع آن باشد', success: false);
       return;
     }
+    try {
+      for (final employeeId in _employeeIds) {
+        final fields = _fieldsFor(employeeId);
+        _optionalInteger(fields.price.text, 'قیمت اختصاصی');
+        _optionalInteger(fields.duration.text, 'مدت اختصاصی');
+        _optionalInteger(fields.fixedCommission.text, 'پورسانت ثابت');
+        final rawPercent = fields.commissionPercent.text.trim();
+        final percent = rawPercent.isEmpty ? null : num.tryParse(FaNum.toLatin(rawPercent));
+        if (rawPercent.isNotEmpty && percent == null) throw ArgumentError('درصد پورسانت باید عددی باشد.');
+        if (percent != null && (percent < 0 || percent > 100)) throw ArgumentError('درصد پورسانت باید بین صفر تا صد باشد.');
+      }
+    } catch (error) {
+      AppToast.show(context, error.toString(), success: false);
+      return;
+    }
     setState(() => _saving = true);
     final provider = context.read<ServicesProvider>();
-    final service = (_existing ?? Service(id: provider.nextId(), title: '', price: 0, durationMinutes: 45)).copyWith(
+    final serviceId = _existing?.id ?? provider.nextId();
+    final service = (_existing ?? Service(id: serviceId, title: '', price: 0, durationMinutes: 45)).copyWith(
       title: _title.text.trim(),
       description: _description.text.trim(),
       price: num.tryParse(FaNum.toLatin(_price.text)) ?? 0,
@@ -133,10 +155,19 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       requiresConfirmation: _requiresConfirmation,
       employeeIds: _employeeIds,
     );
-    if (_existing != null) {
-      await provider.update(service);
-    } else {
-      await provider.create(service);
+    try {
+      if (_existing != null) {
+        await provider.update(service);
+      } else {
+        await provider.create(service);
+      }
+      await _saveEmployeeServiceConfigs(serviceId);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        AppToast.show(context, 'ذخیره تنظیمات خدمت ناموفق بود: $error', success: false);
+      }
+      return;
     }
     if (!mounted) return;
     setState(() => _saving = false);
@@ -146,6 +177,52 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     } else {
       context.go('/services');
     }
+  }
+
+  _EmployeeServiceFields _fieldsFor(String employeeId) {
+    return _employeeFields.putIfAbsent(employeeId, () {
+      final config = widget.serviceId == null
+          ? null
+          : context.read<AppDatabase>().employeeServiceConfig(employeeId, widget.serviceId!);
+      return _EmployeeServiceFields(config);
+    });
+  }
+
+  Future<void> _saveEmployeeServiceConfigs(String serviceId) async {
+    final db = context.read<AppDatabase>();
+    for (final employeeId in _employeeIds) {
+      final fields = _fieldsFor(employeeId);
+      final customPrice = _optionalInteger(fields.price.text, 'قیمت اختصاصی');
+      final customDuration = _optionalInteger(fields.duration.text, 'مدت اختصاصی');
+      final rawPercent = fields.commissionPercent.text.trim();
+      final percent = rawPercent.isEmpty ? null : num.tryParse(FaNum.toLatin(rawPercent));
+      if (rawPercent.isNotEmpty && percent == null) {
+        throw ArgumentError('درصد پورسانت باید عددی باشد.');
+      }
+      if (percent != null && (percent < 0 || percent > 100)) {
+        throw ArgumentError('درصد پورسانت باید بین صفر تا صد باشد.');
+      }
+      final fixedCommission = _optionalInteger(fields.fixedCommission.text, 'پورسانت ثابت');
+      final previous = db.employeeServiceConfig(employeeId, serviceId);
+      db.saveEmployeeServiceConfig(EmployeeServiceConfig(
+        employeeId: employeeId,
+        serviceId: serviceId,
+        active: true,
+        customPrice: customPrice,
+        customDurationMinutes: customDuration,
+        commissionRateBps: percent == null ? null : (percent * 100).round(),
+        fixedCommissionAmount: fixedCommission,
+        specialtyNote: previous?.specialtyNote ?? '',
+      ));
+    }
+  }
+
+  int? _optionalInteger(String raw, String label) {
+    if (raw.trim().isEmpty) return null;
+    final value = int.tryParse(FaNum.toLatin(raw).replaceAll(',', '').trim());
+    if (value == null || value < 0) throw ArgumentError('$label باید عددی و صفر یا بیشتر باشد.');
+    if (label == 'مدت اختصاصی' && value == 0) throw ArgumentError('$label باید بیشتر از صفر باشد.');
+    return value;
   }
 
   @override
@@ -388,6 +465,55 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                             ),
                         ],
                       ),
+                      if (_employeeIds.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const SectionHeader(title: 'قیمت، زمان و پورسانت اختصاصی پرسنل'),
+                        const SizedBox(height: 8),
+                        Text(
+                          'مقادیر خالی از تنظیمات عمومی خدمت و قانون پرداخت پرسنل استفاده می‌کنند.',
+                          style: TextStyle(fontSize: 11, color: pal.textSecondary, height: 1.6),
+                        ),
+                        const SizedBox(height: 10),
+                        for (final employee in employees.where((item) => _employeeIds.contains(item.id))) ...[
+                          AppCard(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(children: [
+                                  AvatarBadge(name: employee.fullName, size: 26, color: pal.primaryBright),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(employee.fullName, style: TextStyle(fontWeight: FontWeight.w700, color: pal.textPrimary))),
+                                ]),
+                                const SizedBox(height: 10),
+                                LayoutBuilder(builder: (context, constraints) {
+                                  final fieldWidth = (constraints.maxWidth - 12) / 2;
+                                  final fields = _fieldsFor(employee.id);
+                                  Widget entry(String label, TextEditingController controller, String hint) => SizedBox(
+                                    width: fieldWidth,
+                                    child: TextField(
+                                      controller: controller,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(labelText: label, hintText: hint, isDense: true),
+                                    ),
+                                  );
+                                  return Wrap(
+                                    spacing: 12,
+                                    runSpacing: 10,
+                                    children: [
+                                      entry('قیمت اختصاصی (تومان)', fields.price, 'قیمت عمومی'),
+                                      entry('مدت اختصاصی (دقیقه)', fields.duration, 'مدت عمومی'),
+                                      entry('پورسانت درصدی', fields.commissionPercent, 'مثلاً ۱۵'),
+                                      entry('پورسانت ثابت (تومان)', fields.fixedCommission, 'اختیاری'),
+                                    ],
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ],
                       const SizedBox(height: 16),
                       AppSwitchRow(
                         title: 'خدمت فعال است',
@@ -441,5 +567,28 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         ),
       ),
     );
+  }
+}
+
+ 
+class _EmployeeServiceFields {
+  _EmployeeServiceFields(EmployeeServiceConfig? config)
+      : price = TextEditingController(text: config?.customPrice?.toString() ?? ''),
+        duration = TextEditingController(text: config?.customDurationMinutes?.toString() ?? ''),
+        commissionPercent = TextEditingController(
+          text: config?.commissionRateBps == null ? '' : (config!.commissionRateBps! / 100).toString(),
+        ),
+        fixedCommission = TextEditingController(text: config?.fixedCommissionAmount?.toString() ?? '');
+
+  final TextEditingController price;
+  final TextEditingController duration;
+  final TextEditingController commissionPercent;
+  final TextEditingController fixedCommission;
+
+  void dispose() {
+    price.dispose();
+    duration.dispose();
+    commissionPercent.dispose();
+    fixedCommission.dispose();
   }
 }
