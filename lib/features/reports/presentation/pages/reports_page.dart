@@ -99,7 +99,7 @@ class ReportsPage extends StatelessWidget {
         SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
       child: provider.loading
-          ? const LoadingState()
+          ? const LoadingState(kind: SkeletonKind.reports)
           : provider.error != null
               ? AppCard(child: EmptyState(
                   title: 'دسترسی یا دریافت گزارش ممکن نیست',
