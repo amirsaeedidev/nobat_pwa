@@ -96,9 +96,14 @@ class ServicesProvider extends DbBoundProvider {
   Future<void> toggle(String id, bool active) => _repository.toggle(id, active);
 
   void addCategory(String name) { db.addServiceCategory(name); notifyListeners(); }
-  void renameCategory(String oldName, String newName) { db.renameServiceCategory(oldName, newName); notifyListeners(); }
+  void renameCategory(String oldName, String newName) {
+    db.renameServiceCategory(oldName, newName);
+    if (_categoryFilter == oldName) _categoryFilter = newName.trim();
+    notifyListeners();
+  }
   void deleteCategory(String name, {String? moveServicesTo}) {
     db.deleteServiceCategory(name, moveServicesTo: moveServicesTo);
+    if (_categoryFilter == name) _categoryFilter = null;
     notifyListeners();
   }
 
