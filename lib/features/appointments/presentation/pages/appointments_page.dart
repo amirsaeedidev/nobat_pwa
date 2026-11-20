@@ -183,10 +183,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 ),
                 const SizedBox(height: 10),
                 if (provider.loadNotice != null)
-            OfflineDataNotice(message: provider.loadNotice!)
-          if (provider.loading)
-                  const LoadingState(compact: true, kind: SkeletonKind.appointments)
-                else if (provider.items.isEmpty && provider.loadNotice != null)
+                  OfflineDataNotice(message: provider.loadNotice!),
+                if (provider.items.isEmpty && provider.loadNotice != null)
                   ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
                 else if (provider.items.isEmpty)
                   const EmptyState(
