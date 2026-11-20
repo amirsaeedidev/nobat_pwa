@@ -33,6 +33,7 @@ class PageScaffold extends StatelessWidget {
     this.hasNotification = true,
     this.onMenu,
     this.leading,
+    this.showGlobalSearch = true,
   });
 
   final String title;
@@ -58,6 +59,7 @@ class PageScaffold extends StatelessWidget {
   final bool hasNotification;
   final VoidCallback? onMenu;
   final Widget? leading;
+  final bool showGlobalSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +82,7 @@ class PageScaffold extends StatelessWidget {
               onClose: onClose,
               centerTitle: centerTitle,
               onBell: onBell,
+              onSearch: showGlobalSearch ? () => context.push('/search') : null,
               onProfile: onProfile,
               hasNotification: hasNotification,
               onMenu: onMenu,
@@ -118,7 +121,16 @@ class PageScaffold extends StatelessWidget {
                                       title: title,
                                       subtitle: subtitle,
                                       icon: icon,
-                                      actions: actions,
+                                      actions: [
+                                        ...actions,
+                                        if (showGlobalSearch)
+                                          CircleIconButton(
+                                            icon: Icons.search_rounded,
+                                            size: 40,
+                                            tooltip: 'جست‌وجوی سراسری',
+                                            onTap: () => context.push('/search'),
+                                          ),
+                                      ],
                                     ),
                                 const SizedBox(height: 18),
                               ] else if (mobileHeader != null) ...[
@@ -147,7 +159,16 @@ class PageScaffold extends StatelessWidget {
                                     title: title,
                                     subtitle: subtitle,
                                     icon: icon,
-                                    actions: actions,
+                                    actions: [
+                                        ...actions,
+                                        if (showGlobalSearch)
+                                          CircleIconButton(
+                                            icon: Icons.search_rounded,
+                                            size: 40,
+                                            tooltip: 'جست‌وجوی سراسری',
+                                            onTap: () => context.push('/search'),
+                                          ),
+                                      ],
                                   ),
                               const SizedBox(height: 18),
                             ] else if (mobileHeader != null) ...[
