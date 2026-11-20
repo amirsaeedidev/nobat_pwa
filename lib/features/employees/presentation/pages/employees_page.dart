@@ -72,7 +72,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
       mobileActions: [
         CircleIconButton(icon: Icons.person_add_alt_1_rounded, size: 38, onTap: () => context.push('/employees/new')),
       ],
-      child: Column(
+      child: provider.loading
+          ? const LoadingState(kind: SkeletonKind.personnel)
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           GridView.count(
