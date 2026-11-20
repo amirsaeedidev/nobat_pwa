@@ -61,7 +61,7 @@ class DashboardPage extends StatelessWidget {
                     final wide = constraints.maxWidth >= 900;
                     if (!wide) {
                       return _MobileDashboard(
-                        stats: stats!,
+                        stats: stats,
                         upcoming: provider.upcoming,
                         period: provider.period,
                         onPeriodChanged: provider.setPeriod,

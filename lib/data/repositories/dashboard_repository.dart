@@ -183,12 +183,7 @@ class MockDashboardRepository implements DashboardRepository {
     final appointments = _db.appointments.where((item) =>
       canSeeAppointment(item) && range.contains(item.startAt)).toList();
     final completed = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
-    final paymentMatchedIds = filter.paymentMethod == null ? null : _db.appointmentPayments
-      .where((payment) => payment.method.name == filter.paymentMethod)
-      .map((payment) => payment.appointmentId).toSet();
-    bool matchesDashboardFilter(Appointment item) => filter.matches(item) &&
-      (paymentMatchedIds == null || paymentMatchedIds.contains(item.id));
-    final operationalAppointments = appointments.where(matchesDashboardFilter).toList();
+    final operationalAppointments = appointments.where(filter.matches).toList();
     final operationalCompleted = operationalAppointments.where((item) => item.status == AppointmentStatus.completed).toList();
     final operationalStatusCounts = <String, int>{
       for (final status in AppointmentStatus.values)
@@ -212,7 +207,6 @@ class MockDashboardRepository implements DashboardRepository {
       range.contains(entry.createdAt) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
       (canViewAll || employeeId == entry.employeeId) &&
-      (filter.isEmpty || operationalAppointments.any((item) => item.id == entry.appointmentId)) &&
       _db.hasPermission('finance.income.view', employeeId: entry.employeeId)).toList();
     final revenueByAppointmentInRange = <String, int>{};
     for (final entry in revenueEntries) {
@@ -242,11 +236,10 @@ class MockDashboardRepository implements DashboardRepository {
       commissionByEmployee[entry.employeeId] = (commissionByEmployee[entry.employeeId] ?? 0) + signedCommission;
     }
 
-    final walletEntries = canViewSalary && filter.serviceId == null && filter.status == null && filter.paymentMethod == null
+    final walletEntries = canViewSalary
         ? _db.employeeWalletTransactions.where((entry) =>
             range.contains(entry.createdAt) &&
             entry.status == EmployeeWalletTransactionStatus.posted &&
-            (filter.employeeId == null || entry.employeeId == filter.employeeId) &&
             (canViewAll || employeeId == entry.employeeId) &&
             _db.hasPermission('finance.salary.view', employeeId: entry.employeeId)).toList()
         : <EmployeeWalletTransaction>[];
@@ -272,7 +265,7 @@ class MockDashboardRepository implements DashboardRepository {
     }
     final payrollCost = walletCostFor(walletEntries);
     final businessExpenses = _db.businessExpenses.where((item) =>
-      filter.isEmpty && range.contains(item.createdAt) && item.status == BusinessExpenseStatus.posted).toList();
+      range.contains(item.createdAt) && item.status == BusinessExpenseStatus.posted).toList();
     final operatingExpense = businessExpenses.fold<int>(0, (sum, item) => sum + item.amount);
     final cost = commissionCost + payrollCost + operatingExpense;
 
@@ -282,9 +275,7 @@ class MockDashboardRepository implements DashboardRepository {
         (canViewAll || employeeId == appointment.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: appointment.employeeId);
     }).toList();
-    final operationalIds = operationalAppointments.map((item) => item.id).toSet();
     final payments = allVisiblePayments.where((item) => range.contains(item.createdAt) &&
-      (filter.isEmpty || operationalIds.contains(item.appointmentId)) &&
       (filter.paymentMethod == null || item.method.name == filter.paymentMethod)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final collectedRevenue = payments.fold<int>(0, (sum, item) => sum + item.signedAmount);
@@ -340,7 +331,7 @@ class MockDashboardRepository implements DashboardRepository {
 
     final employeeRevenue = <String, num>{};
     final employeeNames = <String, String>{};
-    for (final appointment in operationalCompleted) {
+    for (final appointment in completed) {
       if (!_db.hasPermission('finance.income.view', employeeId: appointment.employeeId)) continue;
       employeeRevenue[appointment.employeeId] = (employeeRevenue[appointment.employeeId] ?? 0) + (revenueByAppointmentInRange[appointment.id] ?? 0);
       employeeNames[appointment.employeeId] = appointment.employeeName;
@@ -735,7 +726,7 @@ class MockDashboardRepository implements DashboardRepository {
       )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
-      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!filter.isEmpty ? ' هزینه‌های سربار غیرقابل انتساب در فیلترهای جزئی منظور نشده‌اند.' : '') + (!hasFullIncomeScope ? ' بخشی از درآمد به‌دلیل محدودیت دسترسی پرسنلی در گزارش لحاظ نشده است.' : '')
+      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!hasFullIncomeScope ? ' بخشی از درآمد به‌دلیل محدودیت دسترسی پرسنلی در گزارش لحاظ نشده است.' : '')
         + (!hasFullCommissionScope || !hasFullSalaryScope ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
       grossRevenue: grossRevenue,
       collectedRevenue: collectedRevenue,
