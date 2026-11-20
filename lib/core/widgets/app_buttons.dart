@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
@@ -164,6 +165,57 @@ class CircleIconButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: content,
+        ),
+      ),
+    );
+  }
+}
+
+/// دکمه دایره‌ای برای آیکون‌های HugeIcons.
+class HugeIconCircleButton extends StatelessWidget {
+  const HugeIconCircleButton({
+    super.key,
+    required this.icon,
+    this.onTap,
+    this.size = 44,
+    this.tooltip,
+    this.color,
+    this.active = false,
+  });
+
+  final List<List<dynamic>> icon;
+  final VoidCallback? onTap;
+  final double size;
+  final String? tooltip;
+  final Color? color;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    final tint = color ?? pal.textPrimary;
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: active ? pal.primary.withValues(alpha: 0.18) : pal.surfaceAlt,
+              border: Border.all(color: active ? pal.primary.withValues(alpha: 0.5) : pal.borderStrong),
+            ),
+            child: HugeIcon(
+              icon: icon,
+              size: size * 0.46,
+              color: active ? pal.primaryBright : tint,
+            ),
+          ),
         ),
       ),
     );
