@@ -195,10 +195,13 @@ class CustomerProfilePage extends StatelessWidget {
                           valueColor: upcoming.isEmpty ? null : pal.success,
                         ),
                         const Divider(height: 20),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text('یادداشت داخلی', style: TextStyle(fontSize: 11.5, color: pal.textMuted)),
-                            const Spacer(),
                             SoftButton(
                               label: 'ویرایش',
                               icon: Icons.edit_rounded,
