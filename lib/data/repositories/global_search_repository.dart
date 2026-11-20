@@ -59,6 +59,8 @@ class GlobalSearchRepository {
   final String? _businessId;
   String? _resolvedBusinessId;
   bool _businessResolutionAttempted = false;
+  bool _remoteOwner = false;
+  final Set<String> _remotePermissions = {};
 
   static const _historyLimit = 8;
   static const _categoryPrefix = '__category__::';
@@ -388,8 +390,23 @@ class GlobalSearchRepository {
     // Never guess between multiple tenant memberships. A selected business
     // must be supplied explicitly before searching across them.
     if (businesses.length != 1) return null;
-    _resolvedBusinessId = businesses.single['business_id']?.toString();
+    final membership = businesses.single;
+    _resolvedBusinessId = membership['business_id']?.toString();
+    _remoteOwner = membership['role']?.toString() == 'owner';
+    final rawPermissions = membership['permissions'];
+    if (rawPermissions is Map) {
+      for (final entry in rawPermissions.entries) {
+        if (entry.value == true) _remotePermissions.add(entry.key.toString());
+      }
+    } else if (rawPermissions is List) {
+      _remotePermissions.addAll(rawPermissions.map((value) => value.toString()));
+    }
     return _resolvedBusinessId;
+  }
+
+  bool _hasRemotePermission(String permissionId, {String? employeeId}) {
+    if (!_database.hasPermission(permissionId, employeeId: employeeId)) return false;
+    return _remoteOwner || _remotePermissions.contains(permissionId);
   }
 
   Future<void> _appendRemoteResults(
@@ -412,10 +429,10 @@ class GlobalSearchRepository {
     Future<List<Map<String, dynamic>>> fetch(String entity) =>
         remote.fetchRecords(businessId: businessId, entityType: entity);
 
-    if (_database.hasPermission('customers.view') && (type == null || type == GlobalSearchType.customer)) {
+    if (_hasRemotePermission('customers.view') && (type == null || type == GlobalSearchType.customer)) {
       for (final row in await fetch('customers')) {
         final id = row['id'] as String? ?? '';
-        final canViewHistory = _database.hasPermission('customers.history');
+        final canViewHistory = _hasRemotePermission('customers.history');
         add(id: id, type: GlobalSearchType.customer,
           title: row['full_name'] as String? ?? '', subtitle: row['phone'] as String? ?? '',
           details: canViewHistory ? row['notes'] as String? ?? '' : '',
@@ -424,7 +441,7 @@ class GlobalSearchRepository {
           isRemote: true, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
-    if ((_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile')) &&
+    if ((_hasRemotePermission('employees.view_list') || _hasRemotePermission('employees.view_profile')) &&
         (type == null || type == GlobalSearchType.employee)) {
       for (final row in await fetch('employees')) {
         final id = row['id']?.toString() ?? '';
@@ -438,7 +455,7 @@ class GlobalSearchRepository {
           isRemote: true);
       }
     }
-    if (_database.hasPermission('services.manage') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
+    if (_hasRemotePermission('services.manage') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
       for (final row in await fetch('services')) {
         final id = row['id']?.toString() ?? '';
         if (id.startsWith(_categoryPrefix)) {
@@ -451,12 +468,12 @@ class GlobalSearchRepository {
         }
       }
     }
-    if ((_database.hasPermission('appointments.view_all') || _database.hasPermission('appointments.view_self')) &&
+    if ((_hasRemotePermission('appointments.view_all') || _hasRemotePermission('appointments.view_self')) &&
         (type == null || type == GlobalSearchType.appointment)) {
       for (final row in await fetch('appointments')) {
         final id = row['id']?.toString() ?? '';
         final employeeId = row['employee_id']?.toString() ?? '';
-        if (id.isEmpty || (!_database.hasPermission('appointments.view_all') &&
+        if (id.isEmpty || (!_hasRemotePermission('appointments.view_all') &&
             _database.currentAccessAccount.employeeId != employeeId)) continue;
         add(id: id, type: GlobalSearchType.appointment,
           title: '${row['customer_name'] ?? 'نوبت'} • ${row['reference'] ?? id}',
@@ -467,10 +484,10 @@ class GlobalSearchRepository {
       }
     }
     if (type == null || type == GlobalSearchType.transaction) {
-      if (_database.hasPermission('finance.commission.view')) {
+      if (_hasRemotePermission('finance.commission.view')) {
         for (final row in await fetch('finance')) {
           final employeeId = row['employee_id']?.toString();
-          if (employeeId == null || !_database.hasPermission('finance.commission.view', employeeId: employeeId)) continue;
+          if (employeeId == null || !_hasRemotePermission('finance.commission.view', employeeId: employeeId)) continue;
           add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
             title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش پورسانت',
             subtitle: '${row['commission_amount'] ?? ''} تومان',
@@ -478,11 +495,11 @@ class GlobalSearchRepository {
             searchable: row.values, isRemote: true, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
-      if (_database.hasPermission('finance.salary.view') || _database.hasPermission('finance.settlement.view')) {
+      if (_hasRemotePermission('finance.salary.view') || _hasRemotePermission('finance.settlement.view')) {
         for (final row in await fetch('employee_wallets')) {
           final employeeId = row['employee_id']?.toString() ?? '';
-          final canViewSalary = _database.hasPermission('finance.salary.view', employeeId: employeeId);
-          final canViewSettlement = _database.hasPermission('finance.settlement.view', employeeId: employeeId);
+          final canViewSalary = _hasRemotePermission('finance.salary.view', employeeId: employeeId);
+          final canViewSettlement = _hasRemotePermission('finance.settlement.view', employeeId: employeeId);
           if (!_database.canViewEmployeeIncome(employeeId) || (!canViewSalary && !canViewSettlement)) continue;
           add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
             title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش کیف پول',
@@ -491,7 +508,7 @@ class GlobalSearchRepository {
             date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
-      if (_database.hasPermission('finance.income.view')) {
+      if (_hasRemotePermission('finance.income.view')) {
         for (final entity in ['appointment_payments', 'business_expenses']) {
           for (final row in await fetch(entity)) {
             final id = row['id']?.toString() ?? '';
@@ -505,7 +522,7 @@ class GlobalSearchRepository {
         }
       }
     }
-    if (_database.hasPermission('settings.view') && (type == null || type == GlobalSearchType.activity)) {
+    if (_hasRemotePermission('settings.view') && (type == null || type == GlobalSearchType.activity)) {
       for (final row in await fetch('activity_logs')) {
         add(id: row['id']?.toString() ?? '', type: GlobalSearchType.activity,
           title: row['title']?.toString() ?? '', subtitle: row['entity_name']?.toString() ?? '',
@@ -513,7 +530,7 @@ class GlobalSearchRepository {
           date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
-    if (_database.hasPermission('employees.view_profile') && (type == null || type == GlobalSearchType.document)) {
+    if (_hasRemotePermission('employees.view_profile') && (type == null || type == GlobalSearchType.document)) {
       for (final row in await fetch('employee_documents')) {
         final employeeId = row['employee_id']?.toString() ?? '';
         if (!_database.canViewEmployee(employeeId)) continue;
