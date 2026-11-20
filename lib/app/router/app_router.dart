@@ -29,6 +29,7 @@ import '../../features/employees/presentation/pages/employee_schedule_page.dart'
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/services/presentation/pages/service_form_page.dart';
+import '../../features/services/presentation/pages/service_details_page.dart';
 import '../../features/services/presentation/pages/services_page.dart';
 import '../../features/settings/presentation/pages/advanced_settings_page.dart';
 import '../../features/settings/presentation/pages/appearance_settings_page.dart';
@@ -98,8 +99,9 @@ GoRouter buildRouter(AppDatabase database) {
             routes: [
               GoRoute(path: 'new', builder: (context, state) => const ServiceFormPage()),
               GoRoute(
-                path: ':id/edit',
-                builder: (context, state) => ServiceFormPage(serviceId: state.pathParameters['id']),
+                path: ':id',
+                builder: (context, state) => ServiceDetailsPage(serviceId: state.pathParameters['id']!),
+                routes: [GoRoute(path: 'edit', builder: (context, state) => ServiceFormPage(serviceId: state.pathParameters['id']))],
               ),
             ],
           ),
