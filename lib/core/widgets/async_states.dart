@@ -42,7 +42,7 @@ class _PageSkeletonState extends State<PageSkeleton> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final pal = context.pal;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
-    final content = _layout(pal);
+    final content = _layout();
     return Semantics(
       label: 'در حال بارگذاری اطلاعات',
       liveRegion: true,
@@ -104,17 +104,17 @@ class _PageSkeletonState extends State<PageSkeleton> with SingleTickerProviderSt
   Widget _rows({int count = 4, double height = 72}) => Column(
     children: List.generate(count, (_) => Padding(
       padding: const EdgeInsets.only(bottom: 9),
-      child: _card(child: Row(children: [
+      child: SizedBox(height: height, child: _card(child: Row(children: [
         _block(42, width: 42, radius: 22), const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _line(116), const SizedBox(height: 9), _line(178, height: 8),
         ])),
         const SizedBox(width: 12), _block(24, width: 52, radius: 8),
-      ])),
+      ]))),
     )),
   );
 
-  Widget _layout(AppPalette pal) {
+  Widget _layout() {
     switch (widget.kind) {
       case SkeletonKind.dashboard:
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
