@@ -159,16 +159,19 @@ class GlobalSearchRepository {
     List<Service> visibleServices = const [];
     List<Appointment> visibleAppointments = const [];
     final loads = <Future<void>>[];
-    if (_database.hasPermission('customers.view')) {
+    if ((filterType == null || filterType == GlobalSearchType.customer) && _database.hasPermission('customers.view')) {
       loads.add(_customers.fetchAll().then<void>((value) { visibleCustomers = value; }));
     }
-    if (_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile')) {
+    if ((filterType == null || filterType == GlobalSearchType.employee) &&
+        (_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile'))) {
       loads.add(_employees.fetchEmployees().then<void>((value) { visibleEmployees = value; }));
     }
-    if (_database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
+    if ((filterType == null || filterType == GlobalSearchType.service || filterType == GlobalSearchType.category) &&
+        _database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
       loads.add(_services.fetchServices().then<void>((value) { visibleServices = value; }));
     }
-    if (_database.hasPermission('appointments.view_all') || _database.hasPermission('appointments.view_self')) {
+    if ((filterType == null || filterType == GlobalSearchType.appointment) &&
+        (_database.hasPermission('appointments.view_all') || _database.hasPermission('appointments.view_self'))) {
       loads.add(_appointments.fetchAll().then<void>((value) { visibleAppointments = value; }));
     }
     await Future.wait(loads);
@@ -209,7 +212,7 @@ class GlobalSearchRepository {
     }
 
 
-    if (_database.hasPermission('customers.view')) {
+    if ((filterType == null || filterType == GlobalSearchType.customer) && _database.hasPermission('customers.view')) {
       for (final customer in visibleCustomers) {
         final canViewHistory = _database.hasPermission('customers.history');
         add(
@@ -238,7 +241,7 @@ class GlobalSearchRepository {
 
     final canListEmployees = _database.hasPermission('employees.view_list');
     final canViewOwnProfile = _database.hasPermission('employees.view_profile');
-    if (canListEmployees || canViewOwnProfile) {
+    if ((filterType == null || filterType == GlobalSearchType.employee) && (canListEmployees || canViewOwnProfile)) {
       for (final employee in visibleEmployees) {
         if (!_database.canViewEmployee(employee.id)) continue;
         if (!canListEmployees && _database.currentAccessAccount.employeeId != employee.id) continue;
@@ -264,7 +267,8 @@ class GlobalSearchRepository {
       }
     }
 
-    if (_database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
+    if ((filterType == null || filterType == GlobalSearchType.service || filterType == GlobalSearchType.category) &&
+        _database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
       for (final service in visibleServices) {
         add(
           id: service.id,
@@ -294,7 +298,7 @@ class GlobalSearchRepository {
 
     final canViewAllAppointments = _database.hasPermission('appointments.view_all');
     final canViewOwnAppointments = _database.hasPermission('appointments.view_self');
-    if (canViewAllAppointments || canViewOwnAppointments) {
+    if ((filterType == null || filterType == GlobalSearchType.appointment) && (canViewAllAppointments || canViewOwnAppointments)) {
       for (final appointment in visibleAppointments) {
         final route = '/appointments/${appointment.id}';
         if (!_database.canOpenRoute(route)) continue;
@@ -325,7 +329,7 @@ class GlobalSearchRepository {
     }
 
     final canViewBusinessFinance = _database.hasPermission('finance.income.view');
-    if (canViewBusinessFinance) {
+    if ((filterType == null || filterType == GlobalSearchType.transaction) && canViewBusinessFinance) {
       for (final payment in _database.appointmentPayments) {
         final appointment = _database.appointmentById(payment.appointmentId);
         final route = appointment != null && _database.canOpenRoute('/appointments/${appointment.id}')
@@ -360,6 +364,7 @@ class GlobalSearchRepository {
       }
     }
 
+    if (filterType == null || filterType == GlobalSearchType.document || filterType == GlobalSearchType.transaction) {
     for (final employee in _database.employees) {
       if (!_database.canViewEmployee(employee.id)) continue;
       final canViewProfile = _database.canOpenRoute('/employees/${employee.id}');
@@ -423,7 +428,7 @@ class GlobalSearchRepository {
       }
     }
 
-    if (_database.canOpenRoute('/activity')) {
+    if ((filterType == null || filterType == GlobalSearchType.activity) && _database.canOpenRoute('/activity')) {
       for (final log in _database.activityLogs) {
         final route = '/activity';
         add(
@@ -439,6 +444,7 @@ class GlobalSearchRepository {
           date: log.createdAt,
         );
       }
+    }
     }
 
     if (_remote != null) {
