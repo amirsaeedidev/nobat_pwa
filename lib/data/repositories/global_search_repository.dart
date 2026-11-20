@@ -673,3 +673,28 @@ class GlobalSearchRepository {
     await prefs.remove(_historyKey);
   }
 }
+
+
+/// Re-check access immediately before opening or displaying a cached result.
+bool canOpenGlobalSearchResult(AppDatabase database, GlobalSearchResult result) {
+  if (result.accountId.isNotEmpty &&
+      result.accountId != database.currentAccessAccount.id) {
+    return false;
+  }
+  final employeeId = result.employeeId;
+  if (employeeId != null && !database.canViewEmployee(employeeId)) return false;
+  final permission = result.requiredPermission;
+  if (permission != null &&
+      !database.hasPermission(permission, employeeId: employeeId)) {
+    return false;
+  }
+  if (result.type == GlobalSearchType.appointment &&
+      result.isRemote &&
+      !database.hasPermission('appointments.view_all') &&
+      database.currentAccessAccount.employeeId != employeeId) {
+    return false;
+  }
+  return result.isRemote
+      ? database.canOpenRoute('/search/result')
+      : database.canOpenRoute(result.route);
+}
