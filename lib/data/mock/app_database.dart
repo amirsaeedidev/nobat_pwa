@@ -836,6 +836,7 @@ class AppDatabase extends ChangeNotifier {
       for (final item in appointment.serviceSnapshots) {
         if (item['service_id'] == serviceId) { snapshot = item; break; }
       }
+      final hasServiceCommissionOverride = snapshot?['service_commission_override'] == true;
       final rate = (snapshot?['commission_rate_bps'] as num?)?.toInt() ?? rule?.rateBps ?? profile.generalRateBps;
       final fixed = (snapshot?['fixed_commission_amount'] as num?)?.toInt() ?? rule?.fixedAmount ?? 0;
       final basisKey = snapshot?['commission_basis'] as String?;
@@ -844,7 +845,13 @@ class AppDatabase extends ChangeNotifier {
         if (item.name == basisKey) { basis = item; break; }
       }
       final base = CommissionCalculator.base(basis: basis, grossAmount: gross, discountAmount: discount, receivedAmount: received);
-      final calculatedCommission = switch (profile.method) { EmployeePaymentMethod.fixedMonthly => 0, EmployeePaymentMethod.fixedPerService => fixed, _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed) };
+      final calculatedCommission = hasServiceCommissionOverride
+          ? CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed)
+          : switch (profile.method) {
+              EmployeePaymentMethod.fixedMonthly => 0,
+              EmployeePaymentMethod.fixedPerService => fixed,
+              _ => CommissionCalculator.commission(baseAmount: base, rateBps: rate, fixedAmount: fixed),
+            };
       final commission = calculatedCommission.clamp(0, received).toInt();
       final financeEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: appointment.employeeId, appointmentId: appointment.id, serviceId: serviceId, createdAt: DateTime.now(), type: FinanceEntryType.commission, methodSnapshot: profile.method.name, basisSnapshot: profile.basis.name, grossAmount: gross, discountAmount: discount, receivedAmount: received, calculationBase: base, rateBps: rate, fixedAmount: fixed, commissionAmount: commission, companyShare: received - commission);
       _employeeFinanceEntries.add(financeEntry);
