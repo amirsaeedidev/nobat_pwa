@@ -23,6 +23,7 @@ class SupabaseRepository {
     'payroll',
     'leave_requests',
     'employee_services',
+    'service_categories',
     'roles',
   };
 
