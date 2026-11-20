@@ -404,9 +404,13 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
               for (var index = 0; index < shifts.length; index++)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final startField = Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: MediaQuery.sizeOf(context).width < 600 ? 100 : 140,
                         child: TimeDropdown(
                           value: shifts[index].start,
                           onChanged: (v) => setState(() {
@@ -415,8 +419,10 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                             _schedule[day] = list;
                           }),
                         ),
-                      );
-                      final endField = Expanded(
+                      ),
+                      Text('تا', style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
+                      SizedBox(
+                        width: MediaQuery.sizeOf(context).width < 600 ? 100 : 140,
                         child: TimeDropdown(
                           value: shifts[index].end,
                           onChanged: (v) => setState(() {
@@ -425,8 +431,8 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                             _schedule[day] = list;
                           }),
                         ),
-                      );
-                      final removeButton = IconButton(
+                      ),
+                      IconButton(
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         onPressed: shifts.length == 1
@@ -436,30 +442,10 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                                   _schedule[day] = list;
                                 }),
                         icon: Icon(Icons.close_rounded, size: 15, color: pal.textMuted),
-                      );
-                      final fields = Row(
-                        children: [
-                          startField,
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Text('تا', style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
-                          ),
-                          endField,
-                        ],
-                      );
-                      if (MediaQuery.sizeOf(context).width < 600 || constraints.maxWidth < 420) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            fields,
-                            Align(alignment: AlignmentDirectional.centerEnd, child: removeButton),
-                          ],
-                        );
-                      }
-                      return Row(children: [Expanded(child: fields), removeButton]);
-                    },
+                      ),
+                    ],
                   ),
-                ),
+                ),,
             if (enabled)
               Align(
                 alignment: Alignment.centerRight,
