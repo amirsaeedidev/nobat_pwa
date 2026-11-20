@@ -48,11 +48,7 @@ class DashboardPage extends StatelessWidget {
       child: provider.loading && stats == null
           ? const LoadingState(kind: SkeletonKind.dashboard)
           : stats == null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('دریافت اطلاعات پیشخوان ناموفق بود'),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(onPressed: provider.load, icon: const Icon(Icons.refresh_rounded), label: const Text('تلاش دوباره')),
-                ])))
+              ? ErrorStateView(kind: AppErrorKind.fetch, onRetry: provider.load)
               : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
