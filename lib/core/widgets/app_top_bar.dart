@@ -13,6 +13,7 @@ class AppTopBar extends StatelessWidget {
     this.showLogo = false,
     this.onClose,
     this.onBell,
+    this.onSearch,
     this.onProfile,
     this.hasNotification = true,
     this.leading,
@@ -27,6 +28,7 @@ class AppTopBar extends StatelessWidget {
   final bool showLogo;
   final VoidCallback? onClose;
   final VoidCallback? onBell;
+  final VoidCallback? onSearch;
   final VoidCallback? onProfile;
   final bool hasNotification;
   final Widget? leading;
@@ -57,6 +59,10 @@ class AppTopBar extends StatelessWidget {
                     children: [
                       const _DateTimeLogo(),
                       const Spacer(),
+                      if (onSearch != null) ...[
+                        CircleIconButton(icon: Icons.search_rounded, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
+                        const SizedBox(width: 8),
+                      ],
                       if (!compactLogoHeader) ...actions,
                       if (!compactLogoHeader && actions.isNotEmpty) const SizedBox(width: 8),
                       if (onBell != null) ...[
@@ -130,6 +136,10 @@ class AppTopBar extends StatelessWidget {
                       const Spacer(),
                     ...actions,
                     if (actions.isNotEmpty) const SizedBox(width: 8),
+                    if (onSearch != null) ...[
+                      CircleIconButton(icon: Icons.search_rounded, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
+                      const SizedBox(width: 8),
+                    ],
                     if (onBell != null) ...[
                       CircleIconButton(
                         icon: Icons.notifications_none_rounded,
