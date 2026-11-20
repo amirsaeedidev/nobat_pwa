@@ -118,6 +118,8 @@ class ServicesPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          if (provider.loadNotice != null)
+            OfflineDataNotice(message: provider.loadNotice!)
           if (provider.loading)
             const LoadingState(kind: SkeletonKind.services)
           else if (services.isEmpty)
