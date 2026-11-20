@@ -65,6 +65,40 @@ class SupabaseRepository {
     }).toList(growable: false);
   }
 
+  /// Searches a single tenant/entity through an RLS-invoker RPC.
+  /// The SQL function only returns rows already visible under app_records RLS.
+  Future<List<Map<String, dynamic>>> searchRecords({
+    required String businessId,
+    required String entityType,
+    required String query,
+    int limit = 60,
+  }) async {
+    _requireUserId();
+    _validateBusinessId(businessId);
+    _validateEntityType(entityType);
+    if (query.trim().isEmpty) return const [];
+
+    final response = await _client.rpc(
+      'search_app_records',
+      params: {
+        'p_business_id': businessId,
+        'p_entity_type': entityType,
+        'p_query': query,
+        'p_limit': limit.clamp(1, 100),
+      },
+    );
+    final rows = response as List;
+    return rows.map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final payload = Map<String, dynamic>.from(row['payload'] as Map);
+      return {
+        ...payload,
+        'id': row['record_id'],
+        'created_at': payload['created_at'] ?? row['created_at'],
+      };
+    }).toList(growable: false);
+  }
+
   Future<Map<String, dynamic>?> fetchRecord({
     required String businessId,
     required String entityType,
