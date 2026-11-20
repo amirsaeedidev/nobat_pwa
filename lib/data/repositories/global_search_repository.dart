@@ -185,7 +185,7 @@ class GlobalSearchRepository {
       bool isRemote = false,
       String? requiredPermission,
       String? employeeId,
-      bool showDetailsPage = false,
+      bool? showDetailsPage,
     }) {
       if (filterType != null && type != filterType) return;
       if (!_matches(query, [...searchable, title, subtitle, details, id])) return;
@@ -204,7 +204,7 @@ class GlobalSearchRepository {
         accountId: _database.currentAccessAccount.id,
         requiredPermission: requiredPermission,
         employeeId: employeeId,
-        showDetailsPage: showDetailsPage,
+        showDetailsPage: showDetailsPage ?? false,
       ));
     }
 
@@ -506,7 +506,7 @@ class GlobalSearchRepository {
       required bool isRemote,
       String? requiredPermission,
       String? employeeId,
-      bool showDetailsPage,
+      bool? showDetailsPage,
     }) add,
     String businessId,
   ) async {
