@@ -68,7 +68,7 @@ class MockCustomerRepository implements CustomerRepository {
     int pageSize = 8,
     String sortBy = 'createdAt',
   }) async {
-    return AppFailure.guard(() async {
+    return await AppFailure.guard(() async {
       await _db.delay(160);
       final list = _filtered(query);
       final start = (page - 1) * pageSize;
