@@ -33,6 +33,7 @@ class AppDatabase extends ChangeNotifier {
   final List<Customer> _customers = [];
   final List<Appointment> _appointments = [];
   final List<Service> _services = [];
+  final List<String> _serviceCategories = [];
   final List<Employee> _employees = [];
   final List<SmsMessage> _sms = [];
   final List<ActivityLog> _logs = [];
@@ -67,6 +68,7 @@ class AppDatabase extends ChangeNotifier {
   List<Customer> get customers => List.unmodifiable(_customers);
   List<Appointment> get appointments => List.unmodifiable(_appointments);
   List<Service> get services => List.unmodifiable(_services);
+  List<String> get serviceCategories => List.unmodifiable(_serviceCategories);
   List<Employee> get employees => List.unmodifiable(_employees);
   List<SmsMessage> get smsMessages => List.unmodifiable(_sms);
   List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
@@ -245,6 +247,7 @@ class AppDatabase extends ChangeNotifier {
   void _seed() {
     _customers.addAll(MockSeed.customers());
     _services.addAll(MockSeed.services());
+    _serviceCategories.addAll(_services.map((service) => service.category).toSet().toList()..sort());
     _employees.addAll(MockSeed.employees());
     _seedAccessControl();
     for (final employee in _employees) {
@@ -1311,6 +1314,59 @@ class AppDatabase extends ChangeNotifier {
       if (s.id == id) return s;
     }
     return null;
+  }
+
+  /// ایجاد دسته‌بندی خدمت با جلوگیری از نام خالی و تکراری.
+  void addServiceCategory(String name) {
+    requirePermission('services.manage');
+    final normalized = name.trim();
+    if (normalized.isEmpty) throw ArgumentError('نام دسته‌بندی الزامی است.');
+    if (_serviceCategories.any((item) => item.toLowerCase() == normalized.toLowerCase())) {
+      throw StateError('این دسته‌بندی قبلاً ثبت شده است.');
+    }
+    _serviceCategories.add(normalized);
+    _serviceCategories.sort();
+    _commit();
+  }
+
+  /// تغییر نام دسته‌بندی و به‌روزرسانی ارجاع تمام خدمات مرتبط.
+  void renameServiceCategory(String oldName, String newName) {
+    requirePermission('services.manage');
+    final normalized = newName.trim();
+    if (normalized.isEmpty) throw ArgumentError('نام دسته‌بندی الزامی است.');
+    if (oldName == normalized) return;
+    if (_serviceCategories.any((item) => item.toLowerCase() == normalized.toLowerCase())) {
+      throw StateError('دسته‌بندی دیگری با این نام وجود دارد.');
+    }
+    if (!_serviceCategories.contains(oldName)) throw StateError('دسته‌بندی پیدا نشد.');
+    for (var index = 0; index < _services.length; index++) {
+      if (_services[index].category == oldName) {
+        _services[index] = _services[index].copyWith(category: normalized);
+      }
+    }
+    _serviceCategories[_serviceCategories.indexOf(oldName)] = normalized;
+    _serviceCategories.sort();
+    _commit();
+  }
+
+  /// حذف دسته‌بندی فقط پس از تعیین تکلیف خدمات وابسته مجاز است.
+  void deleteServiceCategory(String name, {String? moveServicesTo}) {
+    requirePermission('services.manage');
+    if (!_serviceCategories.contains(name)) return;
+    final dependents = _services.where((service) => service.category == name).toList();
+    if (dependents.isNotEmpty) {
+      final target = moveServicesTo?.trim();
+      if (target == null || target.isEmpty || target == name || !_serviceCategories.contains(target)) {
+        throw StateError('این دسته‌بندی دارای خدمت وابسته است؛ ابتدا دسته‌بندی مقصد را مشخص کنید.');
+      }
+      for (var index = 0; index < _services.length; index++) {
+        if (_services[index].category == name) {
+          _services[index] = _services[index].copyWith(category: target);
+        }
+      }
+    }
+    _serviceCategories.remove(name);
+    _commit();
   }
 
   void addService(Service service) {
