@@ -158,16 +158,16 @@ class GlobalSearchRepository {
     List<Appointment> visibleAppointments = const [];
     final loads = <Future<void>>[];
     if (_database.hasPermission('customers.view')) {
-      loads.add(_customers.fetchAll().then((value) => visibleCustomers = value));
+      loads.add(_customers.fetchAll().then<void>((value) { visibleCustomers = value; }));
     }
     if (_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile')) {
-      loads.add(_employees.fetchEmployees().then((value) => visibleEmployees = value));
+      loads.add(_employees.fetchEmployees().then<void>((value) { visibleEmployees = value; }));
     }
     if (_database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
-      loads.add(_services.fetchServices().then((value) => visibleServices = value));
+      loads.add(_services.fetchServices().then<void>((value) { visibleServices = value; }));
     }
     if (_database.hasPermission('appointments.view_all') || _database.hasPermission('appointments.view_self')) {
-      loads.add(_appointments.fetchAll().then((value) => visibleAppointments = value));
+      loads.add(_appointments.fetchAll().then<void>((value) { visibleAppointments = value; }));
     }
     await Future.wait(loads);
 
