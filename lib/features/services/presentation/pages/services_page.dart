@@ -190,7 +190,7 @@ class ServicesPage extends StatelessWidget {
     await showDialog<void>(context: context, builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setDialogState) => AlertDialog(
         title: const Text('مدیریت دسته‌بندی خدمات'),
-        content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        content: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: controller, decoration: const InputDecoration(labelText: 'نام دسته‌بندی جدید / نام جدید')),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
