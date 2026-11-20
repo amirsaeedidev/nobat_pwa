@@ -391,38 +391,48 @@ class PillToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: pal.surfaceAlt,
-        borderRadius: AppRadius.brPill,
-        border: Border.all(color: pal.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < options.length; i++)
-            GestureDetector(
-              onTap: () => onChanged(i),
-              child: AnimatedContainer(
-                duration: AppDurations.fast,
-                padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 16, vertical: dense ? 5 : 7),
-                decoration: BoxDecoration(
-                  color: i == selectedIndex ? pal.primary : Colors.transparent,
-                  borderRadius: AppRadius.brPill,
-                ),
-                child: Text(
-                  options[i],
-                  style: TextStyle(
-                    fontSize: dense ? 11.5 : 12.5,
-                    fontWeight: i == selectedIndex ? FontWeight.w700 : FontWeight.w500,
-                    color: i == selectedIndex ? Colors.white : pal.textSecondary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = dense || (constraints.maxWidth.isFinite && constraints.maxWidth < 320);
+        return Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: pal.surfaceAlt,
+            borderRadius: AppRadius.brPill,
+            border: Border.all(color: pal.border),
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            runAlignment: WrapAlignment.center,
+            spacing: 2,
+            runSpacing: 2,
+            children: [
+              for (var i = 0; i < options.length; i++)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(i),
+                  child: AnimatedContainer(
+                    duration: AppDurations.fast,
+                    padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 16, vertical: compact ? 6 : 7),
+                    decoration: BoxDecoration(
+                      color: i == selectedIndex ? pal.primary : Colors.transparent,
+                      borderRadius: AppRadius.brPill,
+                    ),
+                    child: Text(
+                      options[i],
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: compact ? 11.5 : 12.5,
+                        fontWeight: i == selectedIndex ? FontWeight.w700 : FontWeight.w500,
+                        color: i == selectedIndex ? Colors.white : pal.textSecondary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
