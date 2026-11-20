@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/repositories/global_search_repository.dart';
+import '../../../../data/repositories/supabase_repository.dart';
 
 class GlobalSearchPage extends StatefulWidget {
   const GlobalSearchPage({super.key});
@@ -37,7 +38,10 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     if (_initialized) return;
     _initialized = true;
     _database = context.read<AppDatabase>();
-    _repository = GlobalSearchRepository(_database!);
+    _repository = GlobalSearchRepository(
+      _database!,
+      remote: context.read<SupabaseRepository?>(),
+    );
     _loadRecent();
   }
 
