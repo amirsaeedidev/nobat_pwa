@@ -41,7 +41,7 @@ class _PageSkeletonState extends State<PageSkeleton> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     final content = _layout(pal);
     return Semantics(
       label: 'در حال بارگذاری اطلاعات',
