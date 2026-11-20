@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/dashboard_stats.dart';
@@ -21,6 +22,7 @@ class ReportsProvider extends DbBoundProvider {
   ReportServiceSort _serviceSort = ReportServiceSort.revenue;
   bool _loading = true;
   String? _error;
+  AppErrorKind? _errorKind;
 
   ReportDateRange get range => _range;
   ReportDateRange get comparisonRange => _customComparisonRange ?? _defaultComparisonRange();
@@ -41,6 +43,7 @@ class ReportsProvider extends DbBoundProvider {
   ReportAnalytics get analytics => _analytics ?? ReportAnalytics.empty(_range);
   bool get loading => _loading;
   String? get error => _error;
+  AppErrorKind? get errorKind => _errorKind;
   num get totalRevenue => analytics.revenue;
   num get totalCost => analytics.cost;
   num get netProfit => analytics.netProfit;
@@ -96,6 +99,7 @@ class ReportsProvider extends DbBoundProvider {
     final generation = ++_loadGeneration;
     _loading = true;
     _error = null;
+    _errorKind = null;
     _comparisonAnalytics = null;
     notifyListeners();
     try {
@@ -117,9 +121,11 @@ class ReportsProvider extends DbBoundProvider {
       if (generation == _loadGeneration) notifyListeners();
     } catch (error) {
       if (generation != _loadGeneration) return;
+      final failure = AppFailure.from(error, fallback: AppErrorKind.fetch);
       _analytics = ReportAnalytics.empty(_range);
       _comparisonAnalytics = null;
-      _error = error.toString();
+      _error = failure.persianMessage;
+      _errorKind = failure.kind;
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
