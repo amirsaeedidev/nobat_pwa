@@ -76,10 +76,10 @@ class ReportEmployeeMetric {
 }
 
 class ReportAnalyticsFilter {
-  const ReportAnalyticsFilter({this.serviceId, this.employeeId, this.customerId, this.status});
-  final String? serviceId, employeeId, customerId;
+  const ReportAnalyticsFilter({this.serviceId, this.employeeId, this.customerId, this.status, this.paymentMethod});
+  final String? serviceId, employeeId, customerId, paymentMethod;
   final AppointmentStatus? status;
-  bool get isEmpty => serviceId == null && employeeId == null && customerId == null && status == null;
+  bool get isEmpty => serviceId == null && employeeId == null && customerId == null && status == null && paymentMethod == null;
   bool matches(Appointment item) =>
     (serviceId == null || item.serviceIds.contains(serviceId)) &&
     (employeeId == null || item.employeeId == employeeId) &&
@@ -87,13 +87,14 @@ class ReportAnalyticsFilter {
     (status == null || item.status == status);
 
   ReportAnalyticsFilter copyWith({
-    String? serviceId, String? employeeId, String? customerId,
+    String? serviceId, String? employeeId, String? customerId, String? paymentMethod,
     AppointmentStatus? status, bool clearService = false,
-    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false,
+    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false, bool clearPaymentMethod = false,
   }) => ReportAnalyticsFilter(
     serviceId: clearService ? null : (serviceId ?? this.serviceId),
     employeeId: clearEmployee ? null : (employeeId ?? this.employeeId),
     customerId: clearCustomer ? null : (customerId ?? this.customerId),
+    paymentMethod: clearPaymentMethod ? null : (paymentMethod ?? this.paymentMethod),
     status: clearStatus ? null : (status ?? this.status),
   );
 }
@@ -180,6 +181,7 @@ class ReportAnalytics {
     this.bookedCapacityMinutes = 0,
     this.directCostCoveragePercent = 0,
     this.filter = const ReportAnalyticsFilter(),
+    this.companyShare = 0,
     this.operationalStatusCounts = const {},
     this.newCustomerTrend = const [],
   });
@@ -214,6 +216,7 @@ class ReportAnalytics {
   final int capacityMinutes, bookedCapacityMinutes;
   final num directCostCoveragePercent;
   final ReportAnalyticsFilter filter;
+  final num companyShare;
   final Map<String, int> operationalStatusCounts;
   final List<ReportTrendPoint> newCustomerTrend;
   num get netProfit => revenue - cost;

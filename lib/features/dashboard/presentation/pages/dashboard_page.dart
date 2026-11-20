@@ -19,6 +19,7 @@ import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_sections.dart';
 import '../widgets/performance_chart.dart';
+import '../widgets/dashboard_insights.dart';
 
 /// پیشخوان مدیریت — بازسازی صفحه مرجع DateTime.
 class DashboardPage extends StatelessWidget {
@@ -46,7 +47,13 @@ class DashboardPage extends StatelessWidget {
       scrollable: true,
       child: provider.loading && stats == null
           ? const LoadingState()
-          : Column(
+          : stats == null
+              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('دریافت اطلاعات پیشخوان ناموفق بود'),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(onPressed: provider.load, icon: const Icon(Icons.refresh_rounded), label: const Text('تلاش دوباره')),
+                ])))
+              : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 LayoutBuilder(
@@ -55,6 +62,7 @@ class DashboardPage extends StatelessWidget {
                     if (!wide) {
                       return _MobileDashboard(
                         stats: stats!,
+                        upcoming: provider.upcoming,
                         period: provider.period,
                         onPeriodChanged: provider.setPeriod,
                         revenueSeries: provider.revenueSeries,
@@ -76,6 +84,11 @@ class DashboardPage extends StatelessWidget {
                     );
                   },
                 ),
+                if (provider.analytics != null)
+                  DashboardInsights(analytics: provider.analytics!, filter: provider.analyticsFilter, onFilterChanged: provider.setAnalyticsFilter)
+                else if (provider.analyticsError)
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: OutlinedButton.icon(
+                    onPressed: provider.load, icon: const Icon(Icons.refresh_rounded), label: const Text('بارگذاری دوباره آمار مالی'))),
                 const SizedBox(height: 8),
                 Center(
                   child: Text(

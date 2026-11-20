@@ -2,6 +2,7 @@ import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/dashboard_stats.dart';
+import '../../../../data/models/report_analytics.dart';
 import '../../../../data/repositories/dashboard_repository.dart';
 import '../../../../data/repositories/appointment_repository.dart';
 
@@ -23,6 +24,9 @@ class DashboardProvider extends DbBoundProvider {
   bool _loading = true;
   bool _error = false;
   StatsPeriod _period = StatsPeriod.weekly;
+  ReportAnalytics? _analytics;
+  ReportAnalyticsFilter _analyticsFilter = const ReportAnalyticsFilter();
+  bool _analyticsError = false;
 
   DashboardStats? get stats => _stats;
   List<Appointment> get upcoming => _upcoming;
@@ -30,6 +34,9 @@ class DashboardProvider extends DbBoundProvider {
   bool get loading => _loading;
   bool get error => _error;
   StatsPeriod get period => _period;
+  ReportAnalytics? get analytics => _analytics;
+  ReportAnalyticsFilter get analyticsFilter => _analyticsFilter;
+  bool get analyticsError => _analyticsError;
   DateTime get selectedDay => _selectedDay;
   List<Appointment> get dayAppointments => _dayAppointments;
 
@@ -42,12 +49,36 @@ class DashboardProvider extends DbBoundProvider {
       _upcoming = await _repository.fetchUpcoming(limit: 4);
       _dayAppointments = await _appointmentRepository?.fetchForDay(_selectedDay) ?? _upcoming.where((item) => _sameDay(item.startAt, _selectedDay)).toList();
       _revenueSeries = await _repository.fetchRevenueSeries(months: 6);
+      await _loadAnalytics();
     } catch (_) {
       _error = true;
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _loadAnalytics() async {
+    _analyticsError = false;
+    try {
+      final reportPeriod = switch (_period) {
+        StatsPeriod.daily => ReportPeriod.today,
+        StatsPeriod.weekly => ReportPeriod.thisWeek,
+        StatsPeriod.monthly => ReportPeriod.thisMonth,
+      };
+      _analytics = await _repository.fetchReportAnalytics(
+        range: ReportDateRange.preset(reportPeriod), filter: _analyticsFilter);
+    } catch (_) {
+      _analyticsError = true;
+      _analytics = null;
+    }
+  }
+
+  Future<void> setAnalyticsFilter(ReportAnalyticsFilter filter) async {
+    _analyticsFilter = filter;
+    notifyListeners();
+    await _loadAnalytics();
+    notifyListeners();
   }
 
   Future<void> selectDay(DateTime day) async {
@@ -68,6 +99,7 @@ class DashboardProvider extends DbBoundProvider {
     if (_period == period) return;
     _period = period;
     _stats = await _repository.fetchStats(period: period);
+    await _loadAnalytics();
     notifyListeners();
   }
 
@@ -80,6 +112,7 @@ class DashboardProvider extends DbBoundProvider {
     _stats = await _repository.fetchStats(period: _period);
     _upcoming = await _repository.fetchUpcoming(limit: 4);
     _revenueSeries = await _repository.fetchRevenueSeries(months: 6);
+    await _loadAnalytics();
     _dayAppointments = await _appointmentRepository?.fetchForDay(_selectedDay) ?? _upcoming.where((item) => _sameDay(item.startAt, _selectedDay)).toList();
     notifyListeners();
   }

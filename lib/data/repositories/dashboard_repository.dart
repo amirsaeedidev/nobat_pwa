@@ -183,7 +183,12 @@ class MockDashboardRepository implements DashboardRepository {
     final appointments = _db.appointments.where((item) =>
       canSeeAppointment(item) && range.contains(item.startAt)).toList();
     final completed = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
-    final operationalAppointments = appointments.where(filter.matches).toList();
+    final paymentMatchedIds = filter.paymentMethod == null ? null : _db.appointmentPayments
+      .where((payment) => payment.method.name == filter.paymentMethod)
+      .map((payment) => payment.appointmentId).toSet();
+    bool matchesDashboardFilter(Appointment item) => filter.matches(item) &&
+      (paymentMatchedIds == null || paymentMatchedIds.contains(item.id));
+    final operationalAppointments = appointments.where(matchesDashboardFilter).toList();
     final operationalCompleted = operationalAppointments.where((item) => item.status == AppointmentStatus.completed).toList();
     final operationalStatusCounts = <String, int>{
       for (final status in AppointmentStatus.values)
@@ -207,6 +212,7 @@ class MockDashboardRepository implements DashboardRepository {
       range.contains(entry.createdAt) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
       (canViewAll || employeeId == entry.employeeId) &&
+      (filter.isEmpty || operationalAppointments.any((item) => item.id == entry.appointmentId)) &&
       _db.hasPermission('finance.income.view', employeeId: entry.employeeId)).toList();
     final revenueByAppointmentInRange = <String, int>{};
     for (final entry in revenueEntries) {
@@ -275,7 +281,10 @@ class MockDashboardRepository implements DashboardRepository {
         (canViewAll || employeeId == appointment.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: appointment.employeeId);
     }).toList();
-    final payments = allVisiblePayments.where((item) => range.contains(item.createdAt)).toList()
+    final operationalIds = operationalAppointments.map((item) => item.id).toSet();
+    final payments = allVisiblePayments.where((item) => range.contains(item.createdAt) &&
+      (filter.isEmpty || operationalIds.contains(item.appointmentId)) &&
+      (filter.paymentMethod == null || item.method.name == filter.paymentMethod)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final collectedRevenue = payments.fold<int>(0, (sum, item) => sum + item.signedAmount);
     final paymentsByMethod = <String, num>{
@@ -684,6 +693,8 @@ class MockDashboardRepository implements DashboardRepository {
     final recentTransactions = walletEntries.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final margin = revenue == 0 ? 0.0 : ((revenue - cost) / revenue) * 100;
+    final companyShare = revenueEntries.fold<int>(0, (sum, entry) => sum +
+      (entry.type == FinanceEntryType.refund ? -entry.companyShare.abs() : entry.companyShare));
 
     return ReportAnalytics(
       range: range,
@@ -715,6 +726,7 @@ class MockDashboardRepository implements DashboardRepository {
       bookedCapacityMinutes: bookedCapacityMinutes,
       directCostCoveragePercent: directCostCoveragePercent,
       filter: filter,
+      companyShare: companyShare,
       operationalStatusCounts: operationalStatusCounts,
       newCustomerTrend: [for (final item in newCustomerTrend) ReportTrendPoint(
         label: rangeDaysForAcquisition <= 31 ? JalaliDate.fromDateTime(item.key).short : JalaliDate.fromDateTime(item.key).monthName,
