@@ -213,7 +213,7 @@ class DesktopPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return Row(
+    final heading = Row(
       children: [
         if (icon != null) ...[
           IconTile(icon: icon!, color: pal.primaryBright, size: 42),
@@ -223,20 +223,50 @@ class DesktopPageHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: pal.textPrimary),
-              ),
+              Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: pal.textPrimary)),
               if (subtitle != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 3),
-                  child: Text(subtitle!, style: TextStyle(fontSize: 12, color: pal.textMuted)),
+                  child: Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: pal.textMuted)),
                 ),
             ],
           ),
         ),
-        Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: actions),
       ],
+    );
+    final actionRow = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: actions,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 620) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                actionRow,
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: heading),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              actionRow,
+            ],
+          ],
+        );
+      },
     );
   }
 }
