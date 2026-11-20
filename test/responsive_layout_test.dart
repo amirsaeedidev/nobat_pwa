@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../lib/app/theme/app_palette.dart';
 import '../lib/core/widgets/app_buttons.dart';
 import '../lib/core/widgets/app_page.dart';
+import '../lib/core/widgets/app_top_bar.dart';
 
 void main() {
   testWidgets('shared headers, grids and icon controls fit target viewports', (tester) async {
