@@ -539,7 +539,7 @@ class GlobalSearchRepository {
         } else {
           add(id: id, type: GlobalSearchType.service, title: row['title']?.toString() ?? '',
             subtitle: row['category']?.toString() ?? '', details: row['description']?.toString() ?? '',
-            route: '/search/result', searchable: row.values, isRemote: true);
+            route: '/search/result', searchable: row.values, isRemote: true, requiredPermission: 'services.manage');
         }
       }
     }
@@ -549,7 +549,7 @@ class GlobalSearchRepository {
       for (final row in await fetch('appointments')) {
         final id = row['id']?.toString() ?? '';
         final employeeId = row['employee_id']?.toString() ?? '';
-        if (id.isEmpty || (!_hasRemotePermission('appointments.view_all') &&
+        if (id.isEmpty || (!_hasRemotePermission('appointments.view_all', remotePermissionId: 'appointments.view') &&
             _database.currentAccessAccount.employeeId != employeeId)) continue;
         add(id: id, type: GlobalSearchType.appointment,
           title: '${row['customer_name'] ?? 'نوبت'} • ${row['reference'] ?? id}',
@@ -568,12 +568,14 @@ class GlobalSearchRepository {
       if (canReadFinance) {
         for (final row in await fetch('finance')) {
           final employeeId = row['employee_id']?.toString();
+          var canViewCommission = false;
+          var canViewSalary = false;
           if (employeeId == null) {
-            if (!_database.hasPermission('finance.income.view')) continue;
+            if (!_hasRemotePermission('finance.income.view', remotePermissionId: 'finance.view')) continue;
           } else {
-            final canViewCommission = _hasRemotePermission('finance.commission.view',
+            canViewCommission = _hasRemotePermission('finance.commission.view',
                 employeeId: employeeId, remotePermissionId: 'finance.view');
-            final canViewSalary = _hasRemotePermission('finance.salary.view',
+            canViewSalary = _hasRemotePermission('finance.salary.view',
                 employeeId: employeeId, remotePermissionId: 'finance.view');
             if (!canViewCommission && !canViewSalary) continue;
           }
