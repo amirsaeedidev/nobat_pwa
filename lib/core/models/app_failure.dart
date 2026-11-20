@@ -31,6 +31,17 @@ class AppFailure implements Exception {
     AppErrorKind.unknown => 'عملیات با مشکل روبه‌رو شد. دوباره تلاش کنید.',
   };
 
+  static Future<T> guard<T>(
+    Future<T> Function() operation, {
+    AppErrorKind fallback = AppErrorKind.unknown,
+  }) async {
+    try {
+      return await operation();
+    } catch (error, stackTrace) {
+      Error.throwWithStackTrace(AppFailure.from(error, fallback: fallback), stackTrace);
+    }
+  }
+
   factory AppFailure.from(Object error, {AppErrorKind fallback = AppErrorKind.unknown}) {
     if (error is AppFailure) return error;
     final value = error.toString().toLowerCase();
