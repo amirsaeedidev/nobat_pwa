@@ -153,10 +153,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
           ),
           const SizedBox(height: 14),
           if (provider.loadNotice != null)
-            OfflineDataNotice(message: provider.loadNotice!)
-          if (provider.loading)
-            const LoadingState(kind: SkeletonKind.personnel)
-          else if (provider.items.isEmpty && provider.loadNotice != null)
+            OfflineDataNotice(message: provider.loadNotice!),
+          if (provider.items.isEmpty && provider.loadNotice != null)
             ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
           else if (provider.items.isEmpty)
             const EmptyState(title: 'پرسنلی ثبت نشده', description: 'اولین عضو تیم را اضافه کنید.')
