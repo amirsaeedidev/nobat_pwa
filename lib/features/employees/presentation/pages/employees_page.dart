@@ -83,7 +83,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: isDesktop ? 2.5 : 1.55,
+            childAspectRatio: isDesktop ? 2.5 : 1.28,
             children: [
               _CountCard(title: 'کل پرسنل', value: provider.totalCount, icon: Icons.groups_rounded, color: pal.primaryBright),
               _CountCard(title: 'فعال', value: provider.activeCount, icon: Icons.check_circle_outline, color: pal.success),
