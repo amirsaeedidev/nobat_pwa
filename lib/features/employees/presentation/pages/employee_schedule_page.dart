@@ -260,10 +260,16 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
               color: Colors.transparent,
               child: SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled, onChanged: (value) => db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: value, bufferMinutes: employee.bufferMinutes)),
             ),
-            Row(children: [
-              const Expanded(child: Text('فاصله بین نوبت‌ها', style: TextStyle(fontSize: 12))),
-              DropdownButton<int>(value: employee.bufferMinutes, items: [0, 5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقیقه'))).toList(), onChanged: (value) { if (value != null) db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: employee.scheduleEnabled, bufferMinutes: value); }),
-            ]),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                const Text('فاصله بین نوبت‌ها', style: TextStyle(fontSize: 12)),
+                DropdownButton<int>(value: employee.bufferMinutes, items: [0, 5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقیقه'))).toList(), onChanged: (value) { if (value != null) db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: employee.scheduleEnabled, bufferMinutes: value); }),
+              ],
+            ),
           ])),
           const SizedBox(height: 10),
           for (var day = 0; day < 7; day++)
