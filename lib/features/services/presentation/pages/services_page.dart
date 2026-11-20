@@ -382,7 +382,11 @@ class _MetaItem extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11.5, color: color, fontWeight: FontWeight.w600)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.34),
+          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, color: color, fontWeight: FontWeight.w600)),
+        ),
       ],
     );
   }
