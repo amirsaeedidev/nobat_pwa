@@ -1,5 +1,6 @@
 import '../../../../core/models/page_result.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/repositories/customer_repository.dart';
@@ -17,6 +18,7 @@ class CustomersProvider extends DbBoundProvider {
   int _pageNumber = 1;
   final int _pageSize = 8;
   bool _loading = true;
+  String? _loadNotice;
   bool _busy = false;
 
   PageResult<Customer> get page => _page;
@@ -24,6 +26,7 @@ class CustomersProvider extends DbBoundProvider {
   String get query => _query;
   int get pageNumber => _pageNumber;
   bool get loading => _loading;
+  String? get loadNotice => _loadNotice;
   bool get busy => _busy;
   int get total => _page.total;
 
@@ -33,8 +36,10 @@ class CustomersProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     try {
+      _loadNotice = null;
       _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-    } catch (_) {
+    } catch (error) {
+      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       final all = db.customers;
       _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
     } finally {
