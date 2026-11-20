@@ -512,7 +512,8 @@ class GlobalSearchRepository {
           details: canViewHistory ? row['notes'] as String? ?? '' : '',
           route: '/search/result',
           searchable: canViewHistory ? row.values : [row['full_name'], row['phone']],
-          isRemote: true, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+          isRemote: true, requiredPermission: canViewHistory ? 'customers.history' : 'customers.view',
+          date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
     if ((_hasRemotePermission('employees.view_list') || _hasRemotePermission('employees.view_profile')) &&
@@ -526,7 +527,7 @@ class GlobalSearchRepository {
           details: canViewProfile ? row['email']?.toString() ?? '' : '',
           route: '/search/result',
           searchable: canViewProfile ? row.values : [row['full_name'], row['phone']],
-          isRemote: true);
+          isRemote: true, requiredPermission: canViewProfile ? 'employees.view_profile' : 'employees.view_list', employeeId: id);
       }
     }
     if (_hasRemotePermission('services.manage', remotePermissionId: 'services.view') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
@@ -534,7 +535,7 @@ class GlobalSearchRepository {
         final id = row['id']?.toString() ?? '';
         if (id.startsWith(_categoryPrefix)) {
           add(id: id, type: GlobalSearchType.category, title: row['name']?.toString() ?? '',
-            subtitle: 'دسته‌بندی خدمات', details: '', route: '/search/result', searchable: row.values, isRemote: true);
+            subtitle: 'دسته‌بندی خدمات', details: '', route: '/search/result', searchable: row.values, isRemote: true, requiredPermission: 'services.manage');
         } else {
           add(id: id, type: GlobalSearchType.service, title: row['title']?.toString() ?? '',
             subtitle: row['category']?.toString() ?? '', details: row['description']?.toString() ?? '',
@@ -555,6 +556,8 @@ class GlobalSearchRepository {
           subtitle: '${row['service_name'] ?? ''} • ${row['employee_name'] ?? ''}',
           details: '${row['customer_phone'] ?? ''} • ${row['status'] ?? ''}',
           route: '/search/result', searchable: row.values, isRemote: true,
+          requiredPermission: _database.hasPermission('appointments.view_all') ? 'appointments.view_all' : 'appointments.view_self',
+          employeeId: employeeId,
           date: DateTime.tryParse(row['start_at']?.toString() ?? ''));
       }
     }
@@ -587,6 +590,8 @@ class GlobalSearchRepository {
             details: row['appointment_id']?.toString() ??
                 row['source_document_id']?.toString() ?? '',
             route: '/search/result', searchable: row.values, isRemote: true,
+            requiredPermission: employeeId == null ? 'finance.income.view' : (canViewCommission ? 'finance.commission.view' : 'finance.salary.view'),
+            employeeId: employeeId,
             date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
@@ -608,6 +613,7 @@ class GlobalSearchRepository {
             subtitle: '${row['amount'] ?? ''} تومان',
             details: row['status']?.toString() ?? '', route: '/search/result',
             searchable: row.values, isRemote: true,
+            requiredPermission: canViewSalary ? 'finance.salary.view' : 'finance.settlement.view', employeeId: employeeId,
             date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
@@ -617,6 +623,7 @@ class GlobalSearchRepository {
         add(id: row['id']?.toString() ?? '', type: GlobalSearchType.activity,
           title: row['title']?.toString() ?? '', subtitle: row['entity_name']?.toString() ?? '',
           details: row['description']?.toString() ?? '', route: '/search/result', searchable: row.values, isRemote: true,
+          requiredPermission: 'settings.view',
           date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
@@ -637,6 +644,7 @@ class GlobalSearchRepository {
             details: document['note']?.toString() ?? '',
             route: '/search/result',
             searchable: [...document.values, row['full_name']], isRemote: true,
+            requiredPermission: 'employees.view_profile', employeeId: employeeId,
             date: DateTime.tryParse(document['created_at']?.toString() ?? ''));
         }
       }
