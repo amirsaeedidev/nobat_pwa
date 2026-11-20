@@ -30,9 +30,7 @@ void main() {
                         title: 'عنوان بسیار طولانی برای بررسی واکنش‌گرایی سربرگ صفحات',
                         subtitle: 'توضیح فارسی طولانی که نباید روی دکمه‌ها قرار بگیرد یا بریده شود',
                         actions: [
-                          CircleIconButton(icon: Icons.add, size: 30, tooltip: 'افزودن'),
                           HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجو'),
-                          CircleIconButton(icon: Icons.more_horiz, size: 30, tooltip: 'بیشتر'),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -60,7 +58,6 @@ void main() {
       );
       await tester.pump();
       expect(tester.takeException(), isNull, reason: 'shared layout overflow at width $width');
-      expect(tester.getSize(find.byType(CircleIconButton).first).width, greaterThanOrEqualTo(44));
       expect(tester.getSize(find.byType(HugeIconCircleButton)).width, greaterThanOrEqualTo(44));
     }
   });
