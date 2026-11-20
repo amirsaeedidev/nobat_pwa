@@ -48,7 +48,7 @@ class DashboardPage extends StatelessWidget {
       child: provider.loading && stats == null
           ? const LoadingState(kind: SkeletonKind.dashboard)
           : stats == null
-              ? ErrorStateView(kind: AppErrorKind.fetch, onRetry: provider.load)
+              ? ErrorStateView(kind: provider.failure?.kind ?? AppErrorKind.fetch, description: provider.failure?.persianMessage, onRetry: provider.load)
               : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
