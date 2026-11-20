@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/service.dart';
+import '../../../../data/mock/app_database.dart';
 import '../providers/services_provider.dart';
 
 /// مدیریت خدمات — بازسازی صفحه «مدیریت خدمات» تصویر مرجع.
@@ -253,6 +254,9 @@ class ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
+    final db = context.watch<AppDatabase>();
+    final bookingCount = db.appointments.where((item) => item.serviceIds.contains(service.id)).length;
+    final serviceRevenue = db.employeeFinanceEntries.where((item) => item.serviceId == service.id).fold<int>(0, (sum, item) => sum + item.receivedAmount);
     return AppCard(
       radius: AppRadius.xl,
       padding: const EdgeInsets.all(14),
@@ -292,6 +296,8 @@ class ServiceCard extends StatelessWidget {
                           label: service.category,
                           color: pal.textMuted,
                         ),
+                        _MetaItem(icon: Icons.event_available_outlined, label: FaNum.ofInt(bookingCount) + ' نوبت', color: pal.textSecondary),
+                        _MetaItem(icon: Icons.account_balance_wallet_outlined, label: Fmt.money(serviceRevenue), color: pal.success),
                       ],
                     ),
                   ],
