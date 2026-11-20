@@ -184,6 +184,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             OfflineDataNotice(message: provider.loadNotice!)
           if (provider.loading)
                   const LoadingState(compact: true, kind: SkeletonKind.appointments)
+                else if (provider.items.isEmpty && provider.loadNotice != null)
+                  ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
                 else if (provider.items.isEmpty)
                   const EmptyState(
                     title: 'نوبتی یافت نشد',
