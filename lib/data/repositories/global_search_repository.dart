@@ -447,14 +447,16 @@ class GlobalSearchRepository {
     }
     }
 
-    if (_remote != null) {
+    if (_remote?.isAuthenticated == true) {
       try {
-        final businessId = await _resolveBusinessId();
+        final businessId = await _resolveBusinessId().timeout(const Duration(milliseconds: 700));
         if (businessId != null) {
-          await _appendRemoteResults(query, type, results, add, businessId);
+          await _appendRemoteResults(query, type, results, add, businessId)
+              .timeout(const Duration(milliseconds: 1200));
         }
       } catch (_) {
-        // Remote search is optional; retain local/offline results when unavailable.
+        _businessResolutionAttempted = false;
+        // Remote search is optional; local/offline results stay usable on timeout or network failure.
       }
     }
 
@@ -525,13 +527,56 @@ class GlobalSearchRepository {
     String businessId,
   ) async {
     final remote = _remote!;
+    final remoteRows = <String, Future<List<Map<String, dynamic>>>>{};
     Future<List<Map<String, dynamic>>> fetch(String entity) =>
-        remote.searchRecords(
-          businessId: businessId,
-          entityType: entity,
-          query: query,
-          limit: 60,
+        remoteRows.putIfAbsent(
+          entity,
+          () => remote.searchRecords(
+            businessId: businessId,
+            entityType: entity,
+            query: query,
+            limit: 60,
+          ),
         );
+
+    final entitiesToSearch = <String>{};
+    if (_hasRemotePermission('customers.view') &&
+        _database.hasPermission('customers.history') &&
+        (type == null || type == GlobalSearchType.customer)) {
+      entitiesToSearch.add('customers');
+    }
+    if (_hasRemotePermission('employees.view_list') &&
+        _canViewAllEmployeesRemotely &&
+        (type == null || type == GlobalSearchType.employee || type == GlobalSearchType.document)) {
+      entitiesToSearch.add('employees');
+    }
+    if (_hasRemotePermission('services.manage', remotePermissionId: 'services.view') &&
+        (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
+      entitiesToSearch.add('services');
+    }
+    if (_hasRemotePermission('appointments.view_all', remotePermissionId: 'appointments.view') &&
+        (type == null || type == GlobalSearchType.appointment)) {
+      entitiesToSearch.add('appointments');
+    }
+    if ((type == null || type == GlobalSearchType.transaction || type == GlobalSearchType.document) &&
+        _canViewAllEmployeesRemotely &&
+        _hasRemotePermission('finance.income.view', remotePermissionId: 'finance.view') &&
+        _hasRemotePermission('finance.commission.view', remotePermissionId: 'finance.view') &&
+        _hasRemotePermission('finance.salary.view', remotePermissionId: 'finance.view') &&
+        _hasRemotePermission('finance.settlement.view', remotePermissionId: 'finance.view')) {
+      entitiesToSearch.add('finance');
+    }
+    if ((type == null || type == GlobalSearchType.transaction) &&
+        _canViewAllEmployeesRemotely &&
+        _hasRemotePermission('finance.salary.view', remotePermissionId: 'finance.employee_wallet.view') &&
+        _hasRemotePermission('finance.settlement.view', remotePermissionId: 'finance.employee_wallet.view')) {
+      entitiesToSearch.add('employee_wallets');
+    }
+    if (_hasRemotePermission('settings.view', remotePermissionId: 'activity.view') &&
+        (type == null || type == GlobalSearchType.activity)) {
+      entitiesToSearch.add('activity_logs');
+    }
+    await Future.wait(entitiesToSearch.map(fetch));
 
     if (_hasRemotePermission('customers.view') && _database.hasPermission('customers.history') &&
         (type == null || type == GlobalSearchType.customer)) {
