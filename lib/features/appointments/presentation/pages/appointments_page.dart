@@ -50,7 +50,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
 
     final filters = AppCard(
       padding: const EdgeInsets.all(12),
-      child: Column(
+      child: provider.loading
+          ? const LoadingState(kind: SkeletonKind.appointments)
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SearchField(
