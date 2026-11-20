@@ -51,8 +51,9 @@ class Service {
 
   bool isDiscountActiveAt(DateTime at) {
     if (discountPrice == null || discountPrice! < 0 || discountPrice! >= price) return false;
-    if (discountStartsAt != null && at.isBefore(discountStartsAt!)) return false;
-    if (discountEndsAt != null && at.isAfter(discountEndsAt!)) return false;
+    final day = DateTime(at.year, at.month, at.day);
+    if (discountStartsAt != null && day.isBefore(DateTime(discountStartsAt!.year, discountStartsAt!.month, discountStartsAt!.day))) return false;
+    if (discountEndsAt != null && day.isAfter(DateTime(discountEndsAt!.year, discountEndsAt!.month, discountEndsAt!.day))) return false;
     return true;
   }
 

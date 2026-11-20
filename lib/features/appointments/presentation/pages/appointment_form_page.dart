@@ -96,7 +96,8 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
   num get _totalPrice => _services.fold<num>(0, (sum, service) {
     final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
     final savedPrice = previous?['price'] as num?;
-    final currentPrice = _pricingEmployee == null ? service.price : _db.effectiveServicePrice(_pricingEmployee!.id, service.id);
+    final config = _pricingEmployee == null ? null : _db.employeeServiceConfig(_pricingEmployee!.id, service.id);
+    final currentPrice = config?.customPrice ?? service.priceAt(_date.toDateTime());
     return sum + (savedPrice ?? currentPrice);
   });
   int get _totalDuration => _services.fold<int>(0, (sum, service) {
@@ -116,7 +117,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
         'service_id': service.id,
         'title': previous?['title'] as String? ?? service.title,
         'category': previous?['category'] as String? ?? service.category,
-        'price': previous?['price'] as num? ?? _db.effectiveServicePrice(employee.id, service.id),
+        'price': previous?['price'] as num? ?? config?.customPrice ?? service.priceAt(_date.toDateTime()),
         // هزینه مستقیم و قیمت نوبت قبلی با تغییر بعدی کاتالوگ خدمات بازنویسی نمی‌شوند.
         'direct_cost': previous == null ? service.directCost : previous['direct_cost'],
         'duration_minutes': previous?['duration_minutes'] as num? ?? _db.effectiveServiceDuration(employee.id, service.id),

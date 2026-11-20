@@ -270,7 +270,7 @@ class BookingProvider extends DbBoundProvider {
       }
 
       final reference = 'OT-${1500 + db.appointments.length}';
-      final bookedPrice = db.effectiveServicePrice(employee.id, service.id);
+      final bookedPrice = db.employeeServiceConfig(employee.id, service.id)?.customPrice ?? service.priceAt(slot.start);
       final bookedDuration = db.effectiveServiceDuration(employee.id, service.id);
       final appointment = Appointment(
         id: 'apt-${DateTime.now().millisecondsSinceEpoch}',

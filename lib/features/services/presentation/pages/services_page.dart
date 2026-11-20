@@ -241,7 +241,7 @@ class ServiceCard extends StatelessWidget {
                       children: [
                         _MetaItem(
                           icon: Icons.sell_outlined,
-                          label: Fmt.money(service.price),
+                          label: Fmt.money(service.priceAt(DateTime.now())),
                           color: pal.primaryBright,
                         ),
                         _MetaItem(
