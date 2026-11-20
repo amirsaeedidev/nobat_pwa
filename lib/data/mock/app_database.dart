@@ -411,6 +411,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   bool canOpenRoute(String path) {
+    if (path == '/search') return true;
     if (path == '/book' || path.startsWith('/book/')) return true;
     if (path == '/dashboard' || path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
