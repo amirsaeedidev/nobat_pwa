@@ -305,19 +305,27 @@ class _StatusHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               StatusBadge(label: status.label, color: status.color, filled: true, icon: status.icon),
-              const Spacer(),
               Text(
                 appointment.jalali.relativeLabel(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11.5, color: pal.textSecondary, fontWeight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 10,
+            runSpacing: 6,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,21 +336,34 @@ class _StatusHero extends StatelessWidget {
                   ),
                   Text(
                     appointment.jalali.long,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11.5, color: pal.textSecondary),
                   ),
                 ],
               ),
-              const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    appointment.customerName,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.52),
+                    child: Text(
+                      appointment.customerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                    ),
                   ),
-                  Text(
-                    appointment.employeeName,
-                    style: TextStyle(fontSize: 11, color: pal.textMuted),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.52),
+                    child: Text(
+                      appointment.employeeName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(fontSize: 11, color: pal.textMuted),
+                    ),
                   ),
                 ],
               ),
