@@ -1,11 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../mock/app_database.dart';
-import '../models/appointment.dart';
 import '../models/business_finance.dart';
 import '../models/employee_finance.dart';
-import '../models/employee_wallet.dart';
-import '../models/service.dart';
 import 'supabase_repository.dart';
 
 enum GlobalSearchType {
@@ -368,7 +365,7 @@ class GlobalSearchRepository {
       try {
         final businessId = await _resolveBusinessId();
         if (businessId != null) {
-          await _appendRemoteResults(query, type, results, add, businessId);
+          await _appendRemoteResults(type, results, add, businessId);
         }
       } catch (_) {
         // Remote search is optional; retain local/offline results when unavailable.
@@ -396,7 +393,6 @@ class GlobalSearchRepository {
   }
 
   Future<void> _appendRemoteResults(
-    String query,
     GlobalSearchType? type,
     List<GlobalSearchResult> results,
     void Function({
@@ -446,7 +442,7 @@ class GlobalSearchRepository {
         final id = row['id']?.toString() ?? '';
         if (id.startsWith(_categoryPrefix)) {
           add(id: id, type: GlobalSearchType.category, title: row['name']?.toString() ?? '',
-            subtitle: 'دسته‌بندی خدمات', details: '', route: '/services', searchable: row.values);
+            subtitle: 'دسته‌بندی خدمات', details: '', route: '/search/result', searchable: row.values, isRemote: true);
         } else {
           add(id: id, type: GlobalSearchType.service, title: row['title']?.toString() ?? '',
             subtitle: row['category']?.toString() ?? '', details: row['description']?.toString() ?? '',
@@ -474,9 +470,6 @@ class GlobalSearchRepository {
         for (final row in await fetch('finance')) {
           final employeeId = row['employee_id']?.toString();
           if (employeeId == null || !_database.hasPermission('finance.commission.view', employeeId: employeeId)) continue;
-          final route = _database.hasPermission('finance.salary.view', employeeId: employeeId)
-              ? '/employees/$employeeId/finance'
-              : '/employees/$employeeId/analytics';
           add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
             title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش پورسانت',
             subtitle: '${row['commission_amount'] ?? ''} تومان',
@@ -490,13 +483,10 @@ class GlobalSearchRepository {
           final canViewSalary = _database.hasPermission('finance.salary.view', employeeId: employeeId);
           final canViewSettlement = _database.hasPermission('finance.settlement.view', employeeId: employeeId);
           if (!_database.canViewEmployeeIncome(employeeId) || (!canViewSalary && !canViewSettlement)) continue;
-          final route = canViewSalary
-              ? '/employees/$employeeId/wallet'
-              : '/employees/$employeeId/analytics';
           add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
             title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش کیف پول',
             subtitle: '${row['amount'] ?? ''} تومان', details: row['status']?.toString() ?? '',
-            route: route, searchable: row.values,
+            route: '/search/result', searchable: row.values, isRemote: true,
             date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
