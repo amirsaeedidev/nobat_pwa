@@ -34,6 +34,23 @@ void main() {
                           HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجو'),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          SoftButton(label: 'ویرایش و مدیریت اطلاعات پرسنل', icon: null, onTap: () {}),
+                          SoftButton(label: 'افزودن خدمت جدید', onTap: () {}),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(width: width - 24, child: SolidButton(label: 'ثبت تغییرات و ذخیره اطلاعات', onPressed: () {})),
+                      const SizedBox(height: 8),
+                      SizedBox(width: width - 24, child: PillToggle(
+                        options: const ['روزانه', 'هفتگی', 'ماهانه'],
+                        selectedIndex: 0,
+                        onChanged: (_) {},
+                      )),
                       const SizedBox(height: 16),
                       ResponsiveGrid(
                         minItemWidth: 180,
