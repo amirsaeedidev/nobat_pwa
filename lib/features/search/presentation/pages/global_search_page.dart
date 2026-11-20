@@ -9,6 +9,10 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/repositories/global_search_repository.dart';
+import '../../../../data/repositories/appointment_repository.dart';
+import '../../../../data/repositories/customer_repository.dart';
+import '../../../../data/repositories/employee_repository.dart';
+import '../../../../data/repositories/service_repository.dart';
 import '../../../../data/repositories/supabase_repository.dart';
 
 class GlobalSearchPage extends StatefulWidget {
@@ -39,6 +43,10 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     _database = context.read<AppDatabase>();
     _repository = GlobalSearchRepository(
       _database!,
+      customerRepository: context.read<CustomerRepository>(),
+      employeeRepository: context.read<EmployeeRepository>(),
+      serviceRepository: context.read<ServiceRepository>(),
+      appointmentRepository: context.read<AppointmentRepository>(),
       remote: context.read<SupabaseRepository?>(),
     );
     _loadRecent();
