@@ -61,10 +61,9 @@ class AppTopBar extends StatelessWidget {
                       const _DateTimeLogo(),
                       const Spacer(),
                       if (onSearch != null) ...[
-                        HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
-                        const SizedBox(width: 8),
+                        HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                       ],
-                      if (!compactLogoHeader) ...actions,
+                      if (!compactLogoHeader ...actions,
                       if (!compactLogoHeader && actions.isNotEmpty) const SizedBox(width: 8),
                       if (onBell != null) ...[
                         CircleIconButton(
@@ -138,8 +137,7 @@ class AppTopBar extends StatelessWidget {
                     ...actions,
                     if (actions.isNotEmpty) const SizedBox(width: 8),
                     if (onSearch != null) ...[
-                      HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 40, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
-                      const SizedBox(width: 8),
+                      HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                     ],
                     if (onBell != null) ...[
                       CircleIconButton(
