@@ -242,10 +242,11 @@ class MockDashboardRepository implements DashboardRepository {
       commissionByEmployee[entry.employeeId] = (commissionByEmployee[entry.employeeId] ?? 0) + signedCommission;
     }
 
-    final walletEntries = canViewSalary
+    final walletEntries = canViewSalary && filter.serviceId == null && filter.status == null && filter.paymentMethod == null
         ? _db.employeeWalletTransactions.where((entry) =>
             range.contains(entry.createdAt) &&
             entry.status == EmployeeWalletTransactionStatus.posted &&
+            (filter.employeeId == null || entry.employeeId == filter.employeeId) &&
             (canViewAll || employeeId == entry.employeeId) &&
             _db.hasPermission('finance.salary.view', employeeId: entry.employeeId)).toList()
         : <EmployeeWalletTransaction>[];
@@ -271,7 +272,7 @@ class MockDashboardRepository implements DashboardRepository {
     }
     final payrollCost = walletCostFor(walletEntries);
     final businessExpenses = _db.businessExpenses.where((item) =>
-      range.contains(item.createdAt) && item.status == BusinessExpenseStatus.posted).toList();
+      filter.isEmpty && range.contains(item.createdAt) && item.status == BusinessExpenseStatus.posted).toList();
     final operatingExpense = businessExpenses.fold<int>(0, (sum, item) => sum + item.amount);
     final cost = commissionCost + payrollCost + operatingExpense;
 
@@ -339,7 +340,7 @@ class MockDashboardRepository implements DashboardRepository {
 
     final employeeRevenue = <String, num>{};
     final employeeNames = <String, String>{};
-    for (final appointment in completed) {
+    for (final appointment in operationalCompleted) {
       if (!_db.hasPermission('finance.income.view', employeeId: appointment.employeeId)) continue;
       employeeRevenue[appointment.employeeId] = (employeeRevenue[appointment.employeeId] ?? 0) + (revenueByAppointmentInRange[appointment.id] ?? 0);
       employeeNames[appointment.employeeId] = appointment.employeeName;
@@ -734,7 +735,7 @@ class MockDashboardRepository implements DashboardRepository {
       )],
       recentAppointments: recentAppointments.take(5).toList(),
       recentTransactions: recentTransactions.take(5).toList(),
-      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!hasFullIncomeScope ? ' بخشی از درآمد به‌دلیل محدودیت دسترسی پرسنلی در گزارش لحاظ نشده است.' : '')
+      costNote: 'درآمد از اسناد خدمات تکمیل‌شده، وصول از رسیدها، و هزینه از دفتر حقوق/کمیسیون و اسناد هزینه ثبت‌شده محاسبه می‌شود. پرداخت حقوق و مساعده دوباره‌شماری نشده‌اند.' + (!filter.isEmpty ? ' هزینه‌های سربار غیرقابل انتساب در فیلترهای جزئی منظور نشده‌اند.' : '') + (!hasFullIncomeScope ? ' بخشی از درآمد به‌دلیل محدودیت دسترسی پرسنلی در گزارش لحاظ نشده است.' : '')
         + (!hasFullCommissionScope || !hasFullSalaryScope ? ' بخشی از اقلام هزینه به‌دلیل محدودیت مجوز شما در دسترس نیست؛ سود نمایش‌داده‌شده کامل نیست.' : ''),
       grossRevenue: grossRevenue,
       collectedRevenue: collectedRevenue,
