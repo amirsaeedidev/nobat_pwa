@@ -119,6 +119,7 @@ class GlobalSearchRepository {
   }) async {
     if (normalize(query).isEmpty) return const [];
     final results = <GlobalSearchResult>[];
+    final filterType = type;
 
     void add({
       required String id,
@@ -130,7 +131,7 @@ class GlobalSearchRepository {
       required Iterable<Object?> searchable,
       DateTime? date,
     }) {
-      if (type != (thisType ?? type)) return;
+      if (filterType != null && type != filterType) return;
       if (!_matches(query, [...searchable, title, subtitle, details, id])) return;
       if (!_database.canOpenRoute(route)) return;
       results.add(GlobalSearchResult(
@@ -145,7 +146,6 @@ class GlobalSearchRepository {
       ));
     }
 
-    thisType = type;
 
     if (_database.hasPermission('customers.view')) {
       for (final customer in _database.customers) {
@@ -359,9 +359,6 @@ class GlobalSearchRepository {
     });
     return results.take(limit).toList(growable: false);
   }
-
-  // Kept as a field only during a synchronous result-building pass.
-  GlobalSearchType? thisType;
 
   Future<void> _appendRemoteResults(
     String query,
