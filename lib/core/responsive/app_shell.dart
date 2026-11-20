@@ -200,16 +200,18 @@ class MobileBottomNav extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              color: selected ? pal.primary.withValues(alpha: 0.16) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: HugeIcon(
-              icon: _navIcon(navIndex),
-              size: 21,
-              color: selected ? pal.primaryBright : pal.textMuted,
+          AnimatedSlide(
+            duration: const Duration(milliseconds: 260), curve: Curves.easeOutBack,
+            offset: selected ? const Offset(0, -0.22) : Offset.zero,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 240), curve: Curves.easeOutCubic,
+              width: selected ? 42 : 36, height: selected ? 42 : 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? pal.primary : Colors.transparent, shape: BoxShape.circle,
+                boxShadow: selected ? AppShadows.glow(pal.primary, opacity: 0.24, blur: 12) : const [],
+              ),
+              child: HugeIcon(icon: _navIcon(navIndex), size: selected ? 23 : 21, color: selected ? Colors.white : pal.textMuted),
             ),
           ),
           const SizedBox(height: 2),

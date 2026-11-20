@@ -115,7 +115,7 @@ Future<void> main() async {
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
-        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database)),
+        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
         ChangeNotifierProvider(
           create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../app/theme/app_palette.dart';
 import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/utils/fa_num.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -59,6 +60,9 @@ class DashboardPage extends StatelessWidget {
                         onPeriodChanged: provider.setPeriod,
                         revenueSeries: provider.revenueSeries,
                         logs: activity.recent,
+                        selectedDay: provider.selectedDay,
+                        dayAppointments: provider.dayAppointments,
+                        onDaySelected: provider.selectDay,
                       );
                     }
                     return _DesktopDashboard(
@@ -68,6 +72,9 @@ class DashboardPage extends StatelessWidget {
                       onPeriodChanged: provider.setPeriod,
                       revenueSeries: provider.revenueSeries,
                       logs: activity.recent,
+                      selectedDay: provider.selectedDay,
+                      dayAppointments: provider.dayAppointments,
+                      onDaySelected: provider.selectDay,
                     );
                   },
                 ),
@@ -96,6 +103,9 @@ class _MobileDashboard extends StatelessWidget {
     required this.onPeriodChanged,
     required this.revenueSeries,
     required this.logs,
+    required this.selectedDay,
+    required this.dayAppointments,
+    required this.onDaySelected,
   });
 
   final DashboardStats stats;
@@ -104,6 +114,9 @@ class _MobileDashboard extends StatelessWidget {
   final ValueChanged<StatsPeriod> onPeriodChanged;
   final List<RevenuePoint> revenueSeries;
   final List logs;
+  final DateTime selectedDay;
+  final List<Appointment> dayAppointments;
+  final ValueChanged<DateTime> onDaySelected;
 
   @override
   Widget build(BuildContext context) {
@@ -117,21 +130,23 @@ class _MobileDashboard extends StatelessWidget {
           subtitle: 'رزرو سریع در چند ثانیه',
           onPressed: () => context.push('/appointments/new'),
         ),
+        const SizedBox(height: 14),
+        _DashboardDayPicker(selectedDay: selectedDay, onSelected: onDaySelected),
         const SizedBox(height: 18),
         SectionHeader(
-          title: 'نوبت‌ها و رزروهای جدید',
+          title: 'نوبت‌های روز انتخاب‌شده',
           actionLabel: 'مشاهده همه',
           onAction: () => context.go('/appointments'),
         ),
         const SizedBox(height: 10),
-        if (upcoming.isEmpty)
+        if (dayAppointments.isEmpty)
           const EmptyState(
-            title: 'نوبت پیش‌رویی وجود ندارد',
-            description: 'برای ثبت نوبت جدید از دکمه بالا استفاده کنید.',
+            title: 'برای این روز نوبتی ثبت نشده است',
+            description: 'روز دیگری را انتخاب کنید یا نوبت جدیدی ثبت کنید.',
             compact: true,
           )
         else
-          for (final appointment in upcoming) ...[
+          for (final appointment in dayAppointments) ...[
             AppointmentTile(
               appointment: appointment,
               onTap: () => context.push('/appointments/${appointment.id}'),
@@ -215,6 +230,8 @@ class _DesktopDashboard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
+        _DashboardDayPicker(selectedDay: selectedDay, onSelected: onDaySelected),
+        const SizedBox(height: 14),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -225,15 +242,15 @@ class _DesktopDashboard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     SectionHeader(
-                      title: 'نوبت‌ها و رزروهای جدید',
+                      title: 'نوبت‌های روز انتخاب‌شده',
                       actionLabel: 'مشاهده همه',
                       onAction: () => context.go('/appointments'),
                     ),
                     const SizedBox(height: 12),
-                    if (upcoming.isEmpty)
-                      const EmptyState(compact: true, title: 'نوبت پیش‌رویی وجود ندارد')
+                    if (dayAppointments.isEmpty)
+                      const EmptyState(compact: true, title: 'برای این روز نوبتی ثبت نشده است')
                     else
-                      for (final appointment in upcoming) ...[
+                      for (final appointment in dayAppointments) ...[
                         AppointmentTile(
                           appointment: appointment,
                           onTap: () => context.push('/appointments/${appointment.id}'),
@@ -394,6 +411,64 @@ class _HeroStatsCard extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// انتخابگر هفت‌روزه پیشخوان؛ روز جاری در شروع انتخاب می‌شود.
+class _DashboardDayPicker extends StatelessWidget {
+  const _DashboardDayPicker({required this.selectedDay, required this.onSelected});
+  final DateTime selectedDay;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 3));
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        reverse: true,
+        itemCount: 7,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final day = start.add(Duration(days: index));
+          final jalali = JalaliDate.fromDateTime(day);
+          final selected = day.year == selectedDay.year && day.month == selectedDay.month && day.day == selectedDay.day;
+          return Semantics(
+            button: true, selected: selected,
+            label: '${jalali.weekdayName} ${FaNum.ofInt(jalali.day)}',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => onSelected(day),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic,
+                width: 66, padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 5),
+                decoration: BoxDecoration(
+                  gradient: selected ? pal.primaryGradient : null,
+                  color: selected ? null : pal.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: selected ? pal.primaryBright : pal.border),
+                  boxShadow: selected ? AppShadows.glow(pal.primary, opacity: 0.18, blur: 12) : const [],
+                ),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(jalali.weekdayName.length > 3 ? jalali.weekdayName.substring(0, 3) : jalali.weekdayName,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10, color: selected ? Colors.white.withValues(alpha: 0.86) : pal.textMuted)),
+                  const SizedBox(height: 4),
+                  Text(FaNum.ofInt(jalali.day), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: selected ? Colors.white : pal.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(jalali.monthName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 9, color: selected ? Colors.white.withValues(alpha: 0.82) : pal.textMuted)),
+                ]),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
