@@ -58,6 +58,8 @@ class GlobalSearchRepository {
   final AppDatabase _database;
   final SupabaseRepository? _remote;
   final String? _businessId;
+  String? _resolvedBusinessId;
+  bool _businessResolutionAttempted = false;
 
   static const _historyLimit = 8;
   static const _categoryPrefix = '__category__::';
@@ -357,9 +359,12 @@ class GlobalSearchRepository {
       }
     }
 
-    if (_remote != null && _businessId != null && _businessId!.trim().isNotEmpty) {
+    if (_remote != null) {
       try {
-        await _appendRemoteResults(query, type, results, add);
+        final businessId = await _resolveBusinessId();
+        if (businessId != null) {
+          await _appendRemoteResults(query, type, results, add, businessId);
+        }
       } catch (_) {
         // Remote search is optional; retain local/offline results when unavailable.
       }
@@ -371,6 +376,18 @@ class GlobalSearchRepository {
       return (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970));
     });
     return results.take(limit).toList(growable: false);
+  }
+
+  Future<String?> _resolveBusinessId() async {
+    if (_businessId != null && _businessId!.trim().isNotEmpty) return _businessId;
+    if (_businessResolutionAttempted) return _resolvedBusinessId;
+    _businessResolutionAttempted = true;
+    final businesses = await _remote!.fetchMyBusinesses();
+    // Never guess between multiple tenant memberships. A selected business
+    // must be supplied explicitly before searching across them.
+    if (businesses.length != 1) return null;
+    _resolvedBusinessId = businesses.single['business_id']?.toString();
+    return _resolvedBusinessId;
   }
 
   Future<void> _appendRemoteResults(
@@ -387,9 +404,9 @@ class GlobalSearchRepository {
       required Iterable<Object?> searchable,
       DateTime? date,
     }) add,
+    String businessId,
   ) async {
     final remote = _remote!;
-    final businessId = _businessId!;
     Future<List<Map<String, dynamic>>> fetch(String entity) =>
         remote.fetchRecords(businessId: businessId, entityType: entity);
 
@@ -446,17 +463,48 @@ class GlobalSearchRepository {
           date: DateTime.tryParse(row['start_at']?.toString() ?? ''));
       }
     }
-    if (_database.hasPermission('finance.income.view') && (type == null || type == GlobalSearchType.transaction)) {
-      for (final entity in ['finance', 'employee_wallets', 'appointment_payments', 'business_expenses']) {
-        for (final row in await fetch(entity)) {
+    if (type == null || type == GlobalSearchType.transaction) {
+      if (_database.hasPermission('finance.commission.view')) {
+        for (final row in await fetch('finance')) {
           final employeeId = row['employee_id']?.toString();
-          if (employeeId != null && !_database.canViewEmployeeIncome(employeeId)) continue;
-          final route = employeeId == null ? '/reports' : '/employees/$employeeId/analytics';
+          if (employeeId == null || !_database.hasPermission('finance.commission.view', employeeId: employeeId)) continue;
+          final route = _database.hasPermission('finance.salary.view', employeeId: employeeId)
+              ? '/employees/$employeeId/finance'
+              : '/employees/$employeeId/analytics';
           add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
-            title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش مالی',
-            subtitle: '${row['amount'] ?? row['commission_amount'] ?? ''} تومان',
+            title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش پورسانت',
+            subtitle: '${row['commission_amount'] ?? ''} تومان',
             details: row['appointment_id']?.toString() ?? '', route: route,
             searchable: row.values, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+        }
+      }
+      if (_database.hasPermission('finance.salary.view') || _database.hasPermission('finance.settlement.view')) {
+        for (final row in await fetch('employee_wallets')) {
+          final employeeId = row['employee_id']?.toString() ?? '';
+          final canViewSalary = _database.hasPermission('finance.salary.view', employeeId: employeeId);
+          final canViewSettlement = _database.hasPermission('finance.settlement.view', employeeId: employeeId);
+          if (!_database.canViewEmployeeIncome(employeeId) || (!canViewSalary && !canViewSettlement)) continue;
+          final route = canViewSalary
+              ? '/employees/$employeeId/wallet'
+              : '/employees/$employeeId/analytics';
+          add(id: row['id']?.toString() ?? '', type: GlobalSearchType.transaction,
+            title: row['description']?.toString() ?? row['type']?.toString() ?? 'تراکنش کیف پول',
+            subtitle: '${row['amount'] ?? ''} تومان', details: row['status']?.toString() ?? '',
+            route: route, searchable: row.values,
+            date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+        }
+      }
+      if (_database.hasPermission('finance.income.view')) {
+        for (final entity in ['appointment_payments', 'business_expenses']) {
+          for (final row in await fetch(entity)) {
+            final id = row['id']?.toString() ?? '';
+            add(id: id, type: GlobalSearchType.transaction,
+              title: row['description']?.toString() ?? row['category']?.toString() ?? 'تراکنش مالی',
+              subtitle: '${row['amount'] ?? ''} تومان',
+              details: row['appointment_id']?.toString() ?? row['source_document_id']?.toString() ?? '',
+              route: '/reports', searchable: row.values,
+              date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+          }
         }
       }
     }
