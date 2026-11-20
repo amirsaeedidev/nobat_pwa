@@ -50,7 +50,6 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   bool _prefilled = false;
   Service? _existing;
 
-  static const _categories = ['مو', 'ناخن', 'پوست', 'ماساژ', 'عمومی'];
 
   @override
   void didChangeDependencies() {
@@ -153,6 +152,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final employees = context.watch<EmployeesProvider>().items;
+    final categories = context.watch<ServicesProvider>().categories;
 
     return PageScaffold(
       title: widget.serviceId == null ? 'خدمت جدید' : 'ویرایش خدمت',
@@ -205,8 +205,8 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                           Expanded(
                             child: AppDropdown<String>(
                               label: 'دسته‌بندی',
-                              items: _categories,
-                              value: _category,
+                              items: categories.isEmpty ? const ['عمومی'] : categories,
+                              value: categories.contains(_category) ? _category : (categories.isEmpty ? 'عمومی' : categories.first),
                               onChanged: (v) => setState(() => _category = v ?? _category),
                             ),
                           ),

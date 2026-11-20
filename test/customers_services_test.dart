@@ -77,6 +77,25 @@ void main() {
       expect(db.serviceCategories.contains('دسته آزمایشی'), isFalse);
     });
 
+    test('قیمت تخفیفی فقط در بازه اعتبار اعمال و در JSON حفظ می‌شود', () {
+      final start = DateTime(2026, 11, 20);
+      final service = Service(
+        id: 'discount-test',
+        title: 'خدمت تخفیفی',
+        price: 200000,
+        discountPrice: 150000,
+        discountStartsAt: start,
+        discountEndsAt: DateTime(2026, 11, 22),
+        durationMinutes: 30,
+      );
+      expect(service.priceAt(DateTime(2026, 11, 20, 23)), 150000);
+      expect(service.priceAt(DateTime(2026, 11, 23)), 200000);
+      final restored = Service.fromJson(service.toJson());
+      expect(restored.discountPrice, 150000);
+      expect(restored.discountStartsAt?.year, 2026);
+      expect(restored.discountEndsAt?.day, 22);
+    });
+
     test('ساخت خدمت جدید با شناسه یکتا', () async {
       final before = db.services.length;
       final id = provider.nextId();

@@ -1372,6 +1372,7 @@ class AppDatabase extends ChangeNotifier {
   void addService(Service service) {
     requirePermission('services.manage');
     _services.add(service);
+    if (!_serviceCategories.contains(service.category)) { _serviceCategories.add(service.category); _serviceCategories.sort(); }
     log(ActivityType.serviceModified, 'افزودن خدمت', 'خدمت «${service.title}» اضافه شد.', entity: 'خدمت');
     _commit();
   }
@@ -1382,6 +1383,7 @@ class AppDatabase extends ChangeNotifier {
     if (index == -1) return;
     final validEmployeeIds = service.employeeIds.where((id) => _employees.any((employee) => employee.id == id)).toSet();
     _services[index] = service.copyWith(employeeIds: validEmployeeIds.toList());
+    if (!_serviceCategories.contains(service.category)) { _serviceCategories.add(service.category); _serviceCategories.sort(); }
     for (var employeeIndex = 0; employeeIndex < _employees.length; employeeIndex++) {
       final employee = _employees[employeeIndex];
       final assigned = validEmployeeIds.contains(employee.id);
