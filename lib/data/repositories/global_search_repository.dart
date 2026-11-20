@@ -467,7 +467,7 @@ class GlobalSearchRepository {
   }
 
   Future<String?> _resolveBusinessId() async {
-    if (_businessId != null && _businessId!.trim().isNotEmpty) return _businessId;
+    if (_businessId != null && _businessId.trim().isNotEmpty) return _businessId;
     if (_businessResolutionAttempted) return _resolvedBusinessId;
     _businessResolutionAttempted = true;
     final businesses = await _remote!.fetchMyBusinesses();
