@@ -6,6 +6,7 @@ import 'async_states.dart';
 import '../models/app_failure.dart';
 
 export 'async_states.dart';
+export '../models/app_failure.dart';
 
 /// حالت خالی با آیکون و توضیح.
 class EmptyState extends StatelessWidget {
