@@ -419,9 +419,9 @@ class GlobalSearchRepository {
         add(id: id, type: GlobalSearchType.customer,
           title: row['full_name'] as String? ?? '', subtitle: row['phone'] as String? ?? '',
           details: canViewHistory ? row['notes'] as String? ?? '' : '',
-          route: _database.customerById(id) != null && canViewHistory ? '/customers/$id' : '/customers',
+          route: '/search/result',
           searchable: canViewHistory ? row.values : [row['full_name'], row['phone']],
-          date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
+          isRemote: true, date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
     if ((_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile')) &&
@@ -433,8 +433,9 @@ class GlobalSearchRepository {
         add(id: id, type: GlobalSearchType.employee, title: row['full_name']?.toString() ?? '',
           subtitle: row['title']?.toString() ?? row['phone']?.toString() ?? '',
           details: canViewProfile ? row['email']?.toString() ?? '' : '',
-          route: _database.employeeById(id) != null && canViewProfile ? '/employees/$id' : '/employees',
-          searchable: canViewProfile ? row.values : [row['full_name'], row['phone']]);
+          route: '/search/result',
+          searchable: canViewProfile ? row.values : [row['full_name'], row['phone']],
+          isRemote: true);
       }
     }
     if (_database.hasPermission('services.manage') && (type == null || type == GlobalSearchType.service || type == GlobalSearchType.category)) {
