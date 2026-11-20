@@ -121,10 +121,8 @@ class ServicesPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (provider.loadNotice != null)
-            OfflineDataNotice(message: provider.loadNotice!)
-          if (provider.loading)
-            const LoadingState(kind: SkeletonKind.services)
-          else if (services.isEmpty && provider.loadNotice != null)
+            OfflineDataNotice(message: provider.loadNotice!),
+          if (services.isEmpty && provider.loadNotice != null)
             ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
           else if (services.isEmpty)
             const EmptyState(
