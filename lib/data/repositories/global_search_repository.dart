@@ -488,6 +488,13 @@ class GlobalSearchRepository {
     return _resolvedBusinessId;
   }
 
+  bool get _canViewAllEmployeesRemotely {
+    if (!_database.hasPermission('employees.view_list')) return false;
+    final employeeId = _database.currentAccessAccount.employeeId;
+    if (employeeId == null) return true;
+    return _database.accessAssignmentFor(employeeId)?.canViewOtherEmployees ?? false;
+  }
+
   bool _hasRemotePermission(
     String permissionId, {
     String? employeeId,
@@ -526,7 +533,8 @@ class GlobalSearchRepository {
           limit: 60,
         );
 
-    if (_hasRemotePermission('customers.view') && (type == null || type == GlobalSearchType.customer)) {
+    if (_hasRemotePermission('customers.view') && _database.hasPermission('customers.history') &&
+        (type == null || type == GlobalSearchType.customer)) {
       for (final row in await fetch('customers')) {
         final id = row['id'] as String? ?? '';
         final canViewHistory = _hasRemotePermission('customers.history');
@@ -539,7 +547,7 @@ class GlobalSearchRepository {
           date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
       }
     }
-    if ((_hasRemotePermission('employees.view_list') || _hasRemotePermission('employees.view_profile')) &&
+    if (_hasRemotePermission('employees.view_list') && _canViewAllEmployeesRemotely &&
         (type == null || type == GlobalSearchType.employee)) {
       for (final row in await fetch('employees')) {
         final id = row['id']?.toString() ?? '';
@@ -566,14 +574,12 @@ class GlobalSearchRepository {
         }
       }
     }
-    if ((_hasRemotePermission('appointments.view_all', remotePermissionId: 'appointments.view') ||
-        _hasRemotePermission('appointments.view_self', remotePermissionId: 'appointments.view')) &&
+    if (_hasRemotePermission('appointments.view_all', remotePermissionId: 'appointments.view') &&
         (type == null || type == GlobalSearchType.appointment)) {
       for (final row in await fetch('appointments')) {
         final id = row['id']?.toString() ?? '';
         final employeeId = row['employee_id']?.toString() ?? '';
-        if (id.isEmpty || (!_hasRemotePermission('appointments.view_all', remotePermissionId: 'appointments.view') &&
-            _database.currentAccessAccount.employeeId != employeeId)) continue;
+        if (id.isEmpty) continue;
         add(id: id, type: GlobalSearchType.appointment,
           title: '${row['customer_name'] ?? 'نوبت'} • ${row['reference'] ?? id}',
           subtitle: '${row['service_name'] ?? ''} • ${row['employee_name'] ?? ''}',
@@ -585,9 +591,11 @@ class GlobalSearchRepository {
       }
     }
     if (type == null || type == GlobalSearchType.transaction || type == GlobalSearchType.document) {
-      final canReadFinance = _hasRemotePermission('finance.income.view', remotePermissionId: 'finance.view') ||
-          _hasRemotePermission('finance.commission.view', remotePermissionId: 'finance.view') ||
-          _hasRemotePermission('finance.salary.view', remotePermissionId: 'finance.view');
+      final canReadFinance = _canViewAllEmployeesRemotely &&
+          _hasRemotePermission('finance.income.view', remotePermissionId: 'finance.view') &&
+          _hasRemotePermission('finance.commission.view', remotePermissionId: 'finance.view') &&
+          _hasRemotePermission('finance.salary.view', remotePermissionId: 'finance.view') &&
+          _hasRemotePermission('finance.settlement.view', remotePermissionId: 'finance.view');
       if (canReadFinance) {
         for (final row in await fetch('finance')) {
           final employeeId = row['employee_id']?.toString();
@@ -620,10 +628,9 @@ class GlobalSearchRepository {
             date: DateTime.tryParse(row['created_at']?.toString() ?? ''));
         }
       }
-      final canReadWallet = _hasRemotePermission('finance.salary.view',
-              remotePermissionId: 'finance.employee_wallet.view') ||
-          _hasRemotePermission('finance.settlement.view',
-              remotePermissionId: 'finance.employee_wallet.view');
+      final canReadWallet = _canViewAllEmployeesRemotely &&
+          _hasRemotePermission('finance.salary.view', remotePermissionId: 'finance.employee_wallet.view') &&
+          _hasRemotePermission('finance.settlement.view', remotePermissionId: 'finance.employee_wallet.view');
       if (canReadWallet) {
         for (final row in await fetch('employee_wallets')) {
           final employeeId = row['employee_id']?.toString() ?? '';
@@ -654,6 +661,7 @@ class GlobalSearchRepository {
     }
     // Some deployments embed personnel document metadata in the employee record.
     if (_hasRemotePermission('employees.view_profile', remotePermissionId: 'employees.view_list') &&
+        _canViewAllEmployeesRemotely &&
         (type == null || type == GlobalSearchType.document || type == GlobalSearchType.employee)) {
       for (final row in await fetch('employees')) {
         final employeeId = row['id']?.toString() ?? '';
