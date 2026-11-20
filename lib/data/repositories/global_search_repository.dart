@@ -1,8 +1,16 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../mock/app_database.dart';
+import '../models/appointment.dart';
 import '../models/business_finance.dart';
+import '../models/customer.dart';
+import '../models/employee.dart';
 import '../models/employee_finance.dart';
+import '../models/service.dart';
+import 'appointment_repository.dart';
+import 'customer_repository.dart';
+import 'employee_repository.dart';
+import 'service_repository.dart';
 import 'supabase_repository.dart';
 
 enum GlobalSearchType {
@@ -49,12 +57,24 @@ class GlobalSearchResult {
 class GlobalSearchRepository {
   GlobalSearchRepository(
     this._database, {
+    CustomerRepository? customerRepository,
+    EmployeeRepository? employeeRepository,
+    ServiceRepository? serviceRepository,
+    AppointmentRepository? appointmentRepository,
     SupabaseRepository? remote,
     String? businessId,
-  })  : _remote = remote,
+  })  : _customers = customerRepository ?? MockCustomerRepository(_database),
+        _employees = employeeRepository ?? MockEmployeeRepository(_database),
+        _services = serviceRepository ?? MockServiceRepository(_database),
+        _appointments = appointmentRepository ?? MockAppointmentRepository(_database),
+        _remote = remote,
         _businessId = businessId;
 
   final AppDatabase _database;
+  final CustomerRepository _customers;
+  final EmployeeRepository _employees;
+  final ServiceRepository _services;
+  final AppointmentRepository _appointments;
   final SupabaseRepository? _remote;
   final String? _businessId;
   String? _resolvedBusinessId;
@@ -124,6 +144,27 @@ class GlobalSearchRepository {
     final results = <GlobalSearchResult>[];
     final filterType = type;
 
+    // Pull the primary entities through the same repositories used by their
+    // feature screens. Each repository applies its own access checks.
+    List<Customer> visibleCustomers = const [];
+    List<Employee> visibleEmployees = const [];
+    List<Service> visibleServices = const [];
+    List<Appointment> visibleAppointments = const [];
+    final loads = <Future<void>>[];
+    if (_database.hasPermission('customers.view')) {
+      loads.add(_customers.fetchAll().then((value) => visibleCustomers = value));
+    }
+    if (_database.hasPermission('employees.view_list') || _database.hasPermission('employees.view_profile')) {
+      loads.add(_employees.fetchEmployees().then((value) => visibleEmployees = value));
+    }
+    if (_database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
+      loads.add(_services.fetchServices().then((value) => visibleServices = value));
+    }
+    if (_database.hasPermission('appointments.view_all') || _database.hasPermission('appointments.view_self')) {
+      loads.add(_appointments.fetchAll().then((value) => visibleAppointments = value));
+    }
+    await Future.wait(loads);
+
     void add({
       required String id,
       required GlobalSearchType type,
@@ -154,7 +195,7 @@ class GlobalSearchRepository {
 
 
     if (_database.hasPermission('customers.view')) {
-      for (final customer in _database.customers) {
+      for (final customer in visibleCustomers) {
         final canViewHistory = _database.hasPermission('customers.history');
         add(
           id: customer.id,
@@ -182,7 +223,7 @@ class GlobalSearchRepository {
     final canListEmployees = _database.hasPermission('employees.view_list');
     final canViewOwnProfile = _database.hasPermission('employees.view_profile');
     if (canListEmployees || canViewOwnProfile) {
-      for (final employee in _database.employees) {
+      for (final employee in visibleEmployees) {
         if (!_database.canViewEmployee(employee.id)) continue;
         if (!canListEmployees && _database.currentAccessAccount.employeeId != employee.id) continue;
         final canViewProfile = _database.canOpenRoute('/employees/${employee.id}');
@@ -206,7 +247,7 @@ class GlobalSearchRepository {
     }
 
     if (_database.hasPermission('services.manage') && _database.canOpenRoute('/services')) {
-      for (final service in _database.services) {
+      for (final service in visibleServices) {
         add(
           id: service.id,
           type: GlobalSearchType.service,
@@ -217,7 +258,7 @@ class GlobalSearchRepository {
           searchable: [service.title, service.description, service.category, service.price, service.durationMinutes, service.id],
         );
       }
-      for (final category in _database.serviceCategories) {
+      for (final category in await _services.fetchCategories()) {
         add(
           id: category,
           type: GlobalSearchType.category,
@@ -233,7 +274,7 @@ class GlobalSearchRepository {
     final canViewAllAppointments = _database.hasPermission('appointments.view_all');
     final canViewOwnAppointments = _database.hasPermission('appointments.view_self');
     if (canViewAllAppointments || canViewOwnAppointments) {
-      for (final appointment in _database.appointments) {
+      for (final appointment in visibleAppointments) {
         final route = '/appointments/${appointment.id}';
         if (!_database.canOpenRoute(route)) continue;
         add(
@@ -504,14 +545,11 @@ class GlobalSearchRepository {
                 employeeId: employeeId, remotePermissionId: 'finance.view');
             if (!canViewCommission && !canViewSalary) continue;
           }
-          final isDocument = row['record_kind']?.toString() == 'document' ||
-              row['source_document_id'] != null;
+          final isDocument = row['record_kind']?.toString() == 'document';
           if (isDocument && type != null && type != GlobalSearchType.document &&
               type != GlobalSearchType.transaction) continue;
           add(id: row['id']?.toString() ?? '',
-            type: isDocument && type == GlobalSearchType.document
-                ? GlobalSearchType.document
-                : GlobalSearchType.transaction,
+            type: isDocument ? GlobalSearchType.document : GlobalSearchType.transaction,
             title: row['description']?.toString() ?? row['title']?.toString() ??
                 row['type']?.toString() ?? 'تراکنش مالی',
             subtitle: row['amount'] == null
