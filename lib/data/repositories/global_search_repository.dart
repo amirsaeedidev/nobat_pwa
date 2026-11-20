@@ -469,14 +469,25 @@ class GlobalSearchRepository {
   }
 
   Future<String?> _resolveBusinessId() async {
-    if (_businessId != null && _businessId.trim().isNotEmpty) return _businessId;
     if (_businessResolutionAttempted) return _resolvedBusinessId;
     _businessResolutionAttempted = true;
     final businesses = await _remote!.fetchMyBusinesses();
-    // Never guess between multiple tenant memberships. A selected business
-    // must be supplied explicitly before searching across them.
-    if (businesses.length != 1) return null;
-    final membership = businesses.single;
+    Map<String, dynamic>? membership;
+
+    if (_businessId != null && _businessId.trim().isNotEmpty) {
+      for (final candidate in businesses) {
+        if (candidate['business_id']?.toString() == _businessId) {
+          membership = candidate;
+          break;
+        }
+      }
+    } else {
+      // Never guess between multiple tenant memberships. A selected business
+      // must be supplied explicitly before searching across them.
+      if (businesses.length == 1) membership = businesses.single;
+    }
+
+    if (membership == null) return null;
     _resolvedBusinessId = membership['business_id']?.toString();
     _remoteOwner = membership['role']?.toString() == 'owner';
     final rawPermissions = membership['permissions'];
