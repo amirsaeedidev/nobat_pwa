@@ -28,6 +28,7 @@ import '../../features/employees/presentation/pages/employee_profile_page.dart';
 import '../../features/employees/presentation/pages/employee_schedule_page.dart';
 import '../../features/employees/presentation/pages/employees_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
+import '../../features/search/presentation/pages/global_search_page.dart';
 import '../../features/services/presentation/pages/service_form_page.dart';
 import '../../features/services/presentation/pages/service_details_page.dart';
 import '../../features/services/presentation/pages/services_page.dart';
@@ -58,6 +59,7 @@ GoRouter buildRouter(AppDatabase database) {
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(path: '/dashboard', pageBuilder: (context, state) => const NoTransitionPage(child: DashboardPage())),
+          GoRoute(path: '/search', builder: (context, state) => const GlobalSearchPage()),
           GoRoute(
             path: '/appointments',
             pageBuilder: (context, state) => const NoTransitionPage(child: AppointmentsPage()),
