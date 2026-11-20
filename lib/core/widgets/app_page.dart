@@ -65,126 +65,64 @@ class PageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final width = MediaQuery.sizeOf(context).width;
-    final isDesktop = width >= Breakpoints.tablet;
-    final hPad = padding ?? EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding(width));
-
-    return Scaffold(
-      backgroundColor: pal.background,
-      floatingActionButton: floatingAction,
-      bottomNavigationBar: bottomBar,
-      body: Column(
-        children: [
-          if (!isDesktop)
-            AppTopBar(
-              title: title,
-              subtitle: subtitle,
-              showLogo: showLogo,
-              onClose: onClose,
-              centerTitle: centerTitle,
-              onBell: onBell,
-              onSearch: showGlobalSearch ? () => context.push('/search') : null,
-              onProfile: onProfile,
-              hasNotification: hasNotification,
-              onMenu: onMenu,
-              leading: showBackButton
-                  ? CircleIconButton(
-                      icon: Icons.arrow_forward_rounded,
-                      size: 40,
-                      onTap: () => context.canPop() ? context.pop() : context.go('/dashboard'),
-                    )
-                  : leading,
-              actions: [
-                ...mobileActions,
-                if (headerActionLabel != null)
-                  _HeaderTextAction(label: headerActionLabel!, onTap: onHeaderAction),
-              ],
-            ),
-          Expanded(
-            child: scrollable
-                ? Scrollbar(
-                    thumbVisibility: false,
-                    thickness: 3,
-                    radius: const Radius.circular(4),
-                    child: SingleChildScrollView(
-                    padding: EdgeInsets.only(top: isDesktop ? 22 : 16, bottom: 28),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: Breakpoints.contentMaxWidth(width)),
-                        child: Padding(
-                          padding: hPad,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (isDesktop) ...[
-                                header ??
-                                    DesktopPageHeader(
-                                      title: title,
-                                      subtitle: subtitle,
-                                      icon: icon,
-                                      actions: [
-                                        ...actions,
-                                        if (showGlobalSearch)
-                                          HugeIconCircleButton(
-                                            icon: HugeIcons.strokeRoundedSearch01,
-                                            size: 40,
-                                            tooltip: 'جست‌وجوی سراسری',
-                                            onTap: () => context.push('/search'),
-                                          ),
-                                      ],
-                                    ),
-                                const SizedBox(height: 18),
-                              ] else if (mobileHeader != null) ...[
-                                mobileHeader!,
-                                const SizedBox(height: 14),
-                              ],
-                              if (child != null) child!,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  )
-                : Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: Breakpoints.contentMaxWidth(width)),
-                      child: Padding(
-                        padding: hPad,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (isDesktop) ...[
-                              header ??
-                                  DesktopPageHeader(
-                                    title: title,
-                                    subtitle: subtitle,
-                                    icon: icon,
-                                    actions: [
-                                        ...actions,
-                                        if (showGlobalSearch)
-                                          HugeIconCircleButton(
-                                            icon: HugeIcons.strokeRoundedSearch01,
-                                            size: 40,
-                                            tooltip: 'جست‌وجوی سراسری',
-                                            onTap: () => context.push('/search'),
-                                          ),
-                                      ],
-                                  ),
-                              const SizedBox(height: 18),
-                            ] else if (mobileHeader != null) ...[
-                              mobileHeader!,
-                              const SizedBox(height: 14),
-                            ],
-                            Expanded(child: child ?? const SizedBox.shrink()),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-          ),
+    final heading = Row(
+      children: [
+        if (icon != null) ...[
+          IconTile(icon: icon!, color: pal.primaryBright, size: 42),
+          const SizedBox(width: 12),
         ],
-      ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: pal.textPrimary),
+              ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: pal.textMuted)),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final actionRow = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: actions,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 620) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                actionRow,
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: heading),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              actionRow,
+            ],
+          ],
+        );
+      },
     );
   }
 }
