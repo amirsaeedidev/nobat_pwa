@@ -270,12 +270,16 @@ class SoftButton extends StatelessWidget {
             Icon(icon, size: dense ? 14 : 16, color: c),
             const SizedBox(width: 6),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: dense ? 11.5 : 12.5,
-              fontWeight: FontWeight.w600,
-              color: c,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: dense ? 11.5 : 12.5,
+                fontWeight: FontWeight.w600,
+                color: c,
+              ),
             ),
           ),
         ],
@@ -364,9 +368,13 @@ class SolidButton extends StatelessWidget {
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 8),
         ],
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+          ),
         ),
       ],
     );
