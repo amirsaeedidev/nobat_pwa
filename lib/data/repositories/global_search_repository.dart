@@ -42,6 +42,7 @@ class GlobalSearchResult {
     this.accountId = '',
     this.requiredPermission,
     this.employeeId,
+    this.showDetailsPage = false,
   });
 
   final String id;
@@ -56,6 +57,7 @@ class GlobalSearchResult {
   final String accountId;
   final String? requiredPermission;
   final String? employeeId;
+  final bool showDetailsPage;
 }
 
 /// جست‌وجوی مشترک؛ منبع پیش‌فرض Mock برای عملکرد کامل آفلاین است.
@@ -183,6 +185,7 @@ class GlobalSearchRepository {
       bool isRemote = false,
       String? requiredPermission,
       String? employeeId,
+      bool showDetailsPage = false,
     }) {
       if (filterType != null && type != filterType) return;
       if (!_matches(query, [...searchable, title, subtitle, details, id])) return;
@@ -201,6 +204,7 @@ class GlobalSearchRepository {
         accountId: _database.currentAccessAccount.id,
         requiredPermission: requiredPermission,
         employeeId: employeeId,
+        showDetailsPage: showDetailsPage,
       ));
     }
 
@@ -282,6 +286,7 @@ class GlobalSearchRepository {
           details: '${_database.services.where((service) => service.category == category).length} خدمت',
           route: '/services',
           requiredPermission: 'services.manage',
+          showDetailsPage: true,
           searchable: [category],
         );
       }
@@ -334,6 +339,7 @@ class GlobalSearchRepository {
           details: '${payment.description} • کد نوبت: ${appointment?.reference ?? payment.appointmentId}',
           route: route,
           requiredPermission: 'finance.income.view',
+          showDetailsPage: true,
           searchable: [payment.id, payment.appointmentId, payment.customerId, payment.description, payment.amount, payment.method.label, payment.type.name],
           date: payment.createdAt,
         );
@@ -347,6 +353,7 @@ class GlobalSearchRepository {
           details: '${expense.description} • سند: ${expense.sourceDocumentId} • ثبت‌کننده: ${expense.createdBy}',
           route: '/reports',
           requiredPermission: 'finance.income.view',
+          showDetailsPage: true,
           searchable: [expense.id, expense.description, expense.category.label, expense.sourceDocumentId, expense.createdBy, expense.amount, expense.status.name],
           date: expense.createdAt,
         );
@@ -389,6 +396,7 @@ class GlobalSearchRepository {
               route: route,
               requiredPermission: 'finance.commission.view',
               employeeId: employee.id,
+              showDetailsPage: true,
               searchable: [entry.id, entry.appointmentId, entry.serviceId, entry.type.name, entry.commissionAmount, entry.companyShare, entry.receivedAmount, employee.fullName],
               date: entry.createdAt,
             );
@@ -406,6 +414,7 @@ class GlobalSearchRepository {
               route: route,
               requiredPermission: canViewSalary ? 'finance.salary.view' : 'finance.settlement.view',
               employeeId: employee.id,
+              showDetailsPage: true,
               searchable: [entry.id, entry.type.label, entry.description, entry.amount, entry.status.name, employee.fullName, entry.settlementId],
               date: entry.createdAt,
             );
@@ -425,6 +434,7 @@ class GlobalSearchRepository {
           details: log.description,
           route: route,
           requiredPermission: 'settings.view',
+          showDetailsPage: true,
           searchable: [log.id, log.title, log.description, log.entityName, log.entityId, log.actor, log.type.key],
           date: log.createdAt,
         );
@@ -496,6 +506,7 @@ class GlobalSearchRepository {
       required bool isRemote,
       String? requiredPermission,
       String? employeeId,
+      bool showDetailsPage,
     }) add,
     String businessId,
   ) async {
@@ -704,7 +715,7 @@ bool canOpenGlobalSearchResult(AppDatabase database, GlobalSearchResult result) 
       database.currentAccessAccount.employeeId != employeeId) {
     return false;
   }
-  return result.isRemote
+  return (result.isRemote || result.showDetailsPage)
       ? database.canOpenRoute('/search/result')
       : database.canOpenRoute(result.route);
 }
