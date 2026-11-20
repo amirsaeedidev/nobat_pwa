@@ -51,5 +51,7 @@ as $$
   limit least(greatest(coalesce(p_limit, 60), 1), 100);
 $$;
 
+revoke all on function public.search_app_records(uuid, text, text, integer)
+  from public, anon;
 grant execute on function public.search_app_records(uuid, text, text, integer)
   to authenticated;
