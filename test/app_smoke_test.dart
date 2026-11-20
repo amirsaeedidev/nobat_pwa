@@ -71,8 +71,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       final exception = tester.takeException();
       if (exception != null) {
-        debugPrint('--- RENDER TREE AT VIEWPORT $width ---');
-        debugDumpRenderTree();
+        debugPrint('Responsive failure at viewport $width');
         final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
         fail('Viewport width: $width\\n$details');
       }
