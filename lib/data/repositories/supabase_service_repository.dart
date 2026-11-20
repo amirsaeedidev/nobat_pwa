@@ -198,6 +198,20 @@ class SupabaseServiceRepository implements ServiceRepository {
     );
   }
 
+  @override
+  Future<List<String>> fetchCategories() => fetchServiceCategories();
+
+  @override
+  Future<void> addCategory(String name) => createServiceCategory(name);
+
+  @override
+  Future<void> renameCategory(String oldName, String newName) =>
+      renameServiceCategory(oldName, newName);
+
+  @override
+  Future<void> deleteCategory(String name, {String? moveServicesTo}) =>
+      deleteServiceCategory(name, moveServicesTo: moveServicesTo);
+
   Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async {
     final rows = await _records.fetchRecords(
       businessId: businessId,
@@ -205,6 +219,10 @@ class SupabaseServiceRepository implements ServiceRepository {
     );
     return rows.map(EmployeeServiceConfig.fromJson).toList(growable: false);
   }
+
+  @override
+  Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig config) =>
+      upsertEmployeeServiceConfig(config);
 
   Future<void> upsertEmployeeServiceConfig(EmployeeServiceConfig config) async {
     await _records.upsertRecord(
