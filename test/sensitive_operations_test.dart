@@ -174,7 +174,7 @@ void main() {
       customerId: db.customers.first.id,
       customerName: db.customers.first.fullName,
       customerPhone: db.customers.first.phone,
-      serviceIds: const [service.id],
+      serviceIds: [service.id],
       serviceName: service.title,
       employeeId: db.employees.first.id,
       employeeName: db.employees.first.fullName,
@@ -222,7 +222,7 @@ void main() {
       category: 'آزمایش پرسنل',
     );
     db.addService(service);
-    const employee = Employee(
+    final employee = Employee(
       id: 'operation-employee',
       fullName: 'پرسنل آزمایشی',
       phone: '09123334455',
