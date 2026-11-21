@@ -355,7 +355,7 @@ class AppDatabase extends ChangeNotifier {
         entityId: latest.entityId.isEmpty ? entityId : latest.entityId,
         undoAction: latest.undoAction, undoData: latest.undoData,
         operationType: latest.operationType ?? operationType,
-        isReversible: latest.isReversible || reversible,
+        isReversible: latest.isReversible && reversible,
         idempotencyKey: key,
       );
     }
