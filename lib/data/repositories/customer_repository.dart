@@ -33,11 +33,11 @@ class MockCustomerRepository implements CustomerRepository {
     final q = query.trim();
     List<Customer> list;
     if (q.isEmpty) {
-      list = [..._db.customers];
+      list = _db.customers.where((customer) => !customer.isArchived).toList();
     } else {
       final latin = _toLatin(q);
       list = _db.customers.where((c) {
-        return c.fullName.contains(q) || c.phone.contains(latin) || c.phone.contains(q);
+        return !c.isArchived && (c.fullName.contains(q) || c.phone.contains(latin) || c.phone.contains(q));
       }).toList();
     }
     list.sort((a, b) {
