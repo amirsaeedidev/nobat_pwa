@@ -124,6 +124,12 @@ void main() {
       expect(ownEntries.every((item) =>
           item.type == EmployeeWalletTransactionType.commission ||
           item.type == EmployeeWalletTransactionType.refund), isTrue);
+      expect(db.employeeWalletTransactions.every((item) =>
+          item.employeeId == ownEmployeeId &&
+          (item.type == EmployeeWalletTransactionType.commission ||
+            item.type == EmployeeWalletTransactionType.refund)), isTrue);
+      expect(db.employeeWalletSettlements, isEmpty);
+      expect(db.employeeWalletPayments, isEmpty);
       expect(() => db.walletFor(otherEmployeeId), throwsA(isA<AccessDeniedException>()));
       expect(() => db.walletPaymentsFor(ownEmployeeId), throwsA(isA<AccessDeniedException>()));
     });
