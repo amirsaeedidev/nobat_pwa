@@ -5,6 +5,14 @@ import 'package:datetime/app/theme/app_palette.dart';
 import 'package:datetime/core/widgets/sensitive_operation_dialog.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
+import 'package:datetime/data/repositories/appointment_repository.dart';
+import 'package:datetime/data/repositories/customer_repository.dart';
+import 'package:datetime/data/repositories/dashboard_repository.dart';
+import 'package:datetime/data/repositories/employee_repository.dart';
+import 'package:datetime/data/repositories/service_repository.dart';
+import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
+import 'package:datetime/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:datetime/features/reports/presentation/providers/reports_provider.dart';
 
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
@@ -506,6 +514,76 @@ void main() {
     await tester.tap(find.text('تأیید اصلاح'));
     await tester.pumpAndSettle();
     expect(result, isTrue);
+  });
+
+
+  test('dashboard and reports providers refresh after appointment undo', () async {
+    final appointment = Appointment(
+      id: 'provider-refresh-appointment',
+      reference: 'PR-001',
+      customerId: db.customers.first.id,
+      customerName: db.customers.first.fullName,
+      customerPhone: db.customers.first.phone,
+      serviceIds: const [],
+      serviceName: 'خدمت به‌روزرسانی',
+      employeeId: db.employees.first.id,
+      employeeName: db.employees.first.fullName,
+      startAt: DateTime.now().add(const Duration(days: 1)),
+      durationMinutes: 30,
+      price: 175000,
+    );
+    db.addAppointment(appointment);
+
+    final appointmentRepository = MockAppointmentRepository(db);
+    final dashboard = DashboardProvider(
+      MockDashboardRepository(db),
+      db,
+      appointmentRepository: appointmentRepository,
+    );
+    final reports = ReportsProvider(MockDashboardRepository(db), db);
+    addTearDown(dashboard.dispose);
+    addTearDown(reports.dispose);
+    await Future.wait([dashboard.load(), reports.load()]);
+
+    await operations.cancelAppointment(appointment.id, reason: 'آزمایش همگام‌سازی');
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(reports.analytics.cancelledAppointments, greaterThanOrEqualTo(1));
+
+    expect(operations.undoLatestForEntity(appointment.id), isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(dashboard.upcoming.any((item) => item.id == appointment.id), isTrue);
+    expect(reports.analytics.cancelledAppointments, 0);
+    expect(dashboard.analytics, isNotNull);
+  });
+
+  test('public booking provider refreshes service catalogue after undo', () async {
+    const service = Service(
+      id: 'booking-provider-service',
+      title: 'خدمت رزرو آزمایشی',
+      price: 210000,
+      durationMinutes: 30,
+      category: 'آزمایش رزرو',
+    );
+    db.addService(service);
+
+    final provider = BookingProvider(
+      MockAppointmentRepository(db),
+      MockServiceRepository(db),
+      MockEmployeeRepository(db),
+      MockCustomerRepository(db),
+      db,
+    );
+    addTearDown(provider.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
+
+    await operations.deleteService(service.id);
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    expect(provider.availableServices.any((item) => item.id == service.id), isFalse);
+
+    expect(operations.undoLatestForEntity(service.id), isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
   });
 
 }
