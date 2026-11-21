@@ -59,6 +59,10 @@ void main() {
       expect(wallet.advances, greaterThanOrEqualTo(100000));
       expect(wallet.debtsAndDeductions, greaterThanOrEqualTo(150000));
       expect(wallet.summary.fixedSalaryIncome, greaterThan(0));
+      final salaryEntry = db.walletTransactionsFor(employee.id)
+          .singleWhere((item) => item.type == EmployeeWalletTransactionType.fixedSalary);
+      expect(salaryEntry.referenceType, 'salary_contract');
+      expect(salaryEntry.referenceId, startsWith('salary-seed-${employee.id}:'));
       expect(wallet.finalBalance, wallet.calculatedIncome - wallet.paymentsMade - wallet.debtsAndDeductions);
       expect(db.payrollAdjustments.singleWhere((item) => item.id == 'wallet-core-bonus').sourceWalletTransactionId, isNotNull);
       expect(db.payrollAdvances.singleWhere((item) => item.id == 'wallet-core-advance').sourceWalletTransactionId, isNotNull);
