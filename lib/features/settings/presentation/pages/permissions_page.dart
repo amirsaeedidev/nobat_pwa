@@ -197,14 +197,19 @@ class _PermissionsPageState extends State<PermissionsPage> {
         canViewPersonalIncome: income,
       );
       if (mounted) {
-        showUndoableOperationSnackBar(
-          context,
-          message: 'سطح دسترسی پرسنل به‌روزرسانی شد.',
-          onUndo: () {
-            OperationsRepository(db).undoLatestForEntity(employeeId);
-            if (mounted) setState(() {});
-          },
-        );
+        final operations = OperationsRepository(db);
+        final undoLog = operations.latestUndoableLogFor(employeeId);
+        if (undoLog != null) {
+          showUndoableOperationSnackBarForLog(
+            context,
+            message: 'سطح دسترسی پرسنل به‌روزرسانی شد.',
+            activityLogId: undoLog.id,
+            undo: operations.undo,
+            onUndoSuccess: () { if (mounted) setState(() {}); },
+          );
+        } else {
+          AppToast.show(context, 'سطح دسترسی به‌روزرسانی شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+        }
       }
     } catch (error) {
       if (mounted) AppToast.show(context, '$error', success: false);
@@ -232,14 +237,19 @@ class _PermissionsPageState extends State<PermissionsPage> {
     try {
       await OperationsRepository(db).updateAccessRole(role.id, name: role.name, permissionIds: ids.toList());
       if (mounted) {
-        showUndoableOperationSnackBar(
-          context,
-          message: 'مجوز نقش تغییر کرد.',
-          onUndo: () {
-            OperationsRepository(db).undoLatestForEntity(role.id);
-            if (mounted) setState(() {});
-          },
-        );
+        final operations = OperationsRepository(db);
+        final undoLog = operations.latestUndoableLogFor(role.id);
+        if (undoLog != null) {
+          showUndoableOperationSnackBarForLog(
+            context,
+            message: 'مجوز نقش تغییر کرد.',
+            activityLogId: undoLog.id,
+            undo: operations.undo,
+            onUndoSuccess: () { if (mounted) setState(() {}); },
+          );
+        } else {
+          AppToast.show(context, 'مجوز نقش تغییر کرد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+        }
       }
     } catch (error) {
       if (mounted) AppToast.show(context, '$error', success: false);
@@ -289,14 +299,19 @@ class _PermissionsPageState extends State<PermissionsPage> {
       try {
         await OperationsRepository(db).updateAccessRole(role.id, name: name.text, permissionIds: role.permissionIds);
         if (mounted) {
-          showUndoableOperationSnackBar(
-            context,
-            message: 'نام نقش به‌روزرسانی شد.',
-            onUndo: () {
-              OperationsRepository(db).undoLatestForEntity(role.id);
-              if (mounted) setState(() {});
-            },
-          );
+          final operations = OperationsRepository(db);
+          final undoLog = operations.latestUndoableLogFor(role.id);
+          if (undoLog != null) {
+            showUndoableOperationSnackBarForLog(
+              context,
+              message: 'نام نقش به‌روزرسانی شد.',
+              activityLogId: undoLog.id,
+              undo: operations.undo,
+              onUndoSuccess: () { if (mounted) setState(() {}); },
+            );
+          } else {
+            AppToast.show(context, 'نام نقش به‌روزرسانی شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+          }
         }
       } catch (error) {
         if (mounted) AppToast.show(context, '$error', success: false);
@@ -318,14 +333,19 @@ class _PermissionsPageState extends State<PermissionsPage> {
     try {
       await OperationsRepository(db).resetAccessRole(role.id);
       if (mounted) {
-        showUndoableOperationSnackBar(
-          context,
-          message: 'مجوزهای نقش بازنشانی شد.',
-          onUndo: () {
-            OperationsRepository(db).undoLatestForEntity(role.id);
-            if (mounted) setState(() {});
-          },
-        );
+        final operations = OperationsRepository(db);
+        final undoLog = operations.latestUndoableLogFor(role.id);
+        if (undoLog != null) {
+          showUndoableOperationSnackBarForLog(
+            context,
+            message: 'مجوزهای نقش بازنشانی شد.',
+            activityLogId: undoLog.id,
+            undo: operations.undo,
+            onUndoSuccess: () { if (mounted) setState(() {}); },
+          );
+        } else {
+          AppToast.show(context, 'مجوزهای نقش بازنشانی شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+        }
       }
     } catch (error) {
       if (mounted) AppToast.show(context, '$error', success: false);
