@@ -1143,16 +1143,32 @@ class AppDatabase extends ChangeNotifier {
     if (idempotencyKey != null && (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey))) {
       throw StateError('این عملیات مالی قبلاً ثبت شده است.');
     }
+    final walletId = nextId('wallet');
+    final defaultReferenceType = switch (type) {
+      EmployeeWalletTransactionType.bonus ||
+      EmployeeWalletTransactionType.penalty ||
+      EmployeeWalletTransactionType.deduction => 'payroll_adjustment',
+      EmployeeWalletTransactionType.advance => 'payroll_advance',
+      EmployeeWalletTransactionType.adjustment => 'manual_wallet_adjustment',
+      _ => 'wallet_source',
+    };
+    final defaultReferenceId = switch (type) {
+      EmployeeWalletTransactionType.bonus ||
+      EmployeeWalletTransactionType.penalty ||
+      EmployeeWalletTransactionType.deduction => 'payroll-$walletId',
+      EmployeeWalletTransactionType.advance => 'advance-$walletId',
+      _ => walletId,
+    };
     final entry = EmployeeWalletTransaction(
-      id: nextId('wallet'),
+      id: walletId,
       employeeId: employeeId,
       createdAt: createdAt ?? DateTime.now(),
       amount: amount,
       type: type,
       description: description.trim(),
       idempotencyKey: idempotencyKey,
-      referenceType: referenceType,
-      referenceId: referenceId,
+      referenceType: referenceType ?? defaultReferenceType,
+      referenceId: referenceId ?? defaultReferenceId,
     );
     _employeeWalletTransactions.add(entry);
     if (type == EmployeeWalletTransactionType.bonus) {
@@ -1217,6 +1233,7 @@ class AppDatabase extends ChangeNotifier {
       type: EmployeeWalletTransactionType.adjustment,
       description: 'سند معکوس تراکنش ${original.id}',
       reversalOfId: original.id,
+      referenceType: 'wallet_transaction_correction', referenceId: original.id,
     );
     final correction = EmployeeWalletTransaction(
       id: nextId('wallet'),
@@ -1226,6 +1243,7 @@ class AppDatabase extends ChangeNotifier {
       type: EmployeeWalletTransactionType.adjustment,
       description: description.trim(),
       reversalOfId: original.id,
+      referenceType: 'wallet_transaction_correction', referenceId: original.id,
     );
     _employeeWalletTransactions.addAll([reversal, correction]);
     log(ActivityType.settingsChanged, 'اصلاح سند مالی', 'سند ${original.id} با ثبت معکوس ${reversal.id} و اصلاحیه ${correction.id} اصلاح شد.',
