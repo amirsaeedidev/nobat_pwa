@@ -40,6 +40,7 @@ class CalendarProvider extends DbBoundProvider {
   List<Appointment> _rangeAppointments = const [];
   List<Employee> _employeeList = const [];
   List<Service> _serviceList = const [];
+  int _loadGeneration = 0;
 
   JalaliDate get today => _today;
   JalaliDate get anchor => _anchor;
@@ -107,24 +108,33 @@ class CalendarProvider extends DbBoundProvider {
   }
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     notifyListeners();
     try {
-      _employeeList = await _employees.fetchEmployees();
-      _serviceList = await _services.fetchServices();
-      _rangeAppointments = await _appointments.fetchAll();
+      final employees = await _employees.fetchEmployees();
+      final services = await _services.fetchServices();
+      final appointments = await _appointments.fetchAll();
+      if (generation != _loadGeneration) return;
+      _employeeList = employees;
+      _serviceList = services;
+      _rangeAppointments = appointments;
     } catch (_) {
+      if (generation != _loadGeneration) return;
       _employeeList = db.employees;
       _serviceList = db.services;
       _rangeAppointments = db.appointments;
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
   @override
   void onDatabaseChanged() {
+    _loadGeneration++;
     _rangeAppointments = db.appointments;
     _employeeList = db.employees;
     _serviceList = db.services;
