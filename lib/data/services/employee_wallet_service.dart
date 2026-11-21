@@ -41,11 +41,8 @@ class EmployeeWalletService {
   Future<EmployeeWallet> calculate(String employeeId, {DateTime? at}) =>
       repository.fetchWallet(employeeId, at: at);
 
-  Future<int> payableFor(String employeeId, EmployeeWalletPeriod period) async {
-    final entries = await repository.fetchTransactions(employeeId, from: period.start, to: period.end);
-    final summary = EmployeeWalletSummary.fromTransactions(entries);
-    return summary.payableBalance;
-  }
+  Future<int> payableFor(String employeeId, EmployeeWalletPeriod period) async =>
+      repository.calculatePeriodDue(employeeId, period.start, period.end);
 
   Future<int> accruePayroll(String employeeId, {DateTime? at}) =>
       repository.accruePayroll(employeeId, at: at);
