@@ -20,6 +20,7 @@ class ActivityProvider extends DbBoundProvider {
   ActivityType? _type;
   String _query = '';
   bool _loading = true;
+  int _loadGeneration = 0;
 
   List<ActivityLog> get logs => _logs;
   List<ActivityLog> get recent => _recent;
@@ -28,17 +29,24 @@ class ActivityProvider extends DbBoundProvider {
   bool get loading => _loading;
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     notifyListeners();
     try {
-      _logs = await _repository.fetchLogs(type: _type, query: _query);
-      _recent = await _repository.fetchRecent(limit: 6);
+      final logs = await _repository.fetchLogs(type: _type, query: _query);
+      final recent = await _repository.fetchRecent(limit: 6);
+      if (generation != _loadGeneration) return;
+      _logs = logs;
+      _recent = recent;
     } catch (_) {
-      _logs = db.activityLogs;
-      _recent = db.activityLogs.take(6).toList();
+      if (generation != _loadGeneration) return;
+      _logs = db.activityLogs.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _recent = _logs.take(6).toList();
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -47,11 +55,7 @@ class ActivityProvider extends DbBoundProvider {
     _refresh();
   }
 
-  Future<void> _refresh() async {
-    _logs = await _repository.fetchLogs(type: _type, query: _query);
-    _recent = await _repository.fetchRecent(limit: 6);
-    notifyListeners();
-  }
+  Future<void> _refresh() async => load();
 
   void filterType(ActivityType? type) {
     _type = type;
@@ -59,7 +63,11 @@ class ActivityProvider extends DbBoundProvider {
   }
 
   bool canUndo(ActivityLog log) => _operations.canUndo(log.id);
-  Future<bool> undo(ActivityLog log) async { final result = _operations.undo(log.id); if (result) await load(); return result; }
+  Future<bool> undo(ActivityLog log) async {
+    final result = _operations.undo(log.id);
+    if (result) await load();
+    return result;
+  }
   void search(String query) {
     _query = query;
     load();
