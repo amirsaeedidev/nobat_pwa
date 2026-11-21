@@ -673,6 +673,9 @@ class AppDatabase extends ChangeNotifier {
     if (index == -1) return;
     final previous = _appointments[index];
     if (previous.status == status && previous.cancelReason == reason) return;
+    if (previous.status == AppointmentStatus.cancelled || previous.status == AppointmentStatus.completed) {
+      throw StateError('وضعیت نهایی این نوبت قابل تغییر مجدد نیست؛ در صورت نیاز از تاریخچه عملیات بازگردانی کنید.');
+    }
     _appointments[index] = previous.copyWith(status: status, cancelReason: reason, updatedAt: DateTime.now());
     final type = switch (status) {
       AppointmentStatus.cancelled => ActivityType.appointmentCancelled,
