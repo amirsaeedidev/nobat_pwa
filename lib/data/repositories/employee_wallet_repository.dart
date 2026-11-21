@@ -54,6 +54,9 @@ class EmployeeWalletRepository {
     referenceType: referenceType, referenceId: referenceId,
   );
 
+  Future<int> accruePayroll(String employeeId, {DateTime? at}) =>
+      _operations.accruePayrollBaseToWallet(employeeId, at: at);
+
   Future<EmployeeWalletSettlement> settle({
     required String employeeId,
     required EmployeeWalletPeriod period,
