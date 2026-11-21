@@ -4,6 +4,7 @@ import '../models/business_finance.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_payroll.dart';
 import '../models/employee_wallet.dart';
+import '../models/employee_hr.dart';
 import '../models/enums.dart';
 
 /// ورودی یک عملیات حساس؛ UI جزئیات آن را برای تأیید نمایش می‌دهد.
@@ -205,6 +206,21 @@ class OperationsRepository {
       description: 'بازنشانی نقش دسترسی $roleId به مقادیر پیش‌فرض.',
       reversible: true,
       action: () => _db.resetAccessRole(roleId),
+    );
+  }
+
+  Future<bool> saveAttendancePayrollPolicy(AttendancePayrollPolicy policy) async {
+    await _db.delay(40);
+    final key = 'attendance-payroll-policy:${policy.enabled}:${policy.lateDeductionPerMinute}:${policy.absenceDeductionPerDay}:${policy.overtimePaymentPerMinute}:${policy.earlyLeaveDeductionPerMinute}:${DateTime.now().microsecondsSinceEpoch}';
+    return _db.executeSensitiveOperation<bool>(
+      idempotencyKey: key,
+      operationType: 'financial_attendance_policy_update',
+      entityName: 'قانون مالی حضور و غیاب',
+      entityId: 'attendance-payroll-policy',
+      description: 'تغییر نرخ‌های مالی محاسبه حضور و غیاب.',
+      reversible: true,
+      action: () => _db.saveAttendancePayrollPolicy(policy),
+      shouldConsumeKey: (changed) => changed,
     );
   }
 
