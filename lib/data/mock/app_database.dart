@@ -1330,14 +1330,13 @@ class AppDatabase extends ChangeNotifier {
   void deleteAppointment(String id) {
     requirePermission('appointments.cancel');
     final appointment = appointmentById(id);
-    _appointments.removeWhere((a) => a.id == id);
-    if (appointment != null) {
-      if (_appointmentPayments.any((item) => item.appointmentId == id) || _employeeFinanceEntries.any((item) => item.appointmentId == id)) {
-        throw StateError('این نوبت سند مالی دارد؛ حذف آن مجاز نیست. ابتدا از مسیر مالی سند اصلاحی ثبت کنید.');
-      }
-      log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت', entityId: id,
-        undoAction: 'appointment_deleted', undoData: appointment.toJson(), operationType: 'appointment_delete', isReversible: true);
+    if (appointment == null) return;
+    if (_appointmentPayments.any((item) => item.appointmentId == id) || _employeeFinanceEntries.any((item) => item.appointmentId == id)) {
+      throw StateError('این نوبت سند مالی دارد؛ حذف آن مجاز نیست. ابتدا از مسیر مالی سند اصلاحی ثبت کنید.');
     }
+    _appointments.removeWhere((a) => a.id == id);
+    log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت', entityId: id,
+      undoAction: 'appointment_deleted', undoData: appointment.toJson(), operationType: 'appointment_delete', isReversible: true);
     _commit();
   }
 
