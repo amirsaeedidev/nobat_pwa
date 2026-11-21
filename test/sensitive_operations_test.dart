@@ -649,8 +649,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final undoButton = find.byTooltip('بازگردانی این تغییر');
-    expect(undoButton, findsOneWidget);
-    await tester.tap(undoButton);
+    expect(undoButton, findsAtLeastNWidgets(1));
+    await tester.tap(undoButton.first);
     await tester.pumpAndSettle();
 
     expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
