@@ -60,7 +60,7 @@ class DashboardProvider extends DbBoundProvider {
       _upcoming = upcoming;
       _dayAppointments = dayAppointments;
       _revenueSeries = revenueSeries;
-      await _loadAnalytics();
+      await _loadAnalytics(generation: generation);
     } catch (error) {
       if (generation != _loadGeneration) return;
       _error = true;
@@ -73,7 +73,7 @@ class DashboardProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> _loadAnalytics() async {
+  Future<void> _loadAnalytics({int? generation}) async {
     _analyticsError = false;
     try {
       final reportPeriod = switch (_period) {
@@ -81,9 +81,12 @@ class DashboardProvider extends DbBoundProvider {
         StatsPeriod.weekly => ReportPeriod.thisWeek,
         StatsPeriod.monthly => ReportPeriod.thisMonth,
       };
-      _analytics = await _repository.fetchReportAnalytics(
+      final analytics = await _repository.fetchReportAnalytics(
         range: ReportDateRange.preset(reportPeriod), filter: _analyticsFilter);
+      if (generation != null && generation != _loadGeneration) return;
+      _analytics = analytics;
     } catch (_) {
+      if (generation != null && generation != _loadGeneration) return;
       _analyticsError = true;
       _analytics = null;
     }
