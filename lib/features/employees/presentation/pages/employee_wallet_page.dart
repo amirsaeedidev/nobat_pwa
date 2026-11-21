@@ -9,8 +9,10 @@ import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_wallet.dart';
+import '../../../../data/repositories/operations_repository.dart';
 
 class EmployeeWalletPage extends StatefulWidget {
   const EmployeeWalletPage({super.key, required this.employeeId});
@@ -389,8 +391,28 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       AppToast.show(context, 'مبلغ نهایی و علت اصلاح را بررسی کنید.', success: false);
       amount.dispose(); description.dispose(); return;
     }
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید اصلاح سند مالی',
+      description: 'سند اصلی حذف یا ویرایش نمی‌شود. این عملیات دو سند جدید و غیرقابل‌بازگشت مستقیم ایجاد می‌کند: یک سند معکوس و یک اصلاحیه.',
+      recordDetails: {
+        'شناسه سند': entry.id,
+        'پرسنل': db.employeeById(entry.employeeId)?.fullName ?? entry.employeeId,
+        'مبلغ قبلی': '${FaNum.ofInt(entry.amount)} تومان',
+        'مبلغ اصلاح‌شده': '${FaNum.ofInt(parsed)} تومان',
+        'علت اصلاح': description.text.trim(),
+      },
+      isReversible: false,
+      warning: 'Undo برای سند مالی ثبت نمی‌شود. در صورت نیاز به تغییر مجدد، باید اصلاحیه مالی تازه ثبت شود.',
+      confirmLabel: 'ثبت سند معکوس و اصلاحیه',
+    );
+    if (!approved || !mounted) { amount.dispose(); description.dispose(); return; }
     try {
-      db.correctWalletTransaction(transactionId: entry.id, correctedAmount: parsed, description: description.text.trim());
+      await OperationsRepository(db).correctWalletTransaction(
+        transactionId: entry.id,
+        correctedAmount: parsed,
+        description: description.text.trim(),
+      );
       if (mounted) AppToast.show(context, 'سند معکوس و اصلاحیه ثبت شد.');
     } catch (error) {
       if (mounted) AppToast.show(context, 'اصلاح سند انجام نشد: $error', success: false);
