@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 import 'package:datetime/app/theme/app_palette.dart';
 import 'package:datetime/core/widgets/sensitive_operation_dialog.dart';
@@ -396,4 +395,117 @@ void main() {
     );
     expect(db.hasExecutedOperation('operation-failure-test'), isFalse);
   });
+
+  test('activity provider refreshes complete audit history after undo', () async {
+    const customer = Customer(id: 'history-refresh-customer', fullName: 'مشتری تاریخچه', phone: '09129999999');
+    db.addCustomer(customer);
+    await operations.deleteCustomer(customer.id);
+
+    final provider = ActivityProvider(MockActivityRepository(db), db);
+    addTearDown(provider.dispose);
+    await provider.load();
+
+    final deletion = provider.logs.firstWhere((log) => log.operationType == 'customer_delete');
+    expect(deletion.entityId, customer.id);
+    expect(deletion.operationLabel, 'حذف مشتری');
+    expect(provider.canUndo(deletion), isTrue);
+
+    expect(await provider.undo(deletion), isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    expect(db.customerById(customer.id), isNotNull);
+    expect(provider.logs.any((log) => log.operationType == 'undo' && log.entityId == customer.id), isTrue);
+    expect(provider.logs.any((log) => log.id == deletion.id), isTrue);
+    expect(provider.canUndo(deletion), isFalse);
+  });
+
+  test('audit history is not truncated and searches entity metadata', () async {
+    for (var index = 0; index < 115; index++) {
+      db.log(
+        ActivityType.settingsChanged,
+        'رویداد ممیزی $index',
+        'جزئیات رویداد $index',
+        entity: 'رکورد آزمایش',
+        entityId: 'audit-record-$index',
+        operationType: 'audit_test_event',
+        isReversible: false,
+      );
+    }
+
+    final repository = MockActivityRepository(db);
+    final all = await repository.fetchLogs();
+    expect(all.where((log) => log.operationType == 'audit_test_event'), hasLength(115));
+
+    final byEntityId = await repository.fetchLogs(query: 'audit-record-114');
+    expect(byEntityId, hasLength(1));
+    expect(byEntityId.single.entityId, 'audit-record-114');
+  });
+
+  testWidgets('sensitive operation dialog shows record details and cancel is safe', (tester) async {
+    bool? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: const [AppPalette.pastelPink]),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                result = await showSensitiveOperationDialog(
+                  context,
+                  title: 'تأیید حذف آزمایشی',
+                  description: 'این تغییر قابل بازگردانی است.',
+                  recordDetails: const {'رکورد': 'مشتری آزمایشی', 'شناسه': 'customer-ui-1'},
+                  isReversible: true,
+                );
+              },
+              child: const Text('باز کردن تأیید'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('باز کردن تأیید'));
+    await tester.pumpAndSettle();
+    expect(find.text('تأیید حذف آزمایشی'), findsOneWidget);
+    expect(find.text('مشتری آزمایشی'), findsOneWidget);
+    expect(find.text('customer-ui-1'), findsOneWidget);
+
+    await tester.tap(find.text('انصراف'));
+    await tester.pumpAndSettle();
+    expect(result, isFalse);
+  });
+
+  testWidgets('sensitive operation dialog approves only after explicit confirmation', (tester) async {
+    bool? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: const [AppPalette.pastelPink]),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                result = await showSensitiveOperationDialog(
+                  context,
+                  title: 'تأیید اصلاح مالی',
+                  description: 'مبلغ ثبت‌شده تغییر می‌کند.',
+                  recordDetails: const {'مبلغ': '۷۰۰٬۰۰۰'},
+                  isReversible: false,
+                  confirmLabel: 'تأیید اصلاح',
+                );
+              },
+              child: const Text('باز کردن اصلاح'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('باز کردن اصلاح'));
+    await tester.pumpAndSettle();
+    expect(find.text('این عملیات قابل بازگردانی نیست. تاریخچه آن برای ممیزی ثبت می‌شود.'), findsOneWidget);
+    await tester.tap(find.text('تأیید اصلاح'));
+    await tester.pumpAndSettle();
+    expect(result, isTrue);
+  });
+
 }
