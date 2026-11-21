@@ -32,8 +32,10 @@ void main() {
     expect(audit.actor, db.currentAccessAccount.name);
     expect(audit.isReversible, isTrue);
     expect(audit.idempotencyKey, 'customer-delete:${customer.id}');
+    expect(db.hasExecutedOperation('customer-delete:${customer.id}'), isTrue);
 
     expect(operations.undo(audit.id), isTrue);
+    expect(db.hasExecutedOperation('customer-delete:${customer.id}'), isFalse);
     expect(db.customerById(customer.id)?.fullName, customer.fullName);
     expect(db.canUndoLog(audit.id), isFalse);
   });
