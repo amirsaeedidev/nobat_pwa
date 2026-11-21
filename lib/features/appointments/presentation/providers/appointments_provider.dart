@@ -23,6 +23,7 @@ class AppointmentsProvider extends DbBoundProvider {
   int _pageNumber = 1;
   int _pageSize = 8;
   bool _ascending = false;
+  int _loadGeneration = 0;
 
   PageResult<Appointment> get page => _page;
   List<Appointment> get items => _page.items;
@@ -34,23 +35,29 @@ class AppointmentsProvider extends DbBoundProvider {
   int get pageSize => _pageSize;
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     notifyListeners();
     try {
       _loadNotice = null;
-      _page = await _repository.fetchAppointments(
+      final page = await _repository.fetchAppointments(
         filter: _filter,
         page: _pageNumber,
         pageSize: _pageSize,
         ascending: _ascending,
       );
+      if (generation != _loadGeneration) return;
+      _page = page;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       final all = db.appointments;
       _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -60,25 +67,35 @@ class AppointmentsProvider extends DbBoundProvider {
   }
 
   Future<void> _loadSilently() async {
-    final page = await _repository.fetchAppointments(
-      filter: _filter,
-      page: _pageNumber,
-      pageSize: _pageSize,
-      ascending: _ascending,
-    );
-    // اگر صفحه فعلی خالی شد به صفحه قبل برگرد.
-    if (page.items.isEmpty && _pageNumber > 1) {
-      _pageNumber = (page.total / _pageSize).ceil().clamp(1, 999);
-      _page = await _repository.fetchAppointments(
+    final generation = ++_loadGeneration;
+    try {
+      var page = await _repository.fetchAppointments(
         filter: _filter,
         page: _pageNumber,
         pageSize: _pageSize,
         ascending: _ascending,
       );
-    } else {
+      if (generation != _loadGeneration) return;
+      // اگر صفحه فعلی خالی شد به صفحه قبل برگرد.
+      if (page.items.isEmpty && _pageNumber > 1) {
+        _pageNumber = (page.total / _pageSize).ceil().clamp(1, 999);
+        page = await _repository.fetchAppointments(
+          filter: _filter,
+          page: _pageNumber,
+          pageSize: _pageSize,
+          ascending: _ascending,
+        );
+        if (generation != _loadGeneration) return;
+      }
       _page = page;
+      notifyListeners();
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
+      final all = db.appointments;
+      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   void setQuery(String query) {
