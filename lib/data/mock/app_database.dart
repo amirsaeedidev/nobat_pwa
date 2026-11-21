@@ -64,6 +64,7 @@ class AppDatabase extends ChangeNotifier {
 
   int _idCounter = 5000;
   final Set<String> _undoneLogIds = {};
+  final Set<String> _executedOperationKeys = {};
 
   List<Customer> get customers => List.unmodifiable(_customers);
   List<Appointment> get appointments => List.unmodifiable(_appointments);
@@ -223,7 +224,7 @@ class AppDatabase extends ChangeNotifier {
       }
       remainingWeight -= item.available;
     }
-    log(ActivityType.settingsChanged, 'ثبت برگشت وجه مشتری', 'برگشت مبلغ $amount برای نوبت ثبت شد.', entity: 'دریافت‌های مجموعه');
+    log(ActivityType.settingsChanged, 'ثبت برگشت وجه مشتری', 'برگشت مبلغ $amount برای نوبت ثبت شد.', entity: 'دریافت‌های مجموعه', entityId: refund.id, operationType: 'financial_refund', isReversible: false, idempotencyKey: idempotencyKey);
     _commit();
     return refund;
   }
@@ -306,7 +307,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   /// ثبت رویداد با عنوان و توضیح.
-  void log(ActivityType type, String title, String description, {String actor = 'مدیر سیستم', String entity = '', String? undoAction, Map<String, dynamic>? undoData}) {
+  void log(ActivityType type, String title, String description, {String? actor, String entity = '', String entityId = '', String? undoAction, Map<String, dynamic>? undoData, String? operationType, bool? isReversible, String? idempotencyKey}) {
     _logs.insert(
       0,
       ActivityLog(
@@ -314,14 +315,43 @@ class AppDatabase extends ChangeNotifier {
         type: type,
         title: title,
         description: description,
-        actor: actor,
+        actor: actor ?? currentAccessAccount.name,
         createdAt: DateTime.now(),
         entityName: entity,
+        entityId: entityId,
         undoAction: undoAction,
         undoData: undoData,
+        operationType: operationType,
+        isReversible: isReversible ?? (undoAction != null && undoData != null),
+        idempotencyKey: idempotencyKey,
       ),
     );
   }
+
+  /// اجرای یک عملیات حساس با کلید idempotency و ثبت Audit Log.
+  /// کلید تنها پس از موفقیت action مصرف می‌شود؛ شکست عملیات قابل تلاش مجدد است.
+  T executeSensitiveOperation<T>({
+    required String idempotencyKey,
+    required String operationType,
+    required String entityName,
+    required String entityId,
+    required String description,
+    required bool reversible,
+    required T Function() action,
+  }) {
+    final key = idempotencyKey.trim();
+    if (key.isEmpty) throw ArgumentError('کلید یکتای عملیات الزامی است.');
+    if (_executedOperationKeys.contains(key)) throw StateError('این عملیات قبلاً اجرا شده است.');
+    final result = action();
+    _executedOperationKeys.add(key);
+    log(ActivityType.settingsChanged, 'ثبت عملیات: $operationType', description,
+      entity: entityName, entityId: entityId, operationType: operationType,
+      isReversible: reversible, idempotencyKey: key);
+    _commit();
+    return result;
+  }
+
+  bool hasExecutedOperation(String key) => _executedOperationKeys.contains(key);
 
   // ---------------------------------------------------------------------------
   // کنترل دسترسی و نقش‌ها — منبع حقیقت در لایه داده
@@ -588,6 +618,9 @@ class AppDatabase extends ChangeNotifier {
       entity: 'نوبت',
       undoAction: 'appointment_restore',
       undoData: previous.toJson(),
+      entityId: appointment.id,
+      operationType: status == AppointmentStatus.cancelled ? 'appointment_cancel' : 'appointment_status_change',
+      isReversible: true,
     );
     _commit();
   }
@@ -1012,7 +1045,7 @@ class AppDatabase extends ChangeNotifier {
       ));
     }
     if (type == EmployeeWalletTransactionType.salaryPayment) _notifyEmployee(employeeId,EmployeeNoticeType.paymentRecorded,'پرداخت ثبت شد.','پرداخت حقوق برای شما ثبت شد.');
-    log(ActivityType.settingsChanged, 'ثبت تراکنش کیف پول', 'تراکنش «${type.label}» برای پرسنل ثبت شد.', entity: 'کیف پول پرسنل');
+    log(ActivityType.settingsChanged, 'ثبت تراکنش کیف پول', 'تراکنش «${type.label}» برای پرسنل ثبت شد.', entity: 'کیف پول پرسنل', entityId: entry.id, operationType: 'financial_wallet_entry', isReversible: false, idempotencyKey: idempotencyKey);
     _commit();
     return entry;
   }
@@ -1063,6 +1096,8 @@ class AppDatabase extends ChangeNotifier {
       reversalOfId: original.id,
     );
     _employeeWalletTransactions.addAll([reversal, correction]);
+    log(ActivityType.settingsChanged, 'اصلاح سند مالی', 'سند ${original.id} با ثبت معکوس ${reversal.id} و اصلاحیه ${correction.id} اصلاح شد.',
+      entity: 'کیف پول پرسنل', entityId: original.id, operationType: 'financial_correction', isReversible: false);
     // به‌روزرسانی مقدار سند منبع حقوق/مساعده با حفظ شناسه و تاریخچه اسناد کیف پول.
     final adjustmentIndex = _payrollAdjustments.indexWhere((item) => item.sourceWalletTransactionId == original.id);
     if (adjustmentIndex >= 0) {
@@ -1273,7 +1308,11 @@ class AppDatabase extends ChangeNotifier {
     final appointment = appointmentById(id);
     _appointments.removeWhere((a) => a.id == id);
     if (appointment != null) {
-      log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت', undoAction: 'appointment_deleted', undoData: appointment.toJson());
+      if (_appointmentPayments.any((item) => item.appointmentId == id) || _employeeFinanceEntries.any((item) => item.appointmentId == id)) {
+        throw StateError('این نوبت سند مالی دارد؛ حذف آن مجاز نیست. ابتدا از مسیر مالی سند اصلاحی ثبت کنید.');
+      }
+      log(ActivityType.appointmentCancelled, 'حذف نوبت', 'نوبت ${appointment.customerName} حذف شد.', entity: 'نوبت', entityId: id,
+        undoAction: 'appointment_deleted', undoData: appointment.toJson(), operationType: 'appointment_delete', isReversible: true);
     }
     _commit();
   }
@@ -1307,10 +1346,13 @@ class AppDatabase extends ChangeNotifier {
   void deleteCustomer(String id) {
     requirePermission('customers.edit');
     final customer = customerById(id);
-    _customers.removeWhere((c) => c.id == id);
-    if (customer != null) {
-      log(ActivityType.settingsChanged, 'حذف مشتری', '${customer.fullName} از فهرست مشتریان حذف شد.', entity: 'مشتری');
+    if (customer == null) return;
+    if (_appointments.any((item) => item.customerId == id) || _appointmentPayments.any((item) => item.customerId == id)) {
+      throw StateError('این مشتری سابقه نوبت یا دریافت مالی دارد؛ برای حفظ سوابق وابسته امکان حذف دائمی وجود ندارد.');
     }
+    _customers.removeWhere((c) => c.id == id);
+    log(ActivityType.settingsChanged, 'حذف مشتری', '${customer.fullName} از فهرست مشتریان حذف شد.', entity: 'مشتری', entityId: id,
+      undoAction: 'customer_restore', undoData: customer.toJson(), operationType: 'customer_delete', isReversible: true);
     _commit();
   }
 
@@ -1362,6 +1404,7 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('services.manage');
     if (!_serviceCategories.contains(name)) return;
     final dependents = _services.where((service) => service.category == name).toList();
+    final previousServices = dependents.map((service) => service.toJson()).toList();
     if (dependents.isNotEmpty) {
       final target = moveServicesTo?.trim();
       if (target == null || target.isEmpty || target == name || !_serviceCategories.contains(target)) {
@@ -1374,6 +1417,9 @@ class AppDatabase extends ChangeNotifier {
       }
     }
     _serviceCategories.remove(name);
+    log(ActivityType.serviceModified, 'حذف دسته‌بندی خدمت', 'دسته‌بندی «$name» حذف شد؛ ${dependents.length} خدمت وابسته ${moveServicesTo == null ? 'وجود نداشت' : 'به «$moveServicesTo» منتقل شد'}.',
+      entity: 'دسته‌بندی خدمت', entityId: name, undoAction: 'service_category_restore',
+      undoData: {'name': name, 'services': previousServices}, operationType: 'service_category_delete', isReversible: true);
     _commit();
   }
 
@@ -1436,10 +1482,13 @@ class AppDatabase extends ChangeNotifier {
     if (service == null) return;
     final hasHistory = _appointments.any((appointment) => appointment.serviceIds.contains(id));
     if (hasHistory) {
-      updateService(service.copyWith(isActive: false, employeeIds: const []));
-      log(ActivityType.serviceModified, 'بایگانی خدمت', 'خدمت «${service.title}» به دلیل وجود سابقه نوبت غیرفعال شد؛ سوابق حفظ شدند.', entity: 'خدمت');
+      _services[_services.indexWhere((item) => item.id == id)] = service.copyWith(isActive: false, employeeIds: const []);
+      log(ActivityType.serviceModified, 'بایگانی خدمت', 'خدمت «${service.title}» به دلیل وجود سابقه نوبت غیرفعال شد؛ سوابق حفظ شدند.',
+        entity: 'خدمت', entityId: id, undoAction: 'service_restore', undoData: service.toJson(), operationType: 'service_archive', isReversible: true);
+      _commit();
       return;
     }
+    final relatedConfigs = _employeeServiceConfigs.values.where((value) => value.serviceId == id).map((value) => value.toJson()).toList();
     _services.removeWhere((item) => item.id == id);
     _employeeServiceConfigs.removeWhere((key, value) => value.serviceId == id);
     for (var index = 0; index < _employees.length; index++) {
@@ -1448,7 +1497,8 @@ class AppDatabase extends ChangeNotifier {
         _employees[index] = employee.copyWith(serviceIds: employee.serviceIds.where((serviceId) => serviceId != id).toList());
       }
     }
-    log(ActivityType.serviceModified, 'حذف خدمت', 'خدمت «${service.title}» حذف شد.', entity: 'خدمت');
+    log(ActivityType.serviceModified, 'حذف خدمت', 'خدمت «${service.title}» حذف شد.', entity: 'خدمت', entityId: id,
+      undoAction: 'service_deleted', undoData: {'service': service.toJson(), 'configs': relatedConfigs}, operationType: 'service_delete', isReversible: true);
     _commit();
   }
 
@@ -1496,7 +1546,8 @@ class AppDatabase extends ChangeNotifier {
     if (hasHistory) {
       final archived = employee.copyWith(isActive: false, status: EmployeeStatus.inactive);
       updateEmployee(archived);
-      log(ActivityType.employeeAdded, 'بایگانی پرسنل', 'پروفایل ${employee.fullName} به دلیل وجود سوابق نوبت بایگانی شد.', entity: 'پرسنل');
+      log(ActivityType.employeeAdded, 'بایگانی پرسنل', 'پروفایل ${employee.fullName} به دلیل وجود سوابق نوبت بایگانی شد.', entity: 'پرسنل', entityId: id,
+        undoAction: 'employee_restore', undoData: employee.toJson(), operationType: 'employee_archive', isReversible: true);
       _commit();
       return;
     }
@@ -1507,7 +1558,8 @@ class AppDatabase extends ChangeNotifier {
         _services[index] = service.copyWith(employeeIds: service.employeeIds.where((employeeId) => employeeId != id).toList());
       }
     }
-    log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل');
+    log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل', entityId: id,
+      undoAction: 'employee_deleted', undoData: employee.toJson(), operationType: 'employee_delete', isReversible: true);
     _commit();
   }
 
