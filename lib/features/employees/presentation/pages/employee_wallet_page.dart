@@ -304,9 +304,28 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     _isAddingTransaction = false;
   }
 
-  void _accruePayroll(AppDatabase db, String employeeId) {
+  Future<void> _accruePayroll(AppDatabase db, String employeeId) async {
+    final at = DateTime.now();
+    final payroll = db.payrollFor(employeeId, at: at);
+    final employee = db.employeeById(employeeId);
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید ثبت حقوق ماه جاری',
+      description: 'حقوق پایه و اثر قانون حضور و غیاب به دفتر کل کیف پول اضافه می‌شود. سند ثبت‌شده حذف یا Undo نمی‌شود.',
+      recordDetails: {
+        'پرسنل': employee?.fullName ?? employeeId,
+        'حقوق پایه': '${FaNum.ofInt(payroll.baseSalary)} تومان',
+        'اثر حضور و غیاب': '${FaNum.ofInt(payroll.attendanceAdjustment)} تومان',
+        'جمع انتقال': '${FaNum.ofInt(payroll.baseSalary + payroll.attendanceAdjustment)} تومان',
+        'دوره': '${at.year}/${at.month.toString().padLeft(2, '0')}',
+      },
+      isReversible: false,
+      warning: 'ثبت حقوق در دفتر کل قطعی است؛ برای اصلاح باید سند مالی جدید ثبت شود.',
+      confirmLabel: 'ثبت حقوق ماه جاری',
+    );
+    if (!approved || !mounted) return;
     try {
-      final count = db.accruePayrollBaseToWallet(employeeId);
+      final count = await OperationsRepository(db).accruePayrollBaseToWallet(employeeId, at: at);
       if (mounted) AppToast.show(context, count == 0
           ? 'حقوق پایه قبلاً ثبت شده یا مبلغ جدیدی برای انتقال وجود ندارد.'
           : 'حقوق پایه و اثر حضور و غیاب به کیف پول منتقل شد.');
