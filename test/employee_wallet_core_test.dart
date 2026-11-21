@@ -135,7 +135,7 @@ void main() {
 
       final weekly = EmployeeWalletPeriod.select(type: EmployeeWalletPeriodType.weekly, anchor: anchor);
       expect(weekly.start.weekday, DateTime.monday);
-      expect(weekly.end.difference(weekly.start), const Duration(days: 7) - const Duration(microseconds: 1));
+      expect(weekly.end, weekly.start.add(const Duration(days: 7)).subtract(const Duration(microseconds: 1)));
 
       final monthly = EmployeeWalletPeriod.select(type: EmployeeWalletPeriodType.monthly, anchor: anchor);
       expect(monthly.start, DateTime(2026, 11, 1));
