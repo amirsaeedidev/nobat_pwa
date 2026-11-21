@@ -289,6 +289,21 @@ class OperationsRepository {
     );
   }
 
+  Future<int> accruePayrollBaseToWallet(String employeeId, {DateTime? at}) async {
+    final date = at ?? DateTime.now();
+    final key = 'payroll-accrual:$employeeId:${date.year}-${date.month}';
+    await _db.delay(50);
+    return _db.executeSensitiveOperation<int>(
+      idempotencyKey: key,
+      operationType: 'financial_payroll_accrual',
+      entityName: 'ثبت حقوق ماهانه',
+      entityId: employeeId,
+      description: 'انتقال حقوق پایه و اثر حضور و غیاب پرسنل $employeeId به دفتر کیف پول.',
+      reversible: false,
+      action: () => _db.accruePayrollBaseToWallet(employeeId, at: date),
+    );
+  }
+
   Future<EmployeeWalletSettlement> settleEmployeeWallet({
     required String employeeId,
     required DateTime periodStart,
