@@ -168,13 +168,13 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
       Row(children: [
         const Expanded(child: SectionHeader(title: 'تقویم کاری ماهانه')),
         IconButton(
-          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
           padding: EdgeInsets.zero,
           visualDensity: VisualDensity.compact,
           onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(-1)),
           icon: const Icon(Icons.chevron_right_rounded),
         ),
-        Text(_visibleMonth.monthName + ' ' + FaNum.ofInt(_visibleMonth.year), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+        Text(_visibleMonth.monthName + ' ' + FaNum.ofInt(_visibleMonth.year), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
         IconButton(
           constraints: const BoxConstraints.tightFor(width: 36, height: 36),
           padding: EdgeInsets.zero,
