@@ -91,7 +91,7 @@ class CustomerProfilePage extends StatelessWidget {
       icon: Icons.person_rounded,
       showBackButton: true,
       actions: [
-        SoftButton(label: 'حذف / بایگانی', icon: Icons.delete_outline_rounded, color: pal.danger, onTap: deleteCustomer),
+        SoftButton(label: 'حذف / بایگانی', color: pal.danger, onTap: deleteCustomer),
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/customers/${customer.id}/edit')),
         SolidButton(
           label: 'نوبت جدید',
@@ -101,7 +101,7 @@ class CustomerProfilePage extends StatelessWidget {
         ),
       ],
       mobileActions: [
-        CircleIconButton(icon: Icons.delete_outline_rounded, size: 38, onTap: deleteCustomer),
+        TextButton(onPressed: deleteCustomer, child: const Text('حذف')),
         CircleIconButton(icon: Icons.edit_rounded, size: 38, onTap: () => context.push('/customers/${customer.id}/edit')),
       ],
       child: Column(
