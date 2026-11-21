@@ -295,7 +295,8 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'نوع تراکنش'),
             items: [
-              if (db.hasPermission('finance.advance.create', employeeId: employeeId))
+              for (final item in [
+                if (db.hasPermission('finance.advance.create', employeeId: employeeId))
                 EmployeeWalletTransactionType.advance,
               if (db.hasPermission('finance.payment.create', employeeId: employeeId)) ...[
                 EmployeeWalletTransactionType.bonus,
