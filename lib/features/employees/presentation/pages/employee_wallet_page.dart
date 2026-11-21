@@ -368,7 +368,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       warning: 'پرداخت و رسید تسویه قابل حذف یا Undo نیستند؛ اصلاح مالی باید با سند جداگانه انجام شود.',
       confirmLabel: 'ثبت پرداخت و صدور رسید',
     );
-    if (!approved || !mounted) return;
+    if (!approved || !mounted) { _isSettling = false; return; }
     try {
       final settlement = await OperationsRepository(db).settleEmployeeWallet(
         employeeId: employeeId,
