@@ -528,7 +528,7 @@ void main() {
       serviceName: 'خدمت به‌روزرسانی',
       employeeId: db.employees.first.id,
       employeeName: db.employees.first.fullName,
-      startAt: DateTime.now().add(const Duration(days: 1)),
+      startAt: DateTime.now().add(const Duration(hours: 2)),
       durationMinutes: 30,
       price: 175000,
     );
