@@ -179,9 +179,21 @@ class OperationsRepository {
     );
   }
 
+  ActivityLog? latestUndoableLogFor(String entityId) {
+    for (final entry in _db.activityLogs) {
+      if (entry.entityId == entityId && entry.isReversible && _db.canUndoLog(entry.id)) return entry;
+    }
+    return null;
+  }
+
   bool canUndo(String activityLogId) => _db.canUndoLog(activityLogId);
 
   bool undo(String activityLogId) => _db.undoLog(activityLogId);
+
+  bool undoLatestForEntity(String entityId) {
+    final entry = latestUndoableLogFor(entityId);
+    return entry != null && _db.undoLog(entry.id);
+  }
 
   List<ActivityLog> get auditHistory => _db.activityLogs
       .where((item) => item.operationType != null || item.undoAction != null)
