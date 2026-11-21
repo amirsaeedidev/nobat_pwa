@@ -263,14 +263,48 @@ class _PermissionsPageState extends State<PermissionsPage> {
       content: TextField(controller: name, autofocus: true, decoration: const InputDecoration(labelText: 'نام نقش')),
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
-        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ایجاد')),
+        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ادامه')),
       ],
     ));
     if (created == true && mounted) {
       try {
-        context.read<AppDatabase>().createAccessRole(name: name.text, permissionIds: const []);
-        AppToast.show(context, 'نقش جدید ساخته شد.');
-      } catch (error) { AppToast.show(context, '$error', success: false); }
+        final approved = await showSensitiveOperationDialog(
+          context,
+          title: 'تأیید ایجاد نقش سفارشی',
+          description: 'یک نقش جدید با مجوزهای اولیه خالی ساخته می‌شود. پس از ایجاد می‌توانید مجوزها را جداگانه تنظیم کنید. این عملیات قابل بازگردانی است، مگر اینکه نقش به پرسنل اختصاص داده شود.',
+          recordDetails: {
+            'نام نقش': name.text.trim(),
+            'نوع': 'سفارشی',
+            'مجوزهای اولیه': '۰',
+          },
+          isReversible: true,
+          confirmLabel: 'ایجاد نقش',
+        );
+        if (approved && mounted) {
+          final db = context.read<AppDatabase>();
+          final role = await OperationsRepository(db).createAccessRole(
+            name: name.text,
+            permissionIds: const [],
+          );
+          if (mounted) {
+            final operations = OperationsRepository(db);
+            final undoLog = operations.latestUndoableLogFor(role.id);
+            if (undoLog != null) {
+              showUndoableOperationSnackBarForLog(
+                context,
+                message: 'نقش «${role.name}» ایجاد شد.',
+                activityLogId: undoLog.id,
+                undo: operations.undo,
+                onUndoSuccess: () { if (mounted) setState(() {}); },
+              );
+            } else {
+              AppToast.show(context, 'نقش ایجاد شد؛ به‌دلیل تخصیص یا تغییرات وابسته قابل بازگردانی نیست.');
+            }
+          }
+        }
+      } catch (error) {
+        if (mounted) AppToast.show(context, '$error', success: false);
+      }
     }
     name.dispose();
   }
