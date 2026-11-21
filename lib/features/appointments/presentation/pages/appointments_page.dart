@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/pagination_bar.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
