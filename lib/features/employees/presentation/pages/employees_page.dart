@@ -11,6 +11,9 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
+import '../../../../data/mock/app_database.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/enums.dart';
 import '../../../services/presentation/providers/services_provider.dart';
@@ -174,16 +177,35 @@ class _EmployeesPageState extends State<EmployeesPage> {
                       onTap: () => context.push('/employees/${employee.id}'),
                       onEdit: () => context.push('/employees/${employee.id}/edit'),
                       onDelete: () async {
-                        final confirmed = await showConfirmDialog(
+                        final confirmed = await showSensitiveOperationDialog(
                           context,
                           title: 'حذف یا بایگانی پرسنل',
-                          message: 'در صورت وجود نوبت یا سابقه، پروفایل به‌جای حذف کامل بایگانی می‌شود. ادامه می‌دهید؟',
-                          confirmLabel: 'ادامه',
-                          destructive: true,
+                          description: 'در صورت وجود سابقه نوبت، پروفایل بایگانی می‌شود تا ارتباط سوابق حفظ شود. در غیر این صورت حذف قابل بازگردانی انجام می‌شود.',
+                          recordDetails: {
+                            'نام پرسنل': employee.fullName,
+                            'شماره تماس': employee.phone,
+                            'خدمات': employee.serviceIds.length.toString(),
+                            'وضعیت': employee.employmentStatus.label,
+                          },
+                          isReversible: true,
+                          confirmLabel: 'ادامه عملیات',
                         );
                         if (confirmed && context.mounted) {
-                          await provider.remove(employee.id);
-                          if (context.mounted) AppToast.show(context, 'عملیات حذف یا بایگانی انجام شد.');
+                          try {
+                            await provider.remove(employee.id);
+                            if (context.mounted) {
+                              showUndoableOperationSnackBar(
+                                context,
+                                message: 'عملیات پرسنل انجام شد.',
+                                onUndo: () {
+                                  OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(employee.id);
+                                  provider.load();
+                                },
+                              );
+                            }
+                          } catch (error) {
+                            if (context.mounted) AppToast.show(context, '$error', success: false);
+                          }
                         }
                       },
                     ),
