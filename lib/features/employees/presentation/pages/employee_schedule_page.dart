@@ -167,9 +167,21 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         const Expanded(child: SectionHeader(title: 'تقویم کاری ماهانه')),
-        IconButton(onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(-1)), icon: const Icon(Icons.chevron_right_rounded)),
+        IconButton(
+          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(-1)),
+          icon: const Icon(Icons.chevron_right_rounded),
+        ),
         Text(_visibleMonth.monthName + ' ' + FaNum.ofInt(_visibleMonth.year), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-        IconButton(onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(1)), icon: const Icon(Icons.chevron_left_rounded)),
+        IconButton(
+          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          onPressed: () => setState(() => _visibleMonth = _visibleMonth.addMonths(1)),
+          icon: const Icon(Icons.chevron_left_rounded),
+        ),
       ]),
       const SizedBox(height: 8),
       Row(children: [
