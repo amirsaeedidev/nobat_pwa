@@ -1511,7 +1511,8 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('services.manage');
     final service = serviceById(id);
     if (service == null) return;
-    final hasHistory = _appointments.any((appointment) => appointment.serviceIds.contains(id));
+    final hasHistory = _appointments.any((appointment) => appointment.serviceIds.contains(id)) ||
+        _employeeFinanceEntries.any((entry) => entry.serviceId == id);
     if (hasHistory) {
       updateService(service.copyWith(isActive: false, employeeIds: const []));
       log(ActivityType.serviceModified, 'بایگانی خدمت', 'خدمت «${service.title}» به دلیل وجود سابقه نوبت غیرفعال شد؛ سوابق حفظ شدند.',
@@ -1573,7 +1574,17 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('employees.deactivate');
     final employee = employeeById(id);
     if (employee == null) return;
-    final hasHistory = _appointments.any((appointment) => appointment.employeeId == id);
+    final hasHistory = _appointments.any((appointment) => appointment.employeeId == id) ||
+        _employeeFinanceEntries.any((entry) => entry.employeeId == id) ||
+        _employeeWalletTransactions.any((entry) => entry.employeeId == id) ||
+        _employeeWalletSettlements.any((entry) => entry.employeeId == id) ||
+        _salaryContracts.containsKey(id) ||
+        _payrollAdjustments.any((entry) => entry.employeeId == id) ||
+        _payrollAdvances.any((entry) => entry.employeeId == id) ||
+        _attendanceRecords.any((entry) => entry.employeeId == id) ||
+        _employeeDocuments.any((entry) => entry.employeeId == id) ||
+        _employeeLeaves.any((entry) => entry.employeeId == id) ||
+        _accessAssignments.containsKey(id);
     if (hasHistory) {
       final archived = employee.copyWith(isActive: false, status: EmployeeStatus.inactive);
       updateEmployee(archived);
