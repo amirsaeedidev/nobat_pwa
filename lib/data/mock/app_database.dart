@@ -2186,7 +2186,7 @@ class AppDatabase extends ChangeNotifier {
           final config = EmployeeServiceConfig.fromJson(Map<String, dynamic>.from(raw as Map));
           _employeeServiceConfigs[_serviceConfigKey(config.employeeId, config.serviceId)] = config;
         }
-        for (final employee in _employees) {
+        for (final employee in List<Employee>.of(_employees)) {
           if (restored.employeeIds.contains(employee.id) && !employee.serviceIds.contains(restored.id)) {
             _employees[_employees.indexWhere((item) => item.id == employee.id)] = employee.copyWith(serviceIds: [...employee.serviceIds, restored.id]);
           }
