@@ -26,6 +26,8 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _to = DateTime.now();
   EmployeeWalletPeriodType _period = EmployeeWalletPeriodType.monthly;
+  bool _isAddingTransaction = false;
+  bool _isSettling = false;
 
   DateTime get _endOfDay => DateTime(_to.year, _to.month, _to.day, 23, 59, 59, 999);
 
@@ -216,6 +218,9 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   }
 
   Future<void> _addTransaction(AppDatabase db, String employeeId) async {
+    if (_isAddingTransaction) return;
+    _isAddingTransaction = true;
+    final operationKey = 'manual-$employeeId-${DateTime.now().microsecondsSinceEpoch}';
     var type = EmployeeWalletTransactionType.advance;
     var positiveAdjustment = true;
     final amount = TextEditingController();
@@ -257,11 +262,11 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
         ],
       )),
     );
-    if (result != true || !mounted) { amount.dispose(); description.dispose(); return; }
+    if (result != true || !mounted) { amount.dispose(); description.dispose(); _isAddingTransaction = false; return; }
     final parsed = int.tryParse(amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
     if (parsed == null || parsed <= 0 || description.text.trim().isEmpty) {
       AppToast.show(context, 'مبلغ و توضیحات را بررسی کنید.', success: false);
-      amount.dispose(); description.dispose(); return;
+      amount.dispose(); description.dispose(); _isAddingTransaction = false; return;
     }
     final credit = type == EmployeeWalletTransactionType.fixedSalary ||
         type == EmployeeWalletTransactionType.bonus ||
@@ -282,20 +287,21 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       warning: 'سند مالی پس از ثبت تغییرناپذیر است. برای اصلاح باید سند معکوس و اصلاحیه جدید ثبت شود.',
       confirmLabel: 'ثبت سند مالی',
     );
-    if (!approved || !mounted) { amount.dispose(); description.dispose(); return; }
+    if (!approved || !mounted) { amount.dispose(); description.dispose(); _isAddingTransaction = false; return; }
     try {
       await OperationsRepository(db).addWalletTransaction(
         employeeId: employeeId,
         amount: signedAmount,
         type: type,
         description: description.text.trim(),
-        idempotencyKey: 'manual-${employeeId}-${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: operationKey,
       );
       if (mounted) AppToast.show(context, 'سند مالی با موفقیت ثبت شد.');
     } catch (error) {
       if (mounted) AppToast.show(context, 'ثبت تراکنش انجام نشد: $error', success: false);
     }
     amount.dispose(); description.dispose();
+    _isAddingTransaction = false;
   }
 
   void _accruePayroll(AppDatabase db, String employeeId) {
@@ -310,9 +316,13 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   }
 
   Future<void> _settle(AppDatabase db, String employeeId) async {
+    if (_isSettling) return;
+    _isSettling = true;
+    final operationKey = 'settle-$employeeId-${DateTime.now().microsecondsSinceEpoch}';
     final due = db.walletPeriodDue(employeeId, _from, _endOfDay);
     if (due <= 0) {
       AppToast.show(context, 'برای بازه انتخاب‌شده مانده قابل پرداختی وجود ندارد.', success: false);
+      _isSettling = false;
       return;
     }
     final amount = TextEditingController(text: due.toString());
@@ -334,11 +344,12 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
         ],
       ),
     );
-    if (result != true || !mounted) { amount.dispose(); return; }
+    if (result != true || !mounted) { amount.dispose(); _isSettling = false; return; }
     final paid = int.tryParse(amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
     amount.dispose();
     if (paid == null || paid <= 0 || paid > due) {
       AppToast.show(context, 'مبلغ پرداخت باید بین یک تومان و مبلغ قابل تسویه باشد.', success: false);
+      _isSettling = false;
       return;
     }
     final employee = db.employeeById(employeeId);
@@ -365,12 +376,13 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
         periodEnd: _endOfDay,
         periodType: _period,
         paidAmount: paid,
-        idempotencyKey: 'settle-${employeeId}-${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: operationKey,
       );
       if (mounted) _showReceipt(settlement);
     } catch (error) {
       if (mounted) AppToast.show(context, 'تسویه انجام نشد: $error', success: false);
     }
+    _isSettling = false;
   }
 
   void _showTransaction(AppDatabase db, EmployeeWalletTransaction entry) {
