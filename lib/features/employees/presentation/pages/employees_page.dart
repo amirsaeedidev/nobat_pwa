@@ -185,7 +185,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
                             'نام پرسنل': employee.fullName,
                             'شماره تماس': employee.phone,
                             'خدمات': employee.serviceIds.length.toString(),
-                            'وضعیت': employee.employmentStatus.label,
+                            'وضعیت': employee.status?.label ?? (employee.isActive ? 'فعال' : 'غیرفعال'),
                           },
                           isReversible: true,
                           confirmLabel: 'ادامه عملیات',
