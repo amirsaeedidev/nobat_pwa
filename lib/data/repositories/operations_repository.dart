@@ -1,5 +1,6 @@
 import '../mock/app_database.dart';
 import '../models/activity_log.dart';
+import '../models/access_control.dart';
 import '../models/business_finance.dart';
 import '../models/employee_finance.dart';
 import '../models/employee_payroll.dart';
@@ -180,6 +181,24 @@ class OperationsRepository {
         canViewOtherEmployees: canViewOtherEmployees,
         canViewPersonalIncome: canViewPersonalIncome,
       ),
+    );
+  }
+
+  Future<AccessRole> createAccessRole({
+    required String name,
+    List<String> permissionIds = const [],
+  }) async {
+    final normalized = name.trim();
+    if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
+    await _db.delay(40);
+    return _db.executeSensitiveOperation<AccessRole>(
+      idempotencyKey: 'access-role-create:$normalized',
+      operationType: 'access_role_create',
+      entityName: 'نقش دسترسی',
+      entityId: 'custom-role:$normalized',
+      description: 'ایجاد نقش سفارشی «$normalized» با ${permissionIds.length} مجوز.',
+      reversible: true,
+      action: () => _db.createAccessRole(name: normalized, permissionIds: permissionIds),
     );
   }
 
