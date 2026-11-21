@@ -1586,7 +1586,8 @@ class AppDatabase extends ChangeNotifier {
         _attendanceRecords.any((entry) => entry.employeeId == id) ||
         _employeeDocuments.any((entry) => entry.employeeId == id) ||
         _employeeLeaves.any((entry) => entry.employeeId == id) ||
-        _accessAssignments.containsKey(id);
+        _accessAssignments.containsKey(id) ||
+        _accessAccounts.any((account) => account.employeeId == id);
     if (hasHistory) {
       final archived = employee.copyWith(isActive: false, status: EmployeeStatus.inactive);
       updateEmployee(archived);
@@ -1596,6 +1597,9 @@ class AppDatabase extends ChangeNotifier {
       return;
     }
     _employees.removeWhere((item) => item.id == id);
+    _employeeServiceConfigs.removeWhere((key, value) => value.employeeId == id);
+    _employeeScheduleExceptions.removeWhere((key, value) => value.employeeId == id);
+    _employeePayProfiles.remove(id);
     for (var index = 0; index < _services.length; index++) {
       final service = _services[index];
       if (service.employeeIds.contains(id)) {
