@@ -647,11 +647,11 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.customerName} به‌روزرسانی شد.',
       actor: actor,
       entity: 'نوبت',
-      undoAction: status == AppointmentStatus.completed ? null : 'appointment_restore',
-      undoData: status == AppointmentStatus.completed ? null : previous.toJson(),
+      undoAction: 'appointment_restore',
+      undoData: previous.toJson(),
       entityId: appointment.id,
-      operationType: operationType ?? (status == AppointmentStatus.cancelled ? 'appointment_cancel' : 'appointment_status_change'),
-      isReversible: status != AppointmentStatus.completed,
+      operationType: 'appointment_update',
+      isReversible: true,
     );
     _commit();
   }
@@ -673,8 +673,11 @@ class AppDatabase extends ChangeNotifier {
       'وضعیت نوبت ${appointment.customerName} به «${status.label}» تغییر کرد.${reason != null ? ' دلیل: $reason' : ''}',
       actor: actor,
       entity: 'نوبت',
-      undoAction: 'appointment_restore',
-      undoData: previous.toJson(),
+      undoAction: status == AppointmentStatus.completed ? null : 'appointment_restore',
+      undoData: status == AppointmentStatus.completed ? null : previous.toJson(),
+      entityId: appointment.id,
+      operationType: operationType ?? (status == AppointmentStatus.cancelled ? 'appointment_cancel' : 'appointment_status_change'),
+      isReversible: status != AppointmentStatus.completed,
     );
     if (status == AppointmentStatus.completed) finalizeCompletedAppointment(appointment.id);
     _commit();
@@ -1331,8 +1334,11 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.customerName} به ${JalaliDate.fromDateTime(newStart).long} ساعت ${newStart.hour.toString().padLeft(2, '0')}:${newStart.minute.toString().padLeft(2, '0')} منتقل شد.',
       actor: byCustomer ? 'مشتری' : actor,
       entity: 'نوبت',
+      entityId: appointment.id,
       undoAction: 'appointment_restore',
       undoData: previous.toJson(),
+      operationType: 'appointment_reschedule',
+      isReversible: true,
     );
     _commit();
   }
