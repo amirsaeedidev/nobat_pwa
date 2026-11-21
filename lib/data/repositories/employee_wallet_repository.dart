@@ -10,6 +10,15 @@ class EmployeeWalletRepository {
   final AppDatabase db;
   final OperationsRepository _operations;
 
+  /// Synchronous read-through methods for reactive screens; all values are derived from the local ledger.
+  EmployeeWallet readWallet(String employeeId, {DateTime? at}) => db.walletFor(employeeId, at: at);
+  List<EmployeeWalletTransaction> readTransactions(String employeeId, {DateTime? from, DateTime? to}) =>
+      db.walletTransactionsFor(employeeId, from: from, to: to);
+  List<EmployeeWalletSettlement> readSettlements(String employeeId) => db.walletSettlementsFor(employeeId);
+  List<EmployeeWalletPayment> readPayments(String employeeId) => db.walletPaymentsFor(employeeId);
+  List<EmployeeWallet> readDebtAndReceivables() => db.walletDebtAndReceivableReport();
+  int readPeriodDue(String employeeId, DateTime start, DateTime end) => db.walletPeriodDue(employeeId, start, end);
+
   Future<EmployeeWallet> fetchWallet(String employeeId, {DateTime? at}) async {
     await db.delay(20);
     return db.walletFor(employeeId, at: at);

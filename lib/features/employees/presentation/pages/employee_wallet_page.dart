@@ -13,6 +13,8 @@ import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/repositories/operations_repository.dart';
+import '../../../../data/repositories/employee_wallet_repository.dart';
+import '../../../../data/services/employee_wallet_service.dart';
 
 class EmployeeWalletPage extends StatefulWidget {
   const EmployeeWalletPage({super.key, required this.employeeId});
@@ -28,8 +30,9 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   EmployeeWalletPeriodType _period = EmployeeWalletPeriodType.monthly;
   bool _isAddingTransaction = false;
   bool _isSettling = false;
+  EmployeeWalletTransactionType? _typeFilter;
 
-  DateTime get _endOfDay => DateTime(_to.year, _to.month, _to.day, 23, 59, 59, 999);
+  DateTime get _endOfDay => DateTime(_to.year, _to.month, _to.day, 23, 59, 59, 999, 999);
 
   @override
   Widget build(BuildContext context) {
@@ -40,24 +43,36 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       return PageScaffold(title: 'کیف پول و تسویه', showBackButton: true, child: const EmptyState(title: 'پرسنل یافت نشد'));
     }
 
-    final summary = db.walletSummaryFor(employee.id);
-    final entries = db.walletTransactionsFor(employee.id, from: _from, to: _endOfDay);
-    final settlements = db.walletSettlementsFor(employee.id);
-    final periodDue = db.walletPeriodDue(employee.id, _from, _endOfDay);
+    final walletService = EmployeeWalletService(EmployeeWalletRepository(db));
+    final wallet = walletService.readWallet(employee.id);
+    final summary = wallet.summary;
+    final canViewSalary = db.hasPermission('finance.salary.view', employeeId: employee.id);
+    final canViewAllSalary = db.hasPermission('finance.salary.view');
+    final canViewSettlementHistory = canViewSalary && db.hasPermission('finance.settlement.view', employeeId: employee.id);
+    final canSettle = canViewSalary && db.hasPermission('finance.payment.create', employeeId: employee.id);
+    final canAddTransaction = db.hasPermission('finance.payment.create', employeeId: employee.id) ||
+        db.hasPermission('finance.advance.create', employeeId: employee.id);
+    final canAccruePayroll = canViewSalary && canSettle;
+    final allEntries = walletService.readTransactions(employee.id, from: _from, to: _endOfDay);
+    final entries = allEntries.where((entry) => _typeFilter == null || entry.type == _typeFilter).toList();
+    final settlements = canViewSettlementHistory ? walletService.readSettlements(employee.id) : <EmployeeWalletSettlement>[];
+    final payments = canViewSettlementHistory ? walletService.readPayments(employee.id) : <EmployeeWalletPayment>[];
+    final periodDue = canSettle ? walletService.readPeriodDue(employee.id, _from, _endOfDay) : 0;
+    final debtReport = canViewSalary && canViewAllSalary ? walletService.readDebtAndReceivables() : <EmployeeWallet>[];
 
     return PageScaffold(
       title: 'کیف پول و تسویه',
       subtitle: employee.fullName,
       showBackButton: true,
       mobileActions: [
-        IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 21)),
-        IconButton(tooltip: 'ثبت حقوق ماه جاری', onPressed: () => _accruePayroll(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
-        IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
+        if (canAddTransaction) IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 21)),
+        if (canAccruePayroll) IconButton(tooltip: 'ثبت حقوق ماه جاری', onPressed: () => _accruePayroll(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
+        if (canSettle) IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
       ],
       actions: [
-        SoftButton(label: 'ثبت تراکنش', onTap: () => _addTransaction(db, employee.id)),
-        SoftButton(label: 'ثبت حقوق ماه جاری', icon: Icons.account_balance_wallet_outlined, onTap: () => _accruePayroll(db, employee.id)),
-        SolidButton(label: 'ثبت تسویه', onPressed: () => _settle(db, employee.id)),
+        if (canAddTransaction) SoftButton(label: 'ثبت تراکنش', onTap: () => _addTransaction(db, employee.id)),
+        if (canAccruePayroll) SoftButton(label: 'ثبت حقوق ماه جاری', icon: Icons.account_balance_wallet_outlined, onTap: () => _accruePayroll(db, employee.id)),
+        if (canSettle) SolidButton(label: 'ثبت تسویه', onPressed: () => _settle(db, employee.id)),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,6 +93,8 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
               Wrap(spacing: 20, runSpacing: 14, children: [
                 _WalletMetric(label: 'درآمد محاسبه‌شده', amount: summary.earned, color: pal.success),
                 _WalletMetric(label: 'پرداخت‌های انجام‌شده', amount: summary.paid, color: pal.primaryBright),
+                _WalletMetric(label: 'مساعده', amount: summary.advances, color: pal.warning),
+                _WalletMetric(label: 'پاداش', amount: summary.bonuses, color: pal.success),
                 _WalletMetric(label: 'بدهی و کسورات', amount: summary.debits, color: pal.danger),
                 _WalletMetric(label: 'در انتظار تأیید', amount: summary.pending, color: pal.warning),
               ]),
@@ -85,7 +102,8 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
           ),
           const SizedBox(height: 12),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SectionHeader(title: 'بازه مالی و مبلغ قابل تسویه'),
+            SectionHeader(title: canSettle ? 'بازه مالی و مبلغ قابل تسویه' : 'بازه مالی',
+              subtitle: canSettle ? 'تسویه فقط با مجوز پرداخت و مشاهده حقوق فعال است.' : 'نمایش اطلاعات مطابق سطح دسترسی حساب فعال'),
             const SizedBox(height: 10),
             Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
               DropdownButton<EmployeeWalletPeriodType>(
@@ -110,19 +128,32 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
               ),
             ]),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: Text('قابل پرداخت در این بازه', style: TextStyle(fontSize: 12, color: pal.textMuted))),
-              Text(Fmt.money(periodDue), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: periodDue > 0 ? pal.success : pal.textPrimary)),
-            ]),
-            const SizedBox(height: 10),
-            SolidButton(
-              label: periodDue > 0 ? 'تسویه این بازه' : 'مبلغی برای تسویه وجود ندارد',
-              onPressed: periodDue > 0 ? () => _settle(db, employee.id) : null,
-            ),
+            if (canSettle) ...[
+              Row(children: [
+                Expanded(child: Text('قابل پرداخت در این بازه', style: TextStyle(fontSize: 12, color: pal.textMuted))),
+                Text(Fmt.money(periodDue), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: periodDue > 0 ? pal.success : pal.textPrimary)),
+              ]),
+              const SizedBox(height: 10),
+              SolidButton(label: periodDue > 0 ? 'تسویه این بازه' : 'مبلغی برای تسویه وجود ندارد',
+                onPressed: periodDue > 0 && !_isSettling ? () => _settle(db, employee.id) : null),
+            ] else
+              Text('برای مشاهده مانده قابل تسویه و ثبت پرداخت، دسترسی حقوق و تسویه لازم است.',
+                style: TextStyle(fontSize: 11, color: pal.textMuted)),
           ])),
           const SizedBox(height: 12),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SectionHeader(title: 'دفتر کل تراکنش‌ها', subtitle: '${entries.length} سند در بازه انتخاب‌شده'),
+            SectionHeader(title: 'دفتر کل تراکنش‌ها', subtitle: '${entries.length} سند از ${allEntries.length} سند در بازه انتخاب‌شده'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<EmployeeWalletTransactionType?>(
+              value: _typeFilter, isExpanded: true,
+              decoration: const InputDecoration(labelText: 'فیلتر نوع تراکنش', isDense: true),
+              items: [
+                const DropdownMenuItem<EmployeeWalletTransactionType?>(value: null, child: Text('همه انواع')),
+                for (final type in EmployeeWalletTransactionType.values)
+                  DropdownMenuItem<EmployeeWalletTransactionType?>(value: type, child: Text(type.label)),
+              ],
+              onChanged: (value) => setState(() => _typeFilter = value),
+            ),
             const SizedBox(height: 8),
             if (entries.isEmpty)
               const EmptyState(compact: true, title: 'تراکنشی در این بازه ثبت نشده', description: 'با ثبت حقوق، پورسانت یا عملیات مالی، سوابق اینجا نمایش داده می‌شوند.'),
@@ -143,6 +174,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 onTap: () => _showTransaction(db, entry),
               )),
           ])),
+          if (canViewSettlementHistory) ...[
           const SizedBox(height: 12),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SectionHeader(title: 'تاریخچه تسویه‌ها', subtitle: '${settlements.length} رسید ثبت‌شده'),
@@ -160,6 +192,34 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 onTap: () => _showReceipt(settlement),
               )),
           ])),
+          const SizedBox(height: 8),
+          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SectionHeader(title: 'پرداخت‌های ثبت‌شده', subtitle: 'هر پرداخت به رسید تسویه و سند دفتر کل متصل است'),
+            if (payments.isEmpty) const EmptyState(compact: true, title: 'پرداختی ثبت نشده'),
+            for (final payment in payments)
+              ListTile(contentPadding: EdgeInsets.zero,
+                leading: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21),
+                title: Text(Fmt.money(payment.amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                subtitle: Text('${_paymentMethodLabel(payment.method)} • ${Fmt.jalaliDate(payment.createdAt)}\\nرسید ${payment.receiptNumber} • سند ${payment.walletTransactionId}',
+                  style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                isThreeLine: true, onTap: () => _showPayment(payment)),
+          ])),
+          ],
+          if (canViewSalary && canViewAllSalary && debtReport.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SectionHeader(title: 'گزارش بدهی و مطالبات پرسنل', subtitle: 'محاسبه مستقیم از دفتر کل؛ بدون داده مستقل'),
+              for (final item in debtReport)
+                ListTile(contentPadding: EdgeInsets.zero,
+                  title: Text(db.employeeById(item.employeeId)?.fullName ?? item.employeeId,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  subtitle: Text(item.debt > 0 ? 'بدهی پرسنل' : 'مطالبه پرسنل',
+                    style: TextStyle(fontSize: 10, color: pal.textMuted)),
+                  trailing: Text(Fmt.money(item.debt > 0 ? item.debt : item.payableBalance),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                      color: item.debt > 0 ? pal.danger : pal.success))),
+            ])),
+          ],
           const SizedBox(height: 12),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SectionHeader(title: 'شفافیت و ردپای مالی'),
@@ -221,7 +281,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     if (_isAddingTransaction) return;
     _isAddingTransaction = true;
     final operationKey = 'manual-$employeeId-${DateTime.now().microsecondsSinceEpoch}';
-    var type = EmployeeWalletTransactionType.advance;
+    var type = db.hasPermission('finance.advance.create', employeeId: employeeId) ? EmployeeWalletTransactionType.advance : EmployeeWalletTransactionType.bonus;
     var positiveAdjustment = true;
     final amount = TextEditingController();
     final description = TextEditingController();
@@ -235,13 +295,15 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'نوع تراکنش'),
             items: [
-              for (final item in [
+              if (db.hasPermission('finance.advance.create', employeeId: employeeId))
                 EmployeeWalletTransactionType.advance,
+              if (db.hasPermission('finance.payment.create', employeeId: employeeId)) ...[
                 EmployeeWalletTransactionType.bonus,
                 EmployeeWalletTransactionType.penalty,
                 EmployeeWalletTransactionType.deduction,
                 EmployeeWalletTransactionType.adjustment,
-              ]) DropdownMenuItem(value: item, child: Text(item.label)),
+              ],
+            ]) DropdownMenuItem(value: item, child: Text(item.label)),
             ],
             onChanged: (value) => update(() => type = value ?? type),
           ),
@@ -288,12 +350,9 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     );
     if (!approved || !mounted) { amount.dispose(); description.dispose(); _isAddingTransaction = false; return; }
     try {
-      await OperationsRepository(db).addWalletTransaction(
-        employeeId: employeeId,
-        amount: signedAmount,
-        type: type,
-        description: description.text.trim(),
-        idempotencyKey: operationKey,
+      await EmployeeWalletService(EmployeeWalletRepository(db)).recordTransaction(
+        employeeId: employeeId, amount: signedAmount, type: type,
+        description: description.text.trim(), idempotencyKey: operationKey,
       );
       if (mounted) AppToast.show(context, 'سند مالی با موفقیت ثبت شد.');
     } catch (error) {
@@ -324,7 +383,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     );
     if (!approved || !mounted) return;
     try {
-      final count = await OperationsRepository(db).accruePayrollBaseToWallet(employeeId, at: at);
+      final count = await EmployeeWalletService(EmployeeWalletRepository(db)).accruePayroll(employeeId, at: at);
       if (mounted) AppToast.show(context, count == 0
           ? 'حقوق پایه قبلاً ثبت شده یا مبلغ جدیدی برای انتقال وجود ندارد.'
           : 'حقوق پایه و اثر حضور و غیاب به کیف پول منتقل شد.');
@@ -337,38 +396,55 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     if (_isSettling) return;
     _isSettling = true;
     final operationKey = 'settle-$employeeId-${DateTime.now().microsecondsSinceEpoch}';
-    final due = db.walletPeriodDue(employeeId, _from, _endOfDay);
+    final service = EmployeeWalletService(EmployeeWalletRepository(db));
+    final due = service.readPeriodDue(employeeId, _from, _endOfDay);
     if (due <= 0) {
       AppToast.show(context, 'برای بازه انتخاب‌شده مانده قابل پرداختی وجود ندارد.', success: false);
       _isSettling = false;
       return;
     }
     final amount = TextEditingController(text: due.toString());
+    final description = TextEditingController(text: 'تسویه حقوق پرسنل');
+    var method = EmployeeWalletPaymentMethod.bankTransfer;
     final result = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(builder: (context, update) => AlertDialog(
         title: const Text('ثبت تسویه حساب'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('مبلغ قابل پرداخت: ${Fmt.money(due)}'),
           const SizedBox(height: 12),
           TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ پرداخت‌شده (تومان)')),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<EmployeeWalletPaymentMethod>(
+            value: method, isExpanded: true,
+            decoration: const InputDecoration(labelText: 'روش پرداخت'),
+            items: [for (final item in EmployeeWalletPaymentMethod.values)
+              DropdownMenuItem(value: item, child: Text(_paymentMethodLabel(item)))],
+            onChanged: (value) => update(() => method = value ?? method),
+          ),
+          const SizedBox(height: 10),
+          TextField(controller: description, maxLines: 2, decoration: const InputDecoration(labelText: 'توضیحات پرداخت')),
           const SizedBox(height: 8),
           Text('بازه: ${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_to)}', style: const TextStyle(fontSize: 11)),
           const Text('پرداخت کمتر از مبلغ قابل پرداخت، به‌عنوان تسویه جزئی ثبت می‌شود.', style: TextStyle(fontSize: 11)),
-        ]),
+        ])),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
           FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ثبت پرداخت و صدور رسید')),
         ],
-      ),
+      )),
     );
-    if (result != true || !mounted) { amount.dispose(); _isSettling = false; return; }
+    if (result != true || !mounted) { amount.dispose(); description.dispose(); _isSettling = false; return; }
     final paid = int.tryParse(amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
     amount.dispose();
-    if (paid == null || paid <= 0 || paid > due) {
-      AppToast.show(context, 'مبلغ پرداخت باید بین یک تومان و مبلغ قابل تسویه باشد.', success: false);
-      _isSettling = false;
-      return;
+    if (paid == null || paid <= 0 || paid > due || description.text.trim().isEmpty) {
+      AppToast.show(context, 'مبلغ پرداخت و توضیحات را بررسی کنید.', success: false);
+      description.dispose(); _isSettling = false; return;
+    }
+    final currentDue = service.readPeriodDue(employeeId, _from, _endOfDay);
+    if (currentDue <= 0 || paid > currentDue) {
+      AppToast.show(context, 'این بازه قبلاً تسویه شده یا مانده آن تغییر کرده است؛ اطلاعات را تازه‌سازی کنید.', success: false);
+      description.dispose(); _isSettling = false; return;
     }
     final employee = db.employeeById(employeeId);
     final approved = await showSensitiveOperationDialog(
@@ -378,9 +454,11 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       recordDetails: {
         'پرسنل': employee?.fullName ?? employeeId,
         'بازه': '${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_endOfDay)}',
-        'مبلغ قابل پرداخت': '${FaNum.ofInt(due)} تومان',
+        'مبلغ قابل پرداخت': '${FaNum.ofInt(currentDue)} تومان',
         'مبلغ پرداخت': '${FaNum.ofInt(paid)} تومان',
-        'مانده پس از پرداخت': '${FaNum.ofInt(due - paid)} تومان',
+        'روش پرداخت': _paymentMethodLabel(method),
+        'توضیحات': description.text.trim(),
+        'مانده پس از پرداخت': '${FaNum.ofInt(currentDue - paid)} تومان',
       },
       isReversible: false,
       warning: 'پرداخت و رسید تسویه قابل حذف یا Undo نیستند؛ اصلاح مالی باید با سند جداگانه انجام شود.',
@@ -388,18 +466,20 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     );
     if (!approved || !mounted) { _isSettling = false; return; }
     try {
-      final settlement = await OperationsRepository(db).settleEmployeeWallet(
+      final settlement = await service.settle(
         employeeId: employeeId,
-        periodStart: _from,
-        periodEnd: _endOfDay,
-        periodType: _period,
-        paidAmount: paid,
-        idempotencyKey: operationKey,
+        period: EmployeeWalletPeriod(type: _period, start: _from, end: _endOfDay),
+        amount: paid, idempotencyKey: operationKey, method: method,
+        description: description.text.trim(),
       );
-      if (mounted) _showReceipt(settlement);
+      if (mounted) {
+        AppToast.show(context, 'پرداخت با سند مالی و رسید ثبت شد.');
+        _showReceipt(settlement);
+      }
     } catch (error) {
       if (mounted) AppToast.show(context, 'تسویه انجام نشد: $error', success: false);
     }
+    description.dispose();
     _isSettling = false;
   }
 
@@ -414,7 +494,12 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
         _DetailLine(label: 'مبلغ', value: Fmt.money(entry.amount)),
         _DetailLine(label: 'وضعیت', value: entry.status.name == 'posted' ? 'قطعی' : 'در انتظار'),
         _DetailLine(label: 'توضیحات', value: entry.description),
-        if (entry.sourceFinanceEntryId != null) _DetailLine(label: 'سند پورسانت', value: entry.sourceFinanceEntryId!),
+        if (entry.sourceFinanceEntryId != null) _DetailLine(label: 'سند مالی مبنا', value: entry.sourceFinanceEntryId!),
+        if (entry.appointmentId != null) _DetailLine(label: 'شناسه نوبت', value: entry.appointmentId!),
+        if (entry.paymentId != null) _DetailLine(label: 'شناسه پرداخت', value: entry.paymentId!),
+        if (entry.settlementId != null) _DetailLine(label: 'شناسه تسویه', value: entry.settlementId!),
+        if (entry.referenceType != null) _DetailLine(label: 'نوع مرجع', value: entry.referenceType!),
+        if (entry.referenceId != null) _DetailLine(label: 'شناسه مرجع', value: entry.referenceId!),
         if (entry.reversalOfId != null) _DetailLine(label: 'سند مرجع', value: entry.reversalOfId!),
       ]),
       actions: [
@@ -483,6 +568,31 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     }
     amount.dispose(); description.dispose();
   }
+
+  void _showPayment(EmployeeWalletPayment payment) {
+    showDialog<void>(context: context, builder: (context) => AlertDialog(
+      title: const Text('جزئیات پرداخت'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _DetailLine(label: 'شماره رسید', value: payment.receiptNumber),
+        _DetailLine(label: 'شناسه پرداخت', value: payment.id),
+        _DetailLine(label: 'شناسه تسویه', value: payment.settlementId),
+        _DetailLine(label: 'سند دفتر کل', value: payment.walletTransactionId),
+        _DetailLine(label: 'مبلغ', value: Fmt.money(payment.amount)),
+        _DetailLine(label: 'روش پرداخت', value: _paymentMethodLabel(payment.method)),
+        _DetailLine(label: 'تاریخ', value: Fmt.jalaliDate(payment.createdAt)),
+        _DetailLine(label: 'توضیحات', value: payment.description.isEmpty ? '—' : payment.description),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن'))],
+    ));
+  }
+
+  String _paymentMethodLabel(EmployeeWalletPaymentMethod method) => switch (method) {
+    EmployeeWalletPaymentMethod.cash => 'نقدی',
+    EmployeeWalletPaymentMethod.bankTransfer => 'کارت به کارت / واریز بانکی',
+    EmployeeWalletPaymentMethod.pos => 'دستگاه کارت‌خوان',
+    EmployeeWalletPaymentMethod.cheque => 'چک',
+    EmployeeWalletPaymentMethod.other => 'سایر',
+  };
 
   void _showReceipt(EmployeeWalletSettlement settlement) {
     showDialog<void>(context: context, builder: (context) => AlertDialog(

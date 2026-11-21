@@ -496,7 +496,7 @@ class AppDatabase extends ChangeNotifier {
       if (parts.length == 1) return hasPermission('employees.view_list');
       if (parts.length == 2 && parts[1] == 'new') return hasPermission('employees.create');
       final employeeId = parts.length > 1 ? parts[1] : '';
-      if (parts.contains('wallet')) return canViewEmployeeIncome(employeeId) && hasPermission('finance.salary.view', employeeId: employeeId);
+      if (parts.contains('wallet')) return canViewEmployeeIncome(employeeId);
       if (parts.contains('finance')) return canViewEmployeeIncome(employeeId) && hasPermission('finance.salary.view', employeeId: employeeId);
       if (parts.contains('analytics')) return canViewEmployeeIncome(employeeId);
       if (parts.contains('edit')) return canViewEmployee(employeeId) && hasPermission('employees.edit');

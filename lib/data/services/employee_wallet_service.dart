@@ -40,6 +40,13 @@ class EmployeeWalletService {
 
   Future<EmployeeWallet> calculate(String employeeId, {DateTime? at}) =>
       repository.fetchWallet(employeeId, at: at);
+  EmployeeWallet readWallet(String employeeId, {DateTime? at}) => repository.readWallet(employeeId, at: at);
+  List<EmployeeWalletTransaction> readTransactions(String employeeId, {DateTime? from, DateTime? to}) =>
+      repository.readTransactions(employeeId, from: from, to: to);
+  List<EmployeeWalletSettlement> readSettlements(String employeeId) => repository.readSettlements(employeeId);
+  List<EmployeeWalletPayment> readPayments(String employeeId) => repository.readPayments(employeeId);
+  List<EmployeeWallet> readDebtAndReceivables() => repository.readDebtAndReceivables();
+  int readPeriodDue(String employeeId, DateTime start, DateTime end) => repository.readPeriodDue(employeeId, start, end);
 
   Future<int> payableFor(String employeeId, EmployeeWalletPeriod period) async =>
       repository.calculatePeriodDue(employeeId, period.start, period.end);
@@ -60,9 +67,10 @@ class EmployeeWalletService {
     required String employeeId, required EmployeeWalletPeriod period,
     required int amount, required String idempotencyKey,
     EmployeeWalletPaymentMethod method = EmployeeWalletPaymentMethod.bankTransfer,
+    String description = 'پرداخت تسویه پرسنل',
   }) => repository.settle(
     employeeId: employeeId, period: period, paidAmount: amount,
-    idempotencyKey: idempotencyKey, method: method,
+    idempotencyKey: idempotencyKey, method: method, description: description,
   );
 
   Future<List<EmployeeWallet>> debtAndReceivables() => repository.fetchDebtAndReceivableReport();
