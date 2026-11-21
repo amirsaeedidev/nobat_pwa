@@ -230,7 +230,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
     );
     if (!confirmed || !mounted) return;
     try {
-      db.updateAccessRole(role.id, name: role.name, permissionIds: ids.toList());
+      await OperationsRepository(db).updateAccessRole(role.id, name: role.name, permissionIds: ids.toList());
       if (mounted) {
         showUndoableOperationSnackBar(
           context,
@@ -277,7 +277,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
     ));
     if (saved == true && mounted) {
       final db = context.read<AppDatabase>();
-      try { db.updateAccessRole(role.id, name: name.text, permissionIds: role.permissionIds); }
+      try { await OperationsRepository(db).updateAccessRole(role.id, name: name.text, permissionIds: role.permissionIds); }
       catch (error) { AppToast.show(context, '$error', success: false); }
     }
     name.dispose();
@@ -294,7 +294,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
     );
     if (!confirmed || !mounted) return;
     try {
-      db.resetAccessRole(role.id);
+      await OperationsRepository(db).resetAccessRole(role.id);
       if (mounted) {
         showUndoableOperationSnackBar(
           context,
