@@ -1080,6 +1080,15 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('finance.payment.create', employeeId: employeeId);
     final date = at ?? DateTime.now();
     final payroll = payrollFor(employeeId, at: date);
+    String? activeContractId;
+    for (final contract in _salaryContracts[employeeId] ?? const <SalaryContract>[]) {
+      if (contract.appliesAt(date) &&
+          (activeContractId == null ||
+            contract.effectiveFrom.isAfter((_salaryContracts[employeeId]!
+              .firstWhere((item) => item.id == activeContractId)).effectiveFrom))) {
+        activeContractId = contract.id;
+      }
+    }
     final monthStart = DateTime(date.year, date.month, 1);
     var posted = 0;
     final hasSalaryEntry = _employeeWalletTransactions.any((entry) =>
@@ -1094,7 +1103,8 @@ class AppDatabase extends ChangeNotifier {
         description: 'حقوق پایه ${date.year}/${date.month.toString().padLeft(2, '0')}',
         createdAt: monthStart,
         idempotencyKey: 'payroll-base-$employeeId-${date.year}-${date.month}',
-        referenceType: 'payroll', referenceId: 'salary-$employeeId-${date.year}-${date.month}',
+        referenceType: 'salary_contract',
+        referenceId: '${activeContractId ?? 'salary-$employeeId'}:${date.year}-${date.month}',
       );
       posted += 1;
     }
