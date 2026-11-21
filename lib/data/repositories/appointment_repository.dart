@@ -2,6 +2,7 @@ import '../../core/models/page_result.dart';
 import '../mock/app_database.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
+import 'operations_repository.dart';
 
 /// قرارداد دسترسی به داده نوبت‌ها؛ UI فقط به این abstraction وابسته است.
 abstract class AppointmentRepository {
@@ -139,6 +140,6 @@ class MockAppointmentRepository implements AppointmentRepository {
   Future<void> delete(String id) async {
     _db.requirePermission('appointments.cancel');
     await _db.delay(160);
-    _db.deleteAppointment(id);
+    await OperationsRepository(_db).deleteAppointment(id);
   }
 }
