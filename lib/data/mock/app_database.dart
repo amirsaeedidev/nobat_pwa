@@ -66,7 +66,8 @@ class AppDatabase extends ChangeNotifier {
   final Set<String> _undoneLogIds = {};
   final Set<String> _executedOperationKeys = {};
 
-  List<Customer> get customers => List.unmodifiable(_customers);
+  /// فقط مشتریان فعال در فهرست عمومی؛ پروفایل‌های بایگانی‌شده برای سوابق با customerById در دسترس می‌مانند.
+  List<Customer> get customers => List.unmodifiable(_customers.where((customer) => !customer.isArchived));
   List<Appointment> get appointments => List.unmodifiable(_appointments);
   List<Service> get services => List.unmodifiable(_services);
   List<String> get serviceCategories => List.unmodifiable(_serviceCategories);
