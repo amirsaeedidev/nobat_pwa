@@ -437,6 +437,52 @@ class _StatusHero extends StatelessWidget {
               ),
             ],
           ),
+          if (appointment.status == AppointmentStatus.pending) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: SoftButton(
+                label: 'رد درخواست نوبت',
+                icon: Icons.block_rounded,
+                color: pal.danger,
+                onTap: () async {
+                  final confirmed = await showSensitiveOperationDialog(
+                    context,
+                    title: 'تأیید رد درخواست نوبت',
+                    description: 'درخواست این نوبت رد می‌شود. سوابق مشتری و هرگونه سند مالی مرتبط حفظ خواهد شد.',
+                    recordDetails: {
+                      'کد نوبت': appointment.reference,
+                      'مشتری': appointment.customerName,
+                      'خدمت': appointment.serviceName,
+                      'پرسنل': appointment.employeeName,
+                      'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
+                    },
+                    isReversible: true,
+                    confirmLabel: 'رد درخواست',
+                  );
+                  if (!confirmed || !context.mounted) return;
+                  try {
+                    await OperationsRepository(context.read<AppDatabase>()).rejectAppointment(
+                      appointment.id,
+                      reason: 'رد درخواست توسط مدیر',
+                    );
+                    if (context.mounted) {
+                      showUndoableOperationSnackBar(
+                        context,
+                        message: 'درخواست نوبت ${appointment.reference} رد شد.',
+                        onUndo: () {
+                          OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(appointment.id);
+                          context.read<AppointmentsProvider>().load();
+                        },
+                      );
+                    }
+                  } catch (error) {
+                    if (context.mounted) AppToast.show(context, '$error', success: false);
+                  }
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );
