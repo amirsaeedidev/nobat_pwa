@@ -3,14 +3,17 @@ import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/activity_log.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/repositories/activity_repository.dart';
+import '../../../../data/repositories/operations_repository.dart';
 
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
-  ActivityProvider(this._repository, AppDatabase db) : super(db) {
+  ActivityProvider(this._repository, AppDatabase db)
+      : _operations = OperationsRepository(db), super(db) {
     load();
   }
 
   final ActivityRepository _repository;
+  final OperationsRepository _operations;
 
   List<ActivityLog> _logs = const [];
   List<ActivityLog> _recent = const [];
@@ -55,8 +58,8 @@ class ActivityProvider extends DbBoundProvider {
     load();
   }
 
-  bool canUndo(ActivityLog log) => db.canUndoLog(log.id);
-  Future<bool> undo(ActivityLog log) async { final result = db.undoLog(log.id); if (result) await load(); return result; }
+  bool canUndo(ActivityLog log) => _operations.canUndo(log.id);
+  Future<bool> undo(ActivityLog log) async { final result = _operations.undo(log.id); if (result) await load(); return result; }
   void search(String query) {
     _query = query;
     load();
