@@ -93,3 +93,37 @@ void showUndoableOperationSnackBar(
       action: SnackBarAction(label: 'بازگردانی', onPressed: onUndo),
     ));
 }
+
+/// پیام Undo متصل به شناسه دقیق رویداد؛ از بازگردانی عملیات جدیدتر جلوگیری می‌کند.
+void showUndoableOperationSnackBarForLog(
+  BuildContext context, {
+  required String message,
+  required String activityLogId,
+  required bool Function(String activityLogId) undo,
+  VoidCallback? onUndoSuccess,
+}) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 6),
+      action: SnackBarAction(
+        label: 'بازگردانی',
+        onPressed: () {
+          final restored = undo(activityLogId);
+          if (!restored) {
+            messenger
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(
+                content: Text('این تغییر به‌دلیل تغییرات بعدی قابل بازگردانی نیست.'),
+                behavior: SnackBarBehavior.floating,
+              ));
+            return;
+          }
+          onUndoSuccess?.call();
+        },
+      ),
+    ));
+}
