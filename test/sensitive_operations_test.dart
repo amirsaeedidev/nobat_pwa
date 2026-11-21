@@ -38,7 +38,7 @@ void main() {
     expect(db.canUndoLog(audit.id), isFalse);
   });
 
-  test('customer with appointment history cannot be deleted or orphaned', () async {
+  test('customer with appointment history is archived and restored without orphaning', () async {
     const customer = Customer(id: 'operation-customer-history', fullName: 'مشتری دارای سابقه', phone: '09121111111');
     db.addCustomer(customer);
     final appointment = Appointment(
