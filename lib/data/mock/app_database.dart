@@ -1385,7 +1385,7 @@ class AppDatabase extends ChangeNotifier {
   void addCustomer(Customer customer) {
     requirePermission('customers.create');
     _customers.add(customer);
-    log(ActivityType.customerRegistered, 'ثبت مشتری جدید', '${customer.fullName} با شماره ${customer.phone} ثبت شد.', entity: 'مشتری');
+    log(ActivityType.customerRegistered, 'ثبت مشتری جدید', '${customer.fullName} با شماره ${customer.phone} ثبت شد.', entity: 'مشتری', entityId: customer.id, operationType: 'customer_create', isReversible: false);
     _commit();
   }
 
@@ -1510,7 +1510,7 @@ class AppDatabase extends ChangeNotifier {
         );
       }
     }
-    log(ActivityType.serviceModified, 'افزودن خدمت', 'خدمت «${normalized.title}» اضافه شد.', entity: 'خدمت');
+    log(ActivityType.serviceModified, 'افزودن خدمت', 'خدمت «${normalized.title}» اضافه شد.', entity: 'خدمت', entityId: normalized.id, operationType: 'service_create', isReversible: false);
     _commit();
   }
 
@@ -1587,7 +1587,7 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('employees.create');
     _employees.add(employee);
     _syncEmployeeServiceLinks(employee);
-    log(ActivityType.employeeAdded, 'افزودن پرسنل', '${employee.fullName} به تیم اضافه شد.', entity: 'پرسنل');
+    log(ActivityType.employeeAdded, 'افزودن پرسنل', '${employee.fullName} به تیم اضافه شد.', entity: 'پرسنل', entityId: employee.id, operationType: 'employee_create', isReversible: false);
     _commit();
   }
 
