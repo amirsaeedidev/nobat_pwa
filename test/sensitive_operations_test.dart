@@ -189,6 +189,26 @@ void main() {
     expect(db.serviceById(service.id)?.isActive, isTrue);
   });
 
+  test('undo is blocked when a dependent service changed after category deletion', () async {
+    db.addServiceCategory('دسته قدیمی');
+    db.addServiceCategory('دسته مقصد');
+    const service = Service(
+      id: 'operation-stale-service',
+      title: 'خدمت اولیه',
+      price: 180000,
+      durationMinutes: 30,
+      category: 'دسته قدیمی',
+    );
+    db.addService(service);
+
+    await operations.deleteServiceCategory('دسته قدیمی', moveServicesTo: 'دسته مقصد');
+    db.updateService(service.copyWith(title: 'خدمت ویرایش‌شده'));
+
+    expect(operations.undoLatestForEntity('دسته قدیمی'), isFalse);
+    expect(db.serviceById(service.id)?.title, 'خدمت ویرایش‌شده');
+    expect(db.serviceById(service.id)?.category, 'دسته مقصد');
+  });
+
   test('employee deletion restores service relationships and payroll configuration', () async {
     const service = Service(
       id: 'operation-employee-service',
