@@ -339,14 +339,16 @@ class AppDatabase extends ChangeNotifier {
     required String description,
     required bool reversible,
     required T Function() action,
+    bool Function(T result)? shouldConsumeKey,
   }) {
     final key = idempotencyKey.trim();
     if (key.isEmpty) throw ArgumentError('کلید یکتای عملیات الزامی است.');
     if (_executedOperationKeys.contains(key)) throw StateError('این عملیات قبلاً اجرا شده است.');
     final logCount = _logs.length;
     final result = action();
-    _executedOperationKeys.add(key);
-    if (_logs.length > logCount && _logs.isNotEmpty) {
+    final consumeKey = shouldConsumeKey?.call(result) ?? true;
+    if (consumeKey) _executedOperationKeys.add(key);
+    if (consumeKey && _logs.length > logCount && _logs.isNotEmpty) {
       final latest = _logs.first;
       _logs[0] = ActivityLog(
         id: latest.id, type: latest.type, title: latest.title,
