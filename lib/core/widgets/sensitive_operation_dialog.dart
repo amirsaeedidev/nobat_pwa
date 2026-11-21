@@ -17,7 +17,7 @@ Future<bool> showSensitiveOperationDialog(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Row(children: [
-        Icon(Icons.warning_amber_rounded, color: pal.danger),
+        Container(width: 28, height: 28, alignment: Alignment.center, decoration: BoxDecoration(color: pal.danger.withValues(alpha: 0.12), shape: BoxShape.circle), child: Text('!', style: TextStyle(color: pal.danger, fontWeight: FontWeight.w900))),
         const SizedBox(width: 8),
         Expanded(child: Text(title, style: TextStyle(color: pal.textPrimary))),
       ]),
@@ -51,7 +51,7 @@ Future<bool> showSensitiveOperationDialog(
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(isReversible ? Icons.history_rounded : Icons.lock_outline_rounded, size: 17, color: isReversible ? pal.info : pal.danger),
+                Text(isReversible ? '↶' : '×', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: isReversible ? pal.info : pal.danger)),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
                   isReversible
