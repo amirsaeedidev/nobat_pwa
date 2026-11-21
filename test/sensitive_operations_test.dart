@@ -319,6 +319,26 @@ void main() {
     expect(operations.canUndo(audit.id), isFalse);
   });
 
+  test('no-op permission assignment cannot produce a fake success or undo', () async {
+    final employee = db.employees.first;
+    final current = db.accessAssignmentFor(employee.id)!;
+    final before = db.activityLogs.length;
+
+    await expectLater(
+      operations.assignEmployeeRole(
+        employeeId: employee.id,
+        roleId: current.roleId,
+        overrides: current.overrides,
+        canViewOtherEmployees: current.canViewOtherEmployees,
+        canViewPersonalIncome: current.canViewPersonalIncome,
+      ),
+      throwsStateError,
+    );
+
+    expect(db.activityLogs.length, before);
+    expect(operations.latestUndoableLogFor(employee.id), isNull);
+  });
+
   test('unchanged attendance payroll policy does not create a fake undo entry', () async {
     final before = db.activityLogs.length;
     expect(await operations.saveAttendancePayrollPolicy(const AttendancePayrollPolicy()), isFalse);
