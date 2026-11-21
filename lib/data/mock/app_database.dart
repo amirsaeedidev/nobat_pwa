@@ -883,6 +883,7 @@ class AppDatabase extends ChangeNotifier {
         amount: adjustment.isBonus ? adjustment.amount : -adjustment.amount,
         type: walletType, description: adjustment.description,
         idempotencyKey: 'payroll-adjustment-${adjustment.id}',
+        referenceType: 'payroll_adjustment', referenceId: adjustment.id,
       );
       _employeeWalletTransactions.add(walletEntry);
       _payrollAdjustments.add(PayrollAdjustment(
@@ -1031,6 +1032,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   List<EmployeeWalletSettlement> walletSettlementsFor(String employeeId) {
+    requirePermission('finance.salary.view', employeeId: employeeId);
     requirePermission('finance.settlement.view', employeeId: employeeId);
     return _employeeWalletSettlements.where((entry) => entry.employeeId == employeeId).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -1043,6 +1045,7 @@ class AppDatabase extends ChangeNotifier {
       EmployeeWallet.fromTransactions(employeeId, walletTransactionsFor(employeeId), calculatedAt: at);
 
   List<EmployeeWalletPayment> walletPaymentsFor(String employeeId) {
+    requirePermission('finance.salary.view', employeeId: employeeId);
     requirePermission('finance.settlement.view', employeeId: employeeId);
     return _employeeWalletPayments.where((item) => item.employeeId == employeeId).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -1050,7 +1053,8 @@ class AppDatabase extends ChangeNotifier {
 
   List<EmployeeWallet> walletDebtAndReceivableReport() {
     requirePermission('finance.salary.view');
-    return _employees.map((employee) => walletFor(employee.id)).toList()
+    return _employees.where((employee) => canViewEmployeeIncome(employee.id))
+        .map((employee) => walletFor(employee.id)).toList()
       ..sort((a, b) => b.finalBalance.compareTo(a.finalBalance));
   }
 
