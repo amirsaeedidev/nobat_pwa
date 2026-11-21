@@ -1,5 +1,6 @@
 import '../mock/app_database.dart';
 import '../models/employee_wallet.dart';
+import '../models/employee_payroll.dart';
 import 'operations_repository.dart';
 
 /// قرارداد خواندن دفتر کل و اجرای عملیات مالی؛ تمام اعداد از AppDatabase مشترک استخراج می‌شوند.
@@ -18,6 +19,12 @@ class EmployeeWalletRepository {
   List<EmployeeWalletPayment> readPayments(String employeeId) => db.walletPaymentsFor(employeeId);
   List<EmployeeWallet> readDebtAndReceivables() => db.walletDebtAndReceivableReport();
   int readPeriodDue(String employeeId, DateTime start, DateTime end) => db.walletPeriodDue(employeeId, start, end);
+  PayrollCalculation readPayroll(String employeeId, {DateTime? at}) => db.payrollFor(employeeId, at: at);
+  Future<List<EmployeeWalletTransaction>> correctTransaction({
+    required String transactionId, required int correctedAmount, required String description,
+  }) => _operations.correctWalletTransaction(
+    transactionId: transactionId, correctedAmount: correctedAmount, description: description,
+  );
 
   Future<EmployeeWallet> fetchWallet(String employeeId, {DateTime? at}) async {
     await db.delay(20);

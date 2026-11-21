@@ -1,4 +1,5 @@
 import '../models/employee_wallet.dart';
+import '../models/employee_payroll.dart';
 import '../repositories/employee_wallet_repository.dart';
 
 /// بازه مالی قطعی برای محاسبه، گزارش و تسویه کیف پول.
@@ -47,6 +48,12 @@ class EmployeeWalletService {
   List<EmployeeWalletPayment> readPayments(String employeeId) => repository.readPayments(employeeId);
   List<EmployeeWallet> readDebtAndReceivables() => repository.readDebtAndReceivables();
   int readPeriodDue(String employeeId, DateTime start, DateTime end) => repository.readPeriodDue(employeeId, start, end);
+  PayrollCalculation readPayroll(String employeeId, {DateTime? at}) => repository.readPayroll(employeeId, at: at);
+  Future<List<EmployeeWalletTransaction>> correctTransaction({
+    required String transactionId, required int correctedAmount, required String description,
+  }) => repository.correctTransaction(
+    transactionId: transactionId, correctedAmount: correctedAmount, description: description,
+  );
 
   Future<int> payableFor(String employeeId, EmployeeWalletPeriod period) async =>
       repository.calculatePeriodDue(employeeId, period.start, period.end);

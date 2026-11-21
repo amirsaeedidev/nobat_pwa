@@ -12,7 +12,6 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_wallet.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../../../../data/repositories/employee_wallet_repository.dart';
 import '../../../../data/services/employee_wallet_service.dart';
 
@@ -365,7 +364,8 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
 
   Future<void> _accruePayroll(AppDatabase db, String employeeId) async {
     final at = DateTime.now();
-    final payroll = db.payrollFor(employeeId, at: at);
+    final service = EmployeeWalletService(EmployeeWalletRepository(db));
+    final payroll = service.readPayroll(employeeId, at: at);
     final employee = db.employeeById(employeeId);
     final approved = await showSensitiveOperationDialog(
       context,
@@ -384,7 +384,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     );
     if (!approved || !mounted) return;
     try {
-      final count = await EmployeeWalletService(EmployeeWalletRepository(db)).accruePayroll(employeeId, at: at);
+      final count = await service.accruePayroll(employeeId, at: at);
       if (mounted) AppToast.show(context, count == 0
           ? 'حقوق پایه قبلاً ثبت شده یا مبلغ جدیدی برای انتقال وجود ندارد.'
           : 'حقوق پایه و اثر حضور و غیاب به کیف پول منتقل شد.');
@@ -485,8 +485,9 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   }
 
   void _showTransaction(AppDatabase db, EmployeeWalletTransaction entry) {
+    final service = EmployeeWalletService(EmployeeWalletRepository(db));
     final canCorrect = entry.status == EmployeeWalletTransactionStatus.posted &&
-        !db.employeeWalletTransactions.any((item) => item.reversalOfId == entry.id);
+        !service.readTransactions(entry.employeeId).any((item) => item.reversalOfId == entry.id);
     showDialog<void>(context: context, builder: (context) => AlertDialog(
       title: Text(entry.type.label),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -558,10 +559,8 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     );
     if (!approved || !mounted) { amount.dispose(); description.dispose(); return; }
     try {
-      await OperationsRepository(db).correctWalletTransaction(
-        transactionId: entry.id,
-        correctedAmount: parsed,
-        description: description.text.trim(),
+      await EmployeeWalletService(EmployeeWalletRepository(db)).correctTransaction(
+        transactionId: entry.id, correctedAmount: parsed, description: description.text.trim(),
       );
       if (mounted) AppToast.show(context, 'سند معکوس و اصلاحیه ثبت شد.');
     } catch (error) {
