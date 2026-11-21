@@ -46,6 +46,7 @@ class AppDatabase extends ChangeNotifier {
   final List<EmployeeFinanceEntry> _employeeFinanceEntries = [];
   final List<EmployeeWalletTransaction> _employeeWalletTransactions = [];
   final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
+  final List<EmployeeWalletPayment> _employeeWalletPayments = [];
   final List<AppointmentPayment> _appointmentPayments = [];
   final List<BusinessExpense> _businessExpenses = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
@@ -81,6 +82,7 @@ class AppDatabase extends ChangeNotifier {
   List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(_employeeWalletTransactions);
   List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(_employeeWalletSettlements);
+  List<EmployeeWalletPayment> get employeeWalletPayments => List.unmodifiable(_employeeWalletPayments);
   List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_appointmentPayments);
   List<BusinessExpense> get businessExpenses => List.unmodifiable(_businessExpenses);
   List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
@@ -263,7 +265,6 @@ class AppDatabase extends ChangeNotifier {
     for (final appointment in _appointments.where((item) => item.status == AppointmentStatus.completed)) { _createCommissionEntries(appointment); }
     _seedBusinessFinance();
     for (final entry in List<EmployeeFinanceEntry>.of(_employeeFinanceEntries)) { _mirrorFinanceEntryToWallet(entry); }
-    _seedWalletHistory();
     _seedPayrollData();
     _seedEmployeeHr();
     _sms.addAll(MockSeed.smsMessages());
@@ -791,6 +792,7 @@ class AppDatabase extends ChangeNotifier {
         id: nextId('wallet'), employeeId: adjustment.employeeId, createdAt: adjustment.date,
         amount: walletAmount, type: walletType, description: adjustment.description,
         idempotencyKey: 'payroll-adjustment-${adjustment.id}',
+        referenceType: 'payroll_adjustment', referenceId: adjustment.id,
       );
       _employeeWalletTransactions.add(walletEntry);
       _payrollAdjustments[_payrollAdjustments.length - 1] = PayrollAdjustment(
@@ -815,6 +817,7 @@ class AppDatabase extends ChangeNotifier {
         id: nextId('wallet'), employeeId: advance.employeeId, createdAt: advance.paidAt ?? DateTime.now(),
         amount: -advance.amount, type: EmployeeWalletTransactionType.advance,
         description: advance.description, idempotencyKey: 'payroll-advance-${advance.id}',
+        referenceType: 'payroll_advance', referenceId: advance.id,
       );
       _employeeWalletTransactions.add(walletEntry);
       savedAdvance = PayrollAdvance(
@@ -1014,7 +1017,7 @@ class AppDatabase extends ChangeNotifier {
 
   // کیف پول و دفتر کل مالی پرسنل — تمام ارقام از تراکنش‌های ثبت‌شده محاسبه می‌شوند.
   List<EmployeeWalletTransaction> walletTransactionsFor(String employeeId, {DateTime? from, DateTime? to}) {
-    requirePermission('finance.salary.view', employeeId: employeeId);
+    if (!canViewEmployeeIncome(employeeId)) throw const AccessDeniedException('اجازه مشاهده اطلاعات درآمد این پرسنل را ندارید.');
     return _employeeWalletTransactions.where((entry) {
         if (entry.employeeId != employeeId) return false;
         if (from != null && entry.createdAt.isBefore(from)) return false;
@@ -1031,6 +1034,21 @@ class AppDatabase extends ChangeNotifier {
 
   EmployeeWalletSummary walletSummaryFor(String employeeId) =>
       EmployeeWalletSummary.fromTransactions(walletTransactionsFor(employeeId));
+
+  EmployeeWallet walletFor(String employeeId, {DateTime? at}) =>
+      EmployeeWallet.fromTransactions(employeeId, walletTransactionsFor(employeeId), calculatedAt: at);
+
+  List<EmployeeWalletPayment> walletPaymentsFor(String employeeId) {
+    requirePermission('finance.settlement.view', employeeId: employeeId);
+    return _employeeWalletPayments.where((item) => item.employeeId == employeeId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  List<EmployeeWallet> walletDebtAndReceivableReport() {
+    requirePermission('finance.salary.view');
+    return _employees.map((employee) => walletFor(employee.id)).toList()
+      ..sort((a, b) => b.finalBalance.compareTo(a.finalBalance));
+  }
 
   int walletBalanceFor(String employeeId) => walletSummaryFor(employeeId).balance;
 
@@ -1053,6 +1071,7 @@ class AppDatabase extends ChangeNotifier {
         description: 'حقوق پایه ${date.year}/${date.month.toString().padLeft(2, '0')}',
         createdAt: monthStart,
         idempotencyKey: 'payroll-base-$employeeId-${date.year}-${date.month}',
+        referenceType: 'payroll', referenceId: 'salary-$employeeId-${date.year}-${date.month}',
       );
       posted += 1;
     }
@@ -1065,7 +1084,7 @@ class AppDatabase extends ChangeNotifier {
         type: EmployeeWalletTransactionType.adjustment,
         description: 'اثر قانون حضور و غیاب ${date.year}/${date.month.toString().padLeft(2, '0')}',
         createdAt: monthStart,
-        idempotencyKey: attendanceKey,
+        idempotencyKey: attendanceKey, referenceType: 'attendance_payroll', referenceId: attendanceKey,
       );
       posted += 1;
     }
@@ -1097,10 +1116,18 @@ class AppDatabase extends ChangeNotifier {
     required String description,
     DateTime? createdAt,
     String? idempotencyKey,
+    String? referenceType,
+    String? referenceId,
   }) {
     requirePermission(type == EmployeeWalletTransactionType.advance ? 'finance.advance.create' : 'finance.payment.create');
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
     if (amount == 0) throw ArgumentError('مبلغ تراکنش نمی‌تواند صفر باشد.');
+    if (type == EmployeeWalletTransactionType.commission || type == EmployeeWalletTransactionType.refund || type == EmployeeWalletTransactionType.salaryPayment) {
+      throw ArgumentError('پورسانت، بازپرداخت و پرداخت حقوق باید از سند مرجع تخصصی ایجاد شوند.');
+    }
+    if (type == EmployeeWalletTransactionType.fixedSalary && idempotencyKey?.startsWith('payroll-base-') != true) {
+      throw ArgumentError('حقوق ثابت فقط از قرارداد حقوق و دوره محاسباتی ثبت می‌شود.');
+    }
     if (description.trim().isEmpty) throw ArgumentError('توضیحات تراکنش الزامی است.');
     final creditOnly = type == EmployeeWalletTransactionType.fixedSalary || type == EmployeeWalletTransactionType.bonus || type == EmployeeWalletTransactionType.commission;
     final debitOnly = type == EmployeeWalletTransactionType.advance || type == EmployeeWalletTransactionType.penalty || type == EmployeeWalletTransactionType.deduction || type == EmployeeWalletTransactionType.refund || type == EmployeeWalletTransactionType.salaryPayment;
@@ -1116,6 +1143,8 @@ class AppDatabase extends ChangeNotifier {
       type: type,
       description: description.trim(),
       idempotencyKey: idempotencyKey,
+      referenceType: referenceType,
+      referenceId: referenceId,
     );
     _employeeWalletTransactions.add(entry);
     if (type == EmployeeWalletTransactionType.bonus) {
@@ -1283,97 +1312,11 @@ class AppDatabase extends ChangeNotifier {
           ? 'برگشت پورسانت نوبت ${entry.appointmentId}'
           : 'پورسانت نوبت ${entry.appointmentId}',
       sourceFinanceEntryId: entry.id,
+      appointmentId: entry.appointmentId,
+      referenceType: 'employee_finance_entry', referenceId: entry.id,
     ));
   }
 
-  void _seedWalletHistory() {
-    final now = DateTime.now();
-    final examples = <(String, EmployeeWalletTransactionType, int, int, String)>[
-      ('emp-fateme', EmployeeWalletTransactionType.fixedSalary, 12000000, 2, 'حقوق ثابت ماهانه'),
-      ('emp-fateme', EmployeeWalletTransactionType.advance, -2000000, 12, 'مساعده پرسنل'),
-      ('emp-fateme', EmployeeWalletTransactionType.bonus, 1500000, 8, 'پاداش عملکرد'),
-      ('emp-shima', EmployeeWalletTransactionType.fixedSalary, 9000000, 2, 'حقوق ثابت ماهانه'),
-      ('emp-shima', EmployeeWalletTransactionType.advance, -1000000, 10, 'مساعده علی‌الحساب'),
-      ('emp-shima', EmployeeWalletTransactionType.deduction, -350000, 6, 'کسورات توافق‌شده'),
-      ('emp-zahra', EmployeeWalletTransactionType.fixedSalary, 8500000, 2, 'حقوق ثابت ماهانه'),
-      ('emp-zahra', EmployeeWalletTransactionType.bonus, 700000, 7, 'پاداش رضایت مشتری'),
-      ('emp-elham', EmployeeWalletTransactionType.fixedSalary, 10000000, 2, 'حقوق ثابت ماهانه'),
-      ('emp-elham', EmployeeWalletTransactionType.penalty, -250000, 5, 'جریمه ثبت آزمایشی'),
-      ('emp-amir', EmployeeWalletTransactionType.fixedSalary, 11000000, 2, 'حقوق ثابت ماهانه'),
-      ('emp-amir', EmployeeWalletTransactionType.advance, -1500000, 4, 'مساعده'),
-    ];
-    for (var index = 0; index < examples.length; index++) {
-      final item = examples[index];
-      if (!_employees.any((employee) => employee.id == item.$1)) continue;
-      _employeeWalletTransactions.add(EmployeeWalletTransaction(
-        id: 'wallet-seed-${index + 1}',
-        employeeId: item.$1,
-        createdAt: now.subtract(Duration(days: item.$4)),
-        amount: item.$3,
-        type: item.$2,
-        description: item.$5,
-      ));
-    }
-    final periodStart = DateTime(now.year, now.month, 1);
-    final periodEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
-    int periodCreditsAndDebits(String employeeId) => _employeeWalletTransactions.where((entry) =>
-      entry.employeeId == employeeId &&
-      entry.status == EmployeeWalletTransactionStatus.posted &&
-      entry.type != EmployeeWalletTransactionType.salaryPayment &&
-      !entry.createdAt.isBefore(periodStart) &&
-      !entry.createdAt.isAfter(periodEnd),
-    ).fold<int>(0, (sum, entry) => sum + entry.amount);
-    final fatemeDue = periodCreditsAndDebits('emp-fateme');
-    final zahraDue = periodCreditsAndDebits('emp-zahra');
-    const paid = 4000000;
-    const settlementId = 'settlement-seed-fateme';
-    _employeeWalletSettlements.add(EmployeeWalletSettlement(
-      id: settlementId,
-      employeeId: 'emp-fateme',
-      periodType: EmployeeWalletPeriodType.monthly,
-      periodStart: periodStart,
-      periodEnd: periodEnd,
-      dueAmount: fatemeDue,
-      paidAmount: paid,
-      remainingAfter: fatemeDue - paid,
-      createdAt: now.subtract(const Duration(days: 2)),
-      status: EmployeeWalletSettlementStatus.partial,
-      receiptNumber: 'RC-MOCK-0001',
-    ));
-    _employeeWalletTransactions.add(EmployeeWalletTransaction(
-      id: 'wallet-seed-payment-1',
-      employeeId: 'emp-fateme',
-      createdAt: now.subtract(const Duration(days: 2)),
-      amount: -paid,
-      type: EmployeeWalletTransactionType.salaryPayment,
-      description: 'پرداخت علی‌الحساب حقوق — رسید RC-MOCK-0001',
-      settlementId: settlementId,
-    ));
-
-    const fullSettlementId = 'settlement-seed-zahra';
-    _employeeWalletSettlements.add(EmployeeWalletSettlement(
-      id: fullSettlementId,
-      employeeId: 'emp-zahra',
-      periodType: EmployeeWalletPeriodType.monthly,
-      periodStart: periodStart,
-      periodEnd: periodEnd,
-      dueAmount: zahraDue,
-      paidAmount: zahraDue,
-      remainingAfter: 0,
-      createdAt: now.subtract(const Duration(days: 1)),
-      status: EmployeeWalletSettlementStatus.completed,
-      receiptNumber: 'RC-MOCK-0002',
-    ));
-    _employeeWalletTransactions.add(EmployeeWalletTransaction(
-      id: 'wallet-seed-payment-2',
-      employeeId: 'emp-zahra',
-      createdAt: now.subtract(const Duration(days: 1)),
-      amount: -zahraDue,
-      type: EmployeeWalletTransactionType.salaryPayment,
-      description: 'تسویه کامل حقوق و پاداش — رسید RC-MOCK-0002',
-      settlementId: fullSettlementId,
-    ));
-  }
 
   void reschedule(Appointment appointment, DateTime newStart, {String? actor, bool byCustomer = false}) {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
