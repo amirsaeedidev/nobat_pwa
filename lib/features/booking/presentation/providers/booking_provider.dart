@@ -57,6 +57,8 @@ class BookingProvider extends DbBoundProvider {
   List<Employee> _availableEmployees = const [];
   List<BookingSlot> _slots = const [];
   bool _loading = true;
+  int _catalogGeneration = 0;
+  int _slotGeneration = 0;
 
   int get step => _step;
   Service? get service => _service;
@@ -90,16 +92,60 @@ class BookingProvider extends DbBoundProvider {
     }
   }
 
+  @override
+  void onDatabaseChanged() {
+    _refreshAfterDatabaseChange();
+  }
+
+  Future<void> _refreshAfterDatabaseChange() async {
+    final generation = ++_catalogGeneration;
+    try {
+      final services = await _services.fetchServices(onlyActive: true);
+      if (generation != _catalogGeneration) return;
+      _availableServices = services;
+      if (_service != null && !services.any((item) => item.id == _service!.id)) {
+        _service = null;
+        _employee = null;
+        _slot = null;
+        _availableEmployees = const [];
+        _slots = const [];
+        _step = 0;
+      } else if (_service != null) {
+        final employees = await _employees.fetchEmployees(serviceId: _service!.id);
+        if (generation != _catalogGeneration) return;
+        _availableEmployees = employees.where((item) => item.isActive).toList();
+        if (_employee != null && !_availableEmployees.any((item) => item.id == _employee!.id)) {
+          _employee = null;
+          _slot = null;
+          _slots = const [];
+          _step = 1;
+        } else if (_employee != null) {
+          await _loadSlots();
+        }
+      }
+    } catch (_) {
+      _availableServices = db.services.where((item) => item.isActive).toList();
+      _availableEmployees = db.employees.where((item) => item.isActive).toList();
+    }
+    if (generation == _catalogGeneration) notifyListeners();
+  }
+
   Future<void> loadServices() async {
+    final generation = ++_catalogGeneration;
     _loading = true;
     notifyListeners();
     try {
-      _availableServices = await _services.fetchServices(onlyActive: true);
+      final services = await _services.fetchServices(onlyActive: true);
+      if (generation != _catalogGeneration) return;
+      _availableServices = services;
     } catch (_) {
+      if (generation != _catalogGeneration) return;
       _availableServices = db.services.where((service) => service.isActive).toList();
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _catalogGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -166,6 +212,7 @@ class BookingProvider extends DbBoundProvider {
   }
 
   Future<void> _loadSlots() async {
+    final generation = ++_slotGeneration;
     final service = _service;
     final employee = _employee;
     if (service == null || employee == null) {
@@ -175,6 +222,7 @@ class BookingProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     final existing = await _appointments.fetchForDay(_date.toDateTime(), employeeId: employee.id);
+    if (generation != _slotGeneration) return;
     final shifts = db.employeeShiftsForDate(employee.id, _date.toDateTime());
     final interval = db.settings.bookingRules.slotIntervalMinutes.clamp(15, 60);
     final slots = <BookingSlot>[];
@@ -205,6 +253,7 @@ class BookingProvider extends DbBoundProvider {
         );
       }
     }
+    if (generation != _slotGeneration) return;
     _slots = slots;
     _loading = false;
     notifyListeners();
