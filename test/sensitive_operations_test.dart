@@ -270,10 +270,15 @@ void main() {
       price: 150000,
     );
     db.addAppointment(appointment);
-    db.changeStatus(appointment, AppointmentStatus.completed);
+    await operations.completeAppointment(appointment.id);
 
     expect(db.appointmentById(appointment.id)?.status, AppointmentStatus.completed);
     expect(operations.latestUndoableLogFor(appointment.id), isNull);
+    expect(db.hasExecutedOperation('appointment-complete-financial:${appointment.id}'), isTrue);
+    final completionAudit = db.activityLogs.firstWhere((item) => item.entityId == appointment.id && item.operationType == 'appointment_complete_financial_posting');
+    expect(completionAudit.isReversible, isFalse);
+    expect(completionAudit.idempotencyKey, 'appointment-complete-financial:${appointment.id}');
+    expect(operations.undo(completionAudit.id), isFalse);
   });
 
   test('appointment with posted receipt cannot be deleted', () async {
