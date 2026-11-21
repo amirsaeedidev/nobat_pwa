@@ -58,6 +58,7 @@ class ActivityLog {
     'access_assignment' => 'تغییر دسترسی پرسنل',
     'access_role_update' => 'ویرایش نقش',
     'access_role_reset' => 'بازنشانی نقش',
+    'financial_attendance_policy_update' => 'تغییر قانون مالی حضور و غیاب',
     'financial_pay_profile_update' => 'تغییر قرارداد مالی',
     'financial_salary_contract_create' => 'ثبت قرارداد حقوق',
     'financial_payroll_adjustment' => 'ثبت پاداش یا کسورات',
