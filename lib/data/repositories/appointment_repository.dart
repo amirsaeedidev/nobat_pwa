@@ -1,4 +1,4 @@
-import '../../core/models/page_result.dart';
+nullimport '../../core/models/page_result.dart';
 import '../mock/app_database.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
@@ -125,6 +125,10 @@ class MockAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason}) async {
+    if (status == AppointmentStatus.cancelled) {
+      await OperationsRepository(_db).cancelAppointment(appointment.id, reason: reason);
+      return;
+    }
     await _db.delay(160);
     _db.changeStatus(appointment, status, reason: reason);
   }
