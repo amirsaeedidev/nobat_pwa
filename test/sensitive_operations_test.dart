@@ -291,6 +291,34 @@ void main() {
     expect(db.paymentsForAppointment(appointment.id), hasLength(1));
   });
 
+  test('custom role creation is audited, idempotent and undoable', () async {
+    final role = await operations.createAccessRole(
+      name: 'نقش آزمایشی قابل بازگردانی',
+      permissionIds: const ['customers.view', 'appointments.view_self'],
+    );
+
+    expect(db.accessRoleById(role.id)?.permissionIds, contains('customers.view'));
+    final audit = operations.latestUndoableLogFor(role.id);
+    expect(audit, isNotNull);
+    expect(audit!.operationType, 'access_role_create');
+    expect(audit.operationLabel, 'ایجاد نقش دسترسی');
+    expect(audit.actor, db.currentAccessAccount.name);
+    expect(audit.isReversible, isTrue);
+    expect(operations.undo(audit.id), isTrue);
+    expect(db.accessRoleById(role.id), isNull);
+    expect(db.hasExecutedOperation('access-role-create:نقش آزمایشی قابل بازگردانی'), isFalse);
+  });
+
+  test('custom role creation cannot be undone after a staff member is assigned to it', () async {
+    final role = await operations.createAccessRole(name: 'نقش دارای تخصیص');
+    final employee = db.employees.first;
+
+    await operations.assignEmployeeRole(employeeId: employee.id, roleId: role.id);
+
+    expect(db.accessRoleById(role.id), isNotNull);
+    expect(operations.latestUndoableLogFor(role.id), isNull);
+  });
+
   test('attendance payroll policy changes are confirmed through repository, audited and undoable', () async {
     final next = AttendancePayrollPolicy(
       enabled: true,
