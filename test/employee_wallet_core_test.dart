@@ -91,6 +91,11 @@ void main() {
       expect(transaction.referenceType, 'wallet_settlement');
       expect(transaction.amount, -payment.amount);
       expect(db.walletPeriodDue(employee.id, start, end), due - payment.amount);
+      final service = EmployeeWalletService(EmployeeWalletRepository(db));
+      expect(await service.payableFor(
+        employee.id,
+        EmployeeWalletPeriod(type: EmployeeWalletPeriodType.manual, start: start, end: end),
+      ), due - payment.amount);
       expect(() => db.settleEmployeeWallet(
         employeeId: employee.id, periodStart: start, periodEnd: end,
         periodType: EmployeeWalletPeriodType.manual, paidAmount: 1000,
