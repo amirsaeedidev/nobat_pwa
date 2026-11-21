@@ -389,7 +389,36 @@ class _StatusHero extends StatelessWidget {
                   label: 'تکمیل',
                   icon: Icons.task_alt_rounded,
                   color: pal.accentGlow,
-                  onTap: () => context.read<AppointmentsProvider>().changeStatus(appointment, AppointmentStatus.completed),
+                  onTap: () async {
+                    final confirmed = await showSensitiveOperationDialog(
+                      context,
+                      title: 'تأیید تکمیل نوبت و ثبت اسناد مالی',
+                      description: 'با تکمیل این نوبت، وضعیت نهایی می‌شود و اسناد درآمد و پورسانت وابسته در دفتر مالی ثبت خواهند شد.',
+                      recordDetails: {
+                        'کد نوبت': appointment.reference,
+                        'مشتری': appointment.customerName,
+                        'خدمت': appointment.serviceName,
+                        'پرسنل': appointment.employeeName,
+                        'مبلغ خدمت': '${FaNum.ofInt(appointment.price.round())} تومان',
+                        'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
+                      },
+                      isReversible: false,
+                      warning: 'پس از ثبت اسناد مالی، تکمیل نوبت قابل Undo نیست. اصلاحات مالی فقط با سند اصلاحی مجاز انجام می‌شود.',
+                      confirmLabel: 'تکمیل و ثبت اسناد مالی',
+                    );
+                    if (!confirmed || !context.mounted) return;
+                    try {
+                      await context.read<AppointmentsProvider>().changeStatus(
+                        appointment,
+                        AppointmentStatus.completed,
+                      );
+                      if (context.mounted) {
+                        AppToast.show(context, 'نوبت تکمیل شد و اسناد مالی ثبت شدند.');
+                      }
+                    } catch (error) {
+                      if (context.mounted) AppToast.show(context, 'تکمیل نوبت انجام نشد: $error', success: false);
+                    }
+                  },
                 ),
               ),
               const SizedBox(width: 8),
