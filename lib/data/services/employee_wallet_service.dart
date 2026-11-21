@@ -47,6 +47,18 @@ class EmployeeWalletService {
     return summary.payableBalance;
   }
 
+  Future<int> accruePayroll(String employeeId, {DateTime? at}) =>
+      repository.accruePayroll(employeeId, at: at);
+
+  Future<EmployeeWalletTransaction> recordTransaction({
+    required String employeeId, required int amount,
+    required EmployeeWalletTransactionType type, required String description,
+    required String idempotencyKey, String? referenceType, String? referenceId,
+  }) => repository.recordTransaction(
+    employeeId: employeeId, amount: amount, type: type, description: description,
+    idempotencyKey: idempotencyKey, referenceType: referenceType, referenceId: referenceId,
+  );
+
   Future<EmployeeWalletSettlement> settle({
     required String employeeId, required EmployeeWalletPeriod period,
     required int amount, required String idempotencyKey,
