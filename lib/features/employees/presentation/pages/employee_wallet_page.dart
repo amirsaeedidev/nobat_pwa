@@ -266,10 +266,27 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     final credit = type == EmployeeWalletTransactionType.fixedSalary ||
         type == EmployeeWalletTransactionType.bonus ||
         (type == EmployeeWalletTransactionType.adjustment && positiveAdjustment);
+    final signedAmount = credit ? parsed : -parsed;
+    final employee = db.employeeById(employeeId);
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید ثبت سند مالی',
+      description: 'این سند به دفتر کل کیف پول اضافه می‌شود و به‌صورت مستقیم حذف یا Undo نمی‌شود؛ اصلاح بعدی فقط با سند معکوس و اصلاحیه امکان‌پذیر است.',
+      recordDetails: {
+        'پرسنل': employee?.fullName ?? employeeId,
+        'نوع سند': type.label,
+        'مبلغ': '${FaNum.ofInt(signedAmount)} تومان',
+        'شرح': description.text.trim(),
+      },
+      isReversible: false,
+      warning: 'سند مالی پس از ثبت تغییرناپذیر است. برای اصلاح باید سند معکوس و اصلاحیه جدید ثبت شود.',
+      confirmLabel: 'ثبت سند مالی',
+    );
+    if (!approved || !mounted) { amount.dispose(); description.dispose(); return; }
     try {
-      db.addWalletTransaction(
+      await OperationsRepository(db).addWalletTransaction(
         employeeId: employeeId,
-        amount: credit ? parsed : -parsed,
+        amount: signedAmount,
         type: type,
         description: description.text.trim(),
         idempotencyKey: 'manual-${employeeId}-${DateTime.now().microsecondsSinceEpoch}',
@@ -324,8 +341,25 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       AppToast.show(context, 'مبلغ پرداخت باید بین یک تومان و مبلغ قابل تسویه باشد.', success: false);
       return;
     }
+    final employee = db.employeeById(employeeId);
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید پرداخت و تسویه',
+      description: 'پرداخت در دفتر کل ثبت می‌شود و رسید مالی تغییرناپذیر ایجاد می‌کند.',
+      recordDetails: {
+        'پرسنل': employee?.fullName ?? employeeId,
+        'بازه': '${Fmt.jalaliDate(_from)} تا ${Fmt.jalaliDate(_endOfDay)}',
+        'مبلغ قابل پرداخت': '${FaNum.ofInt(due)} تومان',
+        'مبلغ پرداخت': '${FaNum.ofInt(paid)} تومان',
+        'مانده پس از پرداخت': '${FaNum.ofInt(due - paid)} تومان',
+      },
+      isReversible: false,
+      warning: 'پرداخت و رسید تسویه قابل حذف یا Undo نیستند؛ اصلاح مالی باید با سند جداگانه انجام شود.',
+      confirmLabel: 'ثبت پرداخت و صدور رسید',
+    );
+    if (!approved || !mounted) return;
     try {
-      final settlement = db.settleEmployeeWallet(
+      final settlement = await OperationsRepository(db).settleEmployeeWallet(
         employeeId: employeeId,
         periodStart: _from,
         periodEnd: _endOfDay,
