@@ -1,4 +1,4 @@
-nullimport '../../core/models/page_result.dart';
+import '../../core/models/page_result.dart';
 import '../mock/app_database.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
