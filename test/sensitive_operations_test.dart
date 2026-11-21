@@ -8,6 +8,7 @@ import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/models/employee.dart';
 import 'package:datetime/data/models/service.dart';
 import 'package:datetime/data/models/employee_wallet.dart';
+import 'package:datetime/data/models/employee_hr.dart';
 import 'package:datetime/data/repositories/operations_repository.dart';
 
 void main() {
@@ -288,6 +289,41 @@ void main() {
     await expectLater(operations.deleteAppointment(appointment.id), throwsStateError);
     expect(db.appointmentById(appointment.id), isNotNull);
     expect(db.paymentsForAppointment(appointment.id), hasLength(1));
+  });
+
+  test('attendance payroll policy changes are confirmed through repository, audited and undoable', () async {
+    final next = AttendancePayrollPolicy(
+      enabled: true,
+      lateDeductionPerMinute: 1200,
+      absenceDeductionPerDay: 250000,
+      overtimePaymentPerMinute: 1800,
+      earlyLeaveDeductionPerMinute: 900,
+    );
+
+    expect(await operations.saveAttendancePayrollPolicy(next), isTrue);
+    expect(db.attendancePayrollPolicy.enabled, isTrue);
+    expect(db.attendancePayrollPolicy.lateDeductionPerMinute, 1200);
+
+    final audit = operations.latestUndoableLogFor('attendance-payroll-policy');
+    expect(audit, isNotNull);
+    expect(audit!.operationType, 'financial_attendance_policy_update');
+    expect(audit.operationLabel, 'تغییر قانون مالی حضور و غیاب');
+    expect(audit.actor, db.currentAccessAccount.name);
+    expect(audit.isReversible, isTrue);
+    expect(operations.canUndo(audit.id), isTrue);
+
+    expect(operations.undo(audit.id), isTrue);
+    expect(db.attendancePayrollPolicy.enabled, isFalse);
+    expect(db.attendancePayrollPolicy.lateDeductionPerMinute, 0);
+    expect(db.hasExecutedOperation(audit.idempotencyKey!), isFalse);
+    expect(operations.canUndo(audit.id), isFalse);
+  });
+
+  test('unchanged attendance payroll policy does not create a fake undo entry', () async {
+    final before = db.activityLogs.length;
+    expect(await operations.saveAttendancePayrollPolicy(const AttendancePayrollPolicy()), isFalse);
+    expect(db.activityLogs.length, before);
+    expect(operations.latestUndoableLogFor('attendance-payroll-policy'), isNull);
   });
 
   test('failed operation does not consume its idempotency key', () {
