@@ -66,18 +66,19 @@ class CustomerProfilePage extends StatelessWidget {
       );
       if (!confirmed || !context.mounted) return;
       final db = context.read<AppDatabase>();
+      final customersProvider = context.read<CustomersProvider>();
       try {
-        await context.read<CustomersProvider>().delete(customer.id);
+        await customersProvider.delete(customer.id);
         if (context.mounted) {
-          context.pop();
           showUndoableOperationSnackBar(
             context,
             message: 'عملیات مشتری «${customer.fullName}» انجام شد.',
             onUndo: () {
               OperationsRepository(db).undoLatestForEntity(customer.id);
-              context.read<CustomersProvider>().load();
+              customersProvider.load();
             },
           );
+          context.pop();
         }
       } catch (error) {
         if (context.mounted) AppToast.show(context, '$error', success: false);
