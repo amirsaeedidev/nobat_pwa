@@ -14,7 +14,7 @@ class MockActivityRepository implements ActivityRepository {
   final AppDatabase _db;
 
   @override
-  Future<List<ActivityLog>> fetchLogs({ActivityType? type, String query = '', int limit = 100}) async {
+  Future<List<ActivityLog>> fetchLogs({ActivityType? type, String query = '', int? limit}) async {
     await _db.delay(140);
     final q = query.trim();
     final matches = _db.activityLogs
