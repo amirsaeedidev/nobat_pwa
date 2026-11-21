@@ -524,7 +524,9 @@ class AppDatabase extends ChangeNotifier {
     if (current == null || current.isSystem) throw StateError('نقش سیستمی قابل ویرایش نیست.');
     final normalized = name.trim();
     if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
-    _accessRoles[roleId] = current.copyWith(name: normalized, permissionIds: permissionIds.where(AccessPermission.ids.contains).toList());
+    final normalizedPermissions = permissionIds.where(AccessPermission.ids.contains).toSet();
+    if (current.name == normalized && current.permissionIds.toSet().difference(normalizedPermissions).isEmpty && normalizedPermissions.difference(current.permissionIds.toSet()).isEmpty) return;
+    _accessRoles[roleId] = current.copyWith(name: normalized, permissionIds: normalizedPermissions.toList());
     log(ActivityType.settingsChanged, 'ویرایش نقش دسترسی', 'نقش «${current.name}» و مجوزهای آن تغییر کرد.', entity: 'نقش دسترسی', entityId: roleId,
       undoAction: 'access_role_restore', undoData: {'id': current.id, 'name': current.name, 'permission_ids': current.permissionIds, 'description': current.description, 'is_system': current.isSystem},
       operationType: 'access_role_update', isReversible: true);
@@ -559,11 +561,15 @@ class AppDatabase extends ChangeNotifier {
       throw AccessDeniedException('فقط مدیر کل می‌تواند نقش مدیر کل را اختصاص دهد.');
     }
     final previous = _accessAssignments[employeeId];
+    final nextOverrides = Map<String, bool>.fromEntries(overrides.entries.where((entry) => AccessPermission.ids.contains(entry.key)));
+    if (previous != null && previous.roleId == roleId && previous.overrides.length == nextOverrides.length &&
+        previous.overrides.entries.every((entry) => nextOverrides[entry.key] == entry.value) &&
+        previous.canViewOtherEmployees == canViewOtherEmployees && previous.canViewPersonalIncome == canViewPersonalIncome) return;
     final matchingAccounts = _accessAccounts.where((account) => account.employeeId == employeeId).toList();
     final previousAccountRole = matchingAccounts.isEmpty ? (previous?.roleId ?? 'staff') : matchingAccounts.first.roleId;
     _accessAssignments[employeeId] = AccessAssignment(
       employeeId: employeeId, roleId: roleId,
-      overrides: Map.unmodifiable(Map.fromEntries(overrides.entries.where((entry) => AccessPermission.ids.contains(entry.key)))),
+      overrides: Map.unmodifiable(nextOverrides),
       canViewOtherEmployees: canViewOtherEmployees,
       canViewPersonalIncome: canViewPersonalIncome,
     );
@@ -664,7 +670,8 @@ class AppDatabase extends ChangeNotifier {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
-    _appointments[index] = appointment.copyWith(status: status, cancelReason: reason, updatedAt: DateTime.now());
+    if (previous.status == status && previous.cancelReason == reason) return;
+    _appointments[index] = previous.copyWith(status: status, cancelReason: reason, updatedAt: DateTime.now());
     final type = switch (status) {
       AppointmentStatus.cancelled => ActivityType.appointmentCancelled,
       AppointmentStatus.completed => ActivityType.appointmentCompleted,
