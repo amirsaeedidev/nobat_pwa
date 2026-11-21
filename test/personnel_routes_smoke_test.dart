@@ -70,6 +70,7 @@ void main() {
     final appointmentId = db.appointments.first.id;
     final paths = [
       '/dashboard',
+      '/my-wallet',
       '/appointments',
       '/appointments/new',
       '/appointments/$appointmentId',
