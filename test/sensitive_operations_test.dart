@@ -591,4 +591,38 @@ void main() {
     expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
   });
 
+
+  test('wallet entry and settlement forms create immutable audited financial documents', () async {
+    final employee = db.employees.first;
+    final now = DateTime.now();
+    final transaction = await operations.addWalletTransaction(
+      employeeId: employee.id,
+      amount: 1000000,
+      type: EmployeeWalletTransactionType.bonus,
+      description: 'پاداش برای تست مسیر فرم کیف پول',
+      idempotencyKey: 'wallet-form-test-${employee.id}',
+      createdAt: now,
+    );
+
+    expect(db.employeeWalletTransactions.any((item) => item.id == transaction.id), isTrue);
+    expect(db.hasExecutedOperation('wallet-form-test-${employee.id}'), isTrue);
+    final entryAudit = db.activityLogs.firstWhere((item) => item.operationType == 'financial_wallet_entry' && item.idempotencyKey == 'wallet-form-test-${employee.id}');
+    expect(entryAudit.isReversible, isFalse);
+    expect(operations.undo(entryAudit.id), isFalse);
+
+    final settlement = await operations.settleEmployeeWallet(
+      employeeId: employee.id,
+      periodStart: now.subtract(const Duration(days: 1)),
+      periodEnd: now.add(const Duration(days: 1)),
+      periodType: EmployeeWalletPeriodType.manual,
+      paidAmount: 100000,
+      idempotencyKey: 'wallet-settlement-form-test-${employee.id}',
+    );
+    expect(db.employeeWalletSettlements.any((item) => item.id == settlement.id), isTrue);
+    expect(db.hasExecutedOperation('wallet-settlement-form-test-${employee.id}'), isTrue);
+    final settlementAudit = db.activityLogs.firstWhere((item) => item.operationType == 'financial_wallet_settlement' && item.idempotencyKey == 'wallet-settlement-form-test-${employee.id}');
+    expect(settlementAudit.isReversible, isFalse);
+    expect(operations.undo(settlementAudit.id), isFalse);
+  });
+
 }
