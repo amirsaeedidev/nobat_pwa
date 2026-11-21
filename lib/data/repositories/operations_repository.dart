@@ -301,6 +301,7 @@ class OperationsRepository {
       description: 'انتقال حقوق پایه و اثر حضور و غیاب پرسنل $employeeId به دفتر کیف پول.',
       reversible: false,
       action: () => _db.accruePayrollBaseToWallet(employeeId, at: date),
+      shouldConsumeKey: (posted) => posted > 0,
     );
   }
 
