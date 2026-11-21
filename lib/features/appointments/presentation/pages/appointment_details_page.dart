@@ -419,14 +419,19 @@ class _StatusHero extends StatelessWidget {
                         await context.read<AppointmentsProvider>().changeStatus(
                           appointment, AppointmentStatus.cancelled, reason: 'لغو توسط پرسنل');
                         if (context.mounted) {
-                          showUndoableOperationSnackBar(
-                            context,
-                            message: 'نوبت ${appointment.reference} لغو شد.',
-                            onUndo: () {
-                              OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(appointment.id);
-                              context.read<AppointmentsProvider>().load();
-                            },
-                          );
+                          final operations = OperationsRepository(context.read<AppDatabase>());
+                          final undoLog = operations.latestUndoableLogFor(appointment.id);
+                          if (undoLog != null) {
+                            showUndoableOperationSnackBarForLog(
+                              context,
+                              message: 'نوبت ${appointment.reference} لغو شد.',
+                              activityLogId: undoLog.id,
+                              undo: operations.undo,
+                              onUndoSuccess: context.read<AppointmentsProvider>().load,
+                            );
+                          } else {
+                            AppToast.show(context, 'نوبت لغو شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+                          }
                         }
                       } catch (error) {
                         if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -466,14 +471,19 @@ class _StatusHero extends StatelessWidget {
                       reason: 'رد درخواست توسط مدیر',
                     );
                     if (context.mounted) {
-                      showUndoableOperationSnackBar(
-                        context,
-                        message: 'درخواست نوبت ${appointment.reference} رد شد.',
-                        onUndo: () {
-                          OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(appointment.id);
-                          context.read<AppointmentsProvider>().load();
-                        },
-                      );
+                      final operations = OperationsRepository(context.read<AppDatabase>());
+                      final undoLog = operations.latestUndoableLogFor(appointment.id);
+                      if (undoLog != null) {
+                        showUndoableOperationSnackBarForLog(
+                          context,
+                          message: 'درخواست نوبت ${appointment.reference} رد شد.',
+                          activityLogId: undoLog.id,
+                          undo: operations.undo,
+                          onUndoSuccess: context.read<AppointmentsProvider>().load,
+                        );
+                      } else {
+                        AppToast.show(context, 'درخواست رد شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+                      }
                     }
                   } catch (error) {
                     if (context.mounted) AppToast.show(context, '$error', success: false);
