@@ -79,4 +79,29 @@ void main() {
       expect(tester.getSize(find.byType(HugeIconCircleButton)).width, greaterThanOrEqualTo(44));
     }
   });
+ 
+  testWidgets('PageScaffold keeps mobile top bar and desktop header within the viewport', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final width in [320.0, 360.0, 375.0, 390.0, 414.0, 430.0, 768.0, 1024.0, 1280.0, 1366.0, 1920.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(extensions: const [AppPalette.creamBrown]),
+          home: const PageScaffold(
+            title: 'مدیریت کامل برنامه کاری و شیفت‌های پرسنل',
+            subtitle: 'عنوان و توضیحات بلند فارسی برای آزمون چیدمان واکنش‌گرا',
+            icon: Icons.calendar_month_rounded,
+            showGlobalSearch: false,
+            child: SizedBox(height: 760, child: Text('محتوای آزمایشی صفحه')),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: 'PageScaffold overflow at width $width');
+    }
+  });
+
 }
