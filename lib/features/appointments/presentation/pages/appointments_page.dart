@@ -16,6 +16,7 @@ import '../../../../core/widgets/pagination_bar.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/appointments_provider.dart';
@@ -227,18 +228,24 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                             ),
                           );
                           if (action == 'cancel') {
-                            final previousStatus = appointment.status;
-                            await provider.changeStatus(
-                              appointment,
-                              AppointmentStatus.cancelled,
-                              reason: 'لغو با کشیدن کارت',
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: const Text('نوبت لغو شد'),
-                                behavior: SnackBarBehavior.floating,
-                                action: SnackBarAction(label: 'برگشت', onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی لغو نوبت')),
-                              ));
+                            try {
+                              await provider.changeStatus(
+                                appointment,
+                                AppointmentStatus.cancelled,
+                                reason: 'لغو با کشیدن کارت',
+                              );
+                              if (context.mounted) {
+                                showUndoableOperationSnackBar(
+                                  context,
+                                  message: 'نوبت لغو شد.',
+                                  onUndo: () {
+                                    OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(appointment.id);
+                                    provider.load();
+                                  },
+                                );
+                              }
+                            } catch (error) {
+                              if (context.mounted) AppToast.show(context, '$error', success: false);
                             }
                           } else if (action == 'move' && context.mounted) {
                             context.push('/appointments/${appointment.id}/edit');
@@ -246,19 +253,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                           return false;
                         },
                         onDismissed: (_) async {
-                          final previousStatus = appointment.status;
-                          await provider.changeStatus(appointment, AppointmentStatus.confirmed);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context)
-                              ..hideCurrentSnackBar()
-                              ..showSnackBar(SnackBar(
-                                content: const Text('نوبت تأیید شد'),
-                                behavior: SnackBarBehavior.floating,
-                                action: SnackBarAction(
-                                  label: 'برگشت',
-                                  onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی وضعیت نوبت'),
-                                ),
-                              ));
+                          try {
+                            await provider.changeStatus(appointment, AppointmentStatus.confirmed);
+                            if (context.mounted) {
+                              showUndoableOperationSnackBar(
+                                context,
+                                message: 'نوبت تأیید شد.',
+                                onUndo: () {
+                                  OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(appointment.id);
+                                  provider.load();
+                                },
+                              );
+                            }
+                          } catch (error) {
+                            if (context.mounted) AppToast.show(context, '$error', success: false);
                           }
                         },
                         background: Container(
