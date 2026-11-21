@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
+import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/models/employee_wallet.dart';
 import 'package:datetime/data/models/employee_payroll.dart';
 import 'package:datetime/data/repositories/employee_wallet_repository.dart';
