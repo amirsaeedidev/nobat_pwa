@@ -76,9 +76,10 @@ void main() {
       final due = db.walletPeriodDue(employee.id, start, end);
       expect(due, greaterThan(0));
 
-      final settlement = db.settleEmployeeWallet(
-        employeeId: employee.id, periodStart: start, periodEnd: end,
-        periodType: EmployeeWalletPeriodType.manual, paidAmount: 1000,
+      final service = EmployeeWalletService(EmployeeWalletRepository(db));
+      final period = EmployeeWalletPeriod(type: EmployeeWalletPeriodType.manual, start: start, end: end);
+      final settlement = await service.settle(
+        employeeId: employee.id, period: period, amount: 1000,
         idempotencyKey: 'wallet-core-settlement-once',
         method: EmployeeWalletPaymentMethod.pos, description: 'پرداخت آزمایشی',
       );
@@ -95,7 +96,6 @@ void main() {
       expect(transaction.referenceType, 'wallet_settlement');
       expect(transaction.amount, -payment.amount);
       expect(db.walletPeriodDue(employee.id, start, end), due - payment.amount);
-      final service = EmployeeWalletService(EmployeeWalletRepository(db));
       expect(await service.payableFor(
         employee.id,
         EmployeeWalletPeriod(type: EmployeeWalletPeriodType.manual, start: start, end: end),
@@ -139,6 +139,8 @@ void main() {
             item.type == EmployeeWalletTransactionType.refund)), isTrue);
       expect(db.employeeWalletSettlements, isEmpty);
       expect(db.employeeWalletPayments, isEmpty);
+      expect(db.canOpenRoute('/employees/$ownEmployeeId/wallet'), isTrue);
+      expect(db.canOpenRoute('/employees/$otherEmployeeId/wallet'), isFalse);
       expect(() => db.walletFor(otherEmployeeId), throwsA(isA<AccessDeniedException>()));
       expect(() => db.walletPaymentsFor(ownEmployeeId), throwsA(isA<AccessDeniedException>()));
     });
