@@ -55,6 +55,7 @@ class ActivityLog {
     'appointment_reject' => 'رد درخواست نوبت',
     'appointment_delete' => 'حذف نوبت',
     'appointment_reschedule' => 'جابه‌جایی نوبت',
+    'access_role_create' => 'ایجاد نقش دسترسی',
     'access_assignment' => 'تغییر دسترسی پرسنل',
     'access_role_update' => 'ویرایش نقش',
     'access_role_reset' => 'بازنشانی نقش',
