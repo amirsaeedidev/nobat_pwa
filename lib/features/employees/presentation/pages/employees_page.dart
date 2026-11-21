@@ -180,7 +180,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
                         final confirmed = await showSensitiveOperationDialog(
                           context,
                           title: 'حذف یا بایگانی پرسنل',
-                          description: 'در صورت وجود سابقه نوبت، پروفایل بایگانی می‌شود تا ارتباط سوابق حفظ شود. در غیر این صورت حذف قابل بازگردانی انجام می‌شود.',
+                          description: 'در صورت وجود سوابق عملیاتی، مالی یا حساب کاربری، پروفایل بایگانی می‌شود تا تمام ارتباط‌ها حفظ شوند. در غیر این صورت حذف قابل بازگردانی انجام می‌شود.',
                           recordDetails: {
                             'نام پرسنل': employee.fullName,
                             'شماره تماس': employee.phone,
