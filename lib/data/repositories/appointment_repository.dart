@@ -129,6 +129,10 @@ class MockAppointmentRepository implements AppointmentRepository {
       await OperationsRepository(_db).cancelAppointment(appointment.id, reason: reason);
       return;
     }
+    if (status == AppointmentStatus.completed) {
+      await OperationsRepository(_db).completeAppointment(appointment.id);
+      return;
+    }
     await _db.delay(160);
     _db.changeStatus(appointment, status, reason: reason);
   }
