@@ -342,11 +342,21 @@ class AppDatabase extends ChangeNotifier {
     final key = idempotencyKey.trim();
     if (key.isEmpty) throw ArgumentError('کلید یکتای عملیات الزامی است.');
     if (_executedOperationKeys.contains(key)) throw StateError('این عملیات قبلاً اجرا شده است.');
+    final logCount = _logs.length;
     final result = action();
     _executedOperationKeys.add(key);
-    log(ActivityType.settingsChanged, 'ثبت عملیات: $operationType', description,
-      entity: entityName, entityId: entityId, operationType: operationType,
-      isReversible: reversible, idempotencyKey: key);
+    if (_logs.length > logCount && _logs.isNotEmpty) {
+      final latest = _logs.first;
+      _logs[0] = ActivityLog(
+        id: latest.id, type: latest.type, title: latest.title, description: latest.description,
+        actor: latest.actor, createdAt: latest.createdAt, entityName: latest.entityName,
+        entityId: latest.entityId.isEmpty ? entityId : latest.entityId,
+        undoAction: latest.undoAction, undoData: latest.undoData,
+        operationType: latest.operationType ?? operationType,
+        isReversible: latest.isReversible || reversible,
+        idempotencyKey: key,
+      );
+    }
     _commit();
     return result;
   }
@@ -542,7 +552,8 @@ class AppDatabase extends ChangeNotifier {
       throw AccessDeniedException('فقط مدیر کل می‌تواند نقش مدیر کل را اختصاص دهد.');
     }
     final previous = _accessAssignments[employeeId];
-    final previousAccountRole = _accessAccounts.where((account) => account.employeeId == employeeId).map((account) => account.roleId).firstOrNull ?? previous?.roleId ?? 'staff';
+    final matchingAccounts = _accessAccounts.where((account) => account.employeeId == employeeId).toList();
+    final previousAccountRole = matchingAccounts.isEmpty ? (previous?.roleId ?? 'staff') : matchingAccounts.first.roleId;
     _accessAssignments[employeeId] = AccessAssignment(
       employeeId: employeeId, roleId: roleId,
       overrides: Map.unmodifiable(Map.fromEntries(overrides.entries.where((entry) => AccessPermission.ids.contains(entry.key)))),
@@ -632,13 +643,13 @@ class AppDatabase extends ChangeNotifier {
       undoAction: 'appointment_restore',
       undoData: previous.toJson(),
       entityId: appointment.id,
-      operationType: status == AppointmentStatus.cancelled ? 'appointment_cancel' : 'appointment_status_change',
+      operationType: operationType ?? (status == AppointmentStatus.cancelled ? 'appointment_cancel' : 'appointment_status_change'),
       isReversible: true,
     );
     _commit();
   }
 
-  void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String actor = 'پذیرش'}) {
+  void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String actor = 'پذیرش', String? operationType}) {
     requirePermission(status == AppointmentStatus.cancelled ? 'appointments.cancel' : status == AppointmentStatus.completed ? 'appointments.complete' : 'appointments.edit');
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
@@ -1495,7 +1506,7 @@ class AppDatabase extends ChangeNotifier {
     if (service == null) return;
     final hasHistory = _appointments.any((appointment) => appointment.serviceIds.contains(id));
     if (hasHistory) {
-      _services[_services.indexWhere((item) => item.id == id)] = service.copyWith(isActive: false, employeeIds: const []);
+      updateService(service.copyWith(isActive: false, employeeIds: const []));
       log(ActivityType.serviceModified, 'بایگانی خدمت', 'خدمت «${service.title}» به دلیل وجود سابقه نوبت غیرفعال شد؛ سوابق حفظ شدند.',
         entity: 'خدمت', entityId: id, undoAction: 'service_restore', undoData: service.toJson(), operationType: 'service_archive', isReversible: true);
       _commit();
@@ -2043,10 +2054,14 @@ class AppDatabase extends ChangeNotifier {
         final index = _services.indexWhere((item) => item.id == restored.id);
         if (index < 0) return false;
         _services[index] = restored;
-        for (final employee in _employees) {
+        for (final employee in List<Employee>.of(_employees)) {
           final ids = employee.serviceIds.where((value) => value != restored.id).toList();
           if (restored.employeeIds.contains(employee.id)) ids.add(restored.id);
           _employees[_employees.indexWhere((item) => item.id == employee.id)] = employee.copyWith(serviceIds: ids);
+          final key = _serviceConfigKey(employee.id, restored.id);
+          final config = _employeeServiceConfigs[key];
+          if (config != null) _employeeServiceConfigs[key] = config.copyWith(active: restored.employeeIds.contains(employee.id));
+          else if (restored.employeeIds.contains(employee.id)) _employeeServiceConfigs[key] = EmployeeServiceConfig(employeeId: employee.id, serviceId: restored.id);
         }
         break;
       case 'service_deleted':
