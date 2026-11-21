@@ -87,8 +87,7 @@ class MockServiceRepository implements ServiceRepository {
 
   @override
   Future<void> deleteCategory(String name, {String? moveServicesTo}) async {
-    await _db.delay(80);
-    _db.deleteServiceCategory(name, moveServicesTo: moveServicesTo);
+    await OperationsRepository(_db).deleteServiceCategory(name, moveServicesTo: moveServicesTo);
   }
 
   @override
