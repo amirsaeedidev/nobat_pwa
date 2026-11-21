@@ -513,6 +513,9 @@ class AppDatabase extends ChangeNotifier {
     final normalized = name.trim();
     if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
     _accessRoles[roleId] = current.copyWith(name: normalized, permissionIds: permissionIds.where(AccessPermission.ids.contains).toList());
+    log(ActivityType.settingsChanged, 'ویرایش نقش دسترسی', 'نقش «${current.name}» و مجوزهای آن تغییر کرد.', entity: 'نقش دسترسی', entityId: roleId,
+      undoAction: 'access_role_restore', undoData: {'id': current.id, 'name': current.name, 'permission_ids': current.permissionIds, 'description': current.description, 'is_system': current.isSystem},
+      operationType: 'access_role_update', isReversible: true);
     _commit();
   }
 
@@ -538,6 +541,8 @@ class AppDatabase extends ChangeNotifier {
     if (roleId == 'global_admin' && currentAccessAccount.roleId != 'global_admin') {
       throw AccessDeniedException('فقط مدیر کل می‌تواند نقش مدیر کل را اختصاص دهد.');
     }
+    final previous = _accessAssignments[employeeId];
+    final previousAccountRole = _accessAccounts.where((account) => account.employeeId == employeeId).map((account) => account.roleId).firstOrNull ?? previous?.roleId ?? 'staff';
     _accessAssignments[employeeId] = AccessAssignment(
       employeeId: employeeId, roleId: roleId,
       overrides: Map.unmodifiable(Map.fromEntries(overrides.entries.where((entry) => AccessPermission.ids.contains(entry.key)))),
@@ -548,6 +553,14 @@ class AppDatabase extends ChangeNotifier {
       final account = _accessAccounts[index];
       if (account.employeeId == employeeId) _accessAccounts[index] = account.copyWith(roleId: roleId);
     }
+    log(ActivityType.settingsChanged, 'تغییر نقش و دسترسی پرسنل', 'نقش و سطح دسترسی پرسنل ${employeeById(employeeId)?.fullName ?? employeeId} تغییر کرد.', entity: 'دسترسی پرسنل', entityId: employeeId,
+      undoAction: 'access_assignment_restore', undoData: {
+        'employee_id': employeeId, 'had_assignment': previous != null,
+        'role_id': previous?.roleId, 'overrides': previous?.overrides ?? const <String, bool>{},
+        'can_view_other_employees': previous?.canViewOtherEmployees ?? false,
+        'can_view_personal_income': previous?.canViewPersonalIncome ?? true,
+        'account_role_id': previousAccountRole,
+      }, operationType: 'access_assignment', isReversible: true);
     _commit();
   }
 
@@ -1980,12 +1993,14 @@ class AppDatabase extends ChangeNotifier {
     ActivityLog? target;
     for (final entry in _logs) { if (entry.id == id) { target = entry; break; } }
     final resolvedTarget = target;
-    if (resolvedTarget == null || resolvedTarget.undoAction == null || resolvedTarget.undoData == null) return false;
+    if (resolvedTarget == null || !resolvedTarget.isReversible || resolvedTarget.undoAction == null || resolvedTarget.undoData == null) return false;
     final targetEntityId = resolvedTarget.undoData!['id'];
     return !_logs.any((other) {
       if (other.id == id || !other.createdAt.isAfter(resolvedTarget.createdAt)) return false;
       if (resolvedTarget.undoAction == 'settings_hours') return other.undoAction == 'settings_hours';
-      return targetEntityId != null && other.undoData?['id'] == targetEntityId;
+      final sameEntity = resolvedTarget.entityId.isNotEmpty && other.entityId == resolvedTarget.entityId && other.entityName == resolvedTarget.entityName;
+      final sameSnapshot = targetEntityId != null && other.undoData?['id'] == targetEntityId;
+      return sameEntity || sameSnapshot;
     });
   }
   bool undoLog(String id) {
@@ -2005,6 +2020,82 @@ class AppDatabase extends ChangeNotifier {
         if (_appointments.any((a) => a.id == restored.id)) return false;
         _appointments.add(restored);
         break;
+      case 'customer_restore':
+        final restored = Customer.fromJson(data);
+        if (_customers.any((item) => item.id == restored.id)) return false;
+        _customers.add(restored);
+        break;
+      case 'employee_restore':
+        final restored = Employee.fromJson(data);
+        final index = _employees.indexWhere((item) => item.id == restored.id);
+        if (index < 0) return false;
+        _employees[index] = restored;
+        _syncEmployeeServiceLinks(restored);
+        break;
+      case 'employee_deleted':
+        final restored = Employee.fromJson(data);
+        if (_employees.any((item) => item.id == restored.id)) return false;
+        _employees.add(restored);
+        _syncEmployeeServiceLinks(restored);
+        break;
+      case 'service_restore':
+        final restored = Service.fromJson(data);
+        final index = _services.indexWhere((item) => item.id == restored.id);
+        if (index < 0) return false;
+        _services[index] = restored;
+        for (final employee in _employees) {
+          final ids = employee.serviceIds.where((value) => value != restored.id).toList();
+          if (restored.employeeIds.contains(employee.id)) ids.add(restored.id);
+          _employees[_employees.indexWhere((item) => item.id == employee.id)] = employee.copyWith(serviceIds: ids);
+        }
+        break;
+      case 'service_deleted':
+        final restored = Service.fromJson(Map<String, dynamic>.from(data['service'] as Map));
+        if (_services.any((item) => item.id == restored.id)) return false;
+        _services.add(restored);
+        for (final raw in data['configs'] as List? ?? const []) {
+          final config = EmployeeServiceConfig.fromJson(Map<String, dynamic>.from(raw as Map));
+          _employeeServiceConfigs[_serviceConfigKey(config.employeeId, config.serviceId)] = config;
+        }
+        for (final employee in _employees) {
+          if (restored.employeeIds.contains(employee.id) && !employee.serviceIds.contains(restored.id)) {
+            _employees[_employees.indexWhere((item) => item.id == employee.id)] = employee.copyWith(serviceIds: [...employee.serviceIds, restored.id]);
+          }
+        }
+        break;
+      case 'service_category_restore':
+        final name = data['name'] as String;
+        if (!_serviceCategories.contains(name)) _serviceCategories.add(name);
+        for (final raw in data['services'] as List? ?? const []) {
+          final restored = Service.fromJson(Map<String, dynamic>.from(raw as Map));
+          final index = _services.indexWhere((item) => item.id == restored.id);
+          if (index >= 0) _services[index] = restored;
+        }
+        _serviceCategories.sort();
+        break;
+      case 'access_role_restore':
+        final restored = AccessRole(id: data['id'] as String, name: data['name'] as String,
+          permissionIds: (data['permission_ids'] as List? ?? const []).cast<String>(),
+          description: data['description'] as String? ?? '', isSystem: data['is_system'] as bool? ?? false);
+        _accessRoles[restored.id] = restored;
+        break;
+      case 'access_assignment_restore':
+        final employeeId = data['employee_id'] as String;
+        if (data['had_assignment'] == true) {
+          _accessAssignments[employeeId] = AccessAssignment(employeeId: employeeId,
+            roleId: data['role_id'] as String,
+            overrides: Map<String, bool>.from(data['overrides'] as Map? ?? const {}),
+            canViewOtherEmployees: data['can_view_other_employees'] as bool? ?? false,
+            canViewPersonalIncome: data['can_view_personal_income'] as bool? ?? true);
+        } else {
+          _accessAssignments.remove(employeeId);
+        }
+        final previousRoleId = data['account_role_id'] as String? ?? 'staff';
+        for (var index = 0; index < _accessAccounts.length; index++) {
+          final account = _accessAccounts[index];
+          if (account.employeeId == employeeId) _accessAccounts[index] = account.copyWith(roleId: previousRoleId);
+        }
+        break;
       case 'settings_hours':
         Map<int, List<Shift>> parseShifts(dynamic raw) => (raw as Map? ?? {}).map((k, v) => MapEntry(int.parse(k.toString()), (v as List).map((e) => Shift.fromJson(Map<String, dynamic>.from(e as Map))).toList()));
         final exceptions = (data['schedule_exceptions'] as List? ?? []).map((raw) { final e = Map<String, dynamic>.from(raw as Map); return ScheduleException(dateKey: e['date_key'] as String, title: e['title'] as String? ?? '', isClosed: e['is_closed'] as bool? ?? true, shifts: (e['shifts'] as List? ?? []).map((s) => Shift.fromJson(Map<String, dynamic>.from(s as Map))).toList()); }).toList();
@@ -2013,7 +2104,8 @@ class AppDatabase extends ChangeNotifier {
       default: return false;
     }
     _undoneLogIds.add(id);
-    log(ActivityType.settingsChanged, 'بازگردانی تغییر', 'تغییر «' + entry.title + '» به حالت قبلی بازگردانده شد.', actor: 'مدیر سیستم', entity: entry.entityName);
+    if (entry.idempotencyKey != null) _executedOperationKeys.remove(entry.idempotencyKey);
+    log(ActivityType.settingsChanged, 'بازگردانی تغییر', 'تغییر «' + entry.title + '» به حالت قبلی بازگردانده شد.', entity: entry.entityName, entityId: entry.entityId, operationType: 'undo', isReversible: false);
     _commit();
     return true;
   }
