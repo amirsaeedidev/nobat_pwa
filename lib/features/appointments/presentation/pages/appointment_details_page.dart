@@ -443,7 +443,6 @@ class _StatusHero extends StatelessWidget {
               width: double.infinity,
               child: SoftButton(
                 label: 'رد درخواست نوبت',
-                icon: Icons.block_rounded,
                 color: pal.danger,
                 onTap: () async {
                   final confirmed = await showSensitiveOperationDialog(
