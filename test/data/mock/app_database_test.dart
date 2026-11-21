@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/mock/app_database.dart';
+import 'package:datetime/data/models/employee.dart';
 
 void main() {
   group('Datamonck employee persistence', () {
@@ -20,7 +21,13 @@ void main() {
 
     test('removes employees without appointment history and cleans service links', () {
       final db = AppDatabase();
-      const id = 'emp-nima';
+      const id = 'emp-operation-no-history';
+      db.addEmployee(const Employee(
+        id: id,
+        fullName: 'پرسنل بدون سابقه',
+        phone: '09120000099',
+        serviceIds: ['srv-color'],
+      ));
       expect(db.employeeById(id), isNotNull);
       db.deleteEmployee(id);
       expect(db.employeeById(id), isNull);
