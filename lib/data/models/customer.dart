@@ -13,6 +13,7 @@ class Customer {
     this.noShowCount = 0,
     this.lastVisitAt,
     this.isBlocked = false,
+    this.isArchived = false,
   });
 
   final String id;
@@ -27,6 +28,7 @@ class Customer {
   final int noShowCount;
   final DateTime? lastVisitAt;
   final bool isBlocked;
+  final bool isArchived;
 
   String get initials {
     final parts = fullName.trim().split(RegExp(r'\s+'));
@@ -64,6 +66,7 @@ class Customer {
     int? noShowCount,
     DateTime? lastVisitAt,
     bool? isBlocked,
+    bool? isArchived,
   }) {
     return Customer(
       id: id ?? this.id,
@@ -78,6 +81,7 @@ class Customer {
       noShowCount: noShowCount ?? this.noShowCount,
       lastVisitAt: lastVisitAt ?? this.lastVisitAt,
       isBlocked: isBlocked ?? this.isBlocked,
+      isArchived: isArchived ?? this.isArchived,
     );
   }
 
@@ -94,6 +98,7 @@ class Customer {
         'no_show_count': noShowCount,
         'last_visit_at': lastVisitAt?.toIso8601String(),
         'is_blocked': isBlocked,
+        'is_archived': isArchived,
       };
 
   factory Customer.fromJson(Map<String, dynamic> json) => Customer(
@@ -109,6 +114,7 @@ class Customer {
         noShowCount: (json['no_show_count'] as num?)?.toInt() ?? 0,
         lastVisitAt: json['last_visit_at'] == null ? null : DateTime.tryParse(json['last_visit_at'] as String),
         isBlocked: json['is_blocked'] as bool? ?? false,
+        isArchived: json['is_archived'] as bool? ?? false,
       );
 }
 
