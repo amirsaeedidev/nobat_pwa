@@ -62,6 +62,20 @@ class ActivityTile extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                Text(
+                  '${Fmt.jalaliDate(log.createdAt)} • ${Fmt.time(log.createdAt.hour, log.createdAt.minute)}',
+                  style: TextStyle(fontSize: 9, color: pal.textMuted),
+                ),
+                if (log.idempotencyKey != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'کلید یکتا: ${log.idempotencyKey}',
+                      style: TextStyle(fontSize: 8.5, color: pal.textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 if (log.entityName.isNotEmpty || log.operationType != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 3),
