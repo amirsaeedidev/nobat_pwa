@@ -29,6 +29,7 @@ class DashboardProvider extends DbBoundProvider {
   ReportAnalytics? _analytics;
   ReportAnalyticsFilter _analyticsFilter = const ReportAnalyticsFilter();
   bool _analyticsError = false;
+  int _loadGeneration = 0;
 
   DashboardStats? get stats => _stats;
   List<Appointment> get upcoming => _upcoming;
@@ -44,22 +45,31 @@ class DashboardProvider extends DbBoundProvider {
   List<Appointment> get dayAppointments => _dayAppointments;
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     _error = false;
     _failure = null;
     notifyListeners();
     try {
-      _stats = await _repository.fetchStats(period: _period);
-      _upcoming = await _repository.fetchUpcoming(limit: 4);
-      _dayAppointments = await _appointmentRepository?.fetchForDay(_selectedDay) ?? _upcoming.where((item) => _sameDay(item.startAt, _selectedDay)).toList();
-      _revenueSeries = await _repository.fetchRevenueSeries(months: 6);
+      final stats = await _repository.fetchStats(period: _period);
+      final upcoming = await _repository.fetchUpcoming(limit: 4);
+      final dayAppointments = await _appointmentRepository?.fetchForDay(_selectedDay) ?? upcoming.where((item) => _sameDay(item.startAt, _selectedDay)).toList();
+      final revenueSeries = await _repository.fetchRevenueSeries(months: 6);
+      if (generation != _loadGeneration) return;
+      _stats = stats;
+      _upcoming = upcoming;
+      _dayAppointments = dayAppointments;
+      _revenueSeries = revenueSeries;
       await _loadAnalytics();
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _error = true;
       _failure = AppFailure.from(error, fallback: AppErrorKind.fetch);
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -113,12 +123,5 @@ class DashboardProvider extends DbBoundProvider {
     _refresh();
   }
 
-  Future<void> _refresh() async {
-    _stats = await _repository.fetchStats(period: _period);
-    _upcoming = await _repository.fetchUpcoming(limit: 4);
-    _revenueSeries = await _repository.fetchRevenueSeries(months: 6);
-    await _loadAnalytics();
-    _dayAppointments = await _appointmentRepository?.fetchForDay(_selectedDay) ?? _upcoming.where((item) => _sameDay(item.startAt, _selectedDay)).toList();
-    notifyListeners();
-  }
+  Future<void> _refresh() async => load();
 }
