@@ -4,6 +4,7 @@ import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
 import 'package:datetime/data/models/customer.dart';
 import 'package:datetime/data/models/enums.dart';
+import 'package:datetime/data/models/employee.dart';
 import 'package:datetime/data/models/service.dart';
 import 'package:datetime/data/models/employee_wallet.dart';
 import 'package:datetime/data/repositories/operations_repository.dart';
@@ -185,6 +186,84 @@ void main() {
     expect(db.appointmentById(appointment.id)?.serviceIds, contains(service.id));
     expect(operations.undoLatestForEntity(service.id), isTrue);
     expect(db.serviceById(service.id)?.isActive, isTrue);
+  });
+
+  test('employee deletion restores service relationships and payroll configuration', () async {
+    const service = Service(
+      id: 'operation-employee-service',
+      title: 'خدمت پرسنل آزمایشی',
+      price: 100000,
+      durationMinutes: 30,
+      category: 'آزمایش پرسنل',
+    );
+    db.addService(service);
+    const employee = Employee(
+      id: 'operation-employee',
+      fullName: 'پرسنل آزمایشی',
+      phone: '09123334455',
+      serviceIds: [service.id],
+    );
+    db.addEmployee(employee);
+
+    await operations.deleteEmployee(employee.id);
+
+    expect(db.employeeById(employee.id), isNull);
+    expect(db.serviceById(service.id)?.employeeIds, isNot(contains(employee.id)));
+    expect(operations.undoLatestForEntity(employee.id), isTrue);
+    expect(db.employeeById(employee.id)?.fullName, employee.fullName);
+    expect(db.serviceById(service.id)?.employeeIds, contains(employee.id));
+    expect(db.employeeServiceConfig(employee.id, service.id), isNotNull);
+  });
+
+  test('completed appointment cannot be undone because it created financial entries', () async {
+    final appointment = Appointment(
+      id: 'operation-completed-appointment',
+      reference: 'OP-004',
+      customerId: db.customers.first.id,
+      customerName: db.customers.first.fullName,
+      customerPhone: db.customers.first.phone,
+      serviceIds: const [],
+      serviceName: 'خدمت تکمیل‌شده',
+      employeeId: db.employees.first.id,
+      employeeName: db.employees.first.fullName,
+      startAt: DateTime(2026, 11, 28, 9),
+      durationMinutes: 30,
+      price: 150000,
+    );
+    db.addAppointment(appointment);
+    db.changeStatus(appointment, AppointmentStatus.completed);
+
+    expect(db.appointmentById(appointment.id)?.status, AppointmentStatus.completed);
+    expect(operations.latestUndoableLogFor(appointment.id), isNull);
+  });
+
+  test('appointment with posted receipt cannot be deleted', () async {
+    final appointment = Appointment(
+      id: 'operation-paid-appointment',
+      reference: 'OP-005',
+      customerId: db.customers.first.id,
+      customerName: db.customers.first.fullName,
+      customerPhone: db.customers.first.phone,
+      serviceIds: const [],
+      serviceName: 'خدمت پرداخت‌شده',
+      employeeId: db.employees.first.id,
+      employeeName: db.employees.first.fullName,
+      startAt: DateTime(2026, 11, 29, 9),
+      durationMinutes: 30,
+      price: 200000,
+    );
+    db.addAppointment(appointment);
+    db.recordAppointmentPayment(
+      appointmentId: appointment.id,
+      amount: 50000,
+      method: BusinessPaymentMethod.cash,
+      description: 'رسید آزمایشی',
+      idempotencyKey: 'operation-paid-receipt',
+    );
+
+    await expectLater(operations.deleteAppointment(appointment.id), throwsStateError);
+    expect(db.appointmentById(appointment.id), isNotNull);
+    expect(db.paymentsForAppointment(appointment.id), hasLength(1));
   });
 
   test('failed operation does not consume its idempotency key', () {
