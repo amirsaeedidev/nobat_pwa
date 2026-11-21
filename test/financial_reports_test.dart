@@ -187,6 +187,21 @@ void main() {
 
     test('aggregates income, collection, operating costs, payroll and settlements from shared sources', () async {
       final db = AppDatabase();
+      final employee = db.employees.first;
+      db.accruePayrollBaseToWallet(employee.id);
+      final settlementStart = DateTime(2000, 1, 1);
+      final settlementEnd = DateTime(2100, 1, 1);
+      final due = db.walletPeriodDue(employee.id, settlementStart, settlementEnd);
+      if (due > 0) {
+        db.settleEmployeeWallet(
+          employeeId: employee.id,
+          periodStart: settlementStart,
+          periodEnd: settlementEnd,
+          periodType: EmployeeWalletPeriodType.manual,
+          paidAmount: due < 100000 ? due : 100000,
+          idempotencyKey: 'financial-report-wallet-settlement',
+        );
+      }
       final report = await MockDashboardRepository(db).fetchReportAnalytics(range: allTime());
       final received = db.employeeFinanceEntries.fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
       final collected = db.appointmentPayments.fold<int>(0, (sum, payment) => sum + payment.signedAmount);
