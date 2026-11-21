@@ -659,7 +659,11 @@ void main() {
     expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
     expect(find.text('customer-ui-undo-customer'), findsOneWidget);
     await tester.tap(find.text('بازگردانی واقعی'));
-    await tester.pumpAndSettle();
+    // The refreshed activity page intentionally shows an animated skeleton while loading;
+    // pump a bounded interval instead of pumpAndSettle waiting for the shimmer to stop.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
 
     expect(db.customerById(customer.id), isNotNull);
     expect(provider.logs.any((log) => log.operationType == 'undo' && log.entityId == customer.id), isTrue);
