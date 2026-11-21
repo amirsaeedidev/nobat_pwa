@@ -211,14 +211,19 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
     try {
       await OperationsRepository(db).savePayProfile(profile);
       if (mounted) {
-        showUndoableOperationSnackBar(
-          context,
-          message: 'قرارداد مالی ذخیره شد.',
-          onUndo: () {
-            OperationsRepository(db).undoLatestForEntity(employeeId);
-            if (mounted) setState(() {});
-          },
-        );
+        final operations = OperationsRepository(db);
+        final undoLog = operations.latestUndoableLogFor(employeeId);
+        if (undoLog != null) {
+          showUndoableOperationSnackBarForLog(
+            context,
+            message: 'قرارداد مالی ذخیره شد.',
+            activityLogId: undoLog.id,
+            undo: operations.undo,
+            onUndoSuccess: () { if (mounted) setState(() {}); },
+          );
+        } else {
+          AppToast.show(context, 'قرارداد مالی ذخیره شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+        }
       }
     } catch (error) {
       if (mounted) AppToast.show(context, 'ذخیره انجام نشد: ' + error.toString(), success: false);
