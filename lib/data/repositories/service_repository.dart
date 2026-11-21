@@ -1,6 +1,7 @@
 import '../mock/app_database.dart';
 import '../models/service.dart';
 import '../models/employee_service_config.dart';
+import 'operations_repository.dart';
 
 abstract class ServiceRepository {
   Future<List<Service>> fetchServices({bool onlyActive = false, String query = ''});
@@ -57,7 +58,7 @@ class MockServiceRepository implements ServiceRepository {
   @override
   Future<void> delete(String id) async {
     await _db.delay(180);
-    _db.deleteService(id);
+    await OperationsRepository(_db).deleteService(id);
   }
 
   @override
