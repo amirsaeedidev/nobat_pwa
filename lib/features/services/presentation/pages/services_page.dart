@@ -12,8 +12,10 @@ import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/mock/app_database.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../providers/services_provider.dart';
 
 /// مدیریت خدمات — بازسازی صفحه «مدیریت خدمات» تصویر مرجع.
@@ -220,9 +222,38 @@ class ServicesPage extends StatelessWidget {
             try { provider.renameCategory(selected!, controller.text); Navigator.pop(dialogContext); }
             catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
           }, child: const Text('تغییر نام')),
-          TextButton(onPressed: selected == null ? null : () {
-            try { provider.deleteCategory(selected!, moveServicesTo: moveTo); Navigator.pop(dialogContext); }
-            catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
+          TextButton(onPressed: selected == null ? null : () async {
+            final category = selected!;
+            final count = provider.items.where((item) => item.category == category).length;
+            final confirmed = await showSensitiveOperationDialog(
+              context,
+              title: 'حذف دسته‌بندی خدمات',
+              description: 'دسته‌بندی حذف می‌شود. خدمات وابسته باید به دسته‌بندی دیگری منتقل شوند؛ تغییرات قابل بازگردانی هستند.',
+              recordDetails: {
+                'دسته‌بندی': category,
+                'خدمات وابسته': count.toString(),
+                'دسته‌بندی مقصد': moveTo ?? (count == 0 ? 'ندارد' : 'انتخاب نشده'),
+              },
+              isReversible: true,
+              confirmLabel: 'حذف دسته‌بندی',
+            );
+            if (!confirmed || !context.mounted) return;
+            try {
+              await provider.deleteCategory(category, moveServicesTo: moveTo);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              if (context.mounted) {
+                showUndoableOperationSnackBar(
+                  context,
+                  message: 'دسته‌بندی «$category» حذف شد.',
+                  onUndo: () {
+                    OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(category);
+                    provider.load();
+                  },
+                );
+              }
+            } catch (error) {
+              if (context.mounted) AppToast.show(context, '$error', success: false);
+            }
           }, child: const Text('حذف')),
         ],
       ),
@@ -231,17 +262,35 @@ class ServicesPage extends StatelessWidget {
   }
 
   Future<void> _delete(BuildContext context, Service service) async {
-    final confirmed = await showConfirmDialog(
+    final confirmed = await showSensitiveOperationDialog(
       context,
-      title: 'حذف خدمت',
-      message: 'آیا از حذف «${service.title}» مطمئن هستید؟ این اقدام قابل بازگشت نیست.',
-      confirmLabel: 'حذف',
-      destructive: true,
-      icon: Icons.delete_outline_rounded,
+      title: 'حذف یا بایگانی خدمت',
+      description: 'اگر خدمت در سوابق نوبت‌ها استفاده شده باشد، به‌جای حذف دائمی بایگانی می‌شود. در غیر این صورت حذف قابل بازگردانی است.',
+      recordDetails: {
+        'نام خدمت': service.title,
+        'دسته‌بندی': service.category,
+        'قیمت': '${FaNum.ofInt(service.price.round())} تومان',
+        'مدت زمان': '${FaNum.ofInt(service.durationMinutes)} دقیقه',
+        'وضعیت': service.isActive ? 'فعال' : 'غیرفعال',
+      },
+      isReversible: true,
+      confirmLabel: 'ادامه عملیات',
     );
-    if (confirmed && context.mounted) {
+    if (!confirmed || !context.mounted) return;
+    try {
       await context.read<ServicesProvider>().remove(service.id);
-      if (context.mounted) AppToast.show(context, 'خدمت حذف شد', success: false);
+      if (context.mounted) {
+        showUndoableOperationSnackBar(
+          context,
+          message: 'عملیات خدمت «${service.title}» انجام شد.',
+          onUndo: () {
+            OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(service.id);
+            context.read<ServicesProvider>().load();
+          },
+        );
+      }
+    } catch (error) {
+      if (context.mounted) AppToast.show(context, '$error', success: false);
     }
   }
 }
