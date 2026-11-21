@@ -194,14 +194,19 @@ class _EmployeesPageState extends State<EmployeesPage> {
                           try {
                             await provider.remove(employee.id);
                             if (context.mounted) {
-                              showUndoableOperationSnackBar(
-                                context,
-                                message: 'عملیات پرسنل انجام شد.',
-                                onUndo: () {
-                                  OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(employee.id);
-                                  provider.load();
-                                },
-                              );
+                              final operations = OperationsRepository(context.read<AppDatabase>());
+                              final undoLog = operations.latestUndoableLogFor(employee.id);
+                              if (undoLog != null) {
+                                showUndoableOperationSnackBarForLog(
+                                  context,
+                                  message: 'عملیات پرسنل انجام شد.',
+                                  activityLogId: undoLog.id,
+                                  undo: operations.undo,
+                                  onUndoSuccess: provider.load,
+                                );
+                              } else {
+                                AppToast.show(context, 'عملیات پرسنل انجام شد؛ بازگردانی به‌دلیل سوابق وابسته ممکن نیست.');
+                              }
                             }
                           } catch (error) {
                             if (context.mounted) AppToast.show(context, '$error', success: false);
