@@ -212,7 +212,8 @@ class _PermissionsPageState extends State<PermissionsPage> {
   }
 
   Future<void> _toggleRolePermission(AppDatabase db, AccessRole role, String id, bool enabled) async {
-    final permission = AccessPermission.all.where((item) => item.id == id).firstOrNull;
+    final permissionMatches = AccessPermission.all.where((item) => item.id == id).toList();
+    final permission = permissionMatches.isEmpty ? null : permissionMatches.first;
     final ids = role.permissionIds.toSet();
     enabled ? ids.add(id) : ids.remove(id);
     final confirmed = await showSensitiveOperationDialog(
