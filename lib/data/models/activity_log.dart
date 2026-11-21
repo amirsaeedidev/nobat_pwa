@@ -13,6 +13,9 @@ class ActivityLog {
     this.entityId = '',
     this.undoAction,
     this.undoData,
+    this.operationType,
+    this.isReversible = false,
+    this.idempotencyKey,
   });
 
   final String id;
@@ -25,6 +28,12 @@ class ActivityLog {
   final String entityId;
   final String? undoAction;
   final Map<String, dynamic>? undoData;
+  /// نوع عملیات دامنه‌ای برای ممیزی و گزارش‌گیری.
+  final String? operationType;
+  /// فقط عملیات دارای مسیر بازگردانی واقعی true می‌شوند.
+  final bool isReversible;
+  /// کلید جلوگیری از اجرای دوباره عملیات.
+  final String? idempotencyKey;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -37,6 +46,9 @@ class ActivityLog {
         'entity_id': entityId,
         'undo_action': undoAction,
         'undo_data': undoData,
+        'operation_type': operationType,
+        'is_reversible': isReversible,
+        'idempotency_key': idempotencyKey,
       };
 
   factory ActivityLog.fromJson(Map<String, dynamic> json) => ActivityLog(
@@ -50,5 +62,8 @@ class ActivityLog {
         entityId: json['entity_id'] as String? ?? '',
         undoAction: json['undo_action'] as String?,
         undoData: json['undo_data'] == null ? null : Map<String, dynamic>.from(json['undo_data'] as Map),
+        operationType: json['operation_type'] as String?,
+        isReversible: json['is_reversible'] as bool? ?? (json['undo_action'] != null && json['undo_data'] != null),
+        idempotencyKey: json['idempotency_key'] as String?,
       );
 }
