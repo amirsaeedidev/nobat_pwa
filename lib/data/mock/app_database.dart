@@ -347,6 +347,10 @@ class AppDatabase extends ChangeNotifier {
     final logCount = _logs.length;
     final result = action();
     final consumeKey = shouldConsumeKey?.call(result) ?? true;
+    final hasAuditRecord = _logs.length > logCount;
+    if (consumeKey && !hasAuditRecord) {
+      throw StateError('عملیات تغییری ایجاد نکرد و سابقه‌ای برای ثبت یا بازگردانی ندارد.');
+    }
     if (consumeKey) _executedOperationKeys.add(key);
     if (consumeKey && _logs.length > logCount && _logs.isNotEmpty) {
       final latest = _logs.first;
