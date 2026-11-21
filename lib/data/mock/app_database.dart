@@ -485,6 +485,10 @@ class AppDatabase extends ChangeNotifier {
   }
 
   bool canOpenRoute(String path) {
+    if (path == '/my-wallet') {
+      final employeeId = currentAccessAccount.employeeId;
+      return employeeId != null && canViewEmployeeIncome(employeeId);
+    }
     if (path == '/search' || path == '/search/result') return true;
     if (path == '/book' || path.startsWith('/book/')) return true;
     if (path == '/dashboard' || path == '/access-denied') return true;
@@ -530,6 +534,10 @@ class AppDatabase extends ChangeNotifier {
 
   bool canOpenNavigation(String path) {
     if (path == '/dashboard') return true;
+    if (path == '/my-wallet') {
+      final employeeId = currentAccessAccount.employeeId;
+      return employeeId != null && canViewEmployeeIncome(employeeId);
+    }
     if (path == '/appointments' || path == '/calendar') return hasPermission('appointments.view_all') || hasPermission('appointments.view_self');
     if (path == '/customers') return hasPermission('customers.view');
     if (path == '/services') return hasPermission('services.manage');

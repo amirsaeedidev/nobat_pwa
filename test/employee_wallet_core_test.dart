@@ -140,6 +140,8 @@ void main() {
       expect(db.employeeWalletSettlements, isEmpty);
       expect(db.employeeWalletPayments, isEmpty);
       expect(db.canOpenRoute('/employees/$ownEmployeeId/wallet'), isTrue);
+      expect(db.canOpenRoute('/my-wallet'), isTrue);
+      expect(db.canOpenNavigation('/my-wallet'), isTrue);
       expect(db.canOpenRoute('/employees/$otherEmployeeId/wallet'), isFalse);
       expect(() => db.walletFor(otherEmployeeId), throwsA(isA<AccessDeniedException>()));
       expect(() => db.walletPaymentsFor(ownEmployeeId), throwsA(isA<AccessDeniedException>()));

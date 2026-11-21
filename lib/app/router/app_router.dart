@@ -60,6 +60,15 @@ GoRouter buildRouter(AppDatabase database) {
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(path: '/dashboard', pageBuilder: (context, state) => const NoTransitionPage(child: DashboardPage())),
+          GoRoute(
+            path: '/my-wallet',
+            builder: (context, state) {
+              final employeeId = database.currentAccessAccount.employeeId;
+              return employeeId == null
+                  ? const Scaffold(body: Center(child: Text('حساب پرسنلی فعال نیست.')))
+                  : EmployeeWalletPage(employeeId: employeeId);
+            },
+          ),
           GoRoute(path: '/search', builder: (context, state) => const GlobalSearchPage()),
           GoRoute(
             path: '/search/result',
