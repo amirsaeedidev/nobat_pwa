@@ -7,10 +7,12 @@ import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_finance.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/employee_payroll.dart';
+import '../../../../data/repositories/operations_repository.dart';
 
 class EmployeeFinancePage extends StatefulWidget {
   const EmployeeFinancePage({super.key, required this.employeeId});
@@ -176,15 +178,51 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
     };
   }
 
-  void _save(AppDatabase db, String employeeId) {
+  Future<void> _save(AppDatabase db, String employeeId) async {
     final parsedRate = double.tryParse(FaNum.toLatin(rate.text).replaceAll(',', '.'));
     if (parsedRate == null || parsedRate < 0 || parsedRate > 100 || value(salary) < 0) {
       AppToast.show(context, 'حقوق و درصد پورسانت را بررسی کنید.', success: false); return;
     }
+    final profile = EmployeePayProfile(
+      employeeId: employeeId,
+      method: method,
+      monthlySalary: value(salary),
+      generalRateBps: (parsedRate * 100).round(),
+      basis: basis,
+      rules: List.unmodifiable(rules),
+    );
+    final employee = db.employeeById(employeeId);
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید تغییر قرارداد مالی',
+      description: 'قواعد پرداخت و پورسانت این پرسنل تغییر می‌کند و محاسبات مالی بعدی از این تنظیمات استفاده خواهند کرد.',
+      recordDetails: {
+        'پرسنل': employee?.fullName ?? employeeId,
+        'روش پرداخت': method.label,
+        'حقوق ماهانه': '${FaNum.ofInt(profile.monthlySalary)} تومان',
+        'پورسانت عمومی': '${(profile.generalRateBps / 100).toStringAsFixed(2)}٪',
+        'مبنای محاسبه': basis.label,
+        'قوانین اختصاصی': profile.rules.length.toString(),
+      },
+      isReversible: true,
+      confirmLabel: 'ذخیره قرارداد مالی',
+    );
+    if (!approved || !mounted) return;
     try {
-      db.savePayProfile(EmployeePayProfile(employeeId: employeeId, method: method, monthlySalary: value(salary), generalRateBps: (parsedRate * 100).round(), basis: basis, rules: List.unmodifiable(rules)));
-      AppToast.show(context, 'قرارداد مالی ذخیره شد.');
-    } catch (error) { AppToast.show(context, 'ذخیره انجام نشد: ' + error.toString(), success: false); }
+      await OperationsRepository(db).savePayProfile(profile);
+      if (mounted) {
+        showUndoableOperationSnackBar(
+          context,
+          message: 'قرارداد مالی ذخیره شد.',
+          onUndo: () {
+            OperationsRepository(db).undoLatestForEntity(employeeId);
+            if (mounted) setState(() {});
+          },
+        );
+      }
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره انجام نشد: ' + error.toString(), success: false);
+    }
   }
 
   Future<void> _addRule(AppDatabase db) async {
