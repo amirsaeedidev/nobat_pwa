@@ -77,7 +77,7 @@ class ActivityTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         if (log.operationType != null)
-                          Text(log.operationType!, style: TextStyle(fontSize: 9, color: pal.textMuted)),
+                          Text(log.operationLabel, style: TextStyle(fontSize: 9, color: pal.textMuted)),
                         Text(
                           log.isReversible ? 'قابل بازگردانی' : 'غیرقابل بازگردانی',
                           style: TextStyle(fontSize: 9, color: log.isReversible ? pal.info : pal.danger),
