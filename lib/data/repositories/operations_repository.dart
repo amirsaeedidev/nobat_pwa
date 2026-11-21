@@ -366,6 +366,8 @@ class OperationsRepository {
     required EmployeeWalletPeriodType periodType,
     required int paidAmount,
     required String idempotencyKey,
+    EmployeeWalletPaymentMethod method = EmployeeWalletPaymentMethod.bankTransfer,
+    String description = 'پرداخت تسویه پرسنل',
   }) async {
     await _db.delay(50);
     return _db.executeSensitiveOperation<EmployeeWalletSettlement>(
@@ -382,6 +384,8 @@ class OperationsRepository {
         periodType: periodType,
         paidAmount: paidAmount,
         idempotencyKey: idempotencyKey,
+        method: method,
+        description: description,
       ),
     );
   }
