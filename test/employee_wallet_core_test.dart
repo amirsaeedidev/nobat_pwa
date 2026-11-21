@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:datetime/data/mock/app_database.dart';
-import 'package:datetime/data/models/appointment.dart';
 import 'package:datetime/data/models/enums.dart';
 import 'package:datetime/data/models/employee_wallet.dart';
 import 'package:datetime/data/models/employee_payroll.dart';
@@ -68,7 +67,7 @@ void main() {
       expect(db.payrollAdvances.singleWhere((item) => item.id == 'wallet-core-advance').sourceWalletTransactionId, isNotNull);
     });
 
-    test('settlement writes linked immutable payment and salary-payment ledger document', () {
+    test('settlement writes linked immutable payment and salary-payment ledger document', () async {
       final db = AppDatabase();
       final employee = db.employees.first;
       final start = DateTime(2000, 1, 1);

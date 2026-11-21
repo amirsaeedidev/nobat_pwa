@@ -551,6 +551,7 @@ void main() {
     addTearDown(dashboard.dispose);
     addTearDown(reports.dispose);
     await Future.wait([dashboard.load(), reports.load()]);
+    final cancelledBefore = reports.analytics.cancelledAppointments;
 
     await operations.cancelAppointment(appointment.id, reason: 'آزمایش همگام‌سازی');
     await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -559,7 +560,7 @@ void main() {
     expect(operations.undoLatestForEntity(appointment.id), isTrue);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     expect(dashboard.upcoming.any((item) => item.id == appointment.id), isTrue);
-    expect(reports.analytics.cancelledAppointments, 0);
+    expect(reports.analytics.cancelledAppointments, cancelledBefore);
     expect(dashboard.analytics, isNotNull);
   });
 

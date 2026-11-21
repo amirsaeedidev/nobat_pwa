@@ -73,12 +73,16 @@ void main() {
         () => db.correctWalletTransaction(transactionId: commissionWallet.id, correctedAmount: commissionWallet.amount - 1, description: 'اصلاح پورسانت'),
         throwsStateError,
       );
-      final salary = db.addWalletTransaction(
-        employeeId: employeeId, amount: -100000, type: EmployeeWalletTransactionType.salaryPayment,
-        description: 'پرداخت آزمایشی',
+      final start = DateTime(2000, 1, 1);
+      final end = DateTime(2100, 1, 1);
+      final settlement = db.settleEmployeeWallet(
+        employeeId: employeeId, periodStart: start, periodEnd: end,
+        periodType: EmployeeWalletPeriodType.manual, paidAmount: 1000,
+        idempotencyKey: 'payroll-source-correction-test',
       );
+      final salary = db.employeeWalletTransactions.singleWhere((item) => item.settlementId == settlement.id);
       expect(
-        () => db.correctWalletTransaction(transactionId: salary.id, correctedAmount: -50000, description: 'اصلاح پرداخت'),
+        () => db.correctWalletTransaction(transactionId: salary.id, correctedAmount: -500, description: 'اصلاح پرداخت'),
         throwsStateError,
       );
     });
@@ -95,13 +99,18 @@ void main() {
       expect(db.employeeWalletTransactions.where((entry) => entry.sourceFinanceEntryId == finance.id), hasLength(1));
     });
 
-    test('seeds varied financial histories for at least five employees', () {
+    test('wallet history is derived from finance and payroll source records, not independent seeds', () {
+      for (final employee in db.employees.take(5)) {
+        db.accruePayrollBaseToWallet(employee.id);
+      }
       final withEntries = db.employees.where((employee) => db.walletTransactionsFor(employee.id).isNotEmpty).length;
       expect(withEntries, greaterThanOrEqualTo(5));
-      expect(db.employeeWalletSettlements, isNotEmpty);
-      expect(db.employeeWalletTransactions.any((entry) => entry.type == EmployeeWalletTransactionType.advance), isTrue);
-      expect(db.employeeWalletTransactions.any((entry) => entry.type == EmployeeWalletTransactionType.bonus), isTrue);
-      expect(db.employeeWalletTransactions.any((entry) => entry.type == EmployeeWalletTransactionType.deduction), isTrue);
+      expect(db.employeeWalletSettlements, isEmpty);
+      expect(db.employeeWalletPayments, isEmpty);
+      expect(db.employeeWalletTransactions.where((entry) => entry.type == EmployeeWalletTransactionType.commission)
+          .every((entry) => entry.sourceFinanceEntryId != null), isTrue);
+      expect(db.employeeWalletTransactions.where((entry) => entry.type == EmployeeWalletTransactionType.fixedSalary)
+          .every((entry) => entry.referenceType == 'salary_contract' && entry.referenceId != null), isTrue);
     });
   });
 }

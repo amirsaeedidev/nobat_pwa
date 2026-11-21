@@ -1360,6 +1360,7 @@ class AppDatabase extends ChangeNotifier {
       method: method, receiptNumber: settlement.receiptNumber,
       idempotencyKey: idempotencyKey, description: description.trim(),
     ));
+    _notifyEmployee(employeeId, EmployeeNoticeType.paymentRecorded, 'پرداخت ثبت شد', 'پرداخت ${paidAmount} تومان برای شما ثبت شد. رسید: ${settlement.receiptNumber}');
     log(ActivityType.settingsChanged, 'ثبت تسویه پرسنل', 'پرداخت ${paidAmount} تومان برای تسویه پرسنل ثبت شد.', entity: 'تسویه حساب', entityId: settlementId, operationType: 'financial_wallet_settlement', isReversible: false, idempotencyKey: idempotencyKey);
     _commit();
     return settlement;
