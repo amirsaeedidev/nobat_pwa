@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
@@ -56,6 +57,7 @@ class EmployeeProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
     final appointments = context.watch<AppointmentsProvider>();
+    final db = context.watch<AppDatabase>();
     final pal = context.pal;
     final employee = provider.byIdSync(employeeId);
 
@@ -93,6 +95,8 @@ class EmployeeProfilePage extends StatelessWidget {
       mobileHeader: Wrap(spacing: 8, runSpacing: 8, children: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
         SoftButton(label: 'حقوق', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
+        if (db.canViewEmployeeIncome(employee.id))
+          SoftButton(label: 'کیف پول', icon: Icons.account_balance_wallet_rounded, onTap: () => context.push('/employees/${employee.id}/wallet')),
         SoftButton(label: 'حضور', icon: Icons.access_time_rounded, onTap: () => context.push('/employees/${employee.id}/attendance')),
         SoftButton(label: 'مرخصی', icon: Icons.event_busy_rounded, onTap: () => context.push('/employees/${employee.id}/leaves')),
         SoftButton(label: 'اعلان‌ها', icon: Icons.notifications_none_rounded, onTap: () => context.push('/employees/${employee.id}/notices')),
@@ -100,6 +104,8 @@ class EmployeeProfilePage extends StatelessWidget {
       actions: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
         SoftButton(label: 'حقوق و پورسانت', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
+        if (db.canViewEmployeeIncome(employee.id))
+          SoftButton(label: 'کیف پول و تسویه', icon: Icons.account_balance_wallet_rounded, onTap: () => context.push('/employees/${employee.id}/wallet')),
         SoftButton(label: 'حضور و غیاب', icon: Icons.access_time_rounded, onTap: () => context.push('/employees/${employee.id}/attendance')),
         SoftButton(label: 'مرخصی‌ها', icon: Icons.event_busy_rounded, onTap: () => context.push('/employees/${employee.id}/leaves')),
         SoftButton(label: 'اعلان‌ها', icon: Icons.notifications_none_rounded, onTap: () => context.push('/employees/${employee.id}/notices')),

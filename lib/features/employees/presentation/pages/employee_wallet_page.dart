@@ -200,7 +200,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
               ListTile(contentPadding: EdgeInsets.zero,
                 leading: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21),
                 title: Text(Fmt.money(payment.amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-                subtitle: Text('${_paymentMethodLabel(payment.method)} • ${Fmt.jalaliDate(payment.createdAt)}\\nرسید ${payment.receiptNumber} • سند ${payment.walletTransactionId}',
+                subtitle: Text('${_paymentMethodLabel(payment.method)} • ${Fmt.jalaliDate(payment.createdAt)}\nرسید ${payment.receiptNumber} • سند ${payment.walletTransactionId}',
                   style: TextStyle(fontSize: 10, color: pal.textMuted)),
                 isThreeLine: true, onTap: () => _showPayment(payment)),
           ])),
@@ -464,7 +464,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       warning: 'پرداخت و رسید تسویه قابل حذف یا Undo نیستند؛ اصلاح مالی باید با سند جداگانه انجام شود.',
       confirmLabel: 'ثبت پرداخت و صدور رسید',
     );
-    if (!approved || !mounted) { _isSettling = false; return; }
+    if (!approved || !mounted) { description.dispose(); _isSettling = false; return; }
     try {
       final settlement = await service.settle(
         employeeId: employeeId,

@@ -69,8 +69,9 @@ class EmployeeWalletService {
     EmployeeWalletPaymentMethod method = EmployeeWalletPaymentMethod.bankTransfer,
     String description = 'پرداخت تسویه پرسنل',
   }) => repository.settle(
-    employeeId: employeeId, period: period, paidAmount: amount,
-    idempotencyKey: idempotencyKey, method: method, description: description,
+    employeeId: employeeId, periodStart: period.start, periodEnd: period.end,
+    periodType: period.type, paidAmount: amount, idempotencyKey: idempotencyKey,
+    method: method, description: description,
   );
 
   Future<List<EmployeeWallet>> debtAndReceivables() => repository.fetchDebtAndReceivableReport();

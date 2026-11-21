@@ -68,19 +68,16 @@ class EmployeeWalletRepository {
 
   Future<EmployeeWalletSettlement> settle({
     required String employeeId,
-    required EmployeeWalletPeriod period,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    required EmployeeWalletPeriodType periodType,
     required int paidAmount,
     required String idempotencyKey,
     EmployeeWalletPaymentMethod method = EmployeeWalletPaymentMethod.bankTransfer,
     String description = 'پرداخت تسویه پرسنل',
   }) => _operations.settleEmployeeWallet(
-    employeeId: employeeId,
-    periodStart: period.start,
-    periodEnd: period.end,
-    periodType: period.type,
-    paidAmount: paidAmount,
-    idempotencyKey: idempotencyKey,
-    method: method,
-    description: description,
+    employeeId: employeeId, periodStart: periodStart, periodEnd: periodEnd,
+    periodType: periodType, paidAmount: paidAmount, idempotencyKey: idempotencyKey,
+    method: method, description: description,
   );
 }

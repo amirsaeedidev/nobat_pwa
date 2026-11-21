@@ -90,6 +90,7 @@ void main() {
       expect(payment.method, EmployeeWalletPaymentMethod.pos);
       expect(payment.receiptNumber, settlement.receiptNumber);
       expect(payment.idempotencyKey, settlement.idempotencyKey);
+      expect(payment.description, 'پرداخت آزمایشی');
       expect(transaction.paymentId, payment.id);
       expect(transaction.settlementId, settlement.id);
       expect(transaction.referenceType, 'wallet_settlement');
