@@ -11,6 +11,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/activity_log.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/activity_provider.dart';
@@ -116,7 +117,21 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Expanded(child: ActivityTile(log: log)),
                         if (provider.canUndo(log)) IconButton(tooltip: 'بازگردانی این تغییر', icon: Icon(Icons.undo_rounded, color: pal.primaryBright, size: 19), onPressed: () async {
-                          final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('بازگردانی تغییر؟'), content: Text('این تغییر به وضعیت قبل برمی‌گردد: ' + log.title), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('بازگردانی'))]));
+                          final confirmed = await showSensitiveOperationDialog(
+                            context,
+                            title: 'تأیید بازگردانی تغییر',
+                            description: 'رکورد به آخرین وضعیت ثبت‌شده قبل از این عملیات بازمی‌گردد. اگر عملیات وابسته جدیدتری انجام شده باشد، سیستم اجازه بازگردانی ناسازگار نمی‌دهد.',
+                            recordDetails: {
+                              'عملیات': log.title,
+                              'نوع عملیات': log.operationType ?? log.type.label,
+                              'رکورد': log.entityName,
+                              'شناسه رکورد': log.entityId.isEmpty ? 'ثبت نشده' : log.entityId,
+                              'ثبت‌کننده': log.actor,
+                              'زمان': Fmt.jalaliDate(log.createdAt),
+                            },
+                            isReversible: true,
+                            confirmLabel: 'بازگردانی واقعی',
+                          );
                           if (confirmed != true || !context.mounted) return;
                           final success = await provider.undo(log);
                           if (context.mounted) AppToast.show(context, success ? 'تغییر بازگردانی شد' : 'بازگردانی امکان‌پذیر نیست');
