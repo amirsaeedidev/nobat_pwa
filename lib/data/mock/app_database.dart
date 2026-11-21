@@ -1393,7 +1393,7 @@ class AppDatabase extends ChangeNotifier {
     final index = _customers.indexWhere((c) => c.id == customer.id);
     if (index == -1) return;
     _customers[index] = customer;
-    log(ActivityType.settingsChanged, 'ویرایش مشتری', 'اطلاعات ${customer.fullName} به‌روزرسانی شد.', entity: 'مشتری');
+    log(ActivityType.settingsChanged, 'ویرایش مشتری', 'اطلاعات ${customer.fullName} به‌روزرسانی شد.', entity: 'مشتری', entityId: customer.id, operationType: 'customer_update', isReversible: false);
     _commit();
   }
 
@@ -1534,7 +1534,7 @@ class AppDatabase extends ChangeNotifier {
         _employeeServiceConfigs[key] = config.copyWith(active: assigned);
       }
     }
-    log(ActivityType.serviceModified, 'ویرایش خدمت', 'خدمت «${service.title}» به‌روزرسانی شد.', entity: 'خدمت');
+    log(ActivityType.serviceModified, 'ویرایش خدمت', 'خدمت «${service.title}» به‌روزرسانی شد.', entity: 'خدمت', entityId: service.id, operationType: 'service_update', isReversible: false);
     _commit();
   }
 
@@ -1596,7 +1596,7 @@ class AppDatabase extends ChangeNotifier {
     if (index == -1) return;
     _employees[index] = employee;
     _syncEmployeeServiceLinks(employee);
-    log(ActivityType.employeeAdded, 'ویرایش پرسنل', 'پروفایل ${employee.fullName} به‌روزرسانی شد.', entity: 'پرسنل');
+    log(ActivityType.employeeAdded, 'ویرایش پرسنل', 'پروفایل ${employee.fullName} به‌روزرسانی شد.', entity: 'پرسنل', entityId: employee.id, operationType: 'employee_update', isReversible: false);
     _commit();
   }
 
@@ -2067,12 +2067,26 @@ class AppDatabase extends ChangeNotifier {
     final resolvedTarget = target;
     if (resolvedTarget == null || !resolvedTarget.isReversible || resolvedTarget.undoAction == null || resolvedTarget.undoData == null) return false;
     final targetEntityId = resolvedTarget.undoData!['id'];
+    final relatedEntityIds = <String>{};
+    if (resolvedTarget.undoAction == 'service_category_restore') {
+      for (final raw in resolvedTarget.undoData!['services'] as List? ?? const []) {
+        final serviceId = (raw as Map)['id'];
+        if (serviceId is String) relatedEntityIds.add(serviceId);
+      }
+    } else if (resolvedTarget.undoAction == 'service_deleted') {
+      final serviceId = (resolvedTarget.undoData!['service'] as Map?)?['id'];
+      if (serviceId is String) relatedEntityIds.add(serviceId);
+    } else if (resolvedTarget.undoAction == 'employee_deleted') {
+      final employeeId = (resolvedTarget.undoData!['employee'] as Map?)?['id'];
+      if (employeeId is String) relatedEntityIds.add(employeeId);
+    }
     return !_logs.any((other) {
       if (other.id == id || !other.createdAt.isAfter(resolvedTarget.createdAt)) return false;
       if (resolvedTarget.undoAction == 'settings_hours') return other.undoAction == 'settings_hours';
       final sameEntity = resolvedTarget.entityId.isNotEmpty && other.entityId == resolvedTarget.entityId && other.entityName == resolvedTarget.entityName;
       final sameSnapshot = targetEntityId != null && other.undoData?['id'] == targetEntityId;
-      return sameEntity || sameSnapshot;
+      final relatedEntityChanged = relatedEntityIds.contains(other.entityId);
+      return sameEntity || sameSnapshot || relatedEntityChanged;
     });
   }
   bool undoLog(String id) {
