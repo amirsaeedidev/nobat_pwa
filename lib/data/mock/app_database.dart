@@ -1380,12 +1380,20 @@ class AppDatabase extends ChangeNotifier {
     requirePermission('customers.edit');
     final customer = customerById(id);
     if (customer == null) return;
-    if (_appointments.any((item) => item.customerId == id) || _appointmentPayments.any((item) => item.customerId == id)) {
-      throw StateError('این مشتری سابقه نوبت یا دریافت مالی دارد؛ برای حفظ سوابق وابسته امکان حذف دائمی وجود ندارد.');
+    final hasHistory = _appointments.any((item) => item.customerId == id) ||
+        _appointmentPayments.any((item) => item.customerId == id);
+    if (hasHistory) {
+      final index = _customers.indexWhere((item) => item.id == id);
+      _customers[index] = customer.copyWith(isArchived: true);
+      log(ActivityType.settingsChanged, 'بایگانی مشتری', 'پروفایل «${customer.fullName}» به دلیل وجود سابقه نوبت یا مالی بایگانی شد؛ سوابق حفظ شدند.',
+        entity: 'مشتری', entityId: id, undoAction: 'customer_restore', undoData: customer.toJson(),
+        operationType: 'customer_archive', isReversible: true);
+    } else {
+      _customers.removeWhere((c) => c.id == id);
+      log(ActivityType.settingsChanged, 'حذف مشتری', '${customer.fullName} از فهرست مشتریان حذف شد.',
+        entity: 'مشتری', entityId: id, undoAction: 'customer_restore', undoData: customer.toJson(),
+        operationType: 'customer_delete', isReversible: true);
     }
-    _customers.removeWhere((c) => c.id == id);
-    log(ActivityType.settingsChanged, 'حذف مشتری', '${customer.fullName} از فهرست مشتریان حذف شد.', entity: 'مشتری', entityId: id,
-      undoAction: 'customer_restore', undoData: customer.toJson(), operationType: 'customer_delete', isReversible: true);
     _commit();
   }
 
@@ -2057,8 +2065,12 @@ class AppDatabase extends ChangeNotifier {
         break;
       case 'customer_restore':
         final restored = Customer.fromJson(data);
-        if (_customers.any((item) => item.id == restored.id)) return false;
-        _customers.add(restored);
+        final customerIndex = _customers.indexWhere((item) => item.id == restored.id);
+        if (customerIndex >= 0) {
+          _customers[customerIndex] = restored;
+        } else {
+          _customers.add(restored);
+        }
         break;
       case 'employee_restore':
         final restored = Employee.fromJson(data);
