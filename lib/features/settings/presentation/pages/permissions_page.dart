@@ -277,8 +277,30 @@ class _PermissionsPageState extends State<PermissionsPage> {
     ));
     if (saved == true && mounted) {
       final db = context.read<AppDatabase>();
-      try { await OperationsRepository(db).updateAccessRole(role.id, name: name.text, permissionIds: role.permissionIds); }
-      catch (error) { AppToast.show(context, '$error', success: false); }
+      final approved = await showSensitiveOperationDialog(
+        context,
+        title: 'تغییر نام نقش',
+        description: 'نام نقش در تمام بخش‌های مدیریت دسترسی نمایش داده می‌شود.',
+        recordDetails: {'نام قبلی': role.name, 'نام جدید': name.text.trim(), 'شناسه نقش': role.id},
+        isReversible: true,
+        confirmLabel: 'ثبت نام جدید',
+      );
+      if (!approved || !mounted) { name.dispose(); return; }
+      try {
+        await OperationsRepository(db).updateAccessRole(role.id, name: name.text, permissionIds: role.permissionIds);
+        if (mounted) {
+          showUndoableOperationSnackBar(
+            context,
+            message: 'نام نقش به‌روزرسانی شد.',
+            onUndo: () {
+              OperationsRepository(db).undoLatestForEntity(role.id);
+              if (mounted) setState(() {});
+            },
+          );
+        }
+      } catch (error) {
+        if (mounted) AppToast.show(context, '$error', success: false);
+      }
     }
     name.dispose();
   }
