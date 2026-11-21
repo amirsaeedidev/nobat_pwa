@@ -5,6 +5,7 @@ import 'package:datetime/app/theme/app_palette.dart';
 import 'package:datetime/core/widgets/sensitive_operation_dialog.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
+import 'package:datetime/features/activity_logs/presentation/pages/activity_logs_page.dart';
 import 'package:datetime/data/repositories/appointment_repository.dart';
 import 'package:datetime/data/repositories/customer_repository.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
@@ -625,4 +626,53 @@ void main() {
     expect(operations.undo(settlementAudit.id), isFalse);
   });
 
+
+  testWidgets('activity history page completes the real confirm and undo user flow', (tester) async {
+    const customer = Customer(
+      id: 'activity-ui-undo-customer',
+      fullName: 'مشتری رابط کاربری',
+      phone: '09128887766',
+    );
+    db.addCustomer(customer);
+    await operations.deleteCustomer(customer.id);
+
+    final provider = ActivityProvider(MockActivityRepository(db), db);
+    addTearDown(provider.dispose);
+    await provider.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: const [AppPalette.pastelPink]),
+        home: ActivityLogsPageWithProvider(provider: provider),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final undoButton = find.byTooltip('بازگردانی این تغییر');
+    expect(undoButton, findsOneWidget);
+    await tester.tap(undoButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
+    expect(find.text('customer-ui-undo-customer'), findsOneWidget);
+    await tester.tap(find.text('بازگردانی واقعی'));
+    await tester.pumpAndSettle();
+
+    expect(db.customerById(customer.id), isNotNull);
+    expect(provider.logs.any((log) => log.operationType == 'undo' && log.entityId == customer.id), isTrue);
+  });
+
+}
+
+
+class ActivityLogsPageWithProvider extends StatelessWidget {
+  const ActivityLogsPageWithProvider({super.key, required this.provider});
+
+  final ActivityProvider provider;
+
+  @override
+  Widget build(BuildContext context) => ChangeNotifierProvider<ActivityProvider>.value(
+        value: provider,
+        child: const ActivityLogsPage(),
+      );
 }
