@@ -1606,6 +1606,8 @@ class AppDatabase extends ChangeNotifier {
         _attendanceRecords.any((entry) => entry.employeeId == id) ||
         _employeeDocuments.any((entry) => entry.employeeId == id) ||
         _employeeLeaves.any((entry) => entry.employeeId == id) ||
+        _employeeNotices.any((entry) => entry.employeeId == id) ||
+        _performanceTargets.any((entry) => entry.employeeId == id) ||
         _accessAssignments.containsKey(id) ||
         _accessAccounts.any((account) => account.employeeId == id);
     if (hasHistory) {
@@ -1616,6 +1618,9 @@ class AppDatabase extends ChangeNotifier {
       _commit();
       return;
     }
+    final relatedConfigs = _employeeServiceConfigs.values.where((value) => value.employeeId == id).map((value) => value.toJson()).toList();
+    final relatedExceptions = _employeeScheduleExceptions.values.where((value) => value.employeeId == id).map((value) => value.toJson()).toList();
+    final previousPayProfile = _employeePayProfiles[id]?.toJson();
     _employees.removeWhere((item) => item.id == id);
     _employeeServiceConfigs.removeWhere((key, value) => value.employeeId == id);
     _employeeScheduleExceptions.removeWhere((key, value) => value.employeeId == id);
@@ -1627,7 +1632,10 @@ class AppDatabase extends ChangeNotifier {
       }
     }
     log(ActivityType.employeeAdded, 'حذف پرسنل', '${employee.fullName} حذف شد.', entity: 'پرسنل', entityId: id,
-      undoAction: 'employee_deleted', undoData: employee.toJson(), operationType: 'employee_delete', isReversible: true);
+      undoAction: 'employee_deleted', undoData: {
+        'employee': employee.toJson(), 'service_configs': relatedConfigs,
+        'schedule_exceptions': relatedExceptions, 'pay_profile': previousPayProfile,
+      }, operationType: 'employee_delete', isReversible: true);
     _commit();
   }
 
@@ -2092,9 +2100,21 @@ class AppDatabase extends ChangeNotifier {
         _syncEmployeeServiceLinks(restored);
         break;
       case 'employee_deleted':
-        final restored = Employee.fromJson(data);
+        final restored = Employee.fromJson(Map<String, dynamic>.from(data['employee'] as Map? ?? data));
         if (_employees.any((item) => item.id == restored.id)) return false;
         _employees.add(restored);
+        for (final raw in data['service_configs'] as List? ?? const []) {
+          final config = EmployeeServiceConfig.fromJson(Map<String, dynamic>.from(raw as Map));
+          _employeeServiceConfigs[_serviceConfigKey(config.employeeId, config.serviceId)] = config;
+        }
+        for (final raw in data['schedule_exceptions'] as List? ?? const []) {
+          final exception = EmployeeScheduleException.fromJson(Map<String, dynamic>.from(raw as Map));
+          _employeeScheduleExceptions[_employeeScheduleKey(exception.employeeId, exception.dateKey)] = exception;
+        }
+        if (data['pay_profile'] != null) {
+          final profile = EmployeePayProfile.fromJson(Map<String, dynamic>.from(data['pay_profile'] as Map));
+          _employeePayProfiles[profile.employeeId] = profile;
+        }
         _syncEmployeeServiceLinks(restored);
         break;
       case 'service_restore':
