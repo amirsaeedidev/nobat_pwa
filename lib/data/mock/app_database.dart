@@ -348,11 +348,11 @@ class AppDatabase extends ChangeNotifier {
     if (_logs.length > logCount && _logs.isNotEmpty) {
       final latest = _logs.first;
       _logs[0] = ActivityLog(
-        id: latest.id, type: latest.type, title: latest.title, description: latest.description,
-        actor: latest.actor, createdAt: latest.createdAt, entityName: latest.entityName,
+        id: latest.id, type: latest.type, title: latest.title,
+        description: latest.description.isEmpty ? description : latest.description,
+        actor: latest.actor, createdAt: latest.createdAt,
         entityName: latest.entityName.isEmpty ? entityName : latest.entityName,
         entityId: latest.entityId.isEmpty ? entityId : latest.entityId,
-        description: latest.description.isEmpty ? description : latest.description,
         undoAction: latest.undoAction, undoData: latest.undoData,
         operationType: latest.operationType ?? operationType,
         isReversible: latest.isReversible || reversible,
