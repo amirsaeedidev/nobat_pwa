@@ -774,7 +774,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void addPayrollAdjustment(PayrollAdjustment adjustment) {
-    requirePermission('finance.payment.create');
+    requirePermission('finance.payment.create', employeeId: adjustment.employeeId);
     if (!_employees.any((item) => item.id == adjustment.employeeId)) throw StateError('پرسنل پیدا نشد.');
     if (adjustment.amount <= 0 || adjustment.description.trim().isEmpty || adjustment.createdBy.trim().isEmpty) {
       throw ArgumentError('مبلغ، دلیل و ثبت‌کننده الزامی است.');
@@ -807,7 +807,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void addPayrollAdvance(PayrollAdvance advance) {
-    requirePermission('finance.advance.create');
+    requirePermission('finance.advance.create', employeeId: advance.employeeId);
     if (!_employees.any((item) => item.id == advance.employeeId)) throw StateError('پرسنل پیدا نشد.');
     if (advance.amount <= 0 || advance.description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات مساعده الزامی است.');
     if (_payrollAdvances.any((item) => item.id == advance.id)) throw StateError('شناسه مساعده تکراری است.');
@@ -1018,10 +1018,14 @@ class AppDatabase extends ChangeNotifier {
   // کیف پول و دفتر کل مالی پرسنل — تمام ارقام از تراکنش‌های ثبت‌شده محاسبه می‌شوند.
   List<EmployeeWalletTransaction> walletTransactionsFor(String employeeId, {DateTime? from, DateTime? to}) {
     if (!canViewEmployeeIncome(employeeId)) throw const AccessDeniedException('اجازه مشاهده اطلاعات درآمد این پرسنل را ندارید.');
+    final canViewSalary = hasPermission('finance.salary.view', employeeId: employeeId);
     return _employeeWalletTransactions.where((entry) {
         if (entry.employeeId != employeeId) return false;
         if (from != null && entry.createdAt.isBefore(from)) return false;
         if (to != null && entry.createdAt.isAfter(to)) return false;
+        // دسترسی صرفاً به پورسانت، نباید حقوق، مساعده، پاداش یا پرداخت‌ها را افشا کند.
+        if (!canViewSalary && entry.type != EmployeeWalletTransactionType.commission &&
+            entry.type != EmployeeWalletTransactionType.refund) return false;
         return true;
       }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
@@ -1119,7 +1123,7 @@ class AppDatabase extends ChangeNotifier {
     String? referenceType,
     String? referenceId,
   }) {
-    requirePermission(type == EmployeeWalletTransactionType.advance ? 'finance.advance.create' : 'finance.payment.create');
+    requirePermission(type == EmployeeWalletTransactionType.advance ? 'finance.advance.create' : 'finance.payment.create', employeeId: employeeId);
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
     if (amount == 0) throw ArgumentError('مبلغ تراکنش نمی‌تواند صفر باشد.');
     if (type == EmployeeWalletTransactionType.commission || type == EmployeeWalletTransactionType.refund || type == EmployeeWalletTransactionType.salaryPayment) {
@@ -1258,6 +1262,7 @@ class AppDatabase extends ChangeNotifier {
     String description = 'پرداخت تسویه پرسنل',
   }) {
     requirePermission('finance.payment.create', employeeId: employeeId);
+    requirePermission('finance.salary.view', employeeId: employeeId);
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
     if (periodEnd.isBefore(periodStart)) throw ArgumentError('بازه تسویه معتبر نیست.');
     if (paidAmount <= 0) throw ArgumentError('مبلغ پرداخت باید بیشتر از صفر باشد.');
