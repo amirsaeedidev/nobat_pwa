@@ -2074,6 +2074,9 @@ class AppDatabase extends ChangeNotifier {
     final resolvedTarget = target;
     if (resolvedTarget == null || !resolvedTarget.isReversible || resolvedTarget.undoAction == null || resolvedTarget.undoData == null) return false;
     final targetEntityId = resolvedTarget.undoData!['id'];
+    if (resolvedTarget.undoAction == 'appointment_created' &&
+        (_appointmentPayments.any((item) => item.appointmentId == targetEntityId) ||
+         _employeeFinanceEntries.any((item) => item.appointmentId == targetEntityId))) return false;
     final relatedEntityIds = <String>{};
     if (resolvedTarget.undoAction == 'service_category_restore') {
       for (final raw in resolvedTarget.undoData!['services'] as List? ?? const []) {
