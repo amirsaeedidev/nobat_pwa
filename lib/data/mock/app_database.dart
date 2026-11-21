@@ -162,7 +162,7 @@ class AppDatabase extends ChangeNotifier {
       type: BusinessPaymentType.receipt, description: description.trim(), idempotencyKey: idempotencyKey,
     );
     _appointmentPayments.add(payment);
-    log(ActivityType.settingsChanged, 'ثبت دریافت مشتری', 'دریافت مبلغ $amount برای نوبت ${appointment.reference} ثبت شد.', entity: 'دریافت‌های مجموعه');
+    log(ActivityType.settingsChanged, 'ثبت دریافت مشتری', 'دریافت مبلغ $amount برای نوبت ${appointment.reference} ثبت شد.', entity: 'دریافت‌های مجموعه', entityId: payment.id, operationType: 'financial_payment_create', isReversible: false, idempotencyKey: idempotencyKey);
     _commit();
     return payment;
   }
@@ -239,7 +239,7 @@ class AppDatabase extends ChangeNotifier {
       throw StateError('شناسه هزینه یا سند منبع تکراری است.');
     }
     _businessExpenses.add(expense);
-    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} با سند ${expense.sourceDocumentId} ثبت شد.', entity: 'امور مالی مجموعه');
+    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} با سند ${expense.sourceDocumentId} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
     _commit();
   }
 
@@ -350,7 +350,9 @@ class AppDatabase extends ChangeNotifier {
       _logs[0] = ActivityLog(
         id: latest.id, type: latest.type, title: latest.title, description: latest.description,
         actor: latest.actor, createdAt: latest.createdAt, entityName: latest.entityName,
+        entityName: latest.entityName.isEmpty ? entityName : latest.entityName,
         entityId: latest.entityId.isEmpty ? entityId : latest.entityId,
+        description: latest.description.isEmpty ? description : latest.description,
         undoAction: latest.undoAction, undoData: latest.undoData,
         operationType: latest.operationType ?? operationType,
         isReversible: latest.isReversible || reversible,
@@ -645,11 +647,11 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.customerName} به‌روزرسانی شد.',
       actor: actor,
       entity: 'نوبت',
-      undoAction: 'appointment_restore',
-      undoData: previous.toJson(),
+      undoAction: status == AppointmentStatus.completed ? null : 'appointment_restore',
+      undoData: status == AppointmentStatus.completed ? null : previous.toJson(),
       entityId: appointment.id,
       operationType: operationType ?? (status == AppointmentStatus.cancelled ? 'appointment_cancel' : 'appointment_status_change'),
-      isReversible: true,
+      isReversible: status != AppointmentStatus.completed,
     );
     _commit();
   }
