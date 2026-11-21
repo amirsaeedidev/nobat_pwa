@@ -206,7 +206,7 @@ void main() {
 
     await operations.deleteServiceCategory('دسته قدیمی', moveServicesTo: 'دسته مقصد');
     await Future<void>.delayed(const Duration(milliseconds: 2));
-    db.updateService(service.copyWith(title: 'خدمت ویرایش‌شده'));
+    db.updateService(db.serviceById(service.id)!.copyWith(title: 'خدمت ویرایش‌شده'));
 
     expect(operations.undoLatestForEntity('دسته قدیمی'), isFalse);
     expect(db.serviceById(service.id)?.title, 'خدمت ویرایش‌شده');
