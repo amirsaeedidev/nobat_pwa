@@ -62,6 +62,29 @@ class ActivityTile extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (log.entityName.isNotEmpty || log.operationType != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Wrap(
+                      spacing: 7,
+                      runSpacing: 2,
+                      children: [
+                        if (log.entityName.isNotEmpty)
+                          Text(
+                            '${log.entityName}${log.entityId.isNotEmpty ? ' • ${log.entityId}' : ''}',
+                            style: TextStyle(fontSize: 9, color: pal.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        if (log.operationType != null)
+                          Text(log.operationType!, style: TextStyle(fontSize: 9, color: pal.textMuted)),
+                        Text(
+                          log.isReversible ? 'قابل بازگردانی' : 'غیرقابل بازگردانی',
+                          style: TextStyle(fontSize: 9, color: log.isReversible ? pal.info : pal.danger),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (showActor)
                   Padding(
                     padding: const EdgeInsets.only(top: 3),
