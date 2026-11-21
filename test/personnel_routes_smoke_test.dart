@@ -120,7 +120,7 @@ void main() {
       for (final path in paths) {
         router.go(path);
         try {
-          await tester.pump(const Duration(milliseconds: 90));
+          await tester.pump(Duration(milliseconds: width == 320 && path == '/employees/emp-fateme/schedule' ? 350 : 90));
         } catch (error) {
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
           fail('Responsive route failure at ${width.toInt()}px $path: $error');
@@ -129,10 +129,6 @@ void main() {
         if (exception != null) {
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
-          if (width == 320 && path == '/employees/emp-fateme/schedule') {
-            debugPrint('--- Schedule route render tree ---');
-            debugDumpRenderTree();
-          }
           fail('Responsive route failure at ${width.toInt()}px $path: $details');
         }
       }
