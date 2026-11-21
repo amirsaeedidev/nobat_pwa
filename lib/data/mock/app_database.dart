@@ -2086,7 +2086,10 @@ class AppDatabase extends ChangeNotifier {
       final sameEntity = resolvedTarget.entityId.isNotEmpty && other.entityId == resolvedTarget.entityId && other.entityName == resolvedTarget.entityName;
       final sameSnapshot = targetEntityId != null && other.undoData?['id'] == targetEntityId;
       final relatedEntityChanged = relatedEntityIds.contains(other.entityId);
-      return sameEntity || sameSnapshot || relatedEntityChanged;
+      final roleAssignmentChanged = resolvedTarget.undoAction == 'access_role_restore' &&
+          other.operationType == 'access_assignment' &&
+          other.undoData?['role_id'] == targetEntityId;
+      return sameEntity || sameSnapshot || relatedEntityChanged || roleAssignmentChanged;
     });
   }
   bool undoLog(String id) {
