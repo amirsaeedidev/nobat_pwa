@@ -90,6 +90,7 @@ class EmployeeWallet {
   int get advances => summary.advances;
   int get bonuses => summary.bonuses;
   int get debtsAndDeductions => summary.debits;
+  int get debt => summary.debt;
   int get finalBalance => summary.balance;
 
   factory EmployeeWallet.fromTransactions(String employeeId, Iterable<EmployeeWalletTransaction> source, {DateTime? calculatedAt}) {
