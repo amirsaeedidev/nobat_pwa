@@ -711,7 +711,7 @@ class AppDatabase extends ChangeNotifier {
     final history = _salaryContracts.putIfAbsent(contract.employeeId, () => []);
     history.add(contract);
     _notifyEmployee(contract.employeeId,EmployeeNoticeType.salaryChanged,'حقوق ثابت تغییر کرد.','قرارداد حقوق جدید با مبلغ ${contract.monthlyBase} ثبت شد.');
-    log(ActivityType.settingsChanged, 'ثبت سابقه حقوق ثابت', 'قرارداد حقوق ثابت جدید ثبت شد.', entity: 'حقوق پرسنل');
+    log(ActivityType.settingsChanged, 'ثبت سابقه حقوق ثابت', 'قرارداد حقوق ثابت جدید ثبت شد.', entity: 'حقوق پرسنل', entityId: contract.id, operationType: 'financial_salary_contract_create', isReversible: false);
     _commit();
   }
 
@@ -743,7 +743,7 @@ class AppDatabase extends ChangeNotifier {
         relatedAdvanceId: adjustment.relatedAdvanceId, sourceWalletTransactionId: walletEntry.id,
       );
     }
-    log(ActivityType.settingsChanged, 'ثبت آیتم حقوق', 'پاداش یا کسورات پرسنل ثبت شد.', entity: 'حقوق پرسنل');
+    log(ActivityType.settingsChanged, 'ثبت آیتم حقوق', 'پاداش یا کسورات پرسنل ثبت شد.', entity: 'حقوق پرسنل', entityId: adjustment.id, operationType: 'financial_payroll_adjustment', isReversible: false);
     _commit();
   }
 
@@ -768,6 +768,7 @@ class AppDatabase extends ChangeNotifier {
       );
     }
     _payrollAdvances.add(savedAdvance);
+    log(ActivityType.settingsChanged, 'ثبت مساعده پرسنل', 'مساعده برای پرسنل ثبت شد.', entity: 'حقوق پرسنل', entityId: savedAdvance.id, operationType: 'financial_payroll_advance', isReversible: false);
     _commit();
   }
 
@@ -944,7 +945,7 @@ class AppDatabase extends ChangeNotifier {
     final refundEntry = EmployeeFinanceEntry(id: nextId('finance'), employeeId: original.employeeId, appointmentId: original.appointmentId, serviceId: original.serviceId, createdAt: DateTime.now(), type: FinanceEntryType.refund, methodSnapshot: original.methodSnapshot, basisSnapshot: original.basisSnapshot, grossAmount: -refundAmount, discountAmount: 0, receivedAmount: -refundAmount, calculationBase: -refundAmount, rateBps: original.rateBps, fixedAmount: 0, commissionAmount: -commissionRefund, companyShare: -(refundAmount - commissionRefund), reversesEntryId: entryId);
     _employeeFinanceEntries.add(refundEntry);
     _mirrorFinanceEntryToWallet(refundEntry);
-    log(ActivityType.settingsChanged, 'ثبت برگشت وجه پورسانت', 'سند اصلاحی برگشت وجه ثبت شد.', entity: 'دفتر مالی پرسنل');
+    log(ActivityType.settingsChanged, 'ثبت برگشت وجه پورسانت', 'سند اصلاحی برگشت وجه ثبت شد.', entity: 'دفتر مالی پرسنل', entityId: refundEntry.id, operationType: 'financial_commission_refund', isReversible: false);
     _commit();
     return true;
   }
@@ -1206,7 +1207,7 @@ class AppDatabase extends ChangeNotifier {
       settlementId: settlementId,
       idempotencyKey: idempotencyKey,
     ));
-    log(ActivityType.settingsChanged, 'ثبت تسویه پرسنل', 'پرداخت ${paidAmount} تومان برای تسویه پرسنل ثبت شد.', entity: 'تسویه حساب');
+    log(ActivityType.settingsChanged, 'ثبت تسویه پرسنل', 'پرداخت ${paidAmount} تومان برای تسویه پرسنل ثبت شد.', entity: 'تسویه حساب', entityId: settlementId, operationType: 'financial_wallet_settlement', isReversible: false, idempotencyKey: idempotencyKey);
     _commit();
     return settlement;
   }
