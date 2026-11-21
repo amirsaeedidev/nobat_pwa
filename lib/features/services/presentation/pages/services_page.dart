@@ -242,14 +242,19 @@ class ServicesPage extends StatelessWidget {
               await provider.deleteCategory(category, moveServicesTo: moveTo);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               if (context.mounted) {
-                showUndoableOperationSnackBar(
-                  context,
-                  message: 'دسته‌بندی «$category» حذف شد.',
-                  onUndo: () {
-                    OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(category);
-                    provider.load();
-                  },
-                );
+                final operations = OperationsRepository(context.read<AppDatabase>());
+                final undoLog = operations.latestUndoableLogFor(category);
+                if (undoLog != null) {
+                  showUndoableOperationSnackBarForLog(
+                    context,
+                    message: 'دسته‌بندی «$category» حذف شد.',
+                    activityLogId: undoLog.id,
+                    undo: operations.undo,
+                    onUndoSuccess: provider.load,
+                  );
+                } else {
+                  AppToast.show(context, 'دسته‌بندی حذف شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
+                }
               }
             } catch (error) {
               if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -280,14 +285,19 @@ class ServicesPage extends StatelessWidget {
     try {
       await context.read<ServicesProvider>().remove(service.id);
       if (context.mounted) {
-        showUndoableOperationSnackBar(
-          context,
-          message: 'عملیات خدمت «${service.title}» انجام شد.',
-          onUndo: () {
-            OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(service.id);
-            context.read<ServicesProvider>().load();
-          },
-        );
+        final operations = OperationsRepository(context.read<AppDatabase>());
+        final undoLog = operations.latestUndoableLogFor(service.id);
+        if (undoLog != null) {
+          showUndoableOperationSnackBarForLog(
+            context,
+            message: 'عملیات خدمت «${service.title}» انجام شد.',
+            activityLogId: undoLog.id,
+            undo: operations.undo,
+            onUndoSuccess: context.read<ServicesProvider>().load,
+          );
+        } else {
+          AppToast.show(context, 'عملیات خدمت انجام شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
+        }
       }
     } catch (error) {
       if (context.mounted) AppToast.show(context, '$error', success: false);
