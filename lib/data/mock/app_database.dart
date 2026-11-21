@@ -353,16 +353,25 @@ class AppDatabase extends ChangeNotifier {
     }
     if (consumeKey) _executedOperationKeys.add(key);
     if (consumeKey && _logs.length > logCount && _logs.isNotEmpty) {
-      final latest = _logs.first;
-      _logs[0] = ActivityLog(
-        id: latest.id, type: latest.type, title: latest.title,
-        description: latest.description.isEmpty ? description : latest.description,
-        actor: latest.actor, createdAt: latest.createdAt,
-        entityName: latest.entityName.isEmpty ? entityName : latest.entityName,
-        entityId: latest.entityId.isEmpty ? entityId : latest.entityId,
-        undoAction: latest.undoAction, undoData: latest.undoData,
-        operationType: latest.operationType ?? operationType,
-        isReversible: latest.isReversible && reversible,
+      // A single domain action may append several related records (for example,
+      // appointment completion plus commission postings). Attach the operation
+      // key to its own audit event, not blindly to the newest child ledger event.
+      final addedCount = _logs.length - logCount;
+      final addedLogs = _logs.take(addedCount).toList();
+      final matchingIndex = addedLogs.indexWhere(
+        (entry) => entry.entityId == entityId && entry.operationType == operationType,
+      );
+      final auditIndex = matchingIndex >= 0 ? matchingIndex : 0;
+      final audit = _logs[auditIndex];
+      _logs[auditIndex] = ActivityLog(
+        id: audit.id, type: audit.type, title: audit.title,
+        description: audit.description.isEmpty ? description : audit.description,
+        actor: audit.actor, createdAt: audit.createdAt,
+        entityName: audit.entityName.isEmpty ? entityName : audit.entityName,
+        entityId: audit.entityId.isEmpty ? entityId : audit.entityId,
+        undoAction: audit.undoAction, undoData: audit.undoData,
+        operationType: audit.operationType ?? operationType,
+        isReversible: audit.isReversible && reversible,
         idempotencyKey: key,
       );
     }
