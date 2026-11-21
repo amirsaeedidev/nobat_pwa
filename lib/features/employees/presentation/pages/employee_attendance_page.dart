@@ -137,14 +137,18 @@ class EmployeeAttendancePage extends StatelessWidget {
    final changed=await OperationsRepository(db).saveAttendancePayrollPolicy(next);
    if(!context.mounted)return;
    if(!changed){AppToast.show(context,'تغییری برای ثبت وجود نداشت.');return;}
-   showUndoableOperationSnackBar(
-    context,
-    message:'قانون مالی حضور و غیاب ذخیره شد.',
-    onUndo:(){
-     final restored=OperationsRepository(db).undoLatestForEntity('attendance-payroll-policy');
-     if(!restored&&context.mounted)AppToast.show(context,'بازگردانی به‌دلیل تغییرات جدیدتر امکان‌پذیر نیست.',success:false);
-    },
-   );
+   final operations=OperationsRepository(db);
+   final undoLog=operations.latestUndoableLogFor('attendance-payroll-policy');
+   if(undoLog!=null){
+    showUndoableOperationSnackBarForLog(
+     context,
+     message:'قانون مالی حضور و غیاب ذخیره شد.',
+     activityLogId:undoLog.id,
+     undo:operations.undo,
+    );
+   }else{
+    AppToast.show(context,'قانون مالی ذخیره شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+   }
   }catch(error){
    if(context.mounted)AppToast.show(context,'ذخیره قانون مالی انجام نشد: $error',success:false);
   }
