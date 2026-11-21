@@ -236,7 +236,6 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             decoration: const InputDecoration(labelText: 'نوع تراکنش'),
             items: [
               for (final item in [
-                EmployeeWalletTransactionType.fixedSalary,
                 EmployeeWalletTransactionType.advance,
                 EmployeeWalletTransactionType.bonus,
                 EmployeeWalletTransactionType.penalty,
