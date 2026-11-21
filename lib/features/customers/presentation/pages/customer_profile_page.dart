@@ -12,8 +12,11 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/enums.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../providers/customers_provider.dart';
@@ -47,12 +50,47 @@ class CustomerProfilePage extends StatelessWidget {
     final services = completed.map((a) => a.serviceName).toSet().toList();
     final upcoming = appointments.where((a) => a.status.isActive && a.startAt.isAfter(DateTime.now())).toList();
 
+    Future<void> deleteCustomer() async {
+      final confirmed = await showSensitiveOperationDialog(
+        context,
+        title: 'حذف یا بایگانی مشتری',
+        description: 'اگر مشتری سابقه نوبت یا دریافت مالی داشته باشد، پروفایل بایگانی می‌شود تا پیوند سوابق حفظ شود؛ در غیر این صورت حذف قابل بازگردانی انجام می‌شود.',
+        recordDetails: {
+          'نام مشتری': customer.fullName,
+          'شماره تماس': customer.phone,
+          'تعداد سوابق نوبت': appointments.length.toString(),
+          'مجموع خرید': '${FaNum.ofInt(customer.totalSpent.round())} تومان',
+        },
+        isReversible: true,
+        confirmLabel: 'ادامه عملیات',
+      );
+      if (!confirmed || !context.mounted) return;
+      final db = context.read<AppDatabase>();
+      try {
+        await context.read<CustomersProvider>().delete(customer.id);
+        if (context.mounted) {
+          context.pop();
+          showUndoableOperationSnackBar(
+            context,
+            message: 'عملیات مشتری «${customer.fullName}» انجام شد.',
+            onUndo: () {
+              OperationsRepository(db).undoLatestForEntity(customer.id);
+              context.read<CustomersProvider>().load();
+            },
+          );
+        }
+      } catch (error) {
+        if (context.mounted) AppToast.show(context, '$error', success: false);
+      }
+    }
+
     return PageScaffold(
       title: 'پروفایل مشتری',
       subtitle: Fmt.phone(customer.phone),
       icon: Icons.person_rounded,
       showBackButton: true,
       actions: [
+        SoftButton(label: 'حذف / بایگانی', icon: Icons.delete_outline_rounded, color: pal.danger, onTap: deleteCustomer),
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/customers/${customer.id}/edit')),
         SolidButton(
           label: 'نوبت جدید',
@@ -62,6 +100,7 @@ class CustomerProfilePage extends StatelessWidget {
         ),
       ],
       mobileActions: [
+        CircleIconButton(icon: Icons.delete_outline_rounded, size: 38, onTap: deleteCustomer),
         CircleIconButton(icon: Icons.edit_rounded, size: 38, onTap: () => context.push('/customers/${customer.id}/edit')),
       ],
       child: Column(
