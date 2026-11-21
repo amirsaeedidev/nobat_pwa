@@ -55,9 +55,11 @@ void main() {
     );
     db.addAppointment(appointment);
 
-    await expectLater(operations.deleteCustomer(customer.id), throwsStateError);
-    expect(db.customerById(customer.id), isNotNull);
+    await operations.deleteCustomer(customer.id);
+    expect(db.customerById(customer.id)?.isArchived, isTrue);
     expect(db.appointmentById(appointment.id)?.customerId, customer.id);
+    expect(operations.undoLatestForEntity(customer.id), isTrue);
+    expect(db.customerById(customer.id)?.isArchived, isFalse);
   });
 
   test('appointment cancellation restores its exact previous state via undo', () async {
