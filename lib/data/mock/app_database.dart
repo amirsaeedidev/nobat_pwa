@@ -610,7 +610,8 @@ class AppDatabase extends ChangeNotifier {
     log(ActivityType.settingsChanged, 'تغییر نقش و دسترسی پرسنل', 'نقش و سطح دسترسی پرسنل ${employeeById(employeeId)?.fullName ?? employeeId} تغییر کرد.', entity: 'دسترسی پرسنل', entityId: employeeId,
       undoAction: 'access_assignment_restore', undoData: {
         'employee_id': employeeId, 'had_assignment': previous != null,
-        'role_id': previous?.roleId, 'overrides': previous?.overrides ?? const <String, bool>{},
+        'role_id': previous?.roleId, 'new_role_id': roleId,
+        'overrides': previous?.overrides ?? const <String, bool>{},
         'can_view_other_employees': previous?.canViewOtherEmployees ?? false,
         'can_view_personal_income': previous?.canViewPersonalIncome ?? true,
         'account_role_id': previousAccountRole,
@@ -2160,7 +2161,7 @@ class AppDatabase extends ChangeNotifier {
       final roleAssignmentChanged =
           (resolvedTarget.undoAction == 'access_role_restore' || resolvedTarget.undoAction == 'access_role_delete') &&
           other.operationType == 'access_assignment' &&
-          other.undoData?['role_id'] == targetEntityId;
+          (other.undoData?['new_role_id'] == targetEntityId || other.undoData?['role_id'] == targetEntityId);
       return sameEntity || sameSnapshot || relatedEntityChanged || roleAssignmentChanged;
     });
   }
