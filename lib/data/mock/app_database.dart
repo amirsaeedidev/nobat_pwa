@@ -1178,7 +1178,6 @@ class AppDatabase extends ChangeNotifier {
         sourceWalletTransactionId: item.sourceWalletTransactionId,
       );
     }
-    log(ActivityType.settingsChanged, 'اصلاح سند مالی', 'تراکنش ${original.id} با سند معکوس و اصلاحیه جایگزین شد.', entity: 'کیف پول پرسنل');
     _commit();
     return [reversal, correction];
   }
