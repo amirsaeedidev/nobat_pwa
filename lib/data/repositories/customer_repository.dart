@@ -2,6 +2,7 @@ import '../../core/models/page_result.dart';
 import '../../core/models/app_failure.dart';
 import '../mock/app_database.dart';
 import '../models/customer.dart';
+import 'operations_repository.dart';
 
 abstract class CustomerRepository {
   Future<PageResult<Customer>> fetchCustomers({
@@ -109,7 +110,7 @@ class MockCustomerRepository implements CustomerRepository {
   Future<void> delete(String id) async {
     await AppFailure.guard(() async {
       await _db.delay(160);
-      _db.deleteCustomer(id);
+      await OperationsRepository(_db).deleteCustomer(id);
     }, fallback: AppErrorKind.save);
   }
 }
