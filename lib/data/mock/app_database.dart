@@ -710,8 +710,9 @@ class AppDatabase extends ChangeNotifier {
     if (previous != null && previous.toJson().toString() == profile.toJson().toString()) return;
     _employeePayProfiles[profile.employeeId] = profile;
     log(ActivityType.settingsChanged, 'تغییر قرارداد مالی پرسنل', 'قواعد حقوق و پورسانت ذخیره شد.', entity: 'امور مالی پرسنل', entityId: profile.employeeId,
-      undoAction: previous == null ? null : 'pay_profile_restore', undoData: previous?.toJson(),
-      operationType: 'financial_pay_profile_update', isReversible: previous != null);
+      undoAction: 'pay_profile_restore',
+      undoData: {'employee_id': profile.employeeId, 'had_profile': previous != null, 'profile': previous?.toJson()},
+      operationType: 'financial_pay_profile_update', isReversible: true);
     _commit();
   }
   // حقوق ثابت، پاداش، کسورات، مساعده و اهداف عملکردی (کاملاً Mock/آفلاین).
@@ -2198,8 +2199,13 @@ class AppDatabase extends ChangeNotifier {
         _serviceCategories.sort();
         break;
       case 'pay_profile_restore':
-        final restored = EmployeePayProfile.fromJson(data);
-        _employeePayProfiles[restored.employeeId] = restored;
+        final employeeId = data['employee_id'] as String;
+        if (data['had_profile'] == true && data['profile'] != null) {
+          final restored = EmployeePayProfile.fromJson(Map<String, dynamic>.from(data['profile'] as Map));
+          _employeePayProfiles[employeeId] = restored;
+        } else {
+          _employeePayProfiles.remove(employeeId);
+        }
         break;
       case 'access_role_restore':
         final restored = AccessRole(id: data['id'] as String, name: data['name'] as String,
