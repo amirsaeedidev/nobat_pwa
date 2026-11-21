@@ -515,14 +515,36 @@ class AppDatabase extends ChangeNotifier {
     return false;
   }
 
-  void createAccessRole({required String name, required List<String> permissionIds}) {
+  AccessRole createAccessRole({required String name, required List<String> permissionIds}) {
     requirePermission('permissions.manage');
     final normalized = name.trim();
     if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
     if (_accessRoles.values.any((role) => role.name == normalized)) throw StateError('نقشی با این نام وجود دارد.');
-    final id = 'custom-${DateTime.now().microsecondsSinceEpoch}';
-    _accessRoles[id] = AccessRole(id: id, name: normalized, permissionIds: List.unmodifiable(permissionIds.where(AccessPermission.ids.contains)));
+    final role = AccessRole(
+      id: 'custom-${DateTime.now().microsecondsSinceEpoch}',
+      name: normalized,
+      permissionIds: List.unmodifiable(permissionIds.where(AccessPermission.ids.contains)),
+    );
+    _accessRoles[role.id] = role;
+    log(
+      ActivityType.settingsChanged,
+      'ایجاد نقش دسترسی',
+      'نقش سفارشی «${role.name}» با ${role.permissionIds.length} مجوز ایجاد شد.',
+      entity: 'نقش دسترسی',
+      entityId: role.id,
+      undoAction: 'access_role_delete',
+      undoData: {
+        'id': role.id,
+        'name': role.name,
+        'permission_ids': role.permissionIds,
+        'description': role.description,
+        'is_system': role.isSystem,
+      },
+      operationType: 'access_role_create',
+      isReversible: true,
+    );
     _commit();
+    return role;
   }
 
   void updateAccessRole(String roleId, {required String name, required List<String> permissionIds}) {
@@ -2135,7 +2157,8 @@ class AppDatabase extends ChangeNotifier {
       final sameEntity = resolvedTarget.entityId.isNotEmpty && other.entityId == resolvedTarget.entityId && other.entityName == resolvedTarget.entityName;
       final sameSnapshot = targetEntityId != null && other.undoData?['id'] == targetEntityId;
       final relatedEntityChanged = relatedEntityIds.contains(other.entityId);
-      final roleAssignmentChanged = resolvedTarget.undoAction == 'access_role_restore' &&
+      final roleAssignmentChanged =
+          (resolvedTarget.undoAction == 'access_role_restore' || resolvedTarget.undoAction == 'access_role_delete') &&
           other.operationType == 'access_assignment' &&
           other.undoData?['role_id'] == targetEntityId;
       return sameEntity || sameSnapshot || relatedEntityChanged || roleAssignmentChanged;
@@ -2248,6 +2271,12 @@ class AppDatabase extends ChangeNotifier {
         } else {
           _employeePayProfiles.remove(employeeId);
         }
+        break;
+      case 'access_role_delete':
+        final roleId = data['id'] as String;
+        if (_accessAssignments.values.any((assignment) => assignment.roleId == roleId) ||
+            _accessAccounts.any((account) => account.roleId == roleId)) return false;
+        _accessRoles.remove(roleId);
         break;
       case 'access_role_restore':
         final restored = AccessRole(id: data['id'] as String, name: data['name'] as String,
