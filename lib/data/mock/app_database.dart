@@ -1254,12 +1254,17 @@ class AppDatabase extends ChangeNotifier {
     required EmployeeWalletPeriodType periodType,
     required int paidAmount,
     required String idempotencyKey,
+    EmployeeWalletPaymentMethod method = EmployeeWalletPaymentMethod.bankTransfer,
+    String description = 'پرداخت تسویه پرسنل',
   }) {
     requirePermission('finance.payment.create', employeeId: employeeId);
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
     if (periodEnd.isBefore(periodStart)) throw ArgumentError('بازه تسویه معتبر نیست.');
     if (paidAmount <= 0) throw ArgumentError('مبلغ پرداخت باید بیشتر از صفر باشد.');
-    if (idempotencyKey.trim().isEmpty || _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey)) {
+    if (idempotencyKey.trim().isEmpty ||
+        _employeeWalletTransactions.any((entry) => entry.idempotencyKey == idempotencyKey) ||
+        _employeeWalletPayments.any((entry) => entry.idempotencyKey == idempotencyKey) ||
+        _employeeWalletSettlements.any((entry) => entry.idempotencyKey == idempotencyKey)) {
       throw StateError('این پرداخت قبلاً ثبت شده است.');
     }
     final due = walletPeriodDue(employeeId, periodStart, periodEnd);
@@ -1280,17 +1285,28 @@ class AppDatabase extends ChangeNotifier {
       createdAt: now,
       status: remaining == 0 ? EmployeeWalletSettlementStatus.completed : EmployeeWalletSettlementStatus.partial,
       receiptNumber: 'RC-${now.microsecondsSinceEpoch}',
+      idempotencyKey: idempotencyKey,
     );
+    final paymentId = nextId('wallet-payment');
+    final walletTransactionId = nextId('wallet');
     _employeeWalletSettlements.add(settlement);
     _employeeWalletTransactions.add(EmployeeWalletTransaction(
-      id: nextId('wallet'),
+      id: walletTransactionId,
       employeeId: employeeId,
       createdAt: now,
       amount: -paidAmount,
       type: EmployeeWalletTransactionType.salaryPayment,
-      description: 'پرداخت تسویه ${settlement.receiptNumber}',
+      description: description.trim().isEmpty ? 'پرداخت تسویه ${settlement.receiptNumber}' : description.trim(),
       settlementId: settlementId,
+      paymentId: paymentId,
+      referenceType: 'wallet_settlement', referenceId: settlementId,
       idempotencyKey: idempotencyKey,
+    ));
+    _employeeWalletPayments.add(EmployeeWalletPayment(
+      id: paymentId, employeeId: employeeId, settlementId: settlementId,
+      walletTransactionId: walletTransactionId, createdAt: now, amount: paidAmount,
+      method: method, receiptNumber: settlement.receiptNumber,
+      idempotencyKey: idempotencyKey, description: description.trim(),
     ));
     log(ActivityType.settingsChanged, 'ثبت تسویه پرسنل', 'پرداخت ${paidAmount} تومان برای تسویه پرسنل ثبت شد.', entity: 'تسویه حساب', entityId: settlementId, operationType: 'financial_wallet_settlement', isReversible: false, idempotencyKey: idempotencyKey);
     _commit();
