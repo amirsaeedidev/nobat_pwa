@@ -534,7 +534,12 @@ class AppDatabase extends ChangeNotifier {
     final defaults = {for (final role in AccessRole.defaults()) role.id: role};
     final original = defaults[roleId];
     if (original == null) throw StateError('نقش پیش‌فرض پیدا نشد.');
+    final previous = _accessRoles[roleId];
+    if (previous == null) throw StateError('نقش پیدا نشد.');
     _accessRoles[roleId] = original;
+    log(ActivityType.settingsChanged, 'بازنشانی نقش دسترسی', 'مجوزهای نقش «${previous.name}» به مقادیر پیش‌فرض بازنشانی شد.', entity: 'نقش دسترسی', entityId: roleId,
+      undoAction: 'access_role_restore', undoData: {'id': previous.id, 'name': previous.name, 'permission_ids': previous.permissionIds, 'description': previous.description, 'is_system': previous.isSystem},
+      operationType: 'access_role_reset', isReversible: true);
     _commit();
   }
 
@@ -679,8 +684,11 @@ class AppDatabase extends ChangeNotifier {
     if (!_employees.any((employee) => employee.id == profile.employeeId)) throw StateError('پرسنل مورد نظر پیدا نشد.');
     if (profile.monthlySalary < 0 || profile.generalRateBps < 0 || profile.generalRateBps > 10000) throw ArgumentError('حقوق یا درصد پورسانت معتبر نیست.');
     for (final rule in profile.rules) { if (rule.rateBps < 0 || rule.rateBps > 10000 || rule.fixedAmount < 0) throw ArgumentError('قانون پورسانت معتبر نیست.'); }
+    final previous = _employeePayProfiles[profile.employeeId];
     _employeePayProfiles[profile.employeeId] = profile;
-    log(ActivityType.settingsChanged, 'تغییر قرارداد مالی پرسنل', 'قواعد حقوق و پورسانت ذخیره شد.', entity: 'امور مالی پرسنل');
+    log(ActivityType.settingsChanged, 'تغییر قرارداد مالی پرسنل', 'قواعد حقوق و پورسانت ذخیره شد.', entity: 'امور مالی پرسنل', entityId: profile.employeeId,
+      undoAction: previous == null ? null : 'pay_profile_restore', undoData: previous?.toJson(),
+      operationType: 'financial_pay_profile_update', isReversible: previous != null);
     _commit();
   }
   // حقوق ثابت، پاداش، کسورات، مساعده و اهداف عملکردی (کاملاً Mock/آفلاین).
@@ -2086,6 +2094,10 @@ class AppDatabase extends ChangeNotifier {
           if (index >= 0) _services[index] = restored;
         }
         _serviceCategories.sort();
+        break;
+      case 'pay_profile_restore':
+        final restored = EmployeePayProfile.fromJson(data);
+        _employeePayProfiles[restored.employeeId] = restored;
         break;
       case 'access_role_restore':
         final restored = AccessRole(id: data['id'] as String, name: data['name'] as String,
