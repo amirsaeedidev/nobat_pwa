@@ -90,6 +90,26 @@ class OperationsRepository {
     );
   }
 
+  /// تکمیل نوبت یک عملیات مالی قطعی است؛ اسناد پورسانت/درآمد با کلید یکتا ثبت می‌شوند.
+  Future<void> completeAppointment(String id) async {
+    final appointment = _db.appointmentById(id);
+    if (appointment == null) throw StateError('نوبت پیدا نشد.');
+    await _db.delay(60);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'appointment-complete-financial:$id',
+      operationType: 'appointment_complete_financial_posting',
+      entityName: 'نوبت و اسناد مالی',
+      entityId: id,
+      description: 'تکمیل نوبت ${appointment.reference} و ثبت اسناد مالی وابسته.',
+      reversible: false,
+      action: () => _db.changeStatus(
+        appointment,
+        AppointmentStatus.completed,
+        operationType: 'appointment_complete_financial_posting',
+      ),
+    );
+  }
+
   Future<void> cancelAppointment(String id, {String? reason}) async {
     final appointment = _db.appointmentById(id);
     if (appointment == null) throw StateError('نوبت پیدا نشد.');
