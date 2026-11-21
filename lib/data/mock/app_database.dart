@@ -80,9 +80,24 @@ class AppDatabase extends ChangeNotifier {
   List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments);
   List<PayrollAdvance> get payrollAdvances => List.unmodifiable(_payrollAdvances);
   List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
-  List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(_employeeWalletTransactions);
-  List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(_employeeWalletSettlements);
-  List<EmployeeWalletPayment> get employeeWalletPayments => List.unmodifiable(_employeeWalletPayments);
+  /// Public wallet collections are row-scoped too; callers cannot bypass walletTransactionsFor.
+  List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(
+    _employeeWalletTransactions.where((entry) =>
+      canViewEmployeeIncome(entry.employeeId) &&
+      (hasPermission('finance.salary.view', employeeId: entry.employeeId) ||
+        entry.type == EmployeeWalletTransactionType.commission ||
+        entry.type == EmployeeWalletTransactionType.refund)),
+  );
+  List<EmployeeWalletSettlement> get employeeWalletSettlements => List.unmodifiable(
+    _employeeWalletSettlements.where((entry) =>
+      hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
+      hasPermission('finance.settlement.view', employeeId: entry.employeeId)),
+  );
+  List<EmployeeWalletPayment> get employeeWalletPayments => List.unmodifiable(
+    _employeeWalletPayments.where((entry) =>
+      hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
+      hasPermission('finance.settlement.view', employeeId: entry.employeeId)),
+  );
   List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_appointmentPayments);
   List<BusinessExpense> get businessExpenses => List.unmodifiable(_businessExpenses);
   List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
