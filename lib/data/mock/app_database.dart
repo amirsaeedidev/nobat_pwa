@@ -669,8 +669,10 @@ class AppDatabase extends ChangeNotifier {
     };
     log(
       type,
-      status == AppointmentStatus.cancelled ? 'لغو نوبت' : 'تغییر وضعیت نوبت',
-      'وضعیت نوبت ${appointment.customerName} به «${status.label}» تغییر کرد.${reason != null ? ' دلیل: $reason' : ''}',
+      operationType == 'appointment_reject' ? 'رد درخواست نوبت' : status == AppointmentStatus.cancelled ? 'لغو نوبت' : 'تغییر وضعیت نوبت',
+      operationType == 'appointment_reject'
+          ? 'درخواست نوبت ${appointment.customerName} رد شد.${reason != null ? ' دلیل: $reason' : ''}'
+          : 'وضعیت نوبت ${appointment.customerName} به «${status.label}» تغییر کرد.${reason != null ? ' دلیل: $reason' : ''}',
       actor: actor,
       entity: 'نوبت',
       undoAction: status == AppointmentStatus.completed ? null : 'appointment_restore',
