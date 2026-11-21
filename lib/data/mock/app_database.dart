@@ -1978,7 +1978,7 @@ class AppDatabase extends ChangeNotifier {
     final employeeIndex = _employees.indexWhere((item) => item.id == employee.id);
     _employees[employeeIndex] = updated;
     _syncEmployeeServiceLinks(updated);
-    log(ActivityType.serviceModified, 'تنظیم خدمت پرسنل', 'تنظیم خدمت «\${service.title}» برای \${employee.fullName} ذخیره شد.', entity: 'پرسنل و خدمات');
+    log(ActivityType.serviceModified, 'تنظیم خدمت پرسنل', 'تنظیم خدمت «\${service.title}» برای \${employee.fullName} ذخیره شد.', entity: 'پرسنل و خدمات', entityId: service.id, operationType: 'employee_service_config_update', isReversible: false);
     _commit();
   }
 
@@ -1991,6 +1991,7 @@ class AppDatabase extends ChangeNotifier {
     final index = _employees.indexWhere((item) => item.id == employeeId);
     _employees[index] = updated;
     _syncEmployeeServiceLinks(updated);
+    log(ActivityType.serviceModified, 'حذف تخصص پرسنل', 'ارتباط خدمت با پرسنل ' + employee.fullName + ' حذف شد.', entity: 'پرسنل و خدمات', entityId: serviceId, operationType: 'employee_service_config_remove', isReversible: false);
     _commit();
   }
 
@@ -2071,15 +2072,25 @@ class AppDatabase extends ChangeNotifier {
     final relatedEntityIds = <String>{};
     if (resolvedTarget.undoAction == 'service_category_restore') {
       for (final raw in resolvedTarget.undoData!['services'] as List? ?? const []) {
-        final serviceId = (raw as Map)['id'];
+        final service = Map<String, dynamic>.from(raw as Map);
+        if (service['id'] is String) relatedEntityIds.add(service['id'] as String);
+      }
+    } else if (resolvedTarget.undoAction == 'service_deleted' || resolvedTarget.undoAction == 'service_restore') {
+      final service = resolvedTarget.undoAction == 'service_deleted'
+          ? Map<String, dynamic>.from(resolvedTarget.undoData!['service'] as Map)
+          : resolvedTarget.undoData!;
+      if (service['id'] is String) relatedEntityIds.add(service['id'] as String);
+      for (final employeeId in service['employee_ids'] as List? ?? const []) {
+        if (employeeId is String) relatedEntityIds.add(employeeId);
+      }
+    } else if (resolvedTarget.undoAction == 'employee_deleted' || resolvedTarget.undoAction == 'employee_restore') {
+      final employee = resolvedTarget.undoAction == 'employee_deleted'
+          ? Map<String, dynamic>.from(resolvedTarget.undoData!['employee'] as Map? ?? resolvedTarget.undoData!)
+          : resolvedTarget.undoData!;
+      if (employee['id'] is String) relatedEntityIds.add(employee['id'] as String);
+      for (final serviceId in employee['service_ids'] as List? ?? const []) {
         if (serviceId is String) relatedEntityIds.add(serviceId);
       }
-    } else if (resolvedTarget.undoAction == 'service_deleted') {
-      final serviceId = (resolvedTarget.undoData!['service'] as Map?)?['id'];
-      if (serviceId is String) relatedEntityIds.add(serviceId);
-    } else if (resolvedTarget.undoAction == 'employee_deleted') {
-      final employeeId = (resolvedTarget.undoData!['employee'] as Map?)?['id'];
-      if (employeeId is String) relatedEntityIds.add(employeeId);
     }
     return !_logs.any((other) {
       if (other.id == id || !other.createdAt.isAfter(resolvedTarget.createdAt)) return false;
