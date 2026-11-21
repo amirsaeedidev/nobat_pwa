@@ -1742,13 +1742,38 @@ class AppDatabase extends ChangeNotifier {
     return AttendanceSummary(presentDays:present.length,absentDays:absent.length,workedMinutes:worked,overtimeMinutes:overtime,lateMinutes:late,earlyLeaveMinutes:early);
   }
 
-  void saveAttendancePayrollPolicy(AttendancePayrollPolicy policy) {
+  bool saveAttendancePayrollPolicy(AttendancePayrollPolicy policy) {
     requirePermission('employees.edit');
     if (policy.lateDeductionPerMinute < 0 || policy.absenceDeductionPerDay < 0 || policy.overtimePaymentPerMinute < 0 || policy.earlyLeaveDeductionPerMinute < 0) {
       throw ArgumentError('مقادیر قانون مالی نمی‌توانند منفی باشند.');
     }
+    final previous = _attendancePayrollPolicy;
+    final changed = previous.enabled != policy.enabled ||
+        previous.lateDeductionPerMinute != policy.lateDeductionPerMinute ||
+        previous.absenceDeductionPerDay != policy.absenceDeductionPerDay ||
+        previous.overtimePaymentPerMinute != policy.overtimePaymentPerMinute ||
+        previous.earlyLeaveDeductionPerMinute != policy.earlyLeaveDeductionPerMinute;
+    if (!changed) return false;
     _attendancePayrollPolicy = policy;
+    log(
+      ActivityType.settingsChanged,
+      'تغییر قانون مالی حضور و غیاب',
+      'قواعد محاسبه اثر مالی تأخیر، غیبت، اضافه‌کاری و خروج زودهنگام تغییر کرد.',
+      entity: 'قانون مالی حضور و غیاب',
+      entityId: 'attendance-payroll-policy',
+      undoAction: 'attendance_payroll_policy_restore',
+      undoData: {
+        'enabled': previous.enabled,
+        'late_deduction_per_minute': previous.lateDeductionPerMinute,
+        'absence_deduction_per_day': previous.absenceDeductionPerDay,
+        'overtime_payment_per_minute': previous.overtimePaymentPerMinute,
+        'early_leave_deduction_per_minute': previous.earlyLeaveDeductionPerMinute,
+      },
+      operationType: 'financial_attendance_policy_update',
+      isReversible: true,
+    );
     _commit();
+    return true;
   }
 
   AttendancePayrollPreview attendancePayrollPreview(String employeeId,{required DateTime from,required DateTime to}) {
@@ -2201,6 +2226,15 @@ class AppDatabase extends ChangeNotifier {
           if (index >= 0) _services[index] = restored;
         }
         _serviceCategories.sort();
+        break;
+      case 'attendance_payroll_policy_restore':
+        _attendancePayrollPolicy = AttendancePayrollPolicy(
+          enabled: data['enabled'] as bool? ?? false,
+          lateDeductionPerMinute: data['late_deduction_per_minute'] as int? ?? 0,
+          absenceDeductionPerDay: data['absence_deduction_per_day'] as int? ?? 0,
+          overtimePaymentPerMinute: data['overtime_payment_per_minute'] as int? ?? 0,
+          earlyLeaveDeductionPerMinute: data['early_leave_deduction_per_minute'] as int? ?? 0,
+        );
         break;
       case 'pay_profile_restore':
         final employeeId = data['employee_id'] as String;
