@@ -322,6 +322,8 @@ class OperationsRepository {
     required String description,
     DateTime? createdAt,
     String? idempotencyKey,
+    String? referenceType,
+    String? referenceId,
   }) async {
     final key = idempotencyKey ?? 'wallet-entry:$employeeId:${DateTime.now().microsecondsSinceEpoch}';
     await _db.delay(50);
@@ -339,6 +341,8 @@ class OperationsRepository {
         description: description,
         createdAt: createdAt,
         idempotencyKey: key,
+        referenceType: referenceType,
+        referenceId: referenceId,
       ),
     );
   }
