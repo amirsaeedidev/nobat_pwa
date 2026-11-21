@@ -265,7 +265,7 @@ class ServicesPage extends StatelessWidget {
     final confirmed = await showSensitiveOperationDialog(
       context,
       title: 'حذف یا بایگانی خدمت',
-      description: 'اگر خدمت در سوابق نوبت‌ها استفاده شده باشد، به‌جای حذف دائمی بایگانی می‌شود. در غیر این صورت حذف قابل بازگردانی است.',
+      description: 'اگر خدمت در سوابق نوبت یا اسناد مالی استفاده شده باشد، به‌جای حذف دائمی بایگانی می‌شود. در غیر این صورت حذف قابل بازگردانی است.',
       recordDetails: {
         'نام خدمت': service.title,
         'دسته‌بندی': service.category,
