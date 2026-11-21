@@ -1,4 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+
+import 'package:datetime/app/theme/app_palette.dart';
+import 'package:datetime/core/widgets/sensitive_operation_dialog.dart';
+import 'package:datetime/data/repositories/activity_repository.dart';
+import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
 
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/models/appointment.dart';
