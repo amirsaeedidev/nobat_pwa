@@ -132,6 +132,61 @@ void main() {
     expect(operations.undo(audit.id), isFalse);
   });
 
+  test('role and permission assignment is audited and undo restores the previous role', () async {
+    final employee = db.employees.first;
+    final previous = db.accessAssignmentFor(employee.id)!;
+
+    await operations.assignEmployeeRole(
+      employeeId: employee.id,
+      roleId: 'operator',
+      overrides: const {'customers.view': false},
+      canViewOtherEmployees: false,
+      canViewPersonalIncome: false,
+    );
+
+    expect(db.accessAssignmentFor(employee.id)?.roleId, 'operator');
+    final audit = operations.latestUndoableLogFor(employee.id);
+    expect(audit?.operationType, 'access_assignment');
+    expect(audit?.isReversible, isTrue);
+
+    expect(operations.undoLatestForEntity(employee.id), isTrue);
+    expect(db.accessAssignmentFor(employee.id)?.roleId, previous.roleId);
+    expect(db.accessAssignmentFor(employee.id)?.overrides, previous.overrides);
+  });
+
+  test('service used in appointment history is archived and can be restored', () async {
+    const service = Service(
+      id: 'operation-service-history',
+      title: 'خدمت دارای سابقه',
+      price: 350000,
+      durationMinutes: 60,
+      category: 'آزمایش',
+    );
+    db.addService(service);
+    final appointment = Appointment(
+      id: 'operation-service-appointment',
+      reference: 'OP-003',
+      customerId: db.customers.first.id,
+      customerName: db.customers.first.fullName,
+      customerPhone: db.customers.first.phone,
+      serviceIds: const [service.id],
+      serviceName: service.title,
+      employeeId: db.employees.first.id,
+      employeeName: db.employees.first.fullName,
+      startAt: DateTime(2026, 11, 27, 12),
+      durationMinutes: 60,
+      price: service.price,
+    );
+    db.addAppointment(appointment);
+
+    await operations.deleteService(service.id);
+
+    expect(db.serviceById(service.id)?.isActive, isFalse);
+    expect(db.appointmentById(appointment.id)?.serviceIds, contains(service.id));
+    expect(operations.undoLatestForEntity(service.id), isTrue);
+    expect(db.serviceById(service.id)?.isActive, isTrue);
+  });
+
   test('failed operation does not consume its idempotency key', () {
     expect(
       () => db.executeSensitiveOperation<void>(
