@@ -12,8 +12,11 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/jalali_picker.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../../../../data/models/enums.dart';
 import '../../../customers/presentation/providers/customers_provider.dart';
 import '../providers/appointments_provider.dart';
@@ -396,17 +399,38 @@ class _StatusHero extends StatelessWidget {
                   icon: Icons.event_busy_rounded,
                   color: pal.danger,
                   onTap: () async {
-                    final confirmed = await showConfirmDialog(
+                    final confirmed = await showSensitiveOperationDialog(
                       context,
-                      title: 'لغو نوبت',
-                      message: 'آیا از لغو این نوبت مطمئن هستید؟',
+                      title: 'تأیید لغو نوبت',
+                      description: 'وضعیت نوبت به لغوشده تغییر می‌کند. این عملیات قابل بازگردانی است و سوابق مشتری و امور مالی حذف نمی‌شوند.',
+                      recordDetails: {
+                        'کد نوبت': appointment.reference,
+                        'مشتری': appointment.customerName,
+                        'خدمت': appointment.serviceName,
+                        'پرسنل': appointment.employeeName,
+                        'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
+                        'مبلغ': '${FaNum.ofInt(appointment.price.round())} تومان',
+                      },
+                      isReversible: true,
                       confirmLabel: 'لغو نوبت',
-                      destructive: true,
                     );
                     if (confirmed && context.mounted) {
-                      await context
-                          .read<AppointmentsProvider>()
-                          .changeStatus(appointment, AppointmentStatus.cancelled, reason: 'لغو توسط پرسنل');
+                      try {
+                        await context.read<AppointmentsProvider>().changeStatus(
+                          appointment, AppointmentStatus.cancelled, reason: 'لغو توسط پرسنل');
+                        if (context.mounted) {
+                          showUndoableOperationSnackBar(
+                            context,
+                            message: 'نوبت ${appointment.reference} لغو شد.',
+                            onUndo: () {
+                              OperationsRepository(context.read<AppDatabase>()).undoLatestForEntity(appointment.id);
+                              context.read<AppointmentsProvider>().load();
+                            },
+                          );
+                        }
+                      } catch (error) {
+                        if (context.mounted) AppToast.show(context, '$error', success: false);
+                      }
                     }
                   },
                 ),
