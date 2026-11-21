@@ -391,7 +391,11 @@ class OperationsRepository {
       entityId: financeEntryId,
       description: 'ثبت برگشت پورسانت به مبلغ $amount برای سند $financeEntryId.',
       reversible: false,
-      action: () => _db.recordCommissionRefund(financeEntryId, amount),
+      action: () {
+        final recorded = _db.recordCommissionRefund(financeEntryId, amount);
+        if (!recorded) throw StateError('سند پورسانت برای برگشت وجه پیدا نشد.');
+        return recorded;
+      },
     );
   }
 
