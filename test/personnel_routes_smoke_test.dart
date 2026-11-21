@@ -120,7 +120,7 @@ void main() {
       for (final path in paths) {
         router.go(path);
         try {
-          await tester.pump(Duration(milliseconds: width == 320 && path == '/employees/emp-fateme/schedule' ? 350 : 90));
+          await tester.pump(const Duration(milliseconds: 350));
         } catch (error) {
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
           fail('Responsive route failure at ${width.toInt()}px $path: $error');
