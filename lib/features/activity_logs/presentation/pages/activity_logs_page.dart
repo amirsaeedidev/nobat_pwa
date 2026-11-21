@@ -123,7 +123,7 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                             description: 'رکورد به آخرین وضعیت ثبت‌شده قبل از این عملیات بازمی‌گردد. اگر عملیات وابسته جدیدتری انجام شده باشد، سیستم اجازه بازگردانی ناسازگار نمی‌دهد.',
                             recordDetails: {
                               'عملیات': log.title,
-                              'نوع عملیات': log.operationType ?? log.type.label,
+                              'نوع عملیات': log.operationLabel,
                               'رکورد': log.entityName,
                               'شناسه رکورد': log.entityId.isEmpty ? 'ثبت نشده' : log.entityId,
                               'ثبت‌کننده': log.actor,
