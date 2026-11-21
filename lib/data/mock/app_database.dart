@@ -540,6 +540,7 @@ class AppDatabase extends ChangeNotifier {
     if (original == null) throw StateError('نقش پیش‌فرض پیدا نشد.');
     final previous = _accessRoles[roleId];
     if (previous == null) throw StateError('نقش پیدا نشد.');
+    if (previous.name == original.name && previous.permissionIds.toSet().difference(original.permissionIds.toSet()).isEmpty && original.permissionIds.toSet().difference(previous.permissionIds.toSet()).isEmpty) return;
     _accessRoles[roleId] = original;
     log(ActivityType.settingsChanged, 'بازنشانی نقش دسترسی', 'مجوزهای نقش «${previous.name}» به مقادیر پیش‌فرض بازنشانی شد.', entity: 'نقش دسترسی', entityId: roleId,
       undoAction: 'access_role_restore', undoData: {'id': previous.id, 'name': previous.name, 'permission_ids': previous.permissionIds, 'description': previous.description, 'is_system': previous.isSystem},
@@ -702,6 +703,7 @@ class AppDatabase extends ChangeNotifier {
     if (profile.monthlySalary < 0 || profile.generalRateBps < 0 || profile.generalRateBps > 10000) throw ArgumentError('حقوق یا درصد پورسانت معتبر نیست.');
     for (final rule in profile.rules) { if (rule.rateBps < 0 || rule.rateBps > 10000 || rule.fixedAmount < 0) throw ArgumentError('قانون پورسانت معتبر نیست.'); }
     final previous = _employeePayProfiles[profile.employeeId];
+    if (previous != null && previous.toJson().toString() == profile.toJson().toString()) return;
     _employeePayProfiles[profile.employeeId] = profile;
     log(ActivityType.settingsChanged, 'تغییر قرارداد مالی پرسنل', 'قواعد حقوق و پورسانت ذخیره شد.', entity: 'امور مالی پرسنل', entityId: profile.employeeId,
       undoAction: previous == null ? null : 'pay_profile_restore', undoData: previous?.toJson(),
