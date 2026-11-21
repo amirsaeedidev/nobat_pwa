@@ -70,14 +70,19 @@ class CustomerProfilePage extends StatelessWidget {
       try {
         await customersProvider.delete(customer.id);
         if (context.mounted) {
-          showUndoableOperationSnackBar(
-            context,
-            message: 'عملیات مشتری «${customer.fullName}» انجام شد.',
-            onUndo: () {
-              OperationsRepository(db).undoLatestForEntity(customer.id);
-              customersProvider.load();
-            },
-          );
+          final operations = OperationsRepository(db);
+          final undoLog = operations.latestUndoableLogFor(customer.id);
+          if (undoLog != null) {
+            showUndoableOperationSnackBarForLog(
+              context,
+              message: 'عملیات مشتری «${customer.fullName}» انجام شد.',
+              activityLogId: undoLog.id,
+              undo: operations.undo,
+              onUndoSuccess: customersProvider.load,
+            );
+          } else {
+            AppToast.show(context, 'عملیات مشتری انجام شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
+          }
           context.pop();
         }
       } catch (error) {
