@@ -5,7 +5,6 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
 import 'app_buttons.dart';
-import 'badges.dart';
 import 'app_top_bar.dart';
 
 /// پوسته استاندارد صفحه‌ها: نوار بالای موبایل، سربرگ دسکتاپ و محتوای واکنش‌گرا.
