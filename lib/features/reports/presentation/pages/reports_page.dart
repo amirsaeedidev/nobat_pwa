@@ -417,6 +417,7 @@ class _AddAppointmentPaymentDialog extends StatefulWidget {
 }
 
 class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDialog> {
+  late final String _operationKey = 'receipt-${DateTime.now().microsecondsSinceEpoch}';
   final _amount = TextEditingController();
   final _description = TextEditingController(text: 'دریافت وجه نوبت');
   late List<Appointment> _appointments;
@@ -479,7 +480,7 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
         amount: amount,
         method: _method,
         description: _description.text.trim(),
-        idempotencyKey: 'receipt-${appointment.id}-${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: _operationKey,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
@@ -533,6 +534,7 @@ class _AddBusinessExpenseDialog extends StatefulWidget {
 }
 
 class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
+  late final String _expenseId = widget.database.nextId('expense');
   final _amount = TextEditingController();
   final _description = TextEditingController();
   final _source = TextEditingController();
@@ -554,7 +556,7 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
       return;
     }
     final expense = BusinessExpense(
-      id: widget.database.nextId('expense'),
+      id: _expenseId,
       createdAt: DateTime.now(),
       amount: amount,
       category: _category,
@@ -662,6 +664,7 @@ class _RefundPaymentDialog extends StatefulWidget {
 }
 
 class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
+  late final String _operationKey = 'refund-${widget.payment.id}-${DateTime.now().microsecondsSinceEpoch}';
   final _amount = TextEditingController();
   final _description = TextEditingController(text: 'برگشت وجه مشتری');
   String? _error;
@@ -699,7 +702,7 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
         paymentId: widget.payment.id,
         amount: amount,
         description: _description.text.trim(),
-        idempotencyKey: 'refund-${widget.payment.id}-${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: _operationKey,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
