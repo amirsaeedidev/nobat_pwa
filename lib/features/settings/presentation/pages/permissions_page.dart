@@ -7,8 +7,10 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/access_control.dart';
+import '../../../../data/repositories/operations_repository.dart';
 
 class PermissionsPage extends StatefulWidget {
   const PermissionsPage({super.key});
@@ -165,19 +167,82 @@ class _PermissionsPageState extends State<PermissionsPage> {
     );
   }
 
-  void _saveAssignment(AppDatabase db, String employeeId, String roleId, Map<String, bool> overrides, bool other, bool income) {
+  Future<void> _saveAssignment(AppDatabase db, String employeeId, String roleId, Map<String, bool> overrides, bool other, bool income) async {
+    final employee = db.employeeById(employeeId);
+    final previous = db.accessAssignmentFor(employeeId);
+    final oldRole = db.accessRoleById(previous?.roleId ?? 'staff')?.name ?? 'پرسنل';
+    final newRole = db.accessRoleById(roleId)?.name ?? roleId;
+    final confirmed = await showSensitiveOperationDialog(
+      context,
+      title: 'تغییر نقش و سطح دسترسی',
+      description: 'این تغییر بلافاصله روی دسترسی صفحه‌ها، اطلاعات پرسنل و داده‌های مالی اثر می‌گذارد.',
+      recordDetails: {
+        'پرسنل': employee?.fullName ?? employeeId,
+        'نقش قبلی': oldRole,
+        'نقش جدید': newRole,
+        'مشاهده سایر پرسنل': other ? 'مجاز' : 'ممنوع',
+        'مشاهده درآمد شخصی': income ? 'مجاز' : 'ممنوع',
+        'استثناهای دسترسی': overrides.length.toString(),
+      },
+      isReversible: true,
+      confirmLabel: 'ثبت تغییر دسترسی',
+    );
+    if (!confirmed || !mounted) return;
     try {
-      db.assignEmployeeAccess(employeeId: employeeId, roleId: roleId, overrides: overrides,
-        canViewOtherEmployees: other, canViewPersonalIncome: income);
-      AppToast.show(context, 'دسترسی پرسنل ذخیره شد.');
-    } catch (error) { AppToast.show(context, '$error', success: false); }
+      await OperationsRepository(db).assignEmployeeRole(
+        employeeId: employeeId,
+        roleId: roleId,
+        overrides: overrides,
+        canViewOtherEmployees: other,
+        canViewPersonalIncome: income,
+      );
+      if (mounted) {
+        showUndoableOperationSnackBar(
+          context,
+          message: 'سطح دسترسی پرسنل به‌روزرسانی شد.',
+          onUndo: () {
+            OperationsRepository(db).undoLatestForEntity(employeeId);
+            if (mounted) setState(() {});
+          },
+        );
+      }
+    } catch (error) {
+      if (mounted) AppToast.show(context, '$error', success: false);
+    }
   }
 
-  void _toggleRolePermission(AppDatabase db, AccessRole role, String id, bool enabled) {
+  Future<void> _toggleRolePermission(AppDatabase db, AccessRole role, String id, bool enabled) async {
+    final permission = AccessPermission.all.where((item) => item.id == id).firstOrNull;
     final ids = role.permissionIds.toSet();
     enabled ? ids.add(id) : ids.remove(id);
-    try { db.updateAccessRole(role.id, name: role.name, permissionIds: ids.toList()); }
-    catch (error) { AppToast.show(context, '$error', success: false); }
+    final confirmed = await showSensitiveOperationDialog(
+      context,
+      title: 'تغییر مجوز نقش',
+      description: 'با این تغییر، دسترسی تمام حساب‌هایی که از این نقش استفاده می‌کنند به‌روزرسانی می‌شود.',
+      recordDetails: {
+        'نقش': role.name,
+        'مجوز': permission?.label ?? id,
+        'وضعیت جدید': enabled ? 'فعال' : 'غیرفعال',
+      },
+      isReversible: true,
+      confirmLabel: 'ثبت مجوز',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      db.updateAccessRole(role.id, name: role.name, permissionIds: ids.toList());
+      if (mounted) {
+        showUndoableOperationSnackBar(
+          context,
+          message: 'مجوز نقش تغییر کرد.',
+          onUndo: () {
+            OperationsRepository(db).undoLatestForEntity(role.id);
+            if (mounted) setState(() {});
+          },
+        );
+      }
+    } catch (error) {
+      if (mounted) AppToast.show(context, '$error', success: false);
+    }
   }
 
   Future<void> _createRole() async {
@@ -217,8 +282,30 @@ class _PermissionsPageState extends State<PermissionsPage> {
     name.dispose();
   }
 
-  void _resetRole(AppDatabase db, AccessRole role) {
-    try { db.resetAccessRole(role.id); AppToast.show(context, 'دسترسی‌های پیش‌فرض بازنشانی شد.'); }
-    catch (error) { AppToast.show(context, '$error', success: false); }
+  Future<void> _resetRole(AppDatabase db, AccessRole role) async {
+    final confirmed = await showSensitiveOperationDialog(
+      context,
+      title: 'بازنشانی نقش',
+      description: 'تمام مجوزهای سفارشی این نقش با مقادیر پیش‌فرض جایگزین می‌شوند.',
+      recordDetails: {'نقش': role.name, 'تعداد مجوز فعلی': role.permissionIds.length.toString()},
+      isReversible: true,
+      confirmLabel: 'بازنشانی نقش',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      db.resetAccessRole(role.id);
+      if (mounted) {
+        showUndoableOperationSnackBar(
+          context,
+          message: 'مجوزهای نقش بازنشانی شد.',
+          onUndo: () {
+            OperationsRepository(db).undoLatestForEntity(role.id);
+            if (mounted) setState(() {});
+          },
+        );
+      }
+    } catch (error) {
+      if (mounted) AppToast.show(context, '$error', success: false);
+    }
   }
 }
