@@ -42,6 +42,7 @@ class AppTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final compactLogoHeader = MediaQuery.sizeOf(context).width < 400;
+    final narrowHeader = MediaQuery.sizeOf(context).width < 360;
     return Container(
       decoration: BoxDecoration(
         color: pal.backgroundAlt,
@@ -50,7 +51,7 @@ class AppTopBar extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+          padding: EdgeInsets.fromLTRB(narrowHeader ? 12 : 14, 8, narrowHeader ? 12 : 14, 10),
           child: Column(
             children: [
               if (showLogo)
