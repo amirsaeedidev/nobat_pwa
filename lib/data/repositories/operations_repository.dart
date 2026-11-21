@@ -1,5 +1,9 @@
 import '../mock/app_database.dart';
 import '../models/activity_log.dart';
+import '../models/business_finance.dart';
+import '../models/employee_finance.dart';
+import '../models/employee_payroll.dart';
+import '../models/employee_wallet.dart';
 import '../models/employee_wallet.dart';
 import '../models/enums.dart';
 
@@ -176,6 +180,218 @@ class OperationsRepository {
         canViewOtherEmployees: canViewOtherEmployees,
         canViewPersonalIncome: canViewPersonalIncome,
       ),
+    );
+  }
+
+  Future<void> updateAccessRole(String roleId, {required String name, required List<String> permissionIds}) async {
+    await _db.delay(40);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'access-role-update:$roleId:${DateTime.now().microsecondsSinceEpoch}',
+      operationType: 'access_role_update',
+      entityName: 'نقش دسترسی',
+      entityId: roleId,
+      description: 'ویرایش نقش «$name» و مجوزهای آن.',
+      reversible: true,
+      action: () => _db.updateAccessRole(roleId, name: name, permissionIds: permissionIds),
+    );
+  }
+
+  Future<void> resetAccessRole(String roleId) async {
+    await _db.delay(40);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'access-role-reset:$roleId:${DateTime.now().microsecondsSinceEpoch}',
+      operationType: 'access_role_reset',
+      entityName: 'نقش دسترسی',
+      entityId: roleId,
+      description: 'بازنشانی نقش دسترسی $roleId به مقادیر پیش‌فرض.',
+      reversible: true,
+      action: () => _db.resetAccessRole(roleId),
+    );
+  }
+
+  Future<void> savePayProfile(EmployeePayProfile profile) async {
+    await _db.delay(50);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'pay-profile-update:${profile.employeeId}:${DateTime.now().microsecondsSinceEpoch}',
+      operationType: 'financial_pay_profile_update',
+      entityName: 'قرارداد مالی پرسنل',
+      entityId: profile.employeeId,
+      description: 'تغییر مدل پرداخت و پورسانت پرسنل ${_db.employeeById(profile.employeeId)?.fullName ?? profile.employeeId}.',
+      reversible: true,
+      action: () => _db.savePayProfile(profile),
+    );
+  }
+
+  Future<void> saveSalaryContract(SalaryContract contract) async {
+    await _db.delay(50);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'salary-contract:${contract.id}',
+      operationType: 'financial_salary_contract_create',
+      entityName: 'قرارداد حقوق',
+      entityId: contract.id,
+      description: 'ثبت قرارداد حقوق برای پرسنل ${contract.employeeId}.',
+      reversible: false,
+      action: () => _db.saveSalaryContract(contract),
+    );
+  }
+
+  Future<void> addPayrollAdjustment(PayrollAdjustment adjustment) async {
+    await _db.delay(50);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'payroll-adjustment:${adjustment.id}',
+      operationType: 'financial_payroll_adjustment',
+      entityName: 'آیتم حقوق',
+      entityId: adjustment.id,
+      description: 'ثبت پاداش یا کسورات برای پرسنل ${adjustment.employeeId}.',
+      reversible: false,
+      action: () => _db.addPayrollAdjustment(adjustment),
+    );
+  }
+
+  Future<void> addPayrollAdvance(PayrollAdvance advance) async {
+    await _db.delay(50);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'payroll-advance:${advance.id}',
+      operationType: 'financial_payroll_advance',
+      entityName: 'مساعده پرسنل',
+      entityId: advance.id,
+      description: 'ثبت مساعده برای پرسنل ${advance.employeeId}.',
+      reversible: false,
+      action: () => _db.addPayrollAdvance(advance),
+    );
+  }
+
+  Future<EmployeeWalletTransaction> addWalletTransaction({
+    required String employeeId,
+    required int amount,
+    required EmployeeWalletTransactionType type,
+    required String description,
+    DateTime? createdAt,
+    String? idempotencyKey,
+  }) async {
+    final key = idempotencyKey ?? 'wallet-entry:$employeeId:${DateTime.now().microsecondsSinceEpoch}';
+    await _db.delay(50);
+    return _db.executeSensitiveOperation<EmployeeWalletTransaction>(
+      idempotencyKey: key,
+      operationType: 'financial_wallet_entry',
+      entityName: 'کیف پول پرسنل',
+      entityId: employeeId,
+      description: 'ثبت تراکنش «${type.label}» برای پرسنل $employeeId.',
+      reversible: false,
+      action: () => _db.addWalletTransaction(
+        employeeId: employeeId,
+        amount: amount,
+        type: type,
+        description: description,
+        createdAt: createdAt,
+        idempotencyKey: key,
+      ),
+    );
+  }
+
+  Future<EmployeeWalletSettlement> settleEmployeeWallet({
+    required String employeeId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    required EmployeeWalletPeriodType periodType,
+    required int paidAmount,
+    required String idempotencyKey,
+  }) async {
+    await _db.delay(50);
+    return _db.executeSensitiveOperation<EmployeeWalletSettlement>(
+      idempotencyKey: idempotencyKey,
+      operationType: 'financial_wallet_settlement',
+      entityName: 'تسویه کیف پول',
+      entityId: employeeId,
+      description: 'ثبت پرداخت $paidAmount برای تسویه پرسنل $employeeId.',
+      reversible: false,
+      action: () => _db.settleEmployeeWallet(
+        employeeId: employeeId,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        periodType: periodType,
+        paidAmount: paidAmount,
+        idempotencyKey: idempotencyKey,
+      ),
+    );
+  }
+
+  Future<AppointmentPayment> recordAppointmentPayment({
+    required String appointmentId,
+    required int amount,
+    required BusinessPaymentMethod method,
+    required String description,
+    DateTime? createdAt,
+    required String idempotencyKey,
+  }) async {
+    await _db.delay(50);
+    return _db.executeSensitiveOperation<AppointmentPayment>(
+      idempotencyKey: idempotencyKey,
+      operationType: 'financial_payment_create',
+      entityName: 'دریافت مشتری',
+      entityId: appointmentId,
+      description: 'ثبت دریافت $amount برای نوبت $appointmentId.',
+      reversible: false,
+      action: () => _db.recordAppointmentPayment(
+        appointmentId: appointmentId,
+        amount: amount,
+        method: method,
+        description: description,
+        createdAt: createdAt,
+        idempotencyKey: idempotencyKey,
+      ),
+    );
+  }
+
+  Future<AppointmentPayment> refundAppointmentPayment({
+    required String paymentId,
+    required int amount,
+    required String description,
+    DateTime? createdAt,
+    required String idempotencyKey,
+  }) async {
+    await _db.delay(50);
+    return _db.executeSensitiveOperation<AppointmentPayment>(
+      idempotencyKey: idempotencyKey,
+      operationType: 'financial_refund',
+      entityName: 'برگشت وجه مشتری',
+      entityId: paymentId,
+      description: 'ثبت برگشت $amount برای رسید $paymentId.',
+      reversible: false,
+      action: () => _db.refundAppointmentPayment(
+        paymentId: paymentId,
+        amount: amount,
+        description: description,
+        createdAt: createdAt,
+        idempotencyKey: idempotencyKey,
+      ),
+    );
+  }
+
+  Future<void> addBusinessExpense(BusinessExpense expense) async {
+    await _db.delay(50);
+    _db.executeSensitiveOperation<void>(
+      idempotencyKey: 'business-expense:${expense.id}',
+      operationType: 'financial_expense_create',
+      entityName: 'هزینه مجموعه',
+      entityId: expense.id,
+      description: 'ثبت هزینه ${expense.amount} با سند ${expense.sourceDocumentId}.',
+      reversible: false,
+      action: () => _db.addBusinessExpense(expense),
+    );
+  }
+
+  Future<bool> recordCommissionRefund(String financeEntryId, int amount) async {
+    final key = 'commission-refund:$financeEntryId:$amount:${DateTime.now().microsecondsSinceEpoch}';
+    await _db.delay(50);
+    return _db.executeSensitiveOperation<bool>(
+      idempotencyKey: key,
+      operationType: 'financial_commission_refund',
+      entityName: 'برگشت پورسانت',
+      entityId: financeEntryId,
+      description: 'ثبت برگشت پورسانت به مبلغ $amount برای سند $financeEntryId.',
+      reversible: false,
+      action: () => _db.recordCommissionRefund(financeEntryId, amount),
     );
   }
 
