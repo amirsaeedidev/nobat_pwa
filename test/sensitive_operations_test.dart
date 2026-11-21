@@ -639,6 +639,7 @@ void main() {
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
     addTearDown(provider.dispose);
+    provider.search(customer.id);
     await provider.load();
 
     await tester.pumpWidget(
@@ -650,8 +651,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final undoButton = find.byTooltip('بازگردانی این تغییر');
-    expect(undoButton, findsAtLeastNWidgets(1));
-    await tester.tap(undoButton.first);
+    expect(undoButton, findsOneWidget);
+    await tester.tap(undoButton);
     await tester.pumpAndSettle();
 
     expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
