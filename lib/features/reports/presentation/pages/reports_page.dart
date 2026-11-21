@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
@@ -22,6 +23,7 @@ import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/employee_finance.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
 import '../widgets/operational_reports_sections.dart';
@@ -448,23 +450,40 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
     if (_selected == null || amount == null || amount <= 0 || _description.text.trim().isEmpty) {
       setState(() => _error = 'نوبت، مبلغ و شرح پرداخت را کامل کنید.');
       return;
     }
+    final appointment = _selected!;
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید ثبت دریافت مشتری',
+      description: 'رسید دریافت به دفتر مالی اضافه می‌شود و به‌صورت مستقیم حذف یا Undo نخواهد شد.',
+      recordDetails: {
+        'کد نوبت': appointment.reference,
+        'مشتری': appointment.customerName,
+        'مبلغ دریافت': '${FaNum.ofInt(amount)} تومان',
+        'روش پرداخت': _method.label,
+        'شرح': _description.text.trim(),
+      },
+      isReversible: false,
+      warning: 'برای اصلاح دریافت باید برگشت وجه و سند مالی معکوس ثبت شود.',
+      confirmLabel: 'ثبت رسید دریافت',
+    );
+    if (!approved || !mounted) return;
     try {
-      widget.database.recordAppointmentPayment(
-        appointmentId: _selected!.id,
+      await OperationsRepository(widget.database).recordAppointmentPayment(
+        appointmentId: appointment.id,
         amount: amount,
         method: _method,
         description: _description.text.trim(),
-        idempotencyKey: 'receipt-${_selected!.id}-${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: 'receipt-${appointment.id}-${DateTime.now().microsecondsSinceEpoch}',
       );
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (error) {
-      setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = error.toString());
     }
   }
 
@@ -528,25 +547,42 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
     if (amount == null || amount <= 0 || _description.text.trim().isEmpty || _source.text.trim().isEmpty) {
       setState(() => _error = 'مبلغ، شرح و شناسه سند منبع را کامل و معتبر وارد کنید.');
       return;
     }
+    final expense = BusinessExpense(
+      id: widget.database.nextId('expense'),
+      createdAt: DateTime.now(),
+      amount: amount,
+      category: _category,
+      description: _description.text.trim(),
+      sourceDocumentId: _source.text.trim(),
+      createdBy: widget.database.currentAccessAccount.name,
+    );
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید ثبت هزینه مجموعه',
+      description: 'هزینه به دفتر مالی ثبت می‌شود و سند اصلی حذف یا Undo نمی‌شود.',
+      recordDetails: {
+        'دسته‌بندی': _category.label,
+        'مبلغ': '${FaNum.ofInt(amount)} تومان',
+        'شرح': expense.description,
+        'سند منبع': expense.sourceDocumentId,
+        'ثبت‌کننده': expense.createdBy,
+      },
+      isReversible: false,
+      warning: 'سند هزینه پس از ثبت تغییرناپذیر است؛ اصلاح آن باید با سند مالی جداگانه انجام شود.',
+      confirmLabel: 'ثبت هزینه',
+    );
+    if (!approved || !mounted) return;
     try {
-      widget.database.addBusinessExpense(BusinessExpense(
-        id: widget.database.nextId('expense'),
-        createdAt: DateTime.now(),
-        amount: amount,
-        category: _category,
-        description: _description.text.trim(),
-        sourceDocumentId: _source.text.trim(),
-        createdBy: widget.database.currentAccessAccount.name,
-      ));
-      Navigator.of(context).pop();
+      await OperationsRepository(widget.database).addBusinessExpense(expense);
+      if (mounted) Navigator.of(context).pop();
     } catch (error) {
-      setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = error.toString());
     }
   }
 
@@ -637,22 +673,37 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
     if (amount == null || amount <= 0 || _description.text.trim().isEmpty) {
       setState(() => _error = 'مبلغ و شرح برگشت وجه را وارد کنید.');
       return;
     }
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید برگشت وجه',
+      description: 'سند برگشت وجه به‌عنوان رکورد مالی جدید ثبت می‌شود و رسید اصلی دست‌نخورده باقی می‌ماند.',
+      recordDetails: {
+        'شناسه رسید': widget.payment.id,
+        'مبلغ برگشتی': '${FaNum.ofInt(amount)} تومان',
+        'روش پرداخت': widget.payment.method.label,
+        'شرح': _description.text.trim(),
+      },
+      isReversible: false,
+      warning: 'برگشت وجه یک سند مالی قطعی است و Undo ندارد.',
+      confirmLabel: 'ثبت برگشت وجه',
+    );
+    if (!approved || !mounted) return;
     try {
-      widget.database.refundAppointmentPayment(
+      await OperationsRepository(widget.database).refundAppointmentPayment(
         paymentId: widget.payment.id,
         amount: amount,
         description: _description.text.trim(),
         idempotencyKey: 'refund-${widget.payment.id}-${DateTime.now().microsecondsSinceEpoch}',
       );
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (error) {
-      setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = error.toString());
     }
   }
 
