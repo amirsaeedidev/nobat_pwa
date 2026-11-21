@@ -620,7 +620,7 @@ class AppDatabase extends ChangeNotifier {
     return null;
   }
 
-  void addAppointment(Appointment appointment, {String actor = 'پذیرش'}) {
+  void addAppointment(Appointment appointment, {String? actor}) {
     requirePermission('appointments.create');
     _appointments.add(appointment);
     log(
@@ -629,13 +629,16 @@ class AppDatabase extends ChangeNotifier {
       'نوبت ${appointment.serviceName} برای ${appointment.customerName} در ${appointment.jalali.long} ساعت ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')} ثبت شد.',
       actor: actor,
       entity: 'نوبت',
+      entityId: appointment.id,
       undoAction: 'appointment_created',
       undoData: appointment.toJson(),
+      operationType: 'appointment_create',
+      isReversible: true,
     );
     _commit();
   }
 
-  void updateAppointment(Appointment appointment, {String actor = 'پذیرش'}) {
+  void updateAppointment(Appointment appointment, {String? actor}) {
     requirePermission('appointments.edit');
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
@@ -656,7 +659,7 @@ class AppDatabase extends ChangeNotifier {
     _commit();
   }
 
-  void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String actor = 'پذیرش', String? operationType}) {
+  void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String? actor, String? operationType}) {
     requirePermission(status == AppointmentStatus.cancelled ? 'appointments.cancel' : status == AppointmentStatus.completed ? 'appointments.complete' : 'appointments.edit');
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
@@ -1321,7 +1324,7 @@ class AppDatabase extends ChangeNotifier {
     ));
   }
 
-  void reschedule(Appointment appointment, DateTime newStart, {String actor = 'پذیرش', bool byCustomer = false}) {
+  void reschedule(Appointment appointment, DateTime newStart, {String? actor, bool byCustomer = false}) {
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
