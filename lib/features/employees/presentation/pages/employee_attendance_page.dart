@@ -4,8 +4,10 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_hr.dart';
+import '../../../../data/repositories/operations_repository.dart';
 import '../../../../core/utils/fa_num.dart';
 
 class EmployeeAttendancePage extends StatelessWidget {
@@ -53,7 +55,7 @@ class EmployeeAttendancePage extends StatelessWidget {
    if(canManage)AppCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const SectionHeader(title:'پیش‌نمایش اثر مالی حضور و غیاب'),
     Material(color:Colors.transparent,child:SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('فعال‌سازی قانون مالی حضور و غیاب'),value:db.attendancePayrollPolicy.enabled,onChanged:(v){
-      final p=db.attendancePayrollPolicy;db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:v,lateDeductionPerMinute:p.lateDeductionPerMinute,absenceDeductionPerDay:p.absenceDeductionPerDay,overtimePaymentPerMinute:p.overtimePaymentPerMinute,earlyLeaveDeductionPerMinute:p.earlyLeaveDeductionPerMinute));
+      final p=db.attendancePayrollPolicy;_savePolicy(context,db,AttendancePayrollPolicy(enabled:v,lateDeductionPerMinute:p.lateDeductionPerMinute,absenceDeductionPerDay:p.absenceDeductionPerDay,overtimePaymentPerMinute:p.overtimePaymentPerMinute,earlyLeaveDeductionPerMinute:p.earlyLeaveDeductionPerMinute));
     })),
     SoftButton(label:'تنظیم نرخ‌ها',icon:Icons.tune,onTap:()=>_configurePolicy(context,db)),
     Builder(builder:(context){
@@ -111,8 +113,41 @@ class EmployeeAttendancePage extends StatelessWidget {
    TextField(controller:overtime,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'پرداخت هر دقیقه اضافه‌کاری (تومان)')),
    TextField(controller:early,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کسر هر دقیقه خروج زودهنگام (تومان)')),
   ]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('ذخیره نرخ‌ها'))]));
-  if(ok==true&&context.mounted){try{db.saveAttendancePayrollPolicy(AttendancePayrollPolicy(enabled:p.enabled,lateDeductionPerMinute:int.parse(FaNum.toLatin(late.text)),absenceDeductionPerDay:int.parse(FaNum.toLatin(absence.text)),overtimePaymentPerMinute:int.parse(FaNum.toLatin(overtime.text)),earlyLeaveDeductionPerMinute:int.parse(FaNum.toLatin(early.text))));AppToast.show(context,'قانون مالی ذخیره شد.');}catch(e){AppToast.show(context,e.toString(),success:false);}}
+  if(ok==true&&context.mounted){try{await _savePolicy(context,db,AttendancePayrollPolicy(enabled:p.enabled,lateDeductionPerMinute:int.parse(FaNum.toLatin(late.text)),absenceDeductionPerDay:int.parse(FaNum.toLatin(absence.text)),overtimePaymentPerMinute:int.parse(FaNum.toLatin(overtime.text)),earlyLeaveDeductionPerMinute:int.parse(FaNum.toLatin(early.text))));}catch(e){AppToast.show(context,e.toString(),success:false);}}
   late.dispose();absence.dispose();overtime.dispose();early.dispose();
+ }
+ static Future<void> _savePolicy(BuildContext context,AppDatabase db,AttendancePayrollPolicy next) async {
+  final previous=db.attendancePayrollPolicy;
+  final approved=await showSensitiveOperationDialog(
+   context,
+   title:'تأیید تغییر قانون مالی حضور و غیاب',
+   description:'این تغییر بر محاسبه حقوق و اثر مالی حضور و غیاب دوره‌های بعد اثر می‌گذارد. تغییر قابل بازگردانی است و در تاریخچه فعالیت ثبت می‌شود.',
+   recordDetails:{
+    'فعال‌سازی':'${previous.enabled?'فعال':'غیرفعال'} ← ${next.enabled?'فعال':'غیرفعال'}',
+    'کسر هر دقیقه تأخیر':'${FaNum.ofInt(previous.lateDeductionPerMinute)} ← ${FaNum.ofInt(next.lateDeductionPerMinute)} تومان',
+    'کسر هر روز غیبت':'${FaNum.ofInt(previous.absenceDeductionPerDay)} ← ${FaNum.ofInt(next.absenceDeductionPerDay)} تومان',
+    'پرداخت اضافه‌کاری':'${FaNum.ofInt(previous.overtimePaymentPerMinute)} ← ${FaNum.ofInt(next.overtimePaymentPerMinute)} تومان',
+    'کسر خروج زودهنگام':'${FaNum.ofInt(previous.earlyLeaveDeductionPerMinute)} ← ${FaNum.ofInt(next.earlyLeaveDeductionPerMinute)} تومان',
+   },
+   isReversible:true,
+   confirmLabel:'ذخیره قانون مالی',
+  );
+  if(!approved||!context.mounted)return;
+  try{
+   final changed=await OperationsRepository(db).saveAttendancePayrollPolicy(next);
+   if(!context.mounted)return;
+   if(!changed){AppToast.show(context,'تغییری برای ثبت وجود نداشت.');return;}
+   showUndoableOperationSnackBar(
+    context,
+    message:'قانون مالی حضور و غیاب ذخیره شد.',
+    onUndo:(){
+     final restored=OperationsRepository(db).undoLatestForEntity('attendance-payroll-policy');
+     if(!restored&&context.mounted)AppToast.show(context,'بازگردانی به‌دلیل تغییرات جدیدتر امکان‌پذیر نیست.',success:false);
+    },
+   );
+  }catch(error){
+   if(context.mounted)AppToast.show(context,'ذخیره قانون مالی انجام نشد: $error',success:false);
+  }
  }
  static int _number(String value)=>int.tryParse(FaNum.toLatin(value))??0;
  static Future<void> _manualCorrection(BuildContext context,AppDatabase db,String id) async {
