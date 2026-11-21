@@ -13,7 +13,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    for (final width in [320.0, 360.0, 375.0, 390.0, 414.0, 768.0, 1280.0]) {
+    for (final width in [320.0, 360.0, 375.0, 390.0, 414.0, 430.0, 768.0, 1024.0, 1280.0, 1366.0, 1920.0]) {
       tester.view.physicalSize = Size(width, 900);
       await tester.pumpWidget(
         MaterialApp(
