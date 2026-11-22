@@ -197,11 +197,14 @@ class MockDashboardRepository implements DashboardRepository {
       }
       return categories;
     }
-    bool matchesReportAppointment(Appointment item) {
+    bool matchesReportAppointment(Appointment item, {DateTime? paymentFrom, DateTime? paymentTo}) {
       if (!filter.matches(item, serviceCategories: serviceCategoriesFor(item))) return false;
       if (filter.paymentMethod == null) return true;
       return _db.appointmentPayments.any((payment) =>
-        payment.appointmentId == item.id && payment.method.name == filter.paymentMethod);
+        payment.appointmentId == item.id &&
+        payment.method.name == filter.paymentMethod &&
+        (paymentFrom == null || !payment.createdAt.isBefore(paymentFrom)) &&
+        (paymentTo == null || payment.createdAt.isBefore(paymentTo)));
     }
     final operationalAppointments = appointments.where(matchesReportAppointment).toList();
     final operationalCompleted = operationalAppointments.where((item) => item.status == AppointmentStatus.completed).toList();
@@ -676,7 +679,8 @@ class MockDashboardRepository implements DashboardRepository {
     }
     final previousPeriodAppointments = _db.appointments.where((item) =>
       canSeeAppointment(item) && !item.startAt.isBefore(previousStart) &&
-      item.startAt.isBefore(previousEnd) && matchesReportAppointment(item)).length;
+      item.startAt.isBefore(previousEnd) &&
+      matchesReportAppointment(item, paymentFrom: previousStart, paymentTo: previousEnd)).length;
     final previousEntries = allVisibleFinanceEntries.where((item) =>
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
@@ -703,6 +707,7 @@ class MockDashboardRepository implements DashboardRepository {
       item.status == AdvanceStatus.paid &&
       (canViewAll || employeeId == item.employeeId) &&
       _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
+      (filter.employeeId == null || filter.employeeId == item.employeeId) &&
       !item.requestedAt.isBefore(range.start) && item.requestedAt.isBefore(range.endExclusive))
       .fold<int>(0, (sum, item) => sum + item.outstanding);
     final settlements = _db.employeeWalletSettlements.where((item) =>
