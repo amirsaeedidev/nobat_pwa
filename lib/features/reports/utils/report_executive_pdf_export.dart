@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/report_analytics.dart';
+import '../../../../data/models/employee_wallet.dart';
 
 class ReportExecutivePdfExport {
   const ReportExecutivePdfExport._();
@@ -125,6 +126,41 @@ class ReportExecutivePdfExport {
                 pw.TableRow(children: [cell(item.name), cell(item.lifetimeVisits.toString()), cell(item.totalSpent.round().toString())]),
             ]),
             pw.SizedBox(height: 10),
+            pw.SizedBox(height: 14),
+            pw.Text('تراکنش‌های دریافت و برگشت وجه', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
+              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
+                children: [cell('شرح', header: true), cell('روش', header: true), cell('نوع', header: true), cell('مبلغ', header: true)]),
+              for (final item in analytics.paymentTransactions.take(40))
+                pw.TableRow(children: [
+                  cell(item.description), cell(item.method.label),
+                  cell(item.type.name == 'refund' ? 'برگشت وجه' : 'دریافت'),
+                  cell(item.signedAmount.toString()),
+                ]),
+            ]),
+            pw.SizedBox(height: 14),
+            pw.Text('تسویه‌های پرسنل', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
+              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
+                children: [cell('رسید', header: true), cell('وضعیت', header: true), cell('مبلغ پرداختی', header: true), cell('مانده', header: true)]),
+              for (final item in analytics.settlements.take(40))
+                pw.TableRow(children: [
+                  cell(item.receiptNumber),
+                  cell(item.status.name == 'completed' ? 'کامل' : 'جزئی'),
+                  cell(item.paidAmount.toString()), cell(item.remainingAfter.toString()),
+                ]),
+            ]),
+            pw.SizedBox(height: 14),
+            pw.Text('هزینه‌های ثبت‌شده مجموعه', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
+              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
+                children: [cell('دسته', header: true), cell('شرح', header: true), cell('سند منبع', header: true), cell('مبلغ', header: true)]),
+              for (final item in analytics.businessExpenses.take(40))
+                pw.TableRow(children: [
+                  cell(item.category.label), cell(item.description),
+                  cell(item.sourceDocumentId), cell(item.amount.toString()),
+                ]),
+            ]),
             pw.Text('این گزارش به‌صورت محلی از داده‌های Datamonck تولید شده است.',
               style: pw.TextStyle(font: font, fontSize: 7, color: PdfColors.grey700)),
           ]),
