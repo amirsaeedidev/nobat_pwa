@@ -5,6 +5,7 @@ import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/enums.dart';
+import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/repositories/dashboard_repository.dart';
 
 enum ReportServiceSort { revenue, bookings, profit }
