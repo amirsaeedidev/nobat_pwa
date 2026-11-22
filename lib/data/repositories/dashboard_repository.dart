@@ -1,6 +1,7 @@
 import '../../core/utils/jalali.dart';
 import '../mock/app_database.dart';
 import '../models/appointment.dart';
+import '../models/customer.dart';
 import '../models/dashboard_stats.dart';
 import '../models/enums.dart';
 import '../models/employee_finance.dart';
