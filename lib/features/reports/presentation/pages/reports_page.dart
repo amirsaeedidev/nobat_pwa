@@ -138,13 +138,13 @@ class ReportsPage extends StatelessWidget {
                           const EmptyState(title: 'برای این روز نوبتی ثبت نشده', compact: true)
                         else
                           for (final item in dayAppointments)
-                            ListTile(
+                            Material(color: Colors.transparent, child: ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(item.status.icon, color: item.status.color),
                               title: Text(item.customerName),
                               subtitle: Text('${item.serviceName} · ${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}'),
                               trailing: StatusBadge.appointment(item.status, dense: true),
-                            ),
+                            )),
                         const Divider(height: 18),
                         Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
                           style: TextStyle(fontSize: 10, color: pal.textMuted)),
@@ -162,13 +162,13 @@ class ReportsPage extends StatelessWidget {
                           const EmptyState(title: 'عملکردی برای نمایش وجود ندارد', compact: true)
                         else
                           for (final entry in dayEmployeeTotals.entries)
-                            ListTile(
+                            Material(color: Colors.transparent, child: ListTile(
                               dense: true, contentPadding: EdgeInsets.zero,
                               leading: const HugeIcon(icon: HugeIcons.strokeRoundedUser, size: 18),
                               title: Text(entry.key, style: const TextStyle(fontSize: 11)),
                               subtitle: Text('${FaNum.ofInt(entry.value.count)} نوبت تکمیل‌شده', style: const TextStyle(fontSize: 9)),
                               trailing: Text(Fmt.compactMoney(entry.value.revenue), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
-                            ),
+                            )),
                       ])),
                       const SizedBox(height: 12),
                     ],
@@ -419,19 +419,29 @@ class ReportsPage extends StatelessWidget {
                       final statusCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         const SectionHeader(title: 'توزیع وضعیت نوبت‌ها'),
                         const SizedBox(height: 12),
-                        Row(children: [
-                          StatusDonut(counts: provider.statusCounts, size: 126),
-                          const SizedBox(width: 10),
-                          Expanded(child: Column(children: [
+                        LayoutBuilder(builder: (context, inner) {
+                          final legend = Column(children: [
                             for (final status in AppointmentStatus.values)
                               Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [
                                 Container(width: 7, height: 7, decoration: BoxDecoration(color: status.color, shape: BoxShape.circle)),
                                 const SizedBox(width: 6),
-                                Expanded(child: Text(status.label, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
+                                Expanded(child: Text(status.label, style: TextStyle(fontSize: 10.5, color: pal.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                 Text(FaNum.ofInt(provider.statusCounts[status.label] ?? 0), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
                               ])),
-                          ])),
-                        ]),
+                          ]);
+                          if (inner.maxWidth < 340) {
+                            return Column(children: [
+                              Center(child: StatusDonut(counts: provider.statusCounts, size: 126)),
+                              const SizedBox(height: 10),
+                              legend,
+                            ]);
+                          }
+                          return Row(children: [
+                            StatusDonut(counts: provider.statusCounts, size: 126),
+                            const SizedBox(width: 10),
+                            Expanded(child: legend),
+                          ]);
+                        }),
                       ]));
                       final employeeCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         const SectionHeader(title: 'عملکرد پرسنل', subtitle: 'درآمد خدمات و کمیسیون ثبت‌شده'),
@@ -717,7 +727,7 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
                 itemBuilder: (context, index) {
                   final payment = payments[index];
                   final appointment = database.appointmentById(payment.appointmentId);
-                  return ListTile(
+                  return Material(color: Colors.transparent, child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     onTap: () => showDialog<void>(
                       context: context,
@@ -747,7 +757,7 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
                           builder: (_) => _RefundPaymentDialog(database: database, payment: payment),
                         ), child: const Text('برگشت وجه')),
                     ]),
-                  );
+                  ));
                 },
               )),
         ]),
@@ -959,13 +969,13 @@ class _RecentAppointments extends StatelessWidget {
     const SizedBox(height: 8),
     if (items.isEmpty) const EmptyState(compact: true, title: 'نوبتی در این بازه ثبت نشده')
     else for (final item in items)
-      ListTile(
+      Material(color: Colors.transparent, child: ListTile(
         dense: true, contentPadding: EdgeInsets.zero,
         leading: HugeIcon(icon: HugeIcons.strokeRoundedAppointment01, color: item.status.color, size: 19),
         title: Text(item.customerName, style: const TextStyle(fontSize: 12)),
         subtitle: Text('${item.serviceName} · ${JalaliDate.fromDateTime(item.startAt).short}', style: const TextStyle(fontSize: 10)),
         trailing: StatusBadge.appointment(item.status, dense: true),
-      ),
+      )),
   ]));
 }
 
@@ -980,7 +990,7 @@ class _RecentTransactions extends StatelessWidget {
       const SizedBox(height: 8),
       if (items.isEmpty) const EmptyState(compact: true, title: 'تراکنش قابل نمایشی وجود ندارد')
       else for (final item in items)
-        ListTile(
+        Material(color: Colors.transparent, child: ListTile(
           dense: true, contentPadding: EdgeInsets.zero,
           onTap: () {
             final appointment = item.appointmentId == null ? null : context.read<AppDatabase>().appointmentById(item.appointmentId!);
@@ -1005,7 +1015,7 @@ class _RecentTransactions extends StatelessWidget {
           title: Text(item.description, style: const TextStyle(fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text('${item.type.label} · ${JalaliDate.fromDateTime(item.createdAt).short}', style: TextStyle(fontSize: 10, color: pal.textMuted)),
           trailing: Text(Fmt.compactMoney(item.amount.abs()), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: item.amount >= 0 ? pal.success : pal.danger)),
-        ),
+        )),
     ]));
   }
 }
