@@ -193,6 +193,7 @@ class AppTopBar extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 }
