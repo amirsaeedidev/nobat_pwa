@@ -286,7 +286,22 @@ class ReportsPage extends StatelessWidget {
                           child: TextButton(onPressed: provider.clearFilters, child: const Text('پاک کردن فیلترها'))),
                     ])),
                     const SizedBox(height: 12),
-                    ReportsPhaseFivePanel(database: db, provider: provider),
+                    ExpansionPanelList.radio(
+                      elevation: 0,
+                      expandedHeaderPadding: const EdgeInsets.symmetric(vertical: 4),
+                      dividerColor: pal.border,
+                      materialGapSize: 8,
+                      children: [
+                        ExpansionPanelRadio(
+                          value: 'salon', canTapOnHeader: true,
+                          headerBuilder: (context, expanded) => const ListTile(
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedStore01, size: 21),
+                            title: Text('گزارش سالن', style: TextStyle(fontWeight: FontWeight.w800)),
+                            subtitle: Text('شاخص‌های مالی، نمودارها، خدمات و وضعیت نوبت‌ها'),
+                          ),
+                          body: Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                              ReportsPhaseFivePanel(database: db, provider: provider),
                     const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
@@ -443,13 +458,7 @@ class ReportsPage extends StatelessWidget {
                           ]);
                         }),
                       ]));
-                      final employeeCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const SectionHeader(title: 'عملکرد پرسنل', subtitle: 'درآمد خدمات و کمیسیون ثبت‌شده'),
-                        const SizedBox(height: 12),
-                        _RankedList(items: [
-                          for (final item in provider.analytics.employees) RevenuePoint(label: item.name, value: item.revenue),
-                        ], color: pal.primaryBright),
-                      ]));
+
                       final serviceCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         const SectionHeader(title: 'خدمات پرفروش'),
                         const SizedBox(height: 12),
@@ -458,15 +467,12 @@ class ReportsPage extends StatelessWidget {
                       if (!wide) return Column(children: [
                         if (canViewOperations) statusCard,
                         if (canViewOperations) const SizedBox(height: 12),
-                        employeeCard,
-                        if (canViewOperations) const SizedBox(height: 12),
                         if (canViewOperations) serviceCard,
                       ]);
-                      if (!canViewOperations) return employeeCard;
                       return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Expanded(flex: 4, child: statusCard),
                         const SizedBox(width: 12),
-                        Expanded(flex: 5, child: Column(children: [employeeCard, const SizedBox(height: 12), serviceCard])),
+                        Expanded(flex: 5, child: serviceCard),
                       ]);
                     }),
                     const SizedBox(height: 12),
@@ -475,6 +481,38 @@ class ReportsPage extends StatelessWidget {
                     else
                       AppCard(child: Text('دسترسی به جزئیات نوبت‌ها و گزارش‌های عملیاتی برای نقش فعلی فعال نیست؛ گزارش‌های مالی مطابق مجوز شما نمایش داده می‌شوند.',
                         style: TextStyle(fontSize: 11, color: pal.textMuted))),
+                    const SizedBox(height: 12),
+                            ])),
+                        ),
+                        ExpansionPanelRadio(
+                          value: 'personnel', canTapOnHeader: true,
+                          headerBuilder: (context, expanded) => const ListTile(
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedUserGroup, size: 21),
+                            title: Text('گزارش پرسنل', style: TextStyle(fontWeight: FontWeight.w800)),
+                            subtitle: Text('عملکرد و درآمد خدمات پرسنل'),
+                          ),
+                          body: Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                            child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              const SectionHeader(title: 'عملکرد پرسنل', subtitle: 'درآمد خدمات و کمیسیون ثبت‌شده'),
+                              const SizedBox(height: 12),
+                              _RankedList(items: [
+                                for (final item in provider.analytics.employees)
+                                  RevenuePoint(label: item.name, value: item.revenue),
+                              ], color: pal.primaryBright),
+                            ]))),
+                        ),
+                        ExpansionPanelRadio(
+                          value: 'pdf', canTapOnHeader: true,
+                          headerBuilder: (context, expanded) => const ListTile(
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedFilePdf, size: 21),
+                            title: Text('خروجی PDF', style: TextStyle(fontWeight: FontWeight.w800)),
+                            subtitle: Text('ذخیره گزارش در قالب PDF'),
+                          ),
+                          body: Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                            child: ReportsPhaseFivePanel(database: db, provider: provider, exportOnly: true)),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     if (canViewOperations)
                       _BusyHoursCard(items: provider.analytics.operationalAppointments),
