@@ -139,6 +139,17 @@ class ReportExecutivePdfExport {
                 ]),
             ]),
             pw.SizedBox(height: 14),
+            pw.Text('دفتر کل کیف پول پرسنل', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
+              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
+                children: [cell('نوع', header: true), cell('شرح', header: true), cell('تاریخ', header: true), cell('مبلغ', header: true)]),
+              for (final item in analytics.walletTransactions.take(60))
+                pw.TableRow(children: [
+                  cell(item.type.label), cell(item.description),
+                  cell(JalaliDate.fromDateTime(item.createdAt).short), cell(item.amount.toString()),
+                ]),
+            ]),
+            pw.SizedBox(height: 14),
             pw.Text('تسویه‌های پرسنل', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
