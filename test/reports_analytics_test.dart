@@ -77,6 +77,12 @@ void main() {
       expect(dashboard.totalRevenue, report.revenue);
       expect(dashboard.monthRevenue, report.revenue);
       expect(series.single.value, report.revenue);
+
+      final allTime = await repository.fetchReportAnalytics(range: ReportDateRange.custom(
+        JalaliDate(1400, 1, 1), JalaliDate(1450, 1, 1),
+      ));
+      final services = await repository.fetchServiceRevenue(limit: 100);
+      expect(services.fold<num>(0, (sum, item) => sum + item.value), allTime.revenue);
     });
 
     test('accountant sees financial ledgers but not operational or customer details', () async {
