@@ -46,17 +46,16 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi
 
       - name: Verify APK package, size and signature
         shell: bash
         run: |
           set -euo pipefail
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          test -s "$APK"
-          APK_SIZE_BYTES="$(stat -c%s "$APK")"
-          if [ "$APK_SIZE_BYTES" -lt 5000000 ] || [ "$APK_SIZE_BYTES" -gt 150000000 ]; then
-            echo "::error::APK size outside expected test-build range: $APK_SIZE_BYTES bytes"
+          shopt -s nullglob
+          APKS=(build/app/outputs/flutter-apk/*-release.apk)
+          if [ "${#APKS[@]}" -eq 0 ]; then
+            echo "::error::No split release APKs were generated."
             exit 1
           fi
           SDK_ROOT="$ANDROID_HOME"
@@ -64,25 +63,31 @@ jobs:
           AAPT="$(find "$SDK_ROOT/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           test -n "$APKSIGNER"
           test -n "$AAPT"
-          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-signature.txt
-          "$AAPT" dump badging "$APK" | grep -F "package: name='com.datetime.datetime'" >/dev/null
-          APK_SIZE_MB="$(awk -v bytes="$APK_SIZE_BYTES" 'BEGIN { printf "%.1f", bytes / 1048576 }')"
           {
             echo "## Android Release APK verification"
             echo
-            echo "- Build mode: **Release**"
+            echo "- Build mode: **Release / split per ABI**"
             echo "- Package: **com.datetime.datetime**"
-            echo "- APK size: **$APK_SIZE_MB MB**"
-            echo "- APK signature: **Verified by apksigner**"
             echo "- Signing: **Debug keystore for test builds; not Play Store signing**"
             echo
-            cat apk-signature.txt
           } >> "$GITHUB_STEP_SUMMARY"
+          for APK in "${APKS[@]}"; do
+            test -s "$APK"
+            APK_SIZE_BYTES="$(stat -c%s "$APK")"
+            if [ "$APK_SIZE_BYTES" -lt 3000000 ] || [ "$APK_SIZE_BYTES" -gt 100000000 ]; then
+              echo "::error::APK size outside expected split-build range: $APK ($APK_SIZE_BYTES bytes)"
+              exit 1
+            fi
+            "$APKSIGNER" verify --verbose --print-certs "$APK" > apk-signature.txt
+            "$AAPT" dump badging "$APK" | grep -F "package: name='com.datetime.datetime'" >/dev/null
+            APK_SIZE_MB="$(awk -v bytes="$APK_SIZE_BYTES" 'BEGIN { printf "%.1f", bytes / 1048576 }')"
+            echo "- `$(basename "$APK")`: **$APK_SIZE_MB MB**, signature verified" >> "$GITHUB_STEP_SUMMARY"
+          done
 
       - name: Upload release APK
         uses: actions/upload-artifact@v6
         with:
           name: nobat-amir-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/*-release.apk
           if-no-files-found: error
           retention-days: 14
