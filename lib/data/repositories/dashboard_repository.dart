@@ -339,39 +339,52 @@ class MockDashboardRepository implements DashboardRepository {
       paidByAppointment[payment.appointmentId] =
           (paidByAppointment[payment.appointmentId] ?? 0) + payment.signedAmount;
     }
+    final financeCompletedAppointments = canViewAppointments
+      ? completed
+      : _db.appointments.where((item) =>
+          range.contains(item.startAt) &&
+          item.status == AppointmentStatus.completed &&
+          (canViewAllFinancial || employeeId == item.employeeId) &&
+          _db.hasPermission('finance.income.view', employeeId: item.employeeId) &&
+          matchesReportAppointment(item)).toList();
+    final canViewCustomerDetails = canViewAppointments && _db.hasPermission('customers.view');
     final debtByCustomer = <String, int>{};
     final debtNameByCustomer = <String, String>{};
     final debtAppointments = <String, int>{};
     final partialPayments = <AppointmentPayment>[];
     var receivables = 0;
-    for (final appointment in completed.where((item) =>
+    for (final appointment in financeCompletedAppointments.where((item) =>
       _db.hasPermission('finance.income.view', employeeId: item.employeeId))) {
       final due = (recognizedByAppointment[appointment.id] ?? appointment.price.round()) -
           (paidByAppointment[appointment.id] ?? 0);
       if (due > 0) {
         receivables += due;
-        debtByCustomer[appointment.customerId] = (debtByCustomer[appointment.customerId] ?? 0) + due;
-        debtNameByCustomer[appointment.customerId] = appointment.customerName;
-        debtAppointments[appointment.customerId] = (debtAppointments[appointment.customerId] ?? 0) + 1;
-        if ((paidByAppointment[appointment.id] ?? 0) > 0) {
-          partialPayments.addAll(allVisiblePayments.where((payment) =>
-            payment.appointmentId == appointment.id && payment.type == BusinessPaymentType.receipt));
+        if (canViewCustomerDetails) {
+          debtByCustomer[appointment.customerId] = (debtByCustomer[appointment.customerId] ?? 0) + due;
+          debtNameByCustomer[appointment.customerId] = appointment.customerName;
+          debtAppointments[appointment.customerId] = (debtAppointments[appointment.customerId] ?? 0) + 1;
+          if ((paidByAppointment[appointment.id] ?? 0) > 0) {
+            partialPayments.addAll(allVisiblePayments.where((payment) =>
+              payment.appointmentId == appointment.id && payment.type == BusinessPaymentType.receipt));
+          }
         }
       }
     }
-    final customerDebts = debtByCustomer.entries.map((entry) => ReportCustomerDebt(
-      customerId: entry.key,
-      customerName: debtNameByCustomer[entry.key] ?? 'مشتری',
-      amount: entry.value,
-      appointmentCount: debtAppointments[entry.key] ?? 0,
-    )).toList()..sort((a, b) => b.amount.compareTo(a.amount));
+    final customerDebts = canViewCustomerDetails
+      ? debtByCustomer.entries.map((entry) => ReportCustomerDebt(
+          customerId: entry.key,
+          customerName: debtNameByCustomer[entry.key] ?? 'مشتری',
+          amount: entry.value,
+          appointmentCount: debtAppointments[entry.key] ?? 0,
+        )).toList()..sort((a, b) => b.amount.compareTo(a.amount))
+      : <ReportCustomerDebt>[];
 
     final employeeRevenue = <String, num>{};
     final employeeNames = <String, String>{};
-    for (final appointment in completed) {
-      if (!_db.hasPermission('finance.income.view', employeeId: appointment.employeeId)) continue;
-      employeeRevenue[appointment.employeeId] = (employeeRevenue[appointment.employeeId] ?? 0) + (revenueByAppointmentInRange[appointment.id] ?? 0);
-      employeeNames[appointment.employeeId] = appointment.employeeName;
+    for (final entry in revenueEntries) {
+      employeeRevenue[entry.employeeId] = (employeeRevenue[entry.employeeId] ?? 0) + entry.receivedAmount;
+      final employee = _db.employees.where((item) => item.id == entry.employeeId).toList();
+      employeeNames[entry.employeeId] = employee.isEmpty ? 'پرسنل' : employee.first.fullName;
     }
     final employeeIds = <String>{...employeeRevenue.keys, ...commissionByEmployee.keys};
     final employeeMetrics = employeeIds.map((id) {
@@ -471,9 +484,11 @@ class MockDashboardRepository implements DashboardRepository {
 
     final now = DateTime.now();
     final restrictCustomerScope = !canViewAll || !filter.isEmpty;
-    final candidateCustomers = restrictCustomerScope
-      ? _db.customers.where((customer) => operationalAppointments.any((item) => item.customerId == customer.id))
-      : _db.customers.where((customer) => filter.customerId == null || customer.id == filter.customerId);
+    final candidateCustomers = !canViewCustomerDetails
+      ? <Customer>[]
+      : restrictCustomerScope
+        ? _db.customers.where((customer) => operationalAppointments.any((item) => item.customerId == customer.id))
+        : _db.customers.where((customer) => filter.customerId == null || customer.id == filter.customerId);
     final customerMetrics = candidateCustomers.map((customer) {
       final lifetimeVisits = _db.appointments.where((item) =>
         canSeeAppointment(item) && item.customerId == customer.id && item.status == AppointmentStatus.completed).toList()
