@@ -138,7 +138,13 @@ class OperationalReportsSections extends StatelessWidget {
                 DataColumn(label: Text('حاشیه سود')),
                 DataColumn(label: Text('پرسنل')),
               ],
-              rows: [for (final item in services) DataRow(cells: [
+              rows: [for (final item in services) DataRow(
+                onSelectChanged: (_) => showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+                  title: Text(item.name),
+                  content: Text('تعداد ارائه: ${item.count}\nدرآمد: ${Fmt.compactMoney(item.revenue)}\nمیانگین قیمت: ${Fmt.compactMoney(item.averagePrice)}\nهزینه مستقیم: ${item.directCost == null ? 'ثبت نشده' : Fmt.compactMoney(item.directCost!)}\nسود: ${item.profit == null ? 'نامشخص' : Fmt.compactMoney(item.profit!)}'),
+                  actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
+                )),
+                cells: [
                 DataCell(Text(item.name)),
                 DataCell(Text(FaNum.ofInt(item.count))),
                 DataCell(Text(Fmt.compactMoney(item.revenue))),
@@ -215,7 +221,13 @@ class OperationalReportsSections extends StatelessWidget {
                 DataColumn(label: Text('فاصله میان مراجعات')),
                 DataColumn(label: Text('وضعیت')),
               ],
-              rows: [for (final item in customers) DataRow(cells: [
+              rows: [for (final item in customers) DataRow(
+                onSelectChanged: (_) => showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+                  title: Text(item.name),
+                  content: Text('مراجعات این بازه: ${item.visits}\nکل مراجعات: ${item.lifetimeVisits}\nمراجعه مجدد: ${item.repeatVisits}\nمجموع خرید: ${Fmt.compactMoney(item.totalSpent)}\nاولین مراجعه: ${item.firstVisitAt == null ? '—' : JalaliDate.fromDateTime(item.firstVisitAt!).long}\nآخرین مراجعه: ${item.lastVisitAt == null ? '—' : JalaliDate.fromDateTime(item.lastVisitAt!).long}'),
+                  actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
+                )),
+                cells: [
                 DataCell(Text(item.name)),
                 DataCell(Text(FaNum.ofInt(item.visits))),
                 DataCell(Text(FaNum.ofInt(item.lifetimeVisits))),
@@ -253,32 +265,7 @@ class OperationalReportsSections extends StatelessWidget {
         if (appointments.isEmpty)
           const EmptyState(title: 'نوبتی مطابق فیلترها وجود ندارد', compact: true)
         else
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 18,
-              columns: const [
-                DataColumn(label: Text('کد')),
-                DataColumn(label: Text('مشتری')),
-                DataColumn(label: Text('خدمت')),
-                DataColumn(label: Text('پرسنل')),
-                DataColumn(label: Text('تاریخ')),
-                DataColumn(label: Text('ساعت')),
-                DataColumn(label: Text('وضعیت')),
-                DataColumn(label: Text('مبلغ')),
-              ],
-              rows: [for (final item in appointments) DataRow(cells: [
-                DataCell(Text(item.reference)),
-                DataCell(Text(item.customerName)),
-                DataCell(Text(item.serviceName)),
-                DataCell(Text(item.employeeName)),
-                DataCell(Text(item.jalali.short)),
-                DataCell(Text('${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}')),
-                DataCell(Text(item.status.label, style: TextStyle(color: item.status.color))),
-                DataCell(Text(Fmt.compactMoney(item.price))),
-              ])],
-            ),
-          ),
+          _AppointmentReportTable(items: appointments),
       ])),
       const SizedBox(height: 12),
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -327,6 +314,114 @@ class OperationalReportsSections extends StatelessWidget {
               ])),
             ])),
       ])),
+    ]);
+  }
+}
+
+class _AppointmentReportTable extends StatefulWidget {
+  const _AppointmentReportTable({required this.items});
+  final List<Appointment> items;
+
+  @override
+  State<_AppointmentReportTable> createState() => _AppointmentReportTableState();
+}
+
+class _AppointmentReportTableState extends State<_AppointmentReportTable> {
+  int _page = 0;
+  int _pageSize = 10;
+  int _sortColumn = 4;
+  bool _ascending = false;
+
+  void _sort(int column, bool ascending) {
+    setState(() {
+      _sortColumn = column;
+      _ascending = ascending;
+      _page = 0;
+    });
+  }
+
+  List<Appointment> get _sorted {
+    final result = [...widget.items];
+    int compare(Appointment a, Appointment b) => switch (_sortColumn) {
+      0 => a.reference.compareTo(b.reference),
+      1 => a.customerName.compareTo(b.customerName),
+      2 => a.serviceName.compareTo(b.serviceName),
+      3 => a.employeeName.compareTo(b.employeeName),
+      4 || 5 => a.startAt.compareTo(b.startAt),
+      6 => a.status.index.compareTo(b.status.index),
+      _ => a.price.compareTo(b.price),
+    };
+    result.sort((a, b) => _ascending ? compare(a, b) : compare(b, a));
+    return result;
+  }
+
+  void _showDetails(Appointment item) {
+    showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+      title: Text('جزئیات نوبت ${item.reference}'),
+      content: SingleChildScrollView(child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('مشتری: ${item.customerName}'),
+          Text('خدمت: ${item.serviceName}'),
+          Text('پرسنل: ${item.employeeName}'),
+          Text('تاریخ: ${item.jalali.long}'),
+          Text('ساعت: ${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}'),
+          Text('مدت: ${item.durationMinutes} دقیقه'),
+          Text('وضعیت: ${item.status.label}'),
+          Text('مبلغ: ${Fmt.compactMoney(item.price)}'),
+          if (item.cancelReason != null && item.cancelReason!.isNotEmpty) Text('علت لغو: ${item.cancelReason}'),
+        ],
+      )),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _sorted;
+    final pageCount = (rows.length / _pageSize).ceil().clamp(1, 1 << 20);
+    if (_page >= pageCount) _page = pageCount - 1;
+    final start = _page * _pageSize;
+    final visible = rows.skip(start).take(_pageSize);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          sortColumnIndex: _sortColumn,
+          sortAscending: _ascending,
+          columnSpacing: 18,
+          columns: [
+            for (final entry in ['کد', 'مشتری', 'خدمت', 'پرسنل', 'تاریخ', 'ساعت', 'وضعیت', 'مبلغ'].asMap().entries)
+              DataColumn(label: Text(entry.value), onSort: (_, ascending) => _sort(entry.key, ascending)),
+          ],
+          rows: [for (final item in visible) DataRow(
+            onSelectChanged: (_) => _showDetails(item),
+            cells: [
+              DataCell(Text(item.reference)),
+              DataCell(Text(item.customerName)),
+              DataCell(Text(item.serviceName)),
+              DataCell(Text(item.employeeName)),
+              DataCell(Text(item.jalali.short)),
+              DataCell(Text('${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}')),
+              DataCell(Text(item.status.label, style: TextStyle(color: item.status.color))),
+              DataCell(Text(Fmt.compactMoney(item.price))),
+            ],
+          )],
+        ),
+      ),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text('صفحه ${_page + 1} از $pageCount · ${rows.length} ردیف', style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
+        Wrap(spacing: 4, children: [
+          DropdownButton<int>(
+            value: _pageSize,
+            items: const [5, 10, 20, 50].map((value) => DropdownMenuItem(value: value, child: Text('$value ردیف'))).toList(),
+            onChanged: (value) => setState(() { _pageSize = value ?? 10; _page = 0; }),
+          ),
+          TextButton(onPressed: _page > 0 ? () => setState(() => _page--) : null, child: const Text('قبلی')),
+          TextButton(onPressed: _page + 1 < pageCount ? () => setState(() => _page++) : null, child: const Text('بعدی')),
+        ]),
+      ]),
     ]);
   }
 }
