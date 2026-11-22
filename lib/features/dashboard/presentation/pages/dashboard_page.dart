@@ -35,7 +35,8 @@ class DashboardPage extends StatelessWidget {
     final business = context.watch<SettingsProvider>().settings;
     final website = business?.website.trim() ?? '';
     final slug = business?.publicSlug.trim() ?? '';
-    final publicUrl = website.isEmpty || slug.isEmpty ? '' : '${website.replaceFirst(RegExp(r'/+$'
+    final baseUrl = website.endsWith('/') ? website.substring(0, website.length - 1) : website;
+    final publicUrl = baseUrl.isEmpty || slug.isEmpty ? '' : '$baseUrl/book/$slug';
     return PageScaffold(
       title: 'پیشخوان',
       subtitle: 'نمای کلی عملکرد مجموعه',
