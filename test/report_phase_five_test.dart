@@ -79,12 +79,16 @@ void main() {
         endExclusive: now.add(const Duration(days: 30)).toIso8601String(),
         columns: const ['درآمد', 'سود خالص'],
         createdAt: now, serviceId: 'service-1', statusName: 'completed',
+        category: 'زیبایی', paymentMethod: 'pos', settlementStatusName: 'partial',
       );
       await store.saveView(view);
       final views = await store.loadViews();
       expect(views.single.name, 'گزارش ماهانه');
       expect(views.single.columns, ['درآمد', 'سود خالص']);
       expect(views.single.serviceId, 'service-1');
+      expect(views.single.category, 'زیبایی');
+      expect(views.single.paymentMethod, 'pos');
+      expect(views.single.settlementStatusName, 'partial');
 
       await store.addHistory(ReportHistorySnapshot(
         id: 'history-1', title: 'نسخه اول', range: 'آبان',
