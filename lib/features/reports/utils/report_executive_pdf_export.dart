@@ -25,13 +25,23 @@ class ReportExecutivePdfExport {
     );
     final generatedAt = DateTime.now();
     final values = <String, String>{
-      'درآمد': analytics.revenue.round().toString(),
+      'درآمد ناخالص': analytics.grossRevenue.round().toString(),
+      'تخفیف': analytics.discounts.round().toString(),
+      'درآمد': analytics.netRevenue.round().toString(),
+      'وصول‌شده': analytics.collectedRevenue.round().toString(),
       'هزینه': analytics.cost.round().toString(),
       'سود خالص': analytics.netProfit.round().toString(),
+      'سهم مجموعه': analytics.companyShare.round().toString(),
+      'پورسانت پرسنل': analytics.commissionCost.round().toString(),
+      'حقوق پرداختی': analytics.staffPaid.round().toString(),
+      'مطالبات': analytics.receivables.round().toString(),
       'نوبت': analytics.totalAppointments.toString(),
       'تکمیل‌شده': analytics.completedAppointments.toString(),
+      'لغوشده': analytics.cancelledAppointments.toString(),
+      'عدم مراجعه': analytics.noShowAppointments.toString(),
       'مشتری یکتا': analytics.uniqueCustomers.toString(),
       'نرخ بازگشت': '${analytics.repeatCustomerRate.toStringAsFixed(1)}٪',
+      'میانگین مدت نوبت': '${analytics.averageAppointmentMinutes.round()} دقیقه',
     };
 
     pw.Widget cell(String value, {bool header = false}) => pw.Padding(
