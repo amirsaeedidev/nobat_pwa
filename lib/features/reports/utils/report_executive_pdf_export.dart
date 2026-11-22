@@ -111,7 +111,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('خدمت', header: true), cell('تعداد', header: true), cell('درآمد', header: true)]),
-              for (final item in analytics.services.take(10))
+              for (final item in analytics.services)
                 pw.TableRow(children: [cell(item.name), cell(item.count.toString()), cell(item.revenue.round().toString())]),
             ]),
             pw.SizedBox(height: 14),
@@ -119,7 +119,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('پرسنل', header: true), cell('درآمد', header: true), cell('پورسانت', header: true)]),
-              for (final item in analytics.employees.take(10))
+              for (final item in analytics.employees)
                 pw.TableRow(children: [cell(item.name), cell(item.revenue.round().toString()), cell(item.commission.round().toString())]),
             ]),
             pw.SizedBox(height: 14),
@@ -127,7 +127,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('مشتری', header: true), cell('مراجعه', header: true), cell('مجموع خرید', header: true)]),
-              for (final item in analytics.customerMetrics.take(10))
+              for (final item in analytics.customerMetrics)
                 pw.TableRow(children: [cell(item.name), cell(item.lifetimeVisits.toString()), cell(item.totalSpent.round().toString())]),
             ]),
             pw.SizedBox(height: 10),
