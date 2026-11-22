@@ -250,7 +250,7 @@ class MockDashboardRepository implements DashboardRepository {
     final allVisibleFinanceEntries = _db.employeeFinanceEntries.where((entry) {
       final appointment = _db.appointmentById(entry.appointmentId);
       return (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-        (canViewAll || employeeId == entry.employeeId) &&
+        (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
         appointment != null && matchesReportAppointment(appointment);
     }).toList();
@@ -275,7 +275,7 @@ class MockDashboardRepository implements DashboardRepository {
         ? _db.employeeWalletTransactions.where((entry) =>
             range.contains(entry.createdAt) &&
             entry.status == EmployeeWalletTransactionStatus.posted &&
-            (canViewAll || employeeId == entry.employeeId) &&
+            (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
             _db.hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
             (filter.employeeId == null || filter.employeeId == entry.employeeId)).toList()
         : <EmployeeWalletTransaction>[];
@@ -490,7 +490,7 @@ class MockDashboardRepository implements DashboardRepository {
       final customerIncomeEntries = _db.employeeFinanceEntries.where((entry) =>
         lifetimeAppointmentIds.contains(entry.appointmentId) &&
         (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-        (canViewAll || employeeId == entry.employeeId) &&
+        (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId)).toList();
       final totalSpent = customerIncomeEntries.isEmpty
         ? lifetimeVisits.fold<num>(0, (sum, item) => sum + item.price)
@@ -690,7 +690,7 @@ class MockDashboardRepository implements DashboardRepository {
       final appointment = _db.appointmentById(entry.appointmentId);
       return !entry.createdAt.isBefore(previousStart) && entry.createdAt.isBefore(previousEnd) &&
         (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-        (canViewAll || employeeId == entry.employeeId) &&
+        (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
         appointment != null &&
         matchesReportAppointment(appointment, paymentFrom: previousStart, paymentTo: previousEnd);
@@ -717,7 +717,7 @@ class MockDashboardRepository implements DashboardRepository {
         ? _db.employeeWalletTransactions.where((item) =>
             item.status == EmployeeWalletTransactionStatus.posted &&
             item.createdAt.isBefore(range.endExclusive) &&
-            (canViewAll || employeeId == item.employeeId) &&
+            (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
             (filter.employeeId == null || filter.employeeId == item.employeeId) &&
             _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
             (item.type != EmployeeWalletTransactionType.commission ||
@@ -727,13 +727,13 @@ class MockDashboardRepository implements DashboardRepository {
     final staffPayable = walletBalanceEntries.fold<int>(0, (sum, item) => sum + item.amount);
     final advancesOutstanding = _db.payrollAdvances.where((item) =>
       item.status == AdvanceStatus.paid &&
-      (canViewAll || employeeId == item.employeeId) &&
+      (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
       _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
       (filter.employeeId == null || filter.employeeId == item.employeeId) &&
       item.requestedAt.isBefore(range.endExclusive))
       .fold<int>(0, (sum, item) => sum + item.outstanding);
     final settlements = _db.employeeWalletSettlements.where((item) =>
-      range.contains(item.createdAt) && (canViewAll || employeeId == item.employeeId) &&
+      range.contains(item.createdAt) && (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
       _db.hasPermission('finance.settlement.view', employeeId: item.employeeId) &&
       (filter.employeeId == null || filter.employeeId == item.employeeId) &&
       (filter.settlementStatus == null || item.status == filter.settlementStatus)).toList()
