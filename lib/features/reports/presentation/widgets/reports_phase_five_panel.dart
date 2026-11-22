@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -145,39 +144,6 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     ));
     await _loadStore();
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
-  }
-
-  Future<void> _print() async {
-    if (_exporting) return;
-    setState(() => _exporting = true);
-    try {
-      widget.database.requirePermission('finance.income.view');
-      final p = widget.provider;
-      final comparison = p.comparisonAnalytics ?? ReportAnalytics.empty(p.comparisonRange);
-      if (kIsWeb) {
-        // Keep the offline PWA independent from the remote PDF.js loader used
-        // by browser print previews. Save the generated PDF locally instead.
-        await ReportExecutivePdfExport.save(
-          analytics: p.analytics,
-          comparison: comparison,
-          title: 'گزارش مدیریتی DateTime',
-          columns: _columns.toList(),
-        );
-        if (mounted) AppToast.show(context, 'فایل PDF ذخیره شد؛ آن را از نمایشگر PDF برای چاپ باز کنید.');
-      } else {
-        await ReportExecutivePdfExport.print(
-          analytics: p.analytics,
-          comparison: comparison,
-          title: 'گزارش مدیریتی DateTime',
-          columns: _columns.toList(),
-        );
-        if (mounted) AppToast.show(context, 'گزارش برای چاپ آماده شد.');
-      }
-    } catch (error) {
-      if (mounted) AppToast.show(context, 'چاپ گزارش ناموفق بود: $error', success: false);
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
   }
 
   Future<void> _export(String type) async {
