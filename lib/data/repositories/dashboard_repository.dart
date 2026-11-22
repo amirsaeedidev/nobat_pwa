@@ -41,6 +41,17 @@ class MockDashboardRepository implements DashboardRepository {
       _db.hasPermission('finance.income.view') &&
       (_db.hasPermission('employees.view_list') || _db.hasPermission('appointments.view_all'));
 
+  bool get _canViewAllAppointments => _db.hasPermission('appointments.view_all');
+  bool get _canViewSelfAppointments =>
+      _db.hasPermission('appointments.view_self') && _db.currentAccessAccount.employeeId != null;
+  bool get _canViewAppointments => _canViewAllAppointments || _canViewSelfAppointments;
+
+  List<Appointment> _visibleAppointments() {
+    final employeeId = _db.currentAccessAccount.employeeId;
+    return _db.appointments.where((item) =>
+      _canViewAllAppointments || (_canViewSelfAppointments && item.employeeId == employeeId)).toList();
+  }
+
   /// منبع مشترک درآمد برای داشبورد، نمودارها و مرکز گزارش‌ها.
   List<EmployeeFinanceEntry> _visibleRevenueEntries({DateTime? from, DateTime? to}) {
     final employeeId = _db.currentAccessAccount.employeeId;
@@ -55,7 +66,7 @@ class MockDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardStats> fetchStats({StatsPeriod period = StatsPeriod.weekly}) async {
     await _db.delay(180);
-    final all = _db.appointments;
+    final all = _visibleAppointments();
     final today = JalaliDate.today();
     final now = DateTime.now();
 
@@ -86,7 +97,9 @@ class MockDashboardRepository implements DashboardRepository {
       from: monthStart.toDateTime(), to: monthStart.addMonths(1).toDateTime(),
     ).fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
 
-    final activeEmployees = _db.employees.where((e) => e.isActive).length;
+    final activeEmployees = _db.hasPermission('employees.view_list')
+      ? _db.employees.where((e) => e.isActive).length
+      : (_db.employees.any((e) => e.id == _db.currentAccessAccount.employeeId && e.isActive) ? 1 : 0);
     final slotsPerDay = activeEmployees == 0 ? 1 : activeEmployees * 4;
 
     // نمودار عملکرد بر اساس بازه انتخاب‌شده؛ میله‌ها حجم نوبت و خط درآمد را نشان می‌دهند.
@@ -132,7 +145,8 @@ class MockDashboardRepository implements DashboardRepository {
       cancelledAppointments: cancelled.length,
       totalRevenue: totalRevenue,
       monthRevenue: monthRevenue,
-      totalCustomers: _db.customers.length,
+      totalCustomers: !_db.hasPermission('customers.view') ? 0 :
+        (_canViewAllAppointments ? _db.customers.length : all.map((item) => item.customerId).toSet().length),
       activeEmployees: activeEmployees,
       weeklyTrend: performance,
       weekdayPerformance: performance,
@@ -144,7 +158,7 @@ class MockDashboardRepository implements DashboardRepository {
   Future<List<Appointment>> fetchUpcoming({int limit = 4}) async {
     await _db.delay(120);
     final now = DateTime.now();
-    final list = _db.appointments
+    final list = _visibleAppointments()
         .where((a) => a.status.isActive && a.startAt.isAfter(now.subtract(const Duration(hours: 1))))
         .toList()
       ..sort((a, b) => a.startAt.compareTo(b.startAt));
@@ -159,7 +173,7 @@ class MockDashboardRepository implements DashboardRepository {
     for (var i = months - 1; i >= 0; i--) {
       final monthDate = JalaliDate(today.year, today.month, 1).addMonths(-i);
       final nextMonth = monthDate.addMonths(1);
-      final items = _db.appointments.where((a) {
+      final items = _visibleAppointments().where((a) {
         final j = a.jalali;
         return !j.isBefore(monthDate) && j.isBefore(nextMonth);
       }).toList();
@@ -181,6 +195,7 @@ class MockDashboardRepository implements DashboardRepository {
   @override
   Future<List<RevenuePoint>> fetchServiceRevenue({int limit = 5}) async {
     await _db.delay(120);
+    if (!_canViewAppointments) return [];
     final totals = <String, num>{};
     for (final entry in _visibleRevenueEntries()) {
       final service = _db.services.where((item) => item.id == entry.serviceId).toList();
@@ -195,17 +210,17 @@ class MockDashboardRepository implements DashboardRepository {
   Future<ReportAnalytics> fetchReportAnalytics({required ReportDateRange range, ReportAnalyticsFilter filter = const ReportAnalyticsFilter()}) async {
     await _db.delay(120);
     _db.requirePermission('finance.income.view');
-    final canViewAll = _db.hasPermission('appointments.view_all');
+    final canViewAll = _canViewAllAppointments;
     final canViewSelf = _db.hasPermission('appointments.view_self');
     final employeeId = _db.currentAccessAccount.employeeId;
-    final canViewAppointments = canViewAll || (canViewSelf && employeeId != null);
+    final canViewAppointments = _canViewAppointments;
     // Finance roles such as accountant may see financial ledgers without
     // receiving permission to browse appointment/customer records.
     final canViewAllFinancial = _canViewAllFinancial;
     final canSeeAppointment = (Appointment item) =>
         canViewAll || (canViewSelf && employeeId != null && item.employeeId == employeeId);
     final appointments = canViewAppointments
-      ? _db.appointments.where((item) => canSeeAppointment(item) && range.contains(item.startAt)).toList()
+      ? _visibleAppointments().where((item) => range.contains(item.startAt)).toList()
       : <Appointment>[];
     Set<String> serviceCategoriesFor(Appointment item) {
       final categories = <String>{};
