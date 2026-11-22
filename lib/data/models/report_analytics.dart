@@ -178,7 +178,7 @@ class ReportAnalytics {
     this.paymentsByMethod = const {}, this.expensesByCategory = const {},
     this.customerDebts = const [], this.partialPayments = const [],
     this.paymentTransactions = const [], this.businessExpenses = const [],
-    this.settlements = const [],
+    this.settlements = const [], this.walletTransactions = const [],
     this.operationalAppointments = const [],
     this.customerMetrics = const [],
     this.hourlyDemand = const [],
@@ -219,6 +219,7 @@ class ReportAnalytics {
   final List<AppointmentPayment> partialPayments, paymentTransactions;
   final List<BusinessExpense> businessExpenses;
   final List<EmployeeWalletSettlement> settlements;
+  final List<EmployeeWalletTransaction> walletTransactions;
   final List<Appointment> operationalAppointments;
   final List<ReportCustomerMetric> customerMetrics;
   final List<ReportHourMetric> hourlyDemand;
