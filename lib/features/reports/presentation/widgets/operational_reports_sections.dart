@@ -410,9 +410,13 @@ class _AppointmentReportTableState extends State<_AppointmentReportTable> {
           )],
         ),
       ),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('صفحه ${_page + 1} از $pageCount · ${rows.length} ردیف', style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
-        Wrap(spacing: 4, children: [
+      Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          Text('صفحه ${_page + 1} از $pageCount · ${rows.length} ردیف', style: TextStyle(fontSize: 10, color: context.pal.textMuted)),
           DropdownButton<int>(
             value: _pageSize,
             items: const [5, 10, 20, 50].map((value) => DropdownMenuItem(value: value, child: Text('$value ردیف'))).toList(),
@@ -420,8 +424,8 @@ class _AppointmentReportTableState extends State<_AppointmentReportTable> {
           ),
           TextButton(onPressed: _page > 0 ? () => setState(() => _page--) : null, child: const Text('قبلی')),
           TextButton(onPressed: _page + 1 < pageCount ? () => setState(() => _page++) : null, child: const Text('بعدی')),
-        ]),
-      ]),
+        ],
+      ),
     ]);
   }
 }
