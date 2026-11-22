@@ -27,10 +27,10 @@ class DashboardInsights extends StatelessWidget {
           crossAxisCount: cols, mainAxisSpacing: 8, crossAxisSpacing: 8,
           childAspectRatio: c.maxWidth < 360 ? 1.45 : 1.7,
           children: [
-            _MetricTile('درآمد خالص', Fmt.compactMoneyShort(analytics.netRevenue), pal.success),
-            _MetricTile('پورسانت پرسنل', Fmt.compactMoneyShort(analytics.commissionCost), pal.warning),
-            _MetricTile('سهم مجموعه', Fmt.compactMoneyShort(analytics.companyShare), pal.primary),
-            _MetricTile('هزینه‌ها', Fmt.compactMoneyShort(analytics.cost), pal.danger),
+            _MetricTile('درآمد خالص', Fmt.compactMoneyShort(analytics.netRevenue), pal.success, Icons.account_balance_wallet_rounded),
+            _MetricTile('پورسانت پرسنل', Fmt.compactMoneyShort(analytics.commissionCost), pal.warning, Icons.payments_rounded),
+            _MetricTile('سهم مجموعه', Fmt.compactMoneyShort(analytics.companyShare), pal.primary, Icons.business_rounded),
+            _MetricTile('هزینه‌ها', Fmt.compactMoneyShort(analytics.cost), pal.danger, Icons.receipt_long_rounded),
           ]);
       }),
       const SizedBox(height: 12),
@@ -130,7 +130,6 @@ class DashboardInsights extends StatelessWidget {
         valueFormatter: (v) => FaNum.ofInt(v.round()),
       )),
       const SizedBox(height: 8),
-      Text(analytics.costNote, style: TextStyle(fontSize: 10, color: pal.textMuted)),
     ]);
   }
 
@@ -141,15 +140,18 @@ class DashboardInsights extends StatelessWidget {
 }
 
 class _MetricTile extends StatelessWidget {
-  const _MetricTile(this.title, this.value, this.color);
-  final String title, value; final Color color;
-  @override Widget build(BuildContext context) => AppCard(child: Row(children: [
-    Container(width: 4, height: 34, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
-    const SizedBox(width: 9), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: TextStyle(fontSize: 11, color: context.pal.textSecondary)),
-      Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
-    ])),
-  ]));
+  const _MetricTile(this.title, this.value, this.color, this.icon);
+  final String title, value; final Color color; final IconData icon;
+  @override Widget build(BuildContext context) => AppCard(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+    child: Row(children: [
+      Icon(icon, color: color, size: 19),
+      const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: context.pal.textSecondary)),
+        const SizedBox(height: 3),
+        Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+      ])),
+    ]));
 }
 
 class _Chart extends StatelessWidget {
