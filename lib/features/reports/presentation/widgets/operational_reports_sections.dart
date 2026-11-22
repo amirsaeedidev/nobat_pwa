@@ -9,6 +9,7 @@ import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/enums.dart';
+import '../../../../data/models/appointment.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../providers/reports_provider.dart';
