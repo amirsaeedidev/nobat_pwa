@@ -51,6 +51,12 @@ class ReportsPage extends StatelessWidget {
     final visibleAppointments = db.appointments.where((item) =>
       canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId)).toList();
     final availableEmployees = db.employees.where((item) => db.canViewEmployee(item.id)).toList();
+    final availableCategories = <String>{
+      ...db.services.map((service) => service.category),
+      ...db.appointments.expand((appointment) => appointment.serviceSnapshots
+        .map((snapshot) => snapshot['category'])
+        .whereType<String>()),
+    }.toList()..sort();
     final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
     final availableCustomers = canViewAll
       ? db.customers
@@ -237,7 +243,7 @@ class ReportsPage extends StatelessWidget {
                             decoration: const InputDecoration(labelText: 'دسته‌بندی خدمت'),
                             items: [
                               const DropdownMenuItem<String?>(value: null, child: Text('همه دسته‌بندی‌ها')),
-                              for (final item in (db.services.map((service) => service.category).toSet().toList()..sort()))
+                              for (final item in availableCategories
                                 DropdownMenuItem<String?>(value: item, child: Text(item, overflow: TextOverflow.ellipsis)),
                             ],
                             onChanged: (value) => provider.setFilters(category: value, clearCategory: value == null),
