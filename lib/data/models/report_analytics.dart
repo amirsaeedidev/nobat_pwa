@@ -76,26 +76,39 @@ class ReportEmployeeMetric {
 }
 
 class ReportAnalyticsFilter {
-  const ReportAnalyticsFilter({this.serviceId, this.employeeId, this.customerId, this.status, this.paymentMethod});
-  final String? serviceId, employeeId, customerId, paymentMethod;
+  const ReportAnalyticsFilter({
+    this.serviceId, this.employeeId, this.customerId, this.status,
+    this.paymentMethod, this.category, this.settlementStatus,
+  });
+  final String? serviceId, employeeId, customerId, paymentMethod, category;
   final AppointmentStatus? status;
-  bool get isEmpty => serviceId == null && employeeId == null && customerId == null && status == null && paymentMethod == null;
-  bool matches(Appointment item) =>
+  final EmployeeWalletSettlementStatus? settlementStatus;
+  bool get isEmpty => serviceId == null && employeeId == null && customerId == null &&
+      status == null && paymentMethod == null && category == null && settlementStatus == null;
+
+  bool matches(Appointment item, {String? serviceCategory}) =>
     (serviceId == null || item.serviceIds.contains(serviceId)) &&
     (employeeId == null || item.employeeId == employeeId) &&
     (customerId == null || item.customerId == customerId) &&
-    (status == null || item.status == status);
+    (status == null || item.status == status) &&
+    (category == null || serviceCategory == category);
 
   ReportAnalyticsFilter copyWith({
     String? serviceId, String? employeeId, String? customerId, String? paymentMethod,
-    AppointmentStatus? status, bool clearService = false,
-    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false, bool clearPaymentMethod = false,
+    String? category, AppointmentStatus? status,
+    EmployeeWalletSettlementStatus? settlementStatus,
+    bool clearService = false, bool clearEmployee = false,
+    bool clearCustomer = false, bool clearStatus = false,
+    bool clearPaymentMethod = false, bool clearCategory = false,
+    bool clearSettlementStatus = false,
   }) => ReportAnalyticsFilter(
     serviceId: clearService ? null : (serviceId ?? this.serviceId),
     employeeId: clearEmployee ? null : (employeeId ?? this.employeeId),
     customerId: clearCustomer ? null : (customerId ?? this.customerId),
     paymentMethod: clearPaymentMethod ? null : (paymentMethod ?? this.paymentMethod),
+    category: clearCategory ? null : (category ?? this.category),
     status: clearStatus ? null : (status ?? this.status),
+    settlementStatus: clearSettlementStatus ? null : (settlementStatus ?? this.settlementStatus),
   );
 }
 
@@ -184,6 +197,7 @@ class ReportAnalytics {
     this.companyShare = 0,
     this.operationalStatusCounts = const {},
     this.newCustomerTrend = const [],
+    this.averageAppointmentMinutes = 0,
   });
   final ReportDateRange range;
   final num revenue, cost, commissionCost, payrollCost;
@@ -219,6 +233,7 @@ class ReportAnalytics {
   final num companyShare;
   final Map<String, int> operationalStatusCounts;
   final List<ReportTrendPoint> newCustomerTrend;
+  final num averageAppointmentMinutes;
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
