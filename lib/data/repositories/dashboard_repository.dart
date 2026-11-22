@@ -102,26 +102,57 @@ class MockDashboardRepository implements DashboardRepository {
       : (_db.employees.any((e) => e.id == _db.currentAccessAccount.employeeId && e.isActive) ? 1 : 0);
     final slotsPerDay = activeEmployees == 0 ? 1 : activeEmployees * 4;
 
-    // نمودار عملکرد بر اساس بازه انتخاب‌شده؛ میله‌ها حجم نوبت و خط درآمد را نشان می‌دهند.
-    final performanceDates = switch (period) {
-      StatsPeriod.daily => <JalaliDate>[today],
-      StatsPeriod.weekly => List.generate(7, (i) => weekStart.addDays(i)),
-      StatsPeriod.monthly => List.generate(today.day, (i) => monthStart.addDays(i)),
-    };
+    // نمودار روزانه ساعتی، هفتگی از شنبه تا جمعه و ماهانه بر اساس ماه‌های شمسی است.
     final performance = <WeekdayPerformance>[];
-    for (final date in performanceDates) {
-      final dayItems = all.where((a) => a.jalali.sameDay(date) && a.status != AppointmentStatus.cancelled).toList();
-      final dayRevenue = _visibleRevenueEntries(
-        from: date.toDateTime(), to: date.addDays(1).toDateTime(),
-      ).fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
-      final percent = ((dayItems.length / slotsPerDay) * 100).clamp(0, 100).round();
-      performance.add(WeekdayPerformance(
-        label: period == StatsPeriod.daily ? 'امروز' : period == StatsPeriod.weekly ? date.weekdayName : date.day.toString(),
-        percent: percent,
-        count: dayItems.length,
-        revenue: dayRevenue,
-        dateIso: date.iso,
-      ));
+    if (period == StatsPeriod.daily) {
+      final dayStart = today.toDateTime();
+      for (var hour = 0; hour < 24; hour++) {
+        final from = dayStart.add(Duration(hours: hour));
+        final to = from.add(const Duration(hours: 1));
+        final hourItems = all.where((a) =>
+          !a.startAt.isBefore(from) && a.startAt.isBefore(to) &&
+          a.status != AppointmentStatus.cancelled).toList();
+        final hourRevenue = _visibleRevenueEntries(from: from, to: to)
+          .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+        performance.add(WeekdayPerformance(
+          label: '${hour.toString().padLeft(2, '0')}:00',
+          percent: ((hourItems.length / slotsPerDay) * 100).clamp(0, 100).round(),
+          count: hourItems.length,
+          revenue: hourRevenue,
+          dateIso: '${today.iso}T${hour.toString().padLeft(2, '0')}:00',
+        ));
+      }
+    } else if (period == StatsPeriod.weekly) {
+      for (var i = 0; i < 7; i++) {
+        final date = weekStart.addDays(i);
+        final dayItems = all.where((a) => a.jalali.sameDay(date) && a.status != AppointmentStatus.cancelled).toList();
+        final dayRevenue = _visibleRevenueEntries(from: date.toDateTime(), to: date.addDays(1).toDateTime())
+          .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+        performance.add(WeekdayPerformance(
+          label: date.weekdayName,
+          percent: ((dayItems.length / slotsPerDay) * 100).clamp(0, 100).round(),
+          count: dayItems.length,
+          revenue: dayRevenue,
+          dateIso: date.iso,
+        ));
+      }
+    } else {
+      for (var month = 1; month <= 12; month++) {
+        final date = JalaliDate(today.year, month, 1);
+        final next = date.addMonths(1);
+        final monthItems = all.where((a) =>
+          !a.jalali.isBefore(date) && a.jalali.isBefore(next) &&
+          a.status != AppointmentStatus.cancelled).toList();
+        final monthRevenue = _visibleRevenueEntries(from: date.toDateTime(), to: next.toDateTime())
+          .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+        performance.add(WeekdayPerformance(
+          label: date.monthName,
+          percent: ((monthItems.length / (slotsPerDay * 30)) * 100).clamp(0, 100).round(),
+          count: monthItems.length,
+          revenue: monthRevenue,
+          dateIso: date.iso,
+        ));
+      }
     }
     if (performance.isNotEmpty) {
       final maxCount = performance.map((p) => p.count).reduce((a, b) => a > b ? a : b);
