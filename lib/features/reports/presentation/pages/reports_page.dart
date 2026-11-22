@@ -289,13 +289,11 @@ class ReportsPage extends StatelessWidget {
                     ExpansionPanelList.radio(
                       elevation: 0,
                       expandedHeaderPadding: const EdgeInsets.symmetric(vertical: 4),
-                      dividerColor: pal.border,
-                      materialGapSize: 8,
-                      children: [
+                                                                  children: [
                         ExpansionPanelRadio(
                           value: 'salon', canTapOnHeader: true,
                           headerBuilder: (context, expanded) => const ListTile(
-                            leading: HugeIcon(icon: HugeIcons.strokeRoundedStore01, size: 21),
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 21),
                             title: Text('گزارش سالن', style: TextStyle(fontWeight: FontWeight.w800)),
                             subtitle: Text('شاخص‌های مالی، نمودارها، خدمات و وضعیت نوبت‌ها'),
                           ),
@@ -487,7 +485,7 @@ class ReportsPage extends StatelessWidget {
                         ExpansionPanelRadio(
                           value: 'personnel', canTapOnHeader: true,
                           headerBuilder: (context, expanded) => const ListTile(
-                            leading: HugeIcon(icon: HugeIcons.strokeRoundedUserGroup, size: 21),
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedUser, size: 21),
                             title: Text('گزارش پرسنل', style: TextStyle(fontWeight: FontWeight.w800)),
                             subtitle: Text('عملکرد و درآمد خدمات پرسنل'),
                           ),
@@ -504,7 +502,7 @@ class ReportsPage extends StatelessWidget {
                         ExpansionPanelRadio(
                           value: 'pdf', canTapOnHeader: true,
                           headerBuilder: (context, expanded) => const ListTile(
-                            leading: HugeIcon(icon: HugeIcons.strokeRoundedFilePdf, size: 21),
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedFile01, size: 21),
                             title: Text('خروجی PDF', style: TextStyle(fontWeight: FontWeight.w800)),
                             subtitle: Text('ذخیره گزارش در قالب PDF'),
                           ),
