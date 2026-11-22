@@ -46,14 +46,14 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: Build release APK
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --target-platform android-arm64
 
       - name: Verify APK package, size and signature
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
-          APKS=(build/app/outputs/flutter-apk/*-release.apk)
+          APKS=(build/app/outputs/flutter-apk/app-release.apk)
           if [ "${#APKS[@]}" -eq 0 ]; then
             echo "::error::No split release APKs were generated."
             exit 1
@@ -66,7 +66,7 @@ jobs:
           {
             echo "## Android Release APK verification"
             echo
-            echo "- Build mode: **Release / split per ABI**"
+            echo "- Build mode: **Release / arm64-v8a only**"
             echo "- Package: **com.datetime.datetime**"
             echo "- Signing: **Debug keystore for test builds; not Play Store signing**"
             echo
@@ -80,6 +80,14 @@ jobs:
             fi
             "$APKSIGNER" verify --verbose --print-certs "$APK" > apk-signature.txt
             "$AAPT" dump badging "$APK" | grep -F "package: name='com.datetime.datetime'" >/dev/null
+            if ! unzip -l "$APK" | grep -q 'lib/arm64-v8a/'; then
+              echo "::error::The APK does not contain arm64-v8a native libraries."
+              exit 1
+            fi
+            if unzip -l "$APK" | grep -Eq 'lib/(armeabi-v7a|x86|x86_64)/'; then
+              echo "::error::Unexpected non-arm64 ABI libraries were found in the APK."
+              exit 1
+            fi
             APK_SIZE_MB="$(awk -v bytes="$APK_SIZE_BYTES" 'BEGIN { printf "%.1f", bytes / 1048576 }')"
             echo "- `$(basename "$APK")`: **$APK_SIZE_MB MB**, signature verified" >> "$GITHUB_STEP_SUMMARY"
           done
@@ -88,6 +96,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: nobat-amir-release-apk
-          path: build/app/outputs/flutter-apk/*-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
