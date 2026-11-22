@@ -29,7 +29,12 @@ class ReportsPhaseFivePanel extends StatefulWidget {
 
 class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
   final _store = SavedReportStore();
-  static const _allColumns = ['درآمد', 'هزینه', 'سود خالص', 'نوبت', 'تکمیل‌شده', 'مشتری یکتا', 'نرخ بازگشت'];
+  static const _allColumns = [
+    'درآمد ناخالص', 'تخفیف', 'درآمد', 'وصول‌شده', 'هزینه', 'سود خالص',
+    'سهم مجموعه', 'پورسانت پرسنل', 'حقوق پرداختی', 'مطالبات',
+    'نوبت', 'تکمیل‌شده', 'لغوشده', 'عدم مراجعه', 'مشتری یکتا',
+    'نرخ بازگشت', 'میانگین مدت نوبت',
+  ];
   final Set<String> _columns = {..._allColumns};
   List<SavedReportView> _saved = [];
   List<ReportHistorySnapshot> _history = [];
@@ -141,6 +146,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
+      widget.database.requirePermission('finance.income.view');
       final p = widget.provider;
       final comparison = p.comparisonAnalytics ?? ReportAnalytics.empty(p.comparisonRange);
       await ReportExecutivePdfExport.print(
@@ -166,10 +172,23 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       final comparison = widget.provider.comparisonAnalytics ?? a;
       final columns = _allColumns.where(_columns.contains).toList();
       final all = <String, Object?>{
-        'درآمد': a.revenue.round(), 'هزینه': a.cost.round(),
-        'سود خالص': a.netProfit.round(), 'نوبت': a.totalAppointments,
-        'تکمیل‌شده': a.completedAppointments, 'مشتری یکتا': a.uniqueCustomers,
+        'درآمد ناخالص': a.grossRevenue.round(),
+        'تخفیف': a.discounts.round(),
+        'درآمد': a.netRevenue.round(),
+        'وصول‌شده': a.collectedRevenue.round(),
+        'هزینه': a.cost.round(),
+        'سود خالص': a.netProfit.round(),
+        'سهم مجموعه': a.companyShare.round(),
+        'پورسانت پرسنل': a.commissionCost.round(),
+        'حقوق پرداختی': a.staffPaid.round(),
+        'مطالبات': a.receivables.round(),
+        'نوبت': a.totalAppointments,
+        'تکمیل‌شده': a.completedAppointments,
+        'لغوشده': a.cancelledAppointments,
+        'عدم مراجعه': a.noShowAppointments,
+        'مشتری یکتا': a.uniqueCustomers,
         'نرخ بازگشت': a.repeatCustomerRate.toStringAsFixed(1) + '٪',
+        'میانگین مدت نوبت': a.averageAppointmentMinutes.round(),
       };
       final generatedAt = JalaliDate.fromDateTime(DateTime.now()).long;
       final headers = ['گزارش', 'بازه', 'تاریخ تولید', 'بخش', 'عنوان', ...columns];
