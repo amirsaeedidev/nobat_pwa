@@ -639,7 +639,7 @@ void main() {
       phone: '09128887766',
     );
     db.addCustomer(customer);
-    await operations.deleteCustomer(customer.id);
+    await tester.runAsync(() => operations.deleteCustomer(customer.id));
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
     addTearDown(provider.dispose);
