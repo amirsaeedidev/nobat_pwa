@@ -363,6 +363,7 @@ class ReportsPage extends StatelessWidget {
                           'مساعده باز: ${Fmt.compactMoney(provider.analytics.advancesOutstanding)}',
                           for (final item in provider.analytics.settlements) '${item.receiptNumber} · ${Fmt.compactMoney(item.paidAmount)} · ${item.status.name}',
                         ]), child: _MetricCard(label: 'مانده پرسنل', value: provider.analytics.staffPayable, money: true, icon: HugeIcons.strokeRoundedUser, color: pal.purple)),
+                        _MetricCard(label: 'بدهی پرسنل', value: provider.analytics.staffDebt, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.danger),
                       ]),
                       const SizedBox(height: 12),
                       LayoutBuilder(builder: (context, constraints) {
