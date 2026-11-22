@@ -13,7 +13,6 @@ import '../../../../data/models/appointment.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../providers/reports_provider.dart';
-import '../../utils/report_table_export.dart';
 import 'revenue_chart.dart';
 
 /// بخش عملیاتی فاز چهار؛ از همان خروجی فیلترشده محاسبه‌گر گزارش استفاده می‌کند.
@@ -42,28 +41,6 @@ class OperationalReportsSections extends StatelessWidget {
     final rate = (int count) => total == 0 ? 0.0 : count * 100 / total;
     final averageGapValues = customers.where((item) => item.averageGapDays != null).map((item) => item.averageGapDays!).toList();
     final averageGap = averageGapValues.isEmpty ? null : averageGapValues.reduce((a, b) => a + b) / averageGapValues.length;
-
-    final serviceHeaders = ['خدمت', 'تعداد ارائه', 'درآمد', 'میانگین قیمت واقعی', 'هزینه مستقیم', 'سود', 'حاشیه سود٪', 'پرسنل'];
-    final serviceRows = [for (final item in services) [
-      item.name, item.count, item.revenue.round(), item.averagePrice.round(),
-      item.directCost?.round() ?? 'ثبت نشده', item.profit?.round() ?? 'نامشخص',
-      item.marginPercent?.toStringAsFixed(1) ?? 'نامشخص',
-      item.employeeCounts.entries.map((entry) => '${entry.key} (${entry.value})').join('، '),
-    ]];
-    final customerHeaders = ['مشتری', 'مراجعه در بازه', 'کل مراجعات', 'مراجعه مجدد', 'مجموع خرید', 'میانگین هر مراجعه', 'اولین مراجعه', 'آخرین مراجعه', 'فاصله میان مراجعات', 'وضعیت'];
-    final customerRows = [for (final item in customers) [
-      item.name, item.visits, item.lifetimeVisits, item.repeatVisits, item.totalSpent.round(), item.averageSpend.round(),
-      item.firstVisitAt == null ? '' : JalaliDate.fromDateTime(item.firstVisitAt!).short,
-      item.lastVisitAt == null ? '' : JalaliDate.fromDateTime(item.lastVisitAt!).short,
-      item.averageGapDays?.toStringAsFixed(1) ?? '—',
-      item.isInactive ? 'غیرفعال' : item.isAtRisk ? 'در معرض غیرفعال‌شدن' : item.isLoyal ? 'وفادار' : item.isNew ? 'جدید' : 'قدیمی',
-    ]];
-    final appointmentHeaders = ['کد نوبت', 'مشتری', 'خدمت', 'پرسنل', 'تاریخ', 'ساعت', 'وضعیت', 'مبلغ'];
-    final appointmentRows = [for (final item in appointments) [
-      item.reference, item.customerName, item.serviceName, item.employeeName,
-      item.jalali.short, '${item.startAt.hour.toString().padLeft(2, '0')}:${item.startAt.minute.toString().padLeft(2, '0')}',
-      item.status.label, item.price.round(),
-    ]];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
