@@ -176,12 +176,17 @@ class MockDashboardRepository implements DashboardRepository {
     _db.requirePermission('finance.income.view');
     final canViewAll = _db.hasPermission('appointments.view_all');
     final canViewSelf = _db.hasPermission('appointments.view_self');
-    if (!canViewAll && !canViewSelf) _db.requirePermission('appointments.view_all');
     final employeeId = _db.currentAccessAccount.employeeId;
+    final canViewAppointments = canViewAll || (canViewSelf && employeeId != null);
+    // Finance roles such as accountant may see financial ledgers without
+    // receiving permission to browse appointment/customer records.
+    final canViewAllFinancial = _db.hasPermission('finance.income.view') &&
+      (_db.hasPermission('employees.view_list') || canViewAll);
     final canSeeAppointment = (Appointment item) =>
         canViewAll || (canViewSelf && employeeId != null && item.employeeId == employeeId);
-    final appointments = _db.appointments.where((item) =>
-      canSeeAppointment(item) && range.contains(item.startAt)).toList();
+    final appointments = canViewAppointments
+      ? _db.appointments.where((item) => canSeeAppointment(item) && range.contains(item.startAt)).toList()
+      : <Appointment>[];
     Set<String> serviceCategoriesFor(Appointment item) {
       final categories = <String>{};
       for (final serviceId in item.serviceIds) {
@@ -198,7 +203,11 @@ class MockDashboardRepository implements DashboardRepository {
       return categories;
     }
     bool matchesReportAppointment(Appointment item, {DateTime? paymentFrom, DateTime? paymentTo}) {
-      if (!filter.matches(item, serviceCategories: serviceCategoriesFor(item))) return false;
+      if (canViewAppointments) {
+        if (!filter.matches(item, serviceCategories: serviceCategoriesFor(item))) return false;
+      } else if (filter.employeeId != null && filter.employeeId != item.employeeId) {
+        return false;
+      }
       if (filter.paymentMethod == null) return true;
       final from = paymentFrom ?? range.start;
       final to = paymentTo ?? range.endExclusive;
@@ -227,7 +236,7 @@ class MockDashboardRepository implements DashboardRepository {
       final appointment = _db.appointmentById(entry.appointmentId);
       return range.contains(entry.createdAt) &&
         (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
-        (canViewAll || employeeId == entry.employeeId) &&
+        (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
         appointment != null && matchesReportAppointment(appointment);
     }).toList();
@@ -299,7 +308,7 @@ class MockDashboardRepository implements DashboardRepository {
     final allVisiblePayments = _db.appointmentPayments.where((item) {
       final appointment = _db.appointmentById(item.appointmentId);
       return appointment != null &&
-        (canViewAll || employeeId == appointment.employeeId) &&
+        (canViewAllFinancial || canViewAll || employeeId == appointment.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: appointment.employeeId) &&
         matchesReportAppointment(appointment);
     }).toList();
@@ -693,7 +702,7 @@ class MockDashboardRepository implements DashboardRepository {
     final previousPayroll = canViewSalary ? walletCostFor(_db.employeeWalletTransactions.where((item) =>
       item.status == EmployeeWalletTransactionStatus.posted &&
       !item.createdAt.isBefore(previousStart) && item.createdAt.isBefore(previousEnd) &&
-      (canViewAll || employeeId == item.employeeId) &&
+      (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
       _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
       (filter.employeeId == null || filter.employeeId == item.employeeId))) : 0;
     final previousOperations = _db.businessExpenses.where((item) =>
