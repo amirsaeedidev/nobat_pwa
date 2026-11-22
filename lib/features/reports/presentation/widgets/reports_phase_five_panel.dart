@@ -32,8 +32,9 @@ class ReportsPhaseFivePanel extends StatefulWidget {
 class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
   final _store = SavedReportStore();
   static const _allColumns = [
-    'درآمد ناخالص', 'تخفیف', 'درآمد', 'وصول‌شده', 'هزینه', 'سود خالص',
-    'سهم مجموعه', 'پورسانت پرسنل', 'حقوق پرداختی', 'مطالبات',
+    'درآمد ناخالص', 'تخفیف', 'درآمد', 'وصول‌شده', 'هزینه', 'هزینه عمومی',
+    'حقوق و مزایا', 'سود خالص', 'سهم مجموعه', 'پورسانت پرسنل',
+    'حقوق پرداختی', 'مانده پرسنل', 'مساعده باز', 'مطالبات',
     'نوبت', 'تکمیل‌شده', 'لغوشده', 'عدم مراجعه', 'مشتری یکتا',
     'نرخ بازگشت', 'میانگین مدت نوبت',
   ];
@@ -191,10 +192,14 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         'درآمد': a.netRevenue.round(),
         'وصول‌شده': a.collectedRevenue.round(),
         'هزینه': a.cost.round(),
+        'هزینه عمومی': a.operatingExpense.round(),
+        'حقوق و مزایا': a.payrollCost.round(),
         'سود خالص': a.netProfit.round(),
         'سهم مجموعه': a.companyShare.round(),
         'پورسانت پرسنل': a.commissionCost.round(),
         'حقوق پرداختی': a.staffPaid.round(),
+        'مانده پرسنل': a.staffPayable.round(),
+        'مساعده باز': a.advancesOutstanding.round(),
         'مطالبات': a.receivables.round(),
         'نوبت': a.totalAppointments,
         'تکمیل‌شده': a.completedAppointments,
