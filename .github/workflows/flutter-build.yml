@@ -1,5 +1,10 @@
 name: Build Android APK
 
+# Keep only the newest run for each workflow/branch; stale queued runs are not useful.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
