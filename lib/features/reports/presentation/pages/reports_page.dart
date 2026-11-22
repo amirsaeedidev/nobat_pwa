@@ -326,7 +326,7 @@ class ReportsPage extends StatelessWidget {
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
                           for (final item in provider.analytics.partialPayments) 'پرداخت ناقص: ${item.description} · ${Fmt.compactMoney(item.signedAmount)}',
                         ]), child: _MetricCard(label: 'مطالبات', value: provider.analytics.receivables, money: true, icon: HugeIcons.strokeRoundedAppointment01, color: pal.warning)),
-                        _MetricCard(label: 'سهم مجموعه', value: provider.analytics.companyShare, money: true, icon: HugeIcons.strokeRoundedStore01, color: pal.primaryBright),
+                        _MetricCard(label: 'سهم مجموعه', value: provider.analytics.companyShare, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.primaryBright),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'پورسانت پرسنل', [
                           for (final item in provider.analytics.employees) '${item.name} · ${Fmt.compactMoney(item.commission)}',
                         ]), child: _MetricCard(label: 'پورسانت پرسنل', value: provider.analytics.commissionCost, money: true, icon: HugeIcons.strokeRoundedUser, color: pal.purple)),
