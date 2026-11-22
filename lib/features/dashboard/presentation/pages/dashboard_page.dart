@@ -35,8 +35,7 @@ class DashboardPage extends StatelessWidget {
     final business = context.watch<SettingsProvider>().settings;
     final website = business?.website.trim() ?? '';
     final slug = business?.publicSlug.trim() ?? '';
-    final publicUrl = website.isEmpty || slug.isEmpty ? '' : '${website.replaceFirst(RegExp(r'/+
-
+    final publicUrl = website.isEmpty || slug.isEmpty ? '' : '${website.replaceFirst(RegExp(r'/+$'), '')}/book/$slug';
     return PageScaffold(
       title: 'پیشخوان',
       subtitle: 'نمای کلی عملکرد مجموعه',
@@ -1012,9 +1011,16 @@ class _PublicBookingLinkCard extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('لینک رزرو عمومی', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
           const SizedBox(height: 3),
-          Text(available ? url : 'لینک رزرو هنوز در تنظیمات ثبت نشده است',
-            textDirection: TextDirection.ltr, textAlign: TextAlign.right, maxLines: 1,
-            overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: pal.textMuted)),
+          InkWell(
+            onTap: !available ? null : () async {
+              await Clipboard.setData(ClipboardData(text: url));
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('لینک رزرو کپی شد'), duration: Duration(seconds: 2)));
+            },
+            child: Text(available ? url : 'لینک رزرو هنوز در تنظیمات ثبت نشده است',
+              textDirection: TextDirection.ltr, textAlign: TextAlign.right, maxLines: 1,
+              overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: pal.textMuted)),
+          ),
         ])),
         IconButton(
           tooltip: 'کپی لینک',
