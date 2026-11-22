@@ -38,6 +38,7 @@ class ReportExecutivePdfExport {
       'پورسانت پرسنل': analytics.commissionCost.round().toString(),
       'حقوق پرداختی': analytics.staffPaid.round().toString(),
       'مانده پرسنل': analytics.staffPayable.round().toString(),
+      'بدهی پرسنل': analytics.staffDebt.round().toString(),
       'مساعده باز': analytics.advancesOutstanding.round().toString(),
       'مطالبات': analytics.receivables.round().toString(),
       'نوبت': analytics.totalAppointments.toString(),
