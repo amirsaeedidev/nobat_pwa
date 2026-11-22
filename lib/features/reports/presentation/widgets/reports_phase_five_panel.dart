@@ -11,6 +11,7 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/enums.dart';
+import '../../../../data/models/employee_wallet.dart';
 import '../providers/reports_provider.dart';
 import '../../utils/report_phase_five.dart';
 import '../../utils/report_table_export.dart';
