@@ -560,7 +560,7 @@ class MockDashboardRepository implements DashboardRepository {
     final daysInRange = range.endExclusive.difference(range.start).inDays;
     var capacityMinutes = 0;
     var bookedCapacityMinutes = 0;
-    if (daysInRange > 0 && daysInRange <= 366) {
+    if (canViewAppointments && daysInRange > 0 && daysInRange <= 366) {
       final capacityEmployeeId = canViewAll ? filter.employeeId : employeeId;
       final activeEmployees = _db.employees.where((item) =>
         item.isActive && (capacityEmployeeId == null || item.id == capacityEmployeeId)).toList();
