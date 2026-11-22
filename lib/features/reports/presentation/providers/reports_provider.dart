@@ -141,13 +141,22 @@ class ReportsProvider extends DbBoundProvider {
 
   Future<void> setFilters({
     String? serviceId, String? employeeId, String? customerId,
-    AppointmentStatus? status, bool clearService = false,
-    bool clearEmployee = false, bool clearCustomer = false, bool clearStatus = false,
+    String? category, String? paymentMethod,
+    AppointmentStatus? status,
+    EmployeeWalletSettlementStatus? settlementStatus,
+    bool clearService = false, bool clearEmployee = false,
+    bool clearCustomer = false, bool clearCategory = false,
+    bool clearStatus = false, bool clearPaymentMethod = false,
+    bool clearSettlementStatus = false,
   }) async {
     _filter = _filter.copyWith(
       serviceId: serviceId, employeeId: employeeId, customerId: customerId,
-      status: status, clearService: clearService, clearEmployee: clearEmployee,
-      clearCustomer: clearCustomer, clearStatus: clearStatus,
+      category: category, paymentMethod: paymentMethod, status: status,
+      settlementStatus: settlementStatus,
+      clearService: clearService, clearEmployee: clearEmployee,
+      clearCustomer: clearCustomer, clearCategory: clearCategory,
+      clearStatus: clearStatus, clearPaymentMethod: clearPaymentMethod,
+      clearSettlementStatus: clearSettlementStatus,
     );
     await load();
   }
