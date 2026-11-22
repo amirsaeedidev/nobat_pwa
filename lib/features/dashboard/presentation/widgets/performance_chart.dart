@@ -167,7 +167,7 @@ class _PerformancePainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
-      _paintText(
+      if (data.length < 20 || i % 3 == 0) _paintText(
         canvas,
         FaNum.ofInt((data[i].count * revealProgress).round()),
         Offset(p.dx, p.dy - 20),
@@ -204,7 +204,13 @@ class _PerformancePainter extends CustomPainter {
       'پنج‌شنبه': 'پنج',
       'جمعه': 'جمعه',
     };
-    return map[label] ?? label;
+    const months = {
+      'فروردین': 'فرو', 'اردیبهشت': 'ارد', 'خرداد': 'خرد',
+      'تیر': 'تیر', 'مرداد': 'مرد', 'شهریور': 'شهر',
+      'مهر': 'مهر', 'آبان': 'آبا', 'آذر': 'آذر',
+      'دی': 'دی', 'بهمن': 'بهم', 'اسفند': 'اسف',
+    };
+    return map[label] ?? months[label] ?? label;
   }
 
   void _paintText(
