@@ -285,17 +285,16 @@ class MockDashboardRepository implements DashboardRepository {
       commissionByEmployee[entry.employeeId] = (commissionByEmployee[entry.employeeId] ?? 0) + signedCommission;
     }
 
-    final walletEntries = canViewSalary
-        ? _db.employeeWalletTransactions.where((entry) =>
-            range.contains(entry.createdAt) &&
-            entry.status == EmployeeWalletTransactionStatus.posted &&
-            (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
-            _db.hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
-            (entry.type != EmployeeWalletTransactionType.commission &&
-              entry.sourceFinanceEntryId == null ||
-              _db.hasPermission('finance.commission.view', employeeId: entry.employeeId)) &&
-            (filter.employeeId == null || filter.employeeId == entry.employeeId)).toList()
-        : <EmployeeWalletTransaction>[];
+    final walletEntries = _db.employeeWalletTransactions.where((entry) {
+      if (!range.contains(entry.createdAt) || entry.status != EmployeeWalletTransactionStatus.posted) return false;
+      if (!(canViewAllFinancial || canViewAll || employeeId == entry.employeeId)) return false;
+      if (filter.employeeId != null && filter.employeeId != entry.employeeId) return false;
+      final commissionLedger = entry.type == EmployeeWalletTransactionType.commission ||
+        entry.type == EmployeeWalletTransactionType.refund || entry.sourceFinanceEntryId != null;
+      return commissionLedger
+        ? _db.hasPermission('finance.commission.view', employeeId: entry.employeeId)
+        : _db.hasPermission('finance.salary.view', employeeId: entry.employeeId);
+    }).toList();
     int walletCostFor(Iterable<EmployeeWalletTransaction> entries) {
       var total = 0;
       for (final entry in entries) {
