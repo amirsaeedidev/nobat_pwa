@@ -713,16 +713,37 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final payment = payments[index];
+                  final appointment = database.appointmentById(payment.appointmentId);
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('جزئیات تراکنش'),
+                        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('شناسه رسید: ${payment.id}'),
+                          Text('تاریخ: ${JalaliDate.fromDateTime(payment.createdAt).long}'),
+                          Text('نوع: ${payment.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}'),
+                          Text('روش: ${payment.method.label}'),
+                          Text('مبلغ: ${Fmt.compactMoney(payment.signedAmount)}'),
+                          if (database.hasPermission('customers.view') && appointment != null)
+                            Text('مشتری: ${appointment.customerName}'),
+                          Text('شرح: ${payment.description}'),
+                        ]),
+                        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
+                      ),
+                    ),
                     title: Text(payment.description, style: const TextStyle(fontSize: 12)),
-                    subtitle: Text('${payment.method.label} · ${payment.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}', style: const TextStyle(fontSize: 10)),
-                    trailing: payment.type == BusinessPaymentType.receipt
-                      ? TextButton(onPressed: () => showDialog<void>(
+                    subtitle: Text('${JalaliDate.fromDateTime(payment.createdAt).short} · ${payment.method.label} · ${payment.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}', style: const TextStyle(fontSize: 10)),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(Fmt.compactMoney(payment.signedAmount), style: TextStyle(
+                        color: payment.signedAmount < 0 ? context.pal.danger : context.pal.success, fontSize: 11)),
+                      if (payment.type == BusinessPaymentType.receipt)
+                        TextButton(onPressed: () => showDialog<void>(
                           context: context,
                           builder: (_) => _RefundPaymentDialog(database: database, payment: payment),
-                        ), child: const Text('برگشت وجه'))
-                      : Text(Fmt.compactMoney(payment.signedAmount), style: TextStyle(color: context.pal.danger, fontSize: 11)),
+                        ), child: const Text('برگشت وجه')),
+                    ]),
                   );
                 },
               )),
