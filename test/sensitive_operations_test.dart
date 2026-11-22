@@ -414,7 +414,11 @@ void main() {
   test('activity provider refreshes complete audit history after undo', () async {
     const customer = Customer(id: 'history-refresh-customer', fullName: 'مشتری تاریخچه', phone: '09129999999');
     db.addCustomer(customer);
-    await operations.deleteCustomer(customer.id);
+    // Sensitive operations include a local mock delay. Advance the widget-test
+    // clock before awaiting it, otherwise FakeAsync waits forever.
+    final deleteFuture = operations.deleteCustomer(customer.id);
+    await tester.pump(const Duration(milliseconds: 100));
+    await deleteFuture;
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
     addTearDown(provider.dispose);
