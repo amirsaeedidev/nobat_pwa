@@ -252,6 +252,19 @@ class MockDashboardRepository implements DashboardRepository {
         !payment.createdAt.isBefore(from) &&
         payment.createdAt.isBefore(to));
     }
+
+    bool matchesFinanceEntry(EmployeeFinanceEntry entry, {DateTime? paymentFrom, DateTime? paymentTo}) {
+      final appointment = _db.appointmentById(entry.appointmentId);
+      if (appointment != null) {
+        return matchesReportAppointment(appointment, paymentFrom: paymentFrom, paymentTo: paymentTo);
+      }
+      // Keep immutable finance documents in totals even if their appointment
+      // was archived/deleted; appointment-specific filters cannot match them.
+      return (filter.employeeId == null || filter.employeeId == entry.employeeId) &&
+        filter.serviceId == null && filter.category == null &&
+        filter.customerId == null && filter.status == null &&
+        filter.paymentMethod == null;
+    }
     final operationalAppointments = appointments.where(matchesReportAppointment).toList();
     final operationalCompleted = operationalAppointments.where((item) => item.status == AppointmentStatus.completed).toList();
     final completed = operationalCompleted;
@@ -268,10 +281,7 @@ class MockDashboardRepository implements DashboardRepository {
     final hasFullSalaryScope = _db.employees.every((item) =>
       _db.hasPermission('finance.salary.view', employeeId: item.id));
     final revenueEntries = _visibleRevenueEntries(from: range.start, to: range.endExclusive)
-      .where((entry) {
-        final appointment = _db.appointmentById(entry.appointmentId);
-        return appointment != null && matchesReportAppointment(appointment);
-      }).toList();
+      .where((entry) => matchesFinanceEntry(entry)).toList();
     final revenueByAppointmentInRange = <String, int>{};
     for (final entry in revenueEntries) {
       revenueByAppointmentInRange[entry.appointmentId] =
@@ -279,10 +289,8 @@ class MockDashboardRepository implements DashboardRepository {
     }
     final financeEntries = revenueEntries.where((entry) =>
       canViewCommission && _db.hasPermission('finance.commission.view', employeeId: entry.employeeId)).toList();
-    final allVisibleFinanceEntries = _visibleRevenueEntries().where((entry) {
-      final appointment = _db.appointmentById(entry.appointmentId);
-      return appointment != null && matchesReportAppointment(appointment);
-    }).toList();
+    final allVisibleFinanceEntries = _visibleRevenueEntries()
+      .where((entry) => matchesFinanceEntry(entry)).toList();
 
     final commissionByEmployee = <String, int>{};
     var commissionCost = 0;
@@ -733,11 +741,8 @@ class MockDashboardRepository implements DashboardRepository {
       canSeeAppointment(item) && !item.startAt.isBefore(previousStart) &&
       item.startAt.isBefore(previousEnd) &&
       matchesReportAppointment(item, paymentFrom: previousStart, paymentTo: previousEnd)).length;
-    final previousEntries = _visibleRevenueEntries(from: previousStart, to: previousEnd).where((entry) {
-      final appointment = _db.appointmentById(entry.appointmentId);
-      return appointment != null &&
-        matchesReportAppointment(appointment, paymentFrom: previousStart, paymentTo: previousEnd);
-    });
+    final previousEntries = _visibleRevenueEntries(from: previousStart, to: previousEnd)
+      .where((entry) => matchesFinanceEntry(entry, paymentFrom: previousStart, paymentTo: previousEnd));
     final previousRevenue = previousEntries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
     final previousCommission = canViewCommission ? previousEntries.where((item) =>
       _db.hasPermission('finance.commission.view', employeeId: item.employeeId)).fold<int>(0, (sum, item) =>
