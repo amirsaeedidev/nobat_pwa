@@ -136,7 +136,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('شرح', header: true), cell('روش', header: true), cell('نوع', header: true), cell('مبلغ', header: true)]),
-              for (final item in analytics.paymentTransactions.take(40))
+              for (final item in analytics.paymentTransactions)
                 pw.TableRow(children: [
                   cell(item.description), cell(item.method.label),
                   cell(item.type.name == 'refund' ? 'برگشت وجه' : 'دریافت'),
@@ -148,7 +148,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('نوع', header: true), cell('شرح', header: true), cell('تاریخ', header: true), cell('مبلغ', header: true)]),
-              for (final item in analytics.walletTransactions.take(60))
+              for (final item in analytics.walletTransactions)
                 pw.TableRow(children: [
                   cell(item.type.label), cell(item.description),
                   cell(JalaliDate.fromDateTime(item.createdAt).short), cell(item.amount.toString()),
@@ -159,7 +159,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('رسید', header: true), cell('وضعیت', header: true), cell('مبلغ پرداختی', header: true), cell('مانده', header: true)]),
-              for (final item in analytics.settlements.take(40))
+              for (final item in analytics.settlements)
                 pw.TableRow(children: [
                   cell(item.receiptNumber),
                   cell(item.status.name == 'completed' ? 'کامل' : 'جزئی'),
@@ -171,7 +171,7 @@ class ReportExecutivePdfExport {
             pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
               pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
                 children: [cell('دسته', header: true), cell('شرح', header: true), cell('سند منبع', header: true), cell('مبلغ', header: true)]),
-              for (final item in analytics.businessExpenses.take(40))
+              for (final item in analytics.businessExpenses)
                 pw.TableRow(children: [
                   cell(item.category.label), cell(item.description),
                   cell(item.sourceDocumentId), cell(item.amount.toString()),
