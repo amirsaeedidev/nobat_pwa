@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -20,6 +21,7 @@ import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_sections.dart';
 import '../widgets/performance_chart.dart';
 import '../widgets/dashboard_insights.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 
 /// پیشخوان مدیریت — بازسازی صفحه مرجع DateTime.
 class DashboardPage extends StatelessWidget {
@@ -29,8 +31,9 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<DashboardProvider>();
     final activity = context.watch<ActivityProvider>();
-    final pal = context.pal;
     final stats = provider.stats;
+    final business = context.watch<SettingsProvider>().settings;
+    final publicUrl = business?.publicUrl.trim() ?? '';
 
     return PageScaffold(
       title: 'پیشخوان',
@@ -86,13 +89,7 @@ class DashboardPage extends StatelessWidget {
                   Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: OutlinedButton.icon(
                     onPressed: provider.load, icon: const Icon(Icons.refresh_rounded), label: const Text('بارگذاری دوباره آمار مالی'))),
                 const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'صفحه رزرو عمومی: datetime.app/book/datetime-salon',
-                    textDirection: TextDirection.ltr,
-                    style: TextStyle(fontSize: 10, color: pal.textMuted),
-                  ),
-                ),
+                _PublicBookingLinkCard(url: publicUrl),
               ],
             ),
     );
@@ -131,6 +128,8 @@ class _MobileDashboard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _HeroStatsCard(stats: stats, period: period, onPeriodChanged: onPeriodChanged),
+        const SizedBox(height: 10),
+        DayStatusCards(appointments: dayAppointments),
         const SizedBox(height: 14),
         GradientCta(
           title: 'ثبت نوبت جدید',
@@ -165,8 +164,6 @@ class _MobileDashboard extends StatelessWidget {
         const SizedBox(height: 10),
         const QuickActionsRow(),
         const SizedBox(height: 18),
-        KpiGrid(stats: stats),
-        const SizedBox(height: 12),
         StatusBreakdownCard(counts: stats.statusBreakdown),
         const SizedBox(height: 12),
         RevenueCard(data: revenueSeries),
@@ -232,7 +229,7 @@ class _DesktopDashboard extends StatelessWidget {
               flex: 4,
               child: Column(
                 children: [
-                  KpiGrid(stats: stats, compact: true),
+                  DayStatusCards(appointments: dayAppointments),
                   const SizedBox(height: 12),
                   StatusBreakdownCard(counts: stats.statusBreakdown),
                 ],
@@ -367,23 +364,23 @@ class _HeroStatsCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final completed = StatTile(
-                label: 'تکمیل شده',
-                value: '${FaNum.ofInt(stats.completedAppointments)} نوبت',
+                label: 'نوبت‌ها',
+                value: '${FaNum.ofInt(stats.totalAppointments)} نوبت',
                 icon: Icons.assignment_turned_in_rounded,
                 tint: pal.primaryBright,
                 background: pal.surfaceAlt.withValues(alpha: 0.55),
                 borderColor: pal.borderStrong.withValues(alpha: 0.6),
               );
               final revenue = StatTile(
-                label: 'درآمد تخمینی',
-                value: Fmt.compactMoneyShort(stats.monthRevenue),
+                label: 'درآمد',
+                value: Fmt.compactMoneyShort(stats.totalRevenue),
                 icon: Icons.account_balance_wallet_rounded,
                 tint: pal.success,
                 background: pal.successSoft,
                 borderColor: pal.success.withValues(alpha: 0.28),
                 valueSize: 13.5,
               );
-              if (constraints.maxWidth < 360) {
+              if (constraints.maxWidth < 290) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [completed, const SizedBox(height: 8), revenue],
@@ -417,8 +414,18 @@ class _HeroStatsCard extends StatelessWidget {
             data: stats.weekdayPerformance,
             height: 208,
             onPointTap: (point) {
-              final date = point.dateIso;
-              if (date != null) context.push('/reports?date=$date');
+              showDialog<void>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: Text(point.label, textAlign: TextAlign.right),
+                  content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Text('تعداد نوبت‌ها: ${FaNum.ofInt(point.count)}'),
+                    const SizedBox(height: 6),
+                    Text('درآمد: ${Fmt.money(point.revenue)}'),
+                  ]),
+                  actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
+                ),
+              );
             },
           ),
         ],
@@ -481,6 +488,42 @@ class _DashboardDayPicker extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// لینک رزرو عمومی در انتهای پیشخوان؛ مقدار از تنظیمات واقعی مجموعه می‌آید.
+class _PublicBookingLinkCard extends StatelessWidget {
+  const _PublicBookingLinkCard({required this.url});
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    final available = url.isNotEmpty;
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(children: [
+        Icon(Icons.link_rounded, color: pal.primaryBright, size: 20),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('لینک رزرو عمومی', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+          const SizedBox(height: 3),
+          Text(available ? url : 'لینک رزرو هنوز در تنظیمات ثبت نشده است',
+            textDirection: TextDirection.ltr, textAlign: TextAlign.right, maxLines: 1,
+            overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: pal.textMuted)),
+        ])),
+        IconButton(
+          tooltip: 'کپی لینک',
+          visualDensity: VisualDensity.compact,
+          onPressed: !available ? null : () async {
+            await Clipboard.setData(ClipboardData(text: url));
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('لینک رزرو کپی شد'), duration: Duration(seconds: 2)));
+          },
+          icon: Icon(Icons.copy_rounded, color: available ? pal.primaryBright : pal.textMuted, size: 19),
+        ),
+      ]),
     );
   }
 }
