@@ -80,7 +80,7 @@ class AppTopBar extends StatelessWidget {
                     children: [
                       const _DateTimeLogo(),
                       const Spacer(),
-                      if (onSearch != null) ...[
+                      if (onSearch != null && !narrowHeader) ...[
                         HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                       ],
                       if (!compactLogoHeader) ...actions,
