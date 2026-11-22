@@ -380,7 +380,7 @@ class _AppointmentReportTableState extends State<_AppointmentReportTable> {
   @override
   Widget build(BuildContext context) {
     final rows = _sorted;
-    final pageCount = (rows.length / _pageSize).ceil().clamp(1, 1 << 20);
+    final pageCount = (rows.length / _pageSize).ceil().clamp(1, 1 << 20).toInt();
     if (_page >= pageCount) _page = pageCount - 1;
     final start = _page * _pageSize;
     final visible = rows.skip(start).take(_pageSize);
