@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_palette.dart';
@@ -150,29 +151,74 @@ class DayStatusCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      ('تکمیل‌شده', appointments.where((a) => a.status == AppointmentStatus.completed).length, const Color(0xFF2563EB), Icons.task_alt_rounded),
-      ('تأییدشده', appointments.where((a) => a.status == AppointmentStatus.confirmed).length, const Color(0xFF16A34A), Icons.verified_rounded),
-      ('لغوشده', appointments.where((a) => a.status == AppointmentStatus.cancelled).length, const Color(0xFFDC2626), Icons.event_busy_rounded),
+    final items = <(String, int, Color, List<List>)>[
+      (
+        'تکمیل‌شده',
+        appointments.where((a) => a.status == AppointmentStatus.completed).length,
+        const Color(0xFF2563EB),
+        HugeIcons.strokeRoundedTaskDone01,
+      ),
+      (
+        'تأییدشده',
+        appointments.where((a) => a.status == AppointmentStatus.confirmed).length,
+        const Color(0xFF16A34A),
+        HugeIcons.strokeRoundedCheckmarkCircle02,
+      ),
+      (
+        'لغوشده',
+        appointments.where((a) => a.status == AppointmentStatus.cancelled).length,
+        const Color(0xFFDC2626),
+        HugeIcons.strokeRoundedCalendarRemove01,
+      ),
     ];
-    return LayoutBuilder(builder: (context, constraints) {
-      final spacing = 8.0;
-      final width = (constraints.maxWidth - spacing * 2) / 3;
-      return Wrap(spacing: spacing, runSpacing: spacing, children: [
-        for (final item in items)
-          SizedBox(width: width, child: AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(item.$4, color: item.$3, size: 19),
-              const SizedBox(height: 7),
-              Text(FaNum.ofInt(item.$2), maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
-              Text(item.$1, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 9.5, color: context.pal.textSecondary)),
-            ]),
-          )),
-      ]);
-    });
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 8.0;
+        final width = (constraints.maxWidth - spacing * 2) / 3;
+        return Row(
+          children: [
+            for (var index = 0; index < items.length; index++) ...[
+              if (index > 0) const SizedBox(width: spacing),
+              SizedBox(
+                width: width,
+                child: Semantics(
+                  label: '${items[index].$1}: ${FaNum.ofInt(items[index].$2)}',
+                  child: AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 13),
+                    background: items[index].$3.withValues(alpha: 0.12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        HugeIcon(
+                          icon: items[index].$4,
+                          color: items[index].$3,
+                          size: 19,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            FaNum.ofInt(items[index].$2),
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: items[index].$3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
   }
 }
 
