@@ -34,7 +34,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
   static const _allColumns = [
     'درآمد ناخالص', 'تخفیف', 'درآمد', 'وصول‌شده', 'هزینه', 'هزینه عمومی',
     'حقوق و مزایا', 'سود خالص', 'سهم مجموعه', 'پورسانت پرسنل',
-    'حقوق پرداختی', 'مانده پرسنل', 'مساعده باز', 'مطالبات',
+    'حقوق پرداختی', 'مانده پرسنل', 'بدهی پرسنل', 'مساعده باز', 'مطالبات',
     'نوبت', 'تکمیل‌شده', 'لغوشده', 'عدم مراجعه', 'مشتری یکتا',
     'نرخ بازگشت', 'میانگین مدت نوبت',
   ];
@@ -199,6 +199,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         'پورسانت پرسنل': a.commissionCost.round(),
         'حقوق پرداختی': a.staffPaid.round(),
         'مانده پرسنل': a.staffPayable.round(),
+        'بدهی پرسنل': a.staffDebt.round(),
         'مساعده باز': a.advancesOutstanding.round(),
         'مطالبات': a.receivables.round(),
         'نوبت': a.totalAppointments,
