@@ -484,7 +484,10 @@ class MockDashboardRepository implements DashboardRepository {
     }).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
     final now = DateTime.now();
-    final restrictCustomerScope = !canViewAll || !filter.isEmpty;
+    final restrictCustomerScope = !canViewAll ||
+      filter.serviceId != null || filter.employeeId != null ||
+      filter.customerId != null || filter.status != null ||
+      filter.category != null || filter.paymentMethod != null;
     final candidateCustomers = !canViewCustomerDetails
       ? <Customer>[]
       : restrictCustomerScope
