@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
+import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/reports_provider.dart';
 import '../../utils/report_phase_five.dart';
