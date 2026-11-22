@@ -9,6 +9,7 @@ import '../../../../core/widgets/activity_tile.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../data/models/activity_log.dart';
+import '../../../../data/models/appointment.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/enums.dart';
 import '../../../reports/presentation/widgets/revenue_chart.dart';
@@ -24,15 +25,13 @@ class KpiGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final items = [
-      _Kpi(label: 'کل نوبت‌ها', value: stats.totalAppointments, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.event_note_rounded, color: pal.primaryBright),
-      _Kpi(label: 'نوبت امروز', value: stats.todayAppointments, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.today_rounded, color: pal.accentGlow),
-      _Kpi(label: 'درآمد کل', value: stats.totalRevenue.toDouble(), formatValue: Fmt.compactMoney, icon: Icons.account_balance_wallet_rounded, color: pal.success),
-      _Kpi(label: 'مشتریان', value: stats.totalCustomers, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.people_alt_rounded, color: pal.purple),
+      _Kpi(label: 'نوبت‌ها', value: stats.totalAppointments, formatValue: (v) => FaNum.ofInt(v.round()), icon: Icons.event_note_rounded, color: pal.primaryBright),
+      _Kpi(label: 'درآمد', value: stats.totalRevenue.toDouble(), formatValue: Fmt.compactMoney, icon: Icons.account_balance_wallet_rounded, color: pal.success),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 900 ? 4 : (constraints.maxWidth >= 520 ? 2 : 2);
+        final columns = 2;
         final spacing = compact ? 8.0 : 10.0;
         final width = (constraints.maxWidth - spacing * (columns - 1)) / columns;
         return Wrap(
@@ -144,6 +143,39 @@ class QuickActionsRow extends StatelessWidget {
   }
 }
 
+/// سه شاخص وضعیت نوبت‌های تاریخ انتخاب‌شده با رنگ‌های ثابت.
+class DayStatusCards extends StatelessWidget {
+  const DayStatusCards({super.key, required this.appointments});
+  final List<Appointment> appointments;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('تکمیل‌شده', appointments.where((a) => a.status == AppointmentStatus.completed).length, const Color(0xFF2563EB), Icons.task_alt_rounded),
+      ('تأییدشده', appointments.where((a) => a.status == AppointmentStatus.confirmed).length, const Color(0xFF16A34A), Icons.verified_rounded),
+      ('لغوشده', appointments.where((a) => a.status == AppointmentStatus.cancelled).length, const Color(0xFFDC2626), Icons.event_busy_rounded),
+    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final spacing = 8.0;
+      final width = (constraints.maxWidth - spacing * 2) / 3;
+      return Wrap(spacing: spacing, runSpacing: spacing, children: [
+        for (final item in items)
+          SizedBox(width: width, child: AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(item.$4, color: item.$3, size: 19),
+              const SizedBox(height: 7),
+              Text(FaNum.ofInt(item.$2), maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
+              Text(item.$1, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 9.5, color: context.pal.textSecondary)),
+            ]),
+          )),
+      ]);
+    });
+  }
+}
+
 /// کارت آمار وضعیت نوبت‌ها با نمودار دایره‌ای.
 class StatusBreakdownCard extends StatelessWidget {
   const StatusBreakdownCard({super.key, required this.counts});
@@ -195,7 +227,7 @@ class StatusBreakdownCard extends StatelessWidget {
               if (constraints.maxWidth < 340) {
                 return Column(
                   children: [
-                    Center(child: StatusDonut(counts: counts, size: 128)),
+                    Center(child: StatusDonut(counts: counts, size: 104)),
                     const SizedBox(height: 12),
                     legend,
                   ],
