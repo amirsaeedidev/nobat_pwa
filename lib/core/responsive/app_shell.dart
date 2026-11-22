@@ -63,6 +63,7 @@ class AppShell extends StatelessWidget {
     if (!useSidebar) {
       return Scaffold(
         backgroundColor: context.pal.background,
+        extendBody: true,
         body: child,
         bottomNavigationBar: MobileBottomNav(
           destinations: destinations,
@@ -144,9 +145,9 @@ class MobileBottomNav extends StatelessWidget {
                     child: Container(
                       height: 68,
                       decoration: BoxDecoration(
-                        color: pal.backgroundAlt.withValues(alpha: 0.68),
+                        color: pal.backgroundAlt.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: pal.border.withValues(alpha: 0.8)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
                       ),
                       child: Row(
                         children: [
@@ -174,8 +175,11 @@ class MobileBottomNav extends StatelessWidget {
         onTap: () => showModalBottomSheet<void>(
           context: context,
           backgroundColor: Colors.transparent,
-          barrierColor: Colors.black.withValues(alpha: 0.28),
+          surfaceTintColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.30),
+          elevation: 0,
           isScrollControlled: true,
+          useSafeArea: true,
           builder: (sheetContext) => SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
@@ -195,9 +199,9 @@ class MobileBottomNav extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
                     decoration: BoxDecoration(
-                      color: pal.backgroundAlt.withValues(alpha: 0.38),
+                      color: pal.backgroundAlt.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.38)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.12),
@@ -231,7 +235,7 @@ class MobileBottomNav extends StatelessWidget {
                             IconButton(
                               tooltip: 'بستن',
                               onPressed: () => Navigator.pop(sheetContext),
-                              icon: Icon(Icons.close_rounded, color: pal.textMuted),
+                              icon: HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: pal.textMuted, size: 20),
                             ),
                           ],
                         ),
@@ -248,32 +252,60 @@ class MobileBottomNav extends StatelessWidget {
                               final destinationIndex = index + 3;
                               final destination = destinations[destinationIndex];
                               final isSelected = currentIndex == destinationIndex;
-                              return ListTile(
-                                dense: false,
-                                minVerticalPadding: 10,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                                leading: HugeIcon(
-                                  icon: _navIcon(destinationIndex),
-                                  size: 22,
-                                  color: isSelected ? pal.primaryBright : pal.textMuted,
-                                ),
-                                title: Text(
-                                  destination.label,
-                                  maxLines: 2,
-                                  softWrap: true,
-                                  overflow: TextOverflow.visible,
-                                  style: TextStyle(
-                                    height: 1.35,
-                                    fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSelected ? pal.primaryBright : pal.textPrimary,
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () {
+                                    Navigator.pop(sheetContext);
+                                    onSelect(destinationIndex);
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 42,
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            color: (isSelected ? pal.primaryBright : pal.surfaceAlt)
+                                                .withValues(alpha: isSelected ? 0.18 : 0.58),
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: (isSelected ? pal.primaryBright : Colors.white)
+                                                  .withValues(alpha: 0.24),
+                                            ),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: HugeIcon(
+                                            icon: _navIcon(destination),
+                                            size: 21,
+                                            color: isSelected ? pal.primaryBright : pal.textSecondary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            destination.label,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                              color: isSelected ? pal.primaryBright : pal.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          HugeIcon(
+                                            icon: HugeIcons.strokeRoundedCheck,
+                                            size: 18,
+                                            color: pal.primaryBright,
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                selected: isSelected,
-                                onTap: () {
-                                  Navigator.pop(sheetContext);
-                                  onSelect(destinationIndex);
-                                },
                               );
                             },
                           ),
@@ -317,7 +349,7 @@ class MobileBottomNav extends StatelessWidget {
                 color: selected ? pal.primary : Colors.transparent, shape: BoxShape.circle,
                 boxShadow: selected ? AppShadows.glow(pal.primary, opacity: 0.24, blur: 12) : const [],
               ),
-              child: HugeIcon(icon: _navIcon(navIndex), size: selected ? 23 : 21, color: selected ? Colors.white : pal.textMuted),
+              child: HugeIcon(icon: _navIcon(dest), size: selected ? 23 : 21, color: selected ? Colors.white : pal.textMuted),
             ),
           ),
           const SizedBox(height: 2),
@@ -689,16 +721,32 @@ class _BookingLinkCard extends StatelessWidget {
 /// نمایش شماره صفحه‌ها برای هدر‌ها.
 String faCount(int value) => FaNum.ofInt(value);
 
-/// آیکون‌های ناوبری با خانواده Stroke Rounded از Hugeicons.
-List<List> _navIcon(int index) {
-  switch (index) {
-    case 0:
+/// آیکون هر مقصد بر اساس مسیر؛ مستقل از ترتیب فیلترشدن دسترسی‌ها.
+List<List> _navIcon(NavDestination destination) {
+  switch (destination.route) {
+    case '/dashboard':
       return HugeIcons.strokeRoundedHome01;
-    case 3:
+    case '/appointments':
+      return HugeIcons.strokeRoundedCalendarCheckIn01;
+    case '/calendar':
+      return HugeIcons.strokeRoundedCalendar03;
+    case '/customers':
       return HugeIcons.strokeRoundedUser;
-    case 9:
+    case '/services':
+      return HugeIcons.strokeRoundedScissor;
+    case '/employees':
+      return HugeIcons.strokeRoundedGroup;
+    case '/my-wallet':
+      return HugeIcons.strokeRoundedWallet01;
+    case '/sms':
+      return HugeIcons.strokeRoundedMessage01;
+    case '/reports':
+      return HugeIcons.strokeRoundedChartColumnDots;
+    case '/activity':
+      return HugeIcons.strokeRoundedActivity01;
+    case '/settings':
       return HugeIcons.strokeRoundedSettings01;
     default:
-      return HugeIcons.strokeRoundedAirplaneSeat;
+      return HugeIcons.strokeRoundedHome01;
   }
 }
