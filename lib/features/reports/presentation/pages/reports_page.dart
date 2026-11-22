@@ -179,7 +179,7 @@ class ReportsPage extends StatelessWidget {
                     ])),
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const SectionHeader(title: 'فیلتر گزارش‌های عملیاتی', subtitle: 'فیلترها روی جدول خدمات، مشتریان، نوبت‌ها و تحلیل تقاضا اعمال می‌شوند؛ گزارش مالی کلی حفظ می‌شود.'),
+                      const SectionHeader(title: 'فیلترهای ترکیبی مالی و عملیاتی', subtitle: 'ابعاد مرتبط در گزارش‌های مالی، عملیاتی، نمودارها و جزئیات اعمال می‌شوند؛ هزینه عمومی مجموعه به‌صورت کل بازه نمایش داده می‌شود.'),
                       const SizedBox(height: 10),
                       LayoutBuilder(builder: (context, constraints) {
                         final width = constraints.maxWidth < 440 ? constraints.maxWidth : 205.0;
@@ -227,6 +227,39 @@ class ReportsPage extends StatelessWidget {
                                 DropdownMenuItem<AppointmentStatus?>(value: item, child: Text(item.label)),
                             ],
                             onChanged: (value) => provider.setFilters(status: value, clearStatus: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.category,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'دسته‌بندی خدمت'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه دسته‌بندی‌ها')),
+                              for (final item in (db.services.map((service) => service.category).toSet().toList()..sort()))
+                                DropdownMenuItem<String?>(value: item, child: Text(item, overflow: TextOverflow.ellipsis)),
+                            ],
+                            onChanged: (value) => provider.setFilters(category: value, clearCategory: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                            value: provider.filter.paymentMethod,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'روش پرداخت'),
+                            items: [
+                              const DropdownMenuItem<String?>(value: null, child: Text('همه روش‌ها')),
+                              for (final item in BusinessPaymentMethod.values)
+                                DropdownMenuItem<String?>(value: item.name, child: Text(item.label)),
+                            ],
+                            onChanged: (value) => provider.setFilters(paymentMethod: value, clearPaymentMethod: value == null),
+                          )),
+                          SizedBox(width: width, child: DropdownButtonFormField<EmployeeWalletSettlementStatus?>(
+                            value: provider.filter.settlementStatus,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'وضعیت تسویه پرسنل'),
+                            items: [
+                              const DropdownMenuItem<EmployeeWalletSettlementStatus?>(value: null, child: Text('همه وضعیت‌ها')),
+                              for (final item in EmployeeWalletSettlementStatus.values)
+                                DropdownMenuItem<EmployeeWalletSettlementStatus?>(value: item, child: Text(item == EmployeeWalletSettlementStatus.completed ? 'تسویه کامل' : 'تسویه جزئی')),
+                            ],
+                            onChanged: (value) => provider.setFilters(settlementStatus: value, clearSettlementStatus: value == null),
                           )),
                         ]);
                       }),
