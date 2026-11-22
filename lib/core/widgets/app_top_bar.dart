@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 import '../../app/theme/app_palette.dart';
 import 'app_buttons.dart';
@@ -43,12 +44,30 @@ class AppTopBar extends StatelessWidget {
     final pal = context.pal;
     final compactLogoHeader = MediaQuery.sizeOf(context).width < 400;
     final narrowHeader = MediaQuery.sizeOf(context).width < 360;
-    return Container(
-      decoration: BoxDecoration(
-        color: pal.backgroundAlt,
-        border: Border(bottom: BorderSide(color: pal.border.withValues(alpha: pal.isDark ? 0.6 : 1))),
+    return LiquidGlassLayer(
+      settings: LiquidGlassSettings.ios27Regular(
+        brightness: Theme.of(context).brightness,
+        tintAmount: 0.42,
       ),
-      child: SafeArea(
+      defaultAppearance: LiquidGlassAppearance.ios27Regular(
+        brightness: Theme.of(context).brightness,
+      ),
+      child: LiquidGlass(
+        shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+        shadows: const [
+          BoxShadow(
+            color: Color(0x18000000),
+            offset: Offset(0, 5),
+            blurRadius: 18,
+          ),
+        ],
+        child: Container(
+          decoration: BoxDecoration(
+            color: pal.backgroundAlt.withValues(alpha: 0.30),
+            border: Border.all(color: pal.border.withValues(alpha: 0.45)),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: SafeArea(
         bottom: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(narrowHeader ? 12 : 14, 8, narrowHeader ? 12 : 14, 10),
@@ -170,6 +189,7 @@ class AppTopBar extends StatelessWidget {
                 bottom!,
               ],
             ],
+          ),
           ),
         ),
       ),
