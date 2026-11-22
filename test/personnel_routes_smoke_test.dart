@@ -132,14 +132,6 @@ void main() {
         if (exception != null) {
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
-          if (width == 320 && path == '/dashboard') {
-            debugPrint('--- Dashboard render tree at 320px for overflow diagnosis ---');
-            debugDumpRenderTree();
-          }
-          if (width == 320 && path == '/employees/emp-fateme/schedule') {
-            debugPrint('--- Schedule route render tree after narrow header change ---');
-            debugDumpRenderTree();
-          }
           fail('Responsive route failure at ${width.toInt()}px $path: $details');
         }
       }
