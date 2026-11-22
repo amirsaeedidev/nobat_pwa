@@ -262,6 +262,11 @@ void main() {
       expect(report.payrollCost, expectedPayroll);
       expect(report.settlements, isNotEmpty);
       expect(report.staffPaid, greaterThan(0));
+      expect(report.walletTransactions, isNotEmpty);
+      final expectedWalletBalance = db.employeeWalletTransactions.where((item) =>
+        item.status == EmployeeWalletTransactionStatus.posted)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+      expect(report.staffPayable, expectedWalletBalance);
       expect(report.paymentsByMethod.length, BusinessPaymentMethod.values.length);
     });
   });
