@@ -7,6 +7,7 @@ import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_chart.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
@@ -371,6 +372,25 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             actions,
           ]);
         }),
+        if (previous != null) ...[
+          const SizedBox(height: 8),
+          AppChart(
+            title: 'مقایسه چنددوره‌ای درآمد و هزینه',
+            type: AppChartType.bar,
+            height: 190,
+            points: const [
+              AppChartPoint(label: 'درآمد', value: 0),
+              AppChartPoint(label: 'هزینه', value: 0),
+            ],
+            series: [
+              AppChartSeries(name: 'دوره جاری', color: pal.primary,
+                values: [a.revenue, a.cost]),
+              AppChartSeries(name: 'دوره مقایسه', color: pal.warning,
+                values: [previous.revenue, previous.cost]),
+            ],
+            valueFormatter: (value) => Fmt.compactMoney(value.toDouble()),
+          ),
+        ],
         const Divider(height: 18),
         const Text('عملکرد برتر', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
         const SizedBox(height: 6),
