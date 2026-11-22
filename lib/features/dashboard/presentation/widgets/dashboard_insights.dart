@@ -19,13 +19,13 @@ class DashboardInsights extends StatelessWidget {
     final pal = context.pal;
     final methods = analytics.paymentsByMethod.keys.toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SectionHeader(title: 'تحلیل مالی و عملکردی', subtitle: analytics.range.label),
+      SectionHeader(title: 'تحلیل مالی و عملکرد یک ماه اخیر', subtitle: 'گزارش عملکرد و وضعیت مالی در یک ماه اخیر · ${analytics.range.label}'),
       const SizedBox(height: 10),
       LayoutBuilder(builder: (context, c) {
-        final cols = c.maxWidth < 380 ? 1 : 2;
+        const cols = 2;
         return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: cols, mainAxisSpacing: 8, crossAxisSpacing: 8,
-          childAspectRatio: cols == 1 ? 2.8 : 1.75,
+          childAspectRatio: c.maxWidth < 360 ? 1.45 : 1.7,
           children: [
             _MetricTile('درآمد خالص', Fmt.compactMoneyShort(analytics.netRevenue), pal.success),
             _MetricTile('پورسانت پرسنل', Fmt.compactMoneyShort(analytics.commissionCost), pal.warning),
@@ -71,22 +71,30 @@ class DashboardInsights extends StatelessWidget {
       )),
       const SizedBox(height: 12),
       _Chart(title: 'سهم دسته‌بندی خدمات', subtitle: 'توزیع درآمد خدمات بر اساس دسته ثبت‌شده', child: AppChart(
-        type: AppChartType.pie, height: 210,
+        type: AppChartType.pie, height: 148,
         points: [for (final entry in analytics.revenueByCategory.entries)
           AppChartPoint(label: entry.key, value: entry.value)],
         valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
       const SizedBox(height: 12),
-      _Chart(title: 'رتبه‌بندی خدمات', subtitle: 'خدمات برتر بر اساس درآمد ثبت‌شده', child: AppChart(
-        type: AppChartType.horizontalBar, height: 220,
+      _Chart(title: 'رتبه‌بندی خدمات بر اساس درآمد', subtitle: 'خدمات برتر در یک ماه اخیر', child: AppChart(
+        type: AppChartType.horizontalBar, height: 190,
         points: [for (final item in (analytics.services.toList()
           ..sort((a, b) => b.revenue.compareTo(a.revenue))).take(8))
           AppChartPoint(label: item.name, value: item.revenue)],
         valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
+      const SizedBox(height: 10),
+      _Chart(title: 'رتبه‌بندی خدمات بر اساس تعداد نوبت', subtitle: 'تعداد دفعات ارائه هر خدمت در یک ماه اخیر', child: AppChart(
+        type: AppChartType.horizontalBar, height: 190,
+        points: [for (final item in (analytics.services.toList()
+          ..sort((a, b) => b.count.compareTo(a.count))).take(8))
+          AppChartPoint(label: item.name, value: item.count)],
+        valueFormatter: (v) => FaNum.ofInt(v.round()),
+      )),
       const SizedBox(height: 12),
       _Chart(title: 'ترکیب درآمد و هزینه', subtitle: 'سهم هر بخش از مجموع مبالغ ثبت‌شده', child: AppChart(
-        type: AppChartType.donut, height: 190,
+        type: AppChartType.donut, height: 148,
         points: [
           AppChartPoint(label: 'درآمد', value: analytics.revenue, color: pal.success),
           AppChartPoint(label: 'هزینه', value: analytics.cost, color: pal.danger),
