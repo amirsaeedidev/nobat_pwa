@@ -39,7 +39,7 @@ class AppChart extends StatelessWidget {
     super.key, required this.points, this.type = AppChartType.line,
     this.series = const [], this.height = 220, this.title,
     this.valueSuffix = '', this.valueFormatter, this.onPointTap,
-    this.loading = false, this.error, this.showLegend = true, this.onTypeChanged, this.centerLabel = 'مجموع',
+    this.loading = false, this.error, this.showLegend = true, this.onTypeChanged, this.centerLabel = 'مجموع',\n    this.switchableTypes = const [AppChartType.line, AppChartType.area, AppChartType.bar],
   });
   final List<AppChartPoint> points;
   final AppChartType type;
@@ -54,7 +54,7 @@ class AppChart extends StatelessWidget {
   final bool showLegend;
   final ValueChanged<AppChartType>? onTypeChanged;
   final String centerLabel;
-  final List<AppChartType> switchableTypes = const [AppChartType.line, AppChartType.area, AppChartType.bar];
+  final List<AppChartType> switchableTypes;
 
   @override
   Widget build(BuildContext context) {
