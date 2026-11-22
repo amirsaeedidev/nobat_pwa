@@ -446,9 +446,6 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           OutlinedButton(onPressed: _exporting ? null : () => _export('pdf'), child: const Text('خروجی PDF')),
-          OutlinedButton(onPressed: _exporting ? null : _print, child: const Text('چاپ گزارش')),
-          OutlinedButton(onPressed: _exporting ? null : () => _export('excel'), child: const Text('خروجی Excel')),
-          OutlinedButton(onPressed: _exporting ? null : () => _export('csv'), child: const Text('خروجی CSV')),
           if (_exporting) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
         ]),
       ])),
