@@ -386,7 +386,7 @@ class MockDashboardRepository implements DashboardRepository {
     var receivables = 0;
     for (final appointment in financeCompletedAppointments.where((item) =>
       _db.hasPermission('finance.income.view', employeeId: item.employeeId))) {
-      final due = (recognizedByAppointment[appointment.id] ?? appointment.price.round()) -
+      final due = (recognizedByAppointment[appointment.id] ?? 0) -
           (paidByAppointment[appointment.id] ?? 0);
       if (due > 0) {
         receivables += due;
@@ -541,9 +541,7 @@ class MockDashboardRepository implements DashboardRepository {
         (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund) &&
         (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
         _db.hasPermission('finance.income.view', employeeId: entry.employeeId)).toList();
-      final totalSpent = customerIncomeEntries.isEmpty
-        ? lifetimeVisits.fold<num>(0, (sum, item) => sum + item.price)
-        : customerIncomeEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
+      final totalSpent = customerIncomeEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
       final isNew = firstVisit != null
         ? range.contains(firstVisit)
         : customer.createdAt != null && range.contains(customer.createdAt!);
