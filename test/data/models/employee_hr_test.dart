@@ -51,6 +51,16 @@ void main(){
   DateTime? start;
   for(var offset=1;offset<40 && start==null;offset++){
    final day=DateTime.now().add(Duration(days:offset));
+   final dayStart=DateTime(day.year,day.month,day.day);
+   final dayEnd=dayStart.add(const Duration(days:1));
+   // The test covers leave-state behavior, so select a date with no existing
+   // appointment at all; otherwise approval is correctly rejected by the
+   // database's appointment-conflict protection.
+   if(db.appointments.any((appointment)=>
+     appointment.employeeId==employee.id &&
+     appointment.status!=AppointmentStatus.cancelled &&
+     appointment.startAt.isBefore(dayEnd) &&
+     dayStart.isBefore(appointment.endAt))) continue;
    final shifts=db.employeeShiftsForDate(employee.id,day);
    for(final shift in shifts){
     final candidate=DateTime(day.year,day.month,day.day,shift.startMinutes~/60,(shift.startMinutes%60)+10);
