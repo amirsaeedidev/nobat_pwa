@@ -66,6 +66,24 @@ void main() {
       expect(range.endExclusive.difference(range.start).inDays, 3);
     });
 
+    test('accountant sees financial ledgers but not operational or customer details', () async {
+      final db = AppDatabase();
+      db.switchMockAccount('demo-accountant');
+      final range = ReportDateRange.custom(
+        JalaliDate(1400, 1, 1),
+        JalaliDate(1450, 1, 1),
+      );
+      final report = await MockDashboardRepository(db).fetchReportAnalytics(range: range);
+      expect(report.revenue, greaterThan(0));
+      expect(report.employees, isNotEmpty);
+      expect(report.walletTransactions, isNotEmpty);
+      expect(report.operationalAppointments, isEmpty);
+      expect(report.customerMetrics, isEmpty);
+      expect(report.customerDebts, isEmpty);
+      expect(report.totalAppointments, 0);
+      expect(report.uniqueCustomers, 0);
+    });
+
     test('blocks report access without income permission', () async {
       final db = AppDatabase();
       db.switchMockAccount('demo-operator');
