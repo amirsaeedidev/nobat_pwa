@@ -4,6 +4,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/report_analytics.dart';
@@ -121,6 +122,21 @@ class ReportExecutivePdfExport {
       ],
     ));
     return Uint8List.fromList(await document.save());
+  }
+
+  static Future<void> print({
+    required ReportAnalytics analytics,
+    required ReportAnalytics comparison,
+    required String title,
+    required List<String> columns,
+  }) async {
+    final bytes = await buildBytes(
+      analytics: analytics, comparison: comparison, title: title, columns: columns,
+    );
+    await Printing.layoutPdf(
+      name: 'گزارش-مدیریتی',
+      onLayout: (_) async => bytes,
+    );
   }
 
   static Future<void> save({
