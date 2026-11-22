@@ -865,6 +865,7 @@ class MockDashboardRepository implements DashboardRepository {
       walletTransactions: walletEntries,
       averageAppointmentMinutes: operationalCompleted.isEmpty ? 0 :
         operationalCompleted.fold<int>(0, (sum, item) => sum + item.durationMinutes) / operationalCompleted.length,
+      revenueByCategory: Map.unmodifiable(revenueByCategory),
     );
   }
 }
