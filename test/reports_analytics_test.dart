@@ -27,6 +27,35 @@ void main() {
       expect(report.services, isNotEmpty);
     });
 
+    test('combined filters match service category, customer, staff and appointment status', () {
+      final db = AppDatabase();
+      final source = db.appointments.first;
+      final service = db.services.first;
+      final item = source.copyWith(
+        serviceIds: [service.id],
+        employeeId: db.employees.first.id,
+        customerId: db.customers.first.id,
+        status: AppointmentStatus.completed,
+      );
+      const filter = ReportAnalyticsFilter(
+        serviceId: 'service-id-placeholder',
+        category: 'دسته تست',
+        employeeId: 'employee-id-placeholder',
+        customerId: 'customer-id-placeholder',
+        status: AppointmentStatus.completed,
+      );
+      expect(filter.matches(item, serviceCategories: {'دسته تست'}), isFalse);
+      final valid = ReportAnalyticsFilter(
+        serviceId: service.id,
+        category: service.category,
+        employeeId: item.employeeId,
+        customerId: item.customerId,
+        status: AppointmentStatus.completed,
+      );
+      expect(valid.matches(item, serviceCategories: {service.category}), isTrue);
+      expect(valid.copyWith(clearCategory: true).category, isNull);
+    });
+
     test('custom range includes both selected Jalali dates', () {
       final from = JalaliDate(1405, 8, 1);
       final to = JalaliDate(1405, 8, 3);
