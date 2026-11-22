@@ -278,6 +278,9 @@ class MockDashboardRepository implements DashboardRepository {
             entry.status == EmployeeWalletTransactionStatus.posted &&
             (canViewAllFinancial || canViewAll || employeeId == entry.employeeId) &&
             _db.hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
+            (entry.type != EmployeeWalletTransactionType.commission &&
+              entry.sourceFinanceEntryId == null ||
+              _db.hasPermission('finance.commission.view', employeeId: entry.employeeId)) &&
             (filter.employeeId == null || filter.employeeId == entry.employeeId)).toList()
         : <EmployeeWalletTransaction>[];
     int walletCostFor(Iterable<EmployeeWalletTransaction> entries) {
@@ -739,7 +742,7 @@ class MockDashboardRepository implements DashboardRepository {
             (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
             (filter.employeeId == null || filter.employeeId == item.employeeId) &&
             _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
-            (item.type != EmployeeWalletTransactionType.commission ||
+            ((item.type != EmployeeWalletTransactionType.commission && item.sourceFinanceEntryId == null) ||
               _db.hasPermission('finance.commission.view', employeeId: item.employeeId)))
             .toList()
         : <EmployeeWalletTransaction>[];
