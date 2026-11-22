@@ -502,7 +502,7 @@ class ReportsPage extends StatelessWidget {
                         ExpansionPanelRadio(
                           value: 'pdf', canTapOnHeader: true,
                           headerBuilder: (context, expanded) => const ListTile(
-                            leading: HugeIcon(icon: HugeIcons.strokeRoundedFile01, size: 21),
+                            leading: HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 21),
                             title: Text('خروجی PDF', style: TextStyle(fontWeight: FontWeight.w800)),
                             subtitle: Text('ذخیره گزارش در قالب PDF'),
                           ),
