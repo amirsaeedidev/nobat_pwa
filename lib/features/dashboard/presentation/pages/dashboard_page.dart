@@ -882,7 +882,7 @@ class _HeroStatsCard extends StatelessWidget {
                 borderColor: pal.success.withValues(alpha: 0.28),
                 valueSize: 13.5,
               );
-              if (constraints.maxWidth < 290) {
+              if (constraints.maxWidth < 270) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [completed, const SizedBox(height: 8), revenue],
