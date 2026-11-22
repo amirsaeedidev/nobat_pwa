@@ -160,43 +160,55 @@ class StatusBreakdownCard extends StatelessWidget {
         children: [
           const SectionHeader(title: 'وضعیت نوبت‌ها', subtitle: 'بر اساس بازه انتخاب‌شده'),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              StatusDonut(counts: counts, size: 128),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  children: [
-                    for (final status in statuses)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(color: status.color, shape: BoxShape.circle),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final legend = Column(
+                children: [
+                  for (final status in statuses)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(color: status.color, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              status.label,
+                              style: TextStyle(fontSize: 10.5, color: pal.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                status.label,
-                                style: TextStyle(fontSize: 10.5, color: pal.textSecondary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              FaNum.ofInt(counts[status.label] ?? 0),
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                            ),
-                          ],
-                        ),
+                          ),
+                          Text(
+                            FaNum.ofInt(counts[status.label] ?? 0),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                          ),
+                        ],
                       ),
+                    ),
+                ],
+              );
+              if (constraints.maxWidth < 340) {
+                return Column(
+                  children: [
+                    Center(child: StatusDonut(counts: counts, size: 128)),
+                    const SizedBox(height: 12),
+                    legend,
                   ],
-                ),
-              ),
-            ],
+                );
+              }
+              return Row(
+                children: [
+                  StatusDonut(counts: counts, size: 128),
+                  const SizedBox(width: 12),
+                  Expanded(child: legend),
+                ],
+              );
+            },
           ),
         ],
       ),
