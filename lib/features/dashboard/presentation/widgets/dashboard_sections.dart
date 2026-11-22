@@ -186,7 +186,7 @@ class DayStatusCards extends StatelessWidget {
                   label: '${items[index].$1}: ${FaNum.ofInt(items[index].$2)}',
                   child: AppCard(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 13),
-                    background: items[index].$3.withValues(alpha: 0.12),
+                    color: items[index].$3.withValues(alpha: 0.12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
