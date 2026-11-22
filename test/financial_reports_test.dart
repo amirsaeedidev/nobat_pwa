@@ -113,6 +113,46 @@ void main() {
       expect(report.collectedRevenue, db.appointmentPayments.fold<int>(0, (sum, item) => sum + item.signedAmount));
     });
 
+    test('combined payment-method and settlement-status filters stay on their source ledgers', () async {
+      final db = AppDatabase();
+      final appointment = db.appointments.firstWhere((item) => item.status == AppointmentStatus.completed);
+      db.recordAppointmentPayment(
+        appointmentId: appointment.id,
+        amount: 1,
+        method: BusinessPaymentMethod.cash,
+        description: 'گزارش فیلتر روش پرداخت',
+        idempotencyKey: 'report-filter-cash-${appointment.id}',
+      );
+
+      final employee = db.employees.first;
+      db.accruePayrollBaseToWallet(employee.id);
+      final start = DateTime(2000, 1, 1);
+      final end = DateTime(2100, 1, 1);
+      final due = db.walletPeriodDue(employee.id, start, end);
+      expect(due, greaterThan(1));
+      final settlement = db.settleEmployeeWallet(
+        employeeId: employee.id,
+        periodStart: start,
+        periodEnd: end,
+        periodType: EmployeeWalletPeriodType.manual,
+        paidAmount: due ~/ 2,
+        idempotencyKey: 'report-filter-partial-settlement',
+      );
+      expect(settlement.status, EmployeeWalletSettlementStatus.partial);
+
+      final report = await MockDashboardRepository(db).fetchReportAnalytics(
+        range: allTime(),
+        filter: const ReportAnalyticsFilter(
+          paymentMethod: 'cash',
+          settlementStatus: EmployeeWalletSettlementStatus.partial,
+        ),
+      );
+      expect(report.paymentTransactions, isNotEmpty);
+      expect(report.paymentTransactions.every((item) => item.method == BusinessPaymentMethod.cash), isTrue);
+      expect(report.settlements, isNotEmpty);
+      expect(report.settlements.every((item) => item.status == EmployeeWalletSettlementStatus.partial), isTrue);
+    });
+
     test('service commission override is snapshotted and honored over fixed monthly default', () {
       final db = AppDatabase();
       final source = db.appointments.firstWhere((item) => item.status == AppointmentStatus.pending);
