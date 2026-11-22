@@ -84,14 +84,6 @@ class DashboardInsights extends StatelessWidget {
           AppChartPoint(label: item.name, value: item.revenue)],
         valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
-      const SizedBox(height: 10),
-      _Chart(title: 'رتبه‌بندی خدمات بر اساس تعداد نوبت', subtitle: 'تعداد دفعات ارائه هر خدمت در یک ماه اخیر', child: AppChart(
-        type: AppChartType.horizontalBar, height: 190,
-        points: [for (final item in (analytics.services.toList()
-          ..sort((a, b) => b.count.compareTo(a.count))).take(8))
-          AppChartPoint(label: item.name, value: item.count)],
-        valueFormatter: (v) => FaNum.ofInt(v.round()),
-      )),
       const SizedBox(height: 12),
       _Chart(title: 'ترکیب درآمد و هزینه', subtitle: 'سهم هر بخش از مجموع مبالغ ثبت‌شده', child: AppChart(
         type: AppChartType.donut, height: 148,
