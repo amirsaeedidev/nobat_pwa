@@ -80,6 +80,22 @@ class DashboardInsights extends StatelessWidget {
         valueFormatter: (v) => FaNum.ofInt(v.round()),
       )),
       const SizedBox(height: 12),
+      _Chart(title: 'ترکیب درآمد و هزینه', subtitle: 'سهم هر بخش از مجموع مبالغ ثبت‌شده', child: AppChart(
+        type: AppChartType.donut, height: 190,
+        points: [
+          AppChartPoint(label: 'درآمد', value: analytics.revenue, color: pal.success),
+          AppChartPoint(label: 'هزینه', value: analytics.cost, color: pal.danger),
+        ],
+        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
+      )),
+      const SizedBox(height: 12),
+      _Chart(title: 'ترکیب خدمات به تفکیک پرسنل', subtitle: 'تعداد ارائه هر خدمت توسط هر پرسنل', child: AppChart(
+        type: AppChartType.stackedBar, height: 210,
+        points: [for (final service in analytics.services)
+          AppChartPoint(label: service.name, value: service.count, segments: service.employeeCounts)],
+        valueFormatter: (v) => FaNum.ofInt(v.round()),
+      )),
+      const SizedBox(height: 12),
       _Chart(title: 'مقایسه درآمد و هزینه', subtitle: 'روند بازه انتخاب‌شده', child: AppChart(
         type: AppChartType.bar, height: 205,
         points: [for (final e in analytics.trend) AppChartPoint(label: e.label, value: e.revenue)],
