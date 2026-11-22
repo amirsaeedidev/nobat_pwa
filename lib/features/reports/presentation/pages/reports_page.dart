@@ -976,7 +976,7 @@ class _RecentTransactions extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.pal;
     return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SectionHeader(title: 'آخرین تراکنش‌های حقوقی'),
+      const SectionHeader(title: 'آخرین تراکنش‌های کیف پول'),
       const SizedBox(height: 8),
       if (items.isEmpty) const EmptyState(compact: true, title: 'تراکنش قابل نمایشی وجود ندارد')
       else for (final item in items)
