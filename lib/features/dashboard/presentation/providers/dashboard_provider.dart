@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
@@ -76,13 +77,10 @@ class DashboardProvider extends DbBoundProvider {
   Future<void> _loadAnalytics({int? generation}) async {
     _analyticsError = false;
     try {
-      final reportPeriod = switch (_period) {
-        StatsPeriod.daily => ReportPeriod.today,
-        StatsPeriod.weekly => ReportPeriod.thisWeek,
-        StatsPeriod.monthly => ReportPeriod.thisMonth,
-      };
+      final today = JalaliDate.today();
       final analytics = await _repository.fetchReportAnalytics(
-        range: ReportDateRange.preset(reportPeriod), filter: _analyticsFilter);
+        range: ReportDateRange.custom(today.addDays(-29), today),
+        filter: _analyticsFilter);
       if (generation != null && generation != _loadGeneration) return;
       _analytics = analytics;
     } catch (_) {
