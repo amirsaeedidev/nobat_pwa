@@ -125,7 +125,7 @@ void main() {
       );
       expect(filtered.operationalAppointments, isNotEmpty);
       expect(filtered.operationalAppointments.every((item) =>
-        item.serviceSnapshots.any((snapshot) => snapshot['category'] == 'گروه گزارش تست')), isTrue);
+        item.serviceIds.contains(targetService.id)), isTrue);
       expect(filtered.services.map((item) => item.name), contains(targetService.title));
       expect(filtered.operationalAppointments.any((item) => item.id == target.id), isTrue);
       final completed = filtered.operationalAppointments
