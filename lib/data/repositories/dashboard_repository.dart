@@ -735,18 +735,22 @@ class MockDashboardRepository implements DashboardRepository {
 
     final staffPaid = walletEntries.where((item) => item.type == EmployeeWalletTransactionType.salaryPayment)
         .fold<int>(0, (sum, item) => sum + item.amount.abs());
-    final walletBalanceEntries = canViewSalary
-        ? _db.employeeWalletTransactions.where((item) =>
-            item.status == EmployeeWalletTransactionStatus.posted &&
-            item.createdAt.isBefore(range.endExclusive) &&
-            (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
-            (filter.employeeId == null || filter.employeeId == item.employeeId) &&
-            _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
-            ((item.type != EmployeeWalletTransactionType.commission && item.sourceFinanceEntryId == null) ||
-              _db.hasPermission('finance.commission.view', employeeId: item.employeeId)))
-            .toList()
-        : <EmployeeWalletTransaction>[];
-    final staffPayable = walletBalanceEntries.fold<int>(0, (sum, item) => sum + item.amount);
+    final staffWallets = canViewSalary
+        ? _db.employees.where((item) =>
+            (canViewAllFinancial || canViewAll || employeeId == item.id) &&
+            (filter.employeeId == null || filter.employeeId == item.id) &&
+            _db.hasPermission('finance.salary.view', employeeId: item.id)).map((employee) {
+              final entries = _db.walletTransactionsFor(
+                employee.id,
+                to: range.endExclusive.subtract(const Duration(microseconds: 1)),
+              );
+              return EmployeeWallet.fromTransactions(
+                employee.id, entries, calculatedAt: range.endExclusive,
+              );
+            }).toList()
+        : <EmployeeWallet>[];
+    final staffPayable = staffWallets.fold<int>(0, (sum, wallet) => sum + wallet.payableBalance);
+    final staffDebt = staffWallets.fold<int>(0, (sum, wallet) => sum + wallet.debt);
     final advancesOutstanding = _db.payrollAdvances.where((item) =>
       item.status == AdvanceStatus.paid &&
       (canViewAllFinancial || canViewAll || employeeId == item.employeeId) &&
@@ -814,6 +818,7 @@ class MockDashboardRepository implements DashboardRepository {
       receivables: receivables,
       operatingExpense: operatingExpense,
       staffPayable: staffPayable,
+      staffDebt: staffDebt,
       staffPaid: staffPaid,
       advancesOutstanding: advancesOutstanding,
       profitMarginPercent: margin,
