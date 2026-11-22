@@ -211,35 +211,7 @@ class OperationalReportsSections extends StatelessWidget {
           _AppointmentReportTable(items: appointments),
       ])),
       const SizedBox(height: 12),
-      AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SectionHeader(title: 'روزهای پرتردد', subtitle: 'تقاضای نوبت‌ها بر اساس روزهای هفته؛ بدون نمایش ساعت‌ها'),
-        const SizedBox(height: 8),
-        if (analytics.capacityMinutes <= 0)
-          Text('برای این بازه ظرفیت برنامه‌ریزی‌شده قابل محاسبه نیست؛ بازه‌های حداکثر یک‌ساله یا برنامه کاری ثبت‌شده را انتخاب کنید.',
-            style: TextStyle(fontSize: 10, color: pal.textMuted))
-        else ...[
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            _SegmentMetric(label: 'ظرفیت برنامه', value: analytics.capacityMinutes / 60, suffix: 'ساعت', decimal: true, color: pal.info),
-            _SegmentMetric(label: 'زمان رزروشده', value: analytics.bookedCapacityMinutes / 60, suffix: 'ساعت', decimal: true, color: pal.primaryBright),
-            _SegmentMetric(label: 'ظرفیت خالی', value: analytics.emptyCapacityMinutes / 60, suffix: 'ساعت', decimal: true, color: pal.warning),
-            _SegmentMetric(label: 'استفاده از ظرفیت', value: analytics.capacityUtilizationPercent, percent: true, color: pal.success),
-          ]),
-          const SizedBox(height: 12),
-          const SectionHeader(title: 'تقاضا بر اساس روز هفته'),
-          for (final item in analytics.weekdayDemand)
-            Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
-              SizedBox(width: 72, child: Text(item.label, style: TextStyle(fontSize: 10, color: pal.textSecondary))),
-              Expanded(child: LinearProgressIndicator(
-                value: analytics.weekdayDemand.isEmpty ? 0 : item.appointments / analytics.weekdayDemand.first.appointments.clamp(1, 1 << 30),
-                minHeight: 7, backgroundColor: pal.surfaceAlt,
-                valueColor: AlwaysStoppedAnimation(pal.primaryBright),
-              )),
-              const SizedBox(width: 8),
-              Text(FaNum.ofInt(item.appointments), style: TextStyle(fontSize: 10, color: pal.textPrimary)),
-            ])),
-        ],
 
-      ])),
     ]);
   }
 }
