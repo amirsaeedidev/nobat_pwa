@@ -8,7 +8,6 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/report_analytics.dart';
-import '../../../../data/models/employee_wallet.dart';
 
 class ReportExecutivePdfExport {
   const ReportExecutivePdfExport._();
