@@ -198,6 +198,7 @@ class ReportAnalytics {
     this.operationalStatusCounts = const {},
     this.newCustomerTrend = const [],
     this.averageAppointmentMinutes = 0,
+    this.revenueByCategory = const {},
   });
   final ReportDateRange range;
   final num revenue, cost, commissionCost, payrollCost;
@@ -235,6 +236,8 @@ class ReportAnalytics {
   final Map<String, int> operationalStatusCounts;
   final List<ReportTrendPoint> newCustomerTrend;
   final num averageAppointmentMinutes;
+  /// Revenue allocated from completed service finance entries by saved service category.
+  final Map<String, num> revenueByCategory;
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
   num get discounts => grossRevenue - revenue;
