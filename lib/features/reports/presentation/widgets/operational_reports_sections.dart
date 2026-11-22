@@ -28,41 +28,6 @@ class OperationalReportsSections extends StatelessWidget {
     context.go('/reports?date=${date.iso}');
   }
 
-  Future<void> _export(
-    BuildContext context, {
-    required String name,
-    required List<String> headers,
-    required List<List<Object?>> rows,
-    required bool excel,
-  }) async {
-    try {
-      if (excel) {
-        await ReportTableExport.saveExcel(name: name, headers: headers, rows: rows);
-      } else {
-        await ReportTableExport.saveCsv(name: name, headers: headers, rows: rows);
-      }
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فایل $name با موفقیت آماده شد.')));
-      }
-    } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خروجی گرفتن ناموفق بود: $error')));
-      }
-    }
-  }
-
-  Widget _exports(BuildContext context, String name, List<String> headers, List<List<Object?>> rows) =>
-    Wrap(spacing: 6, runSpacing: 6, children: [
-      TextButton(
-        onPressed: () => _export(context, name: name, headers: headers, rows: rows, excel: false),
-        child: const Text('خروجی CSV'),
-      ),
-      TextButton(
-        onPressed: () => _export(context, name: name, headers: headers, rows: rows, excel: true),
-        child: const Text('خروجی Excel'),
-      ),
-    ]);
-
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
@@ -116,7 +81,7 @@ class OperationalReportsSections extends StatelessWidget {
             ],
             onChanged: (value) { if (value != null) provider.setServiceSort(value); },
           )),
-          _exports(context, 'گزارش-خدمات', serviceHeaders, serviceRows),
+          
         ]),
         const SizedBox(height: 8),
         Text('پوشش ثبت هزینه مستقیم: ${FaNum.convert(analytics.directCostCoveragePercent.toStringAsFixed(1))}٪ از دفعات ارائه. هزینه و سود برای ردیف‌هایی که هزینه مستقیم همه نوبت‌هایشان ثبت نشده، «نامشخص» باقی می‌ماند.',
@@ -203,7 +168,7 @@ class OperationalReportsSections extends StatelessWidget {
           )),
         ],
         const SizedBox(height: 8),
-        _exports(context, 'گزارش-مشتریان', customerHeaders, customerRows),
+        
         if (customers.isEmpty)
           const EmptyState(title: 'مشتری‌ای برای نمایش وجود ندارد', compact: true)
         else
@@ -262,7 +227,7 @@ class OperationalReportsSections extends StatelessWidget {
         Text('در مدل فعلی نوبت، وضعیت مستقلی برای «ردشده» تعریف نشده است؛ این عدد به‌صورت ساختگی از لغوها جدا نشده است.',
           style: TextStyle(fontSize: 10, color: pal.textMuted)),
         const SizedBox(height: 8),
-        _exports(context, 'گزارش-نوبت‌ها', appointmentHeaders, appointmentRows),
+        
         if (appointments.isEmpty)
           const EmptyState(title: 'نوبتی مطابق فیلترها وجود ندارد', compact: true)
         else
@@ -270,7 +235,7 @@ class OperationalReportsSections extends StatelessWidget {
       ])),
       const SizedBox(height: 12),
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SectionHeader(title: 'روزها و ساعت‌های پرتردد', subtitle: 'تقاضا از نوبت‌های فعال و تکمیل‌شده و ظرفیت از شیفت‌های ثبت‌شده استخراج می‌شود.'),
+        const SectionHeader(title: 'روزهای پرتردد', subtitle: 'تقاضای نوبت‌ها بر اساس روزهای هفته؛ بدون نمایش ساعت‌ها'),
         const SizedBox(height: 8),
         if (analytics.capacityMinutes <= 0)
           Text('برای این بازه ظرفیت برنامه‌ریزی‌شده قابل محاسبه نیست؛ بازه‌های حداکثر یک‌ساله یا برنامه کاری ثبت‌شده را انتخاب کنید.',
@@ -296,24 +261,7 @@ class OperationalReportsSections extends StatelessWidget {
               Text(FaNum.ofInt(item.appointments), style: TextStyle(fontSize: 10, color: pal.textPrimary)),
             ])),
         ],
-        const SizedBox(height: 12),
-        const SectionHeader(title: 'تقاضا بر اساس ساعت'),
-        if (analytics.hourlyDemand.isEmpty)
-          const EmptyState(title: 'داده ساعتی موجود نیست', compact: true)
-        else
-          for (final item in analytics.hourlyDemand)
-            Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
-              SizedBox(width: 48, child: Text('${item.hour.toString().padLeft(2, '0')}:00', style: TextStyle(fontSize: 10, color: pal.textSecondary))),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                LinearProgressIndicator(
-                  value: item.scheduledMinutes <= 0 ? 0 : (item.bookedMinutes / item.scheduledMinutes).clamp(0, 1).toDouble(),
-                  minHeight: 7, backgroundColor: pal.surfaceAlt,
-                  valueColor: AlwaysStoppedAnimation(item.appointments == 0 ? pal.warning : pal.success),
-                ),
-                Text(item.appointments == 0 ? 'ساعت کم‌تقاضا / بدون نوبت' : '${FaNum.ofInt(item.appointments)} نوبت • ${FaNum.ofInt(item.bookedMinutes)} دقیقه رزرو از ${FaNum.ofInt(item.scheduledMinutes)} دقیقه برنامه',
-                  style: TextStyle(fontSize: 9, color: pal.textMuted)),
-              ])),
-            ])),
+
       ])),
     ]);
   }
