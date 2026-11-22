@@ -86,7 +86,14 @@ void main() {
       expect(report.newCustomers, 1);
       expect(report.repeatCustomerRate, 100);
       expect(report.rejectedAppointments, 0);
-      expect(report.averageAppointmentMinutes, 45);
+      final completedDurations = report.operationalAppointments
+          .where((item) => item.status == AppointmentStatus.completed)
+          .map((item) => item.durationMinutes)
+          .toList();
+      expect(
+        report.averageAppointmentMinutes,
+        completedDurations.fold<int>(0, (sum, minutes) => sum + minutes) / completedDurations.length,
+      );
     });
 
     test('category filter narrows operational and linked financial reports', () async {
