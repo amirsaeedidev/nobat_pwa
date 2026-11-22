@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
@@ -128,25 +129,37 @@ class MobileBottomNav extends StatelessWidget {
                 left: 12,
                 right: 12,
                 bottom: 10,
-                child: Container(
-                  height: 68,
-                  decoration: BoxDecoration(
-                    color: pal.backgroundAlt,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: pal.border),
-                    boxShadow: [
+                child: LiquidGlassLayer(
+                  settings: LiquidGlassSettings.ios27Regular(
+                    brightness: Theme.of(context).brightness,
+                    tintAmount: 0.55,
+                  ),
+                  defaultAppearance: LiquidGlassAppearance.ios27Regular(
+                    brightness: Theme.of(context).brightness,
+                  ),
+                  child: LiquidGlass(
+                    shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+                    shadows: const [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: pal.isDark ? 0.45 : 0.08),
-                        blurRadius: 22,
-                        offset: const Offset(0, -2),
+                        color: Color(0x22000000),
+                        offset: Offset(0, 5),
+                        blurRadius: 18,
                       ),
                     ],
-                  ),
-                  child: Row(
-                    children: [
-                      for (var slot = 0; slot < 5; slot++)
-                        Expanded(child: _buildSlot(context, slot)),
-                    ],
+                    child: Container(
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: pal.backgroundAlt.withValues(alpha: 0.68),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: pal.border.withValues(alpha: 0.8)),
+                      ),
+                      child: Row(
+                        children: [
+                          for (var slot = 0; slot < 5; slot++)
+                            Expanded(child: _buildSlot(context, slot)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -166,20 +179,109 @@ class MobileBottomNav extends StatelessWidget {
       return InkWell(
         onTap: () => showModalBottomSheet<void>(
           context: context,
-          showDragHandle: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.28),
+          isScrollControlled: true,
           builder: (sheetContext) => SafeArea(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(12),
-              children: [
-                const Padding(padding: EdgeInsets.all(12), child: Text('بخش‌های بیشتر', style: TextStyle(fontWeight: FontWeight.w800))),
-                for (var i = 3; i < destinations.length; i++)
-                  ListTile(
-                    title: Text(destinations[i].label),
-                    selected: currentIndex == i,
-                    onTap: () { Navigator.pop(sheetContext); onSelect(i); },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+              child: LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27Regular(
+                  brightness: Theme.of(sheetContext).brightness,
+                  tintAmount: 0.62,
+                ),
+                defaultAppearance: LiquidGlassAppearance.ios27Regular(
+                  brightness: Theme.of(sheetContext).brightness,
+                ),
+                child: LiquidGlass(
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 26),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.68,
+                    ),
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+                    decoration: BoxDecoration(
+                      color: pal.backgroundAlt.withValues(alpha: 0.76),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: pal.border.withValues(alpha: 0.85)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            HugeIcon(
+                              icon: HugeIcons.strokeRoundedLayer,
+                              size: 22,
+                              color: pal.primaryBright,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'دسترسی به همه بخش‌ها',
+                                maxLines: 2,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: pal.textPrimary,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'بستن',
+                              onPressed: () => Navigator.pop(sheetContext),
+                              icon: Icon(Icons.close_rounded, color: pal.textMuted),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: destinations.length - 3,
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              color: pal.border.withValues(alpha: 0.55),
+                            ),
+                            itemBuilder: (context, index) {
+                              final destinationIndex = index + 3;
+                              final destination = destinations[destinationIndex];
+                              final isSelected = currentIndex == destinationIndex;
+                              return ListTile(
+                                dense: false,
+                                minVerticalPadding: 10,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                                leading: HugeIcon(
+                                  icon: _navIcon(destinationIndex),
+                                  size: 22,
+                                  color: isSelected ? pal.primaryBright : pal.textMuted,
+                                ),
+                                title: Text(
+                                  destination.label,
+                                  maxLines: 2,
+                                  softWrap: true,
+                                  overflow: TextOverflow.visible,
+                                  style: TextStyle(
+                                    height: 1.35,
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                    color: isSelected ? pal.primaryBright : pal.textPrimary,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  onSelect(destinationIndex);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-              ],
+                ),
+              ),
             ),
           ),
         ),
@@ -220,12 +322,13 @@ class MobileBottomNav extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             dest.label,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            softWrap: true,
+            overflow: TextOverflow.visible,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 10.5,
+              height: 1.15,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               color: selected ? pal.primaryBright : pal.textMuted,
             ),
