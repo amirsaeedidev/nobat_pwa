@@ -316,51 +316,96 @@ class _HeroStatsCard extends StatelessWidget {
       child: Column(
         children: [
           LayoutBuilder(
-            builder: (context, constraints) => Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('آمار نوبت‌ها و عملکرد', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: pal.textSecondary)),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      children: [
-                        TweenAnimationBuilder<double>(
-                          key: ValueKey('dashboard-total-${period.name}-${stats.totalAppointments}'),
-                          tween: Tween(begin: 0, end: stats.totalAppointments.toDouble()),
-                          duration: const Duration(milliseconds: 850),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, _) => Text('${FaNum.ofInt(value.round())} نوبت', maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: pal.textPrimary, height: 1.3)),
+            builder: (context, constraints) {
+              final periodToggle = PillToggle(
+                dense: constraints.maxWidth < 360,
+                options: const ['روزانه', 'هفتگی', 'ماهانه'],
+                selectedIndex: switch (period) {
+                  StatsPeriod.daily => 0,
+                  StatsPeriod.weekly => 1,
+                  StatsPeriod.monthly => 2,
+                },
+                onChanged: (i) => onPeriodChanged(switch (i) {
+                  0 => StatsPeriod.daily,
+                  1 => StatsPeriod.weekly,
+                  _ => StatsPeriod.monthly,
+                }),
+              );
+              final heading = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'آمار نوبت‌ها و عملکرد',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: pal.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        key: ValueKey('dashboard-total-${period.name}-${stats.totalAppointments}'),
+                        tween: Tween(begin: 0, end: stats.totalAppointments.toDouble()),
+                        duration: const Duration(milliseconds: 850),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => Text(
+                          '${FaNum.ofInt(value.round())} نوبت',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: pal.textPrimary,
+                            height: 1.3,
+                          ),
                         ),
-                        TrendChip(value: '${FaNum.ofInt(completionRate)}٪', positive: true),
-                      ],
+                      ),
+                      TrendChip(value: '${FaNum.ofInt(completionRate)}٪', positive: true),
+                    ],
+                  ),
+                ],
+              );
+
+              if (constraints.maxWidth < 390) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(alignment: Alignment.centerLeft, child: periodToggle),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: heading,
+                      ),
                     ),
                   ],
-                ),
-                PillToggle(
-                  dense: constraints.maxWidth < 360,
-                  options: const ['روزانه', 'هفتگی', 'ماهانه'],
-                  selectedIndex: switch (period) {
-                    StatsPeriod.daily => 0,
-                    StatsPeriod.weekly => 1,
-                    StatsPeriod.monthly => 2,
-                  },
-                  onChanged: (i) => onPeriodChanged(switch (i) {
-                    0 => StatsPeriod.daily,
-                    1 => StatsPeriod.weekly,
-                    _ => StatsPeriod.monthly,
-                  }),
-                ),
-              ],
-            ),
+                );
+              }
+
+              return Row(
+                textDirection: TextDirection.ltr,
+                children: [
+                  periodToggle,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: heading,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
