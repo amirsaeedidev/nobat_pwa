@@ -243,7 +243,7 @@ class ReportsPage extends StatelessWidget {
                             decoration: const InputDecoration(labelText: 'دسته‌بندی خدمت'),
                             items: [
                               const DropdownMenuItem<String?>(value: null, child: Text('همه دسته‌بندی‌ها')),
-                              for (final item in availableCategories
+                              for (final item in availableCategories)
                                 DropdownMenuItem<String?>(value: item, child: Text(item, overflow: TextOverflow.ellipsis)),
                             ],
                             onChanged: (value) => provider.setFilters(category: value, clearCategory: value == null),
