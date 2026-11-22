@@ -199,7 +199,7 @@ class ReportsPage extends StatelessWidget {
                       LayoutBuilder(builder: (context, constraints) {
                         final width = constraints.maxWidth < 440 ? constraints.maxWidth : 205.0;
                         return Wrap(spacing: 9, runSpacing: 9, children: [
-                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                          if (canViewOperations) SizedBox(width: width, child: DropdownButtonFormField<String?>(
                             value: provider.filter.serviceId,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'خدمت'),
@@ -210,7 +210,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(serviceId: value, clearService: value == null),
                           )),
-                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                          if (db.hasPermission('employees.view_list') || db.hasPermission('finance.income.view')) SizedBox(width: width, child: DropdownButtonFormField<String?>(
                             value: provider.filter.employeeId,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'پرسنل'),
@@ -221,7 +221,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(employeeId: value, clearEmployee: value == null),
                           )),
-                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                          if (canViewOperations && db.hasPermission('customers.view')) SizedBox(width: width, child: DropdownButtonFormField<String?>(
                             value: provider.filter.customerId,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'مشتری'),
@@ -232,7 +232,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(customerId: value, clearCustomer: value == null),
                           )),
-                          SizedBox(width: width, child: DropdownButtonFormField<AppointmentStatus?>(
+                          if (canViewOperations) SizedBox(width: width, child: DropdownButtonFormField<AppointmentStatus?>(
                             value: provider.filter.status,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'وضعیت نوبت'),
@@ -243,7 +243,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(status: value, clearStatus: value == null),
                           )),
-                          SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                          if (canViewOperations) SizedBox(width: width, child: DropdownButtonFormField<String?>(
                             value: provider.filter.category,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'دسته‌بندی خدمت'),
@@ -265,7 +265,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(paymentMethod: value, clearPaymentMethod: value == null),
                           )),
-                          SizedBox(width: width, child: DropdownButtonFormField<EmployeeWalletSettlementStatus?>(
+                          if (db.hasPermission('finance.settlement.view')) SizedBox(width: width, child: DropdownButtonFormField<EmployeeWalletSettlementStatus?>(
                             value: provider.filter.settlementStatus,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'وضعیت تسویه پرسنل'),
