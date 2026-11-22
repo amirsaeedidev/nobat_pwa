@@ -948,25 +948,6 @@ class _RankedList extends StatelessWidget {
   }
 }
 
-class _RecentAppointments extends StatelessWidget {
-  const _RecentAppointments({required this.items});
-  final List<Appointment> items;
-  @override
-  Widget build(BuildContext context) => AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const SectionHeader(title: 'آخرین نوبت‌های بازه'),
-    const SizedBox(height: 8),
-    if (items.isEmpty) const EmptyState(compact: true, title: 'نوبتی در این بازه ثبت نشده')
-    else for (final item in items)
-      Material(color: Colors.transparent, child: ListTile(
-        dense: true, contentPadding: EdgeInsets.zero,
-        leading: HugeIcon(icon: HugeIcons.strokeRoundedAppointment01, color: item.status.color, size: 19),
-        title: Text(item.customerName, style: const TextStyle(fontSize: 12)),
-        subtitle: Text('${item.serviceName} · ${JalaliDate.fromDateTime(item.startAt).short}', style: const TextStyle(fontSize: 10)),
-        trailing: StatusBadge.appointment(item.status, dense: true),
-      )),
-  ]));
-}
-
 class _RecentTransactions extends StatelessWidget {
   const _RecentTransactions({required this.items});
   final List<EmployeeWalletTransaction> items;
