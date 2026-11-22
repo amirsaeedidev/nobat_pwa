@@ -243,6 +243,7 @@ class OperationalReportsSections extends StatelessWidget {
           _SegmentMetric(label: 'نرخ تکمیل', value: rate(completed), percent: true, color: pal.success),
           _SegmentMetric(label: 'نرخ لغو', value: rate(cancelled), percent: true, color: pal.danger),
           _SegmentMetric(label: 'نرخ عدم مراجعه', value: rate(noShow), percent: true, color: pal.textMuted),
+          _SegmentMetric(label: 'میانگین مدت نوبت تکمیل‌شده', value: analytics.averageAppointmentMinutes, suffix: 'دقیقه', decimal: true, color: pal.info),
         ]),
         const SizedBox(height: 6),
         Text('در مدل فعلی نوبت، وضعیت مستقلی برای «ردشده» تعریف نشده است؛ این عدد به‌صورت ساختگی از لغوها جدا نشده است.',
