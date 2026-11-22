@@ -71,13 +71,19 @@ class DashboardInsights extends StatelessWidget {
         valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
       const SizedBox(height: 12),
-      _Chart(title: 'محبوبیت خدمات', subtitle: 'تعداد نوبت‌های تکمیل‌شده', child: AppChart(
+      _Chart(title: 'سهم دسته‌بندی خدمات', subtitle: 'توزیع درآمد خدمات بر اساس دسته ثبت‌شده', child: AppChart(
         type: AppChartType.pie, height: 210,
-        points: [for (final e in analytics.services)
-          AppChartPoint(label: e.name, value: e.count, color: [
-            pal.primaryBright, pal.info, pal.success, pal.warning, pal.purple,
-          ][analytics.services.indexOf(e) % 5])],
-        valueFormatter: (v) => FaNum.ofInt(v.round()),
+        points: [for (final entry in analytics.revenueByCategory.entries)
+          AppChartPoint(label: entry.key, value: entry.value)],
+        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
+      )),
+      const SizedBox(height: 12),
+      _Chart(title: 'رتبه‌بندی خدمات', subtitle: 'خدمات برتر بر اساس درآمد ثبت‌شده', child: AppChart(
+        type: AppChartType.horizontalBar, height: 220,
+        points: [for (final item in (analytics.services.toList()
+          ..sort((a, b) => b.revenue.compareTo(a.revenue))).take(8))
+          AppChartPoint(label: item.name, value: item.revenue)],
+        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
       const SizedBox(height: 12),
       _Chart(title: 'ترکیب درآمد و هزینه', subtitle: 'سهم هر بخش از مجموع مبالغ ثبت‌شده', child: AppChart(
