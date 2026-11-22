@@ -263,10 +263,12 @@ void main() {
       expect(report.settlements, isNotEmpty);
       expect(report.staffPaid, greaterThan(0));
       expect(report.walletTransactions, isNotEmpty);
-      final expectedWalletBalance = db.employeeWalletTransactions.where((item) =>
-        item.status == EmployeeWalletTransactionStatus.posted)
-        .fold<int>(0, (sum, item) => sum + item.amount);
-      expect(report.staffPayable, expectedWalletBalance);
+      final visibleWallets = db.employees.where((item) => db.hasPermission('finance.salary.view', employeeId: item.id))
+          .map((item) => db.walletFor(item.id)).toList();
+      final expectedWalletPayable = visibleWallets.fold<int>(0, (sum, wallet) => sum + wallet.payableBalance);
+      final expectedWalletDebt = visibleWallets.fold<int>(0, (sum, wallet) => sum + wallet.debt);
+      expect(report.staffPayable, expectedWalletPayable);
+      expect(report.staffDebt, expectedWalletDebt);
       expect(report.paymentsByMethod.length, BusinessPaymentMethod.values.length);
     });
   });
