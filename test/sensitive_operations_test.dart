@@ -417,7 +417,6 @@ void main() {
     // Sensitive operations include a local mock delay. Advance the widget-test
     // clock before awaiting it, otherwise FakeAsync waits forever.
     final deleteFuture = operations.deleteCustomer(customer.id);
-    await tester.pump(const Duration(milliseconds: 100));
     await deleteFuture;
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
