@@ -351,12 +351,14 @@ class ReportsPage extends StatelessWidget {
                         ]), child: _MetricCard(label: 'پورسانت پرسنل', value: provider.analytics.commissionCost, money: true, icon: HugeIcons.strokeRoundedUser, color: pal.purple)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'حقوق پرداخت‌شده', [
                           'مبلغ پرداخت‌شده در بازه: ${Fmt.compactMoney(provider.analytics.staffPaid)}',
-                          'مانده خالص کیف پول پرسنل تا پایان بازه: ${Fmt.compactMoney(provider.analytics.staffPayable)}',
+                          'مانده قابل پرداخت کیف پول پرسنل: ${Fmt.compactMoney(provider.analytics.staffPayable)}',
+                          'بدهی پرسنل: ${Fmt.compactMoney(provider.analytics.staffDebt)}',
                           'مساعده باز: ${Fmt.compactMoney(provider.analytics.advancesOutstanding)}',
                         ]), child: _MetricCard(label: 'حقوق پرداختی', value: provider.analytics.staffPaid, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         _MetricCard(label: 'حاشیه سود', value: provider.analytics.profitMarginPercent, icon: HugeIcons.strokeRoundedChartLineData01, color: pal.success),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مانده پرداخت پرسنل', [
                           'مانده قابل پرداخت: ${Fmt.compactMoney(provider.analytics.staffPayable)}',
+                          'بدهی پرسنل: ${Fmt.compactMoney(provider.analytics.staffDebt)}',
                           'پرداخت‌شده در بازه: ${Fmt.compactMoney(provider.analytics.staffPaid)}',
                           'مساعده باز: ${Fmt.compactMoney(provider.analytics.advancesOutstanding)}',
                           for (final item in provider.analytics.settlements) '${item.receiptNumber} · ${Fmt.compactMoney(item.paidAmount)} · ${item.status.name}',
