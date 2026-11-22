@@ -733,8 +733,8 @@ class MockDashboardRepository implements DashboardRepository {
       .fold<int>(0, (sum, item) => sum + item.amount);
     final previousCost = previousCommission + previousPayroll + previousOperations;
 
-    final staffPaid = walletEntries.where((item) => item.type == EmployeeWalletTransactionType.salaryPayment)
-        .fold<int>(0, (sum, item) => sum + item.amount.abs());
+    final periodWalletSummary = EmployeeWalletSummary.fromTransactions(walletEntries);
+    final staffPaid = periodWalletSummary.paid;
     final staffWallets = canViewSalary
         ? _db.employees.where((item) =>
             (canViewAllFinancial || canViewAll || employeeId == item.id) &&
