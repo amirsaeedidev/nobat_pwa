@@ -83,7 +83,7 @@ class MockDashboardRepository implements DashboardRepository {
     ).fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
 
     final monthRevenue = _visibleRevenueEntries(
-      from: monthStart.toDateTime(), to: now.add(const Duration(days: 1)),
+      from: monthStart.toDateTime(), to: monthStart.addMonths(1).toDateTime(),
     ).fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
 
     final activeEmployees = _db.employees.where((e) => e.isActive).length;
