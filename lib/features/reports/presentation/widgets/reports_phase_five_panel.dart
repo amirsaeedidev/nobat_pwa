@@ -22,9 +22,10 @@ import '../../utils/report_executive_pdf_export.dart';
 import '../../utils/saved_report_store.dart';
 
 class ReportsPhaseFivePanel extends StatefulWidget {
-  const ReportsPhaseFivePanel({super.key, required this.database, required this.provider});
+  const ReportsPhaseFivePanel({super.key, required this.database, required this.provider, this.exportOnly = false});
   final AppDatabase database;
   final ReportsProvider provider;
+  final bool exportOnly;
 
   @override
   State<ReportsPhaseFivePanel> createState() => _ReportsPhaseFivePanelState();
@@ -337,6 +338,29 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     final alerts = previous == null ? const <ReportInsight>[] :
       ReportInsightEngine.build(current: a, previous: previous, services: widget.database.services);
 
+    if (widget.exportOnly) {
+      return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('خروجی PDF گزارش', style: TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text('ستون‌های موردنیاز را انتخاب و گزارش را به‌صورت PDF ذخیره کنید.',
+          style: TextStyle(fontSize: 10, color: pal.textMuted)),
+        const SizedBox(height: 8),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final column in _allColumns)
+            FilterChip(
+              label: Text(column), selected: _columns.contains(column),
+              onSelected: (selected) => setState(() {
+                if (selected) { _columns.add(column); } else if (_columns.length > 1) { _columns.remove(column); }
+              }),
+            ),
+        ]),
+        const SizedBox(height: 8),
+        OutlinedButton(onPressed: _exporting ? null : () => _export('pdf'),
+          child: const Text('دریافت فایل PDF')),
+        if (_exporting) const Padding(padding: EdgeInsets.only(top: 8),
+          child: LinearProgressIndicator()),
+      ]));
+    }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -427,7 +451,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             ),
       ])),
       const SizedBox(height: 10),
-      AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (!widget.exportOnly) AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Expanded(child: Text('گزارش سفارشی و خروجی حرفه‌ای', style: TextStyle(fontWeight: FontWeight.w800))),
           TextButton(onPressed: _saveCurrentView, child: const Text('ذخیره فیلترها')),
