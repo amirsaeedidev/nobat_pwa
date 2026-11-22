@@ -179,6 +179,8 @@ class _PerformancePainter extends CustomPainter {
 
     // نام روزها
     for (var i = 0; i < data.length; i++) {
+      // برای نمودار ۲۴ ساعته فقط هر سه ساعت یک برچسب نمایش بده تا محور شلوغ نشود.
+      if (data.length >= 20 && i % 3 != 0) continue;
       final cx = size.width - (leftInset + columnWidth * i + columnWidth / 2);
       _paintText(
         canvas,
