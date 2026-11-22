@@ -39,7 +39,8 @@ class AppChart extends StatelessWidget {
     super.key, required this.points, this.type = AppChartType.line,
     this.series = const [], this.height = 220, this.title,
     this.valueSuffix = '', this.valueFormatter, this.onPointTap,
-    this.loading = false, this.error, this.showLegend = true, this.onTypeChanged, this.centerLabel = 'مجموع',\n    this.switchableTypes = const [AppChartType.line, AppChartType.area, AppChartType.bar],
+    this.loading = false, this.error, this.showLegend = true, this.onTypeChanged, this.centerLabel = 'مجموع',
+    this.switchableTypes = const [AppChartType.line, AppChartType.area, AppChartType.bar],
   });
   final List<AppChartPoint> points;
   final AppChartType type;
@@ -141,13 +142,7 @@ class AppChart extends StatelessWidget {
       borderData: FlBorderData(show: false),
       titlesData: FlTitlesData(
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: horizontal, reservedSize: horizontal ? 76 : 0,
-          getTitlesWidget: (v, _) {
-            final i = v.round();
-            if (!horizontal || i < 0 || i >= count) return const SizedBox.shrink();
-            return Text(points[i].label, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: p.textMuted, fontSize: 9));
-          })),
+        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(sideTitles: SideTitles(
           showTitles: true, reservedSize: 25,
@@ -228,7 +223,13 @@ class AppChart extends StatelessWidget {
       borderData: FlBorderData(show: false),
       titlesData: FlTitlesData(
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: horizontal, reservedSize: horizontal ? 76 : 0,
+          getTitlesWidget: (v, _) {
+            final i = v.round();
+            if (!horizontal || i < 0 || i >= count) return const SizedBox.shrink();
+            return Text(points[i].label, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.textMuted, fontSize: 9));
+          })),
         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: !horizontal, reservedSize: 26,
           interval: count > 7 ? (count / 6).ceilToDouble() : 1,
