@@ -439,7 +439,14 @@ class ReportsPage extends StatelessWidget {
                         const SizedBox(height: 12),
                         _RankedList(items: provider.serviceRevenue, color: pal.success),
                       ]));
-                      if (!wide) return Column(children: [statusCard, const SizedBox(height: 12), employeeCard, const SizedBox(height: 12), serviceCard]);
+                      if (!wide) return Column(children: [
+                        if (canViewOperations) statusCard,
+                        if (canViewOperations) const SizedBox(height: 12),
+                        employeeCard,
+                        if (canViewOperations) const SizedBox(height: 12),
+                        if (canViewOperations) serviceCard,
+                      ]);
+                      if (!canViewOperations) return employeeCard;
                       return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Expanded(flex: 4, child: statusCard),
                         const SizedBox(width: 12),
@@ -447,14 +454,24 @@ class ReportsPage extends StatelessWidget {
                       ]);
                     }),
                     const SizedBox(height: 12),
-                    OperationalReportsSections(analytics: provider.analytics, provider: provider),
+                    if (canViewOperations)
+                      OperationalReportsSections(analytics: provider.analytics, provider: provider)
+                    else
+                      AppCard(child: Text('دسترسی به جزئیات نوبت‌ها و گزارش‌های عملیاتی برای نقش فعلی فعال نیست؛ گزارش‌های مالی مطابق مجوز شما نمایش داده می‌شوند.',
+                        style: TextStyle(fontSize: 11, color: pal.textMuted))),
                     const SizedBox(height: 12),
                     LayoutBuilder(builder: (context, constraints) {
                       final appointmentsCard = _RecentAppointments(items: provider.analytics.recentAppointments);
                       final transactionsCard = _RecentTransactions(items: provider.analytics.recentTransactions);
-                      if (constraints.maxWidth < 900) return Column(children: [appointmentsCard, const SizedBox(height: 12), transactionsCard]);
+                      if (constraints.maxWidth < 900) return Column(children: [
+                        if (canViewOperations) appointmentsCard,
+                        if (canViewOperations) const SizedBox(height: 12),
+                        transactionsCard,
+                      ]);
                       return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Expanded(child: appointmentsCard), const SizedBox(width: 12), Expanded(child: transactionsCard),
+                        if (canViewOperations) Expanded(child: appointmentsCard),
+                        if (canViewOperations) const SizedBox(width: 12),
+                        Expanded(child: transactionsCard),
                       ]);
                     }),
                   ],
