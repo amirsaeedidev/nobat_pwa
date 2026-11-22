@@ -436,6 +436,7 @@ class MockDashboardRepository implements DashboardRepository {
       );
     }).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
 
+    final revenueByCategory = <String, num>{};
     final serviceStats = <String, ({
       String name, num revenue, int count, num priceTotal,
       num directCostTotal, int costKnownCount, Map<String, int> employeeCounts,
@@ -443,7 +444,7 @@ class MockDashboardRepository implements DashboardRepository {
     })>{};
     for (final appointment in operationalCompleted) {
       final ids = appointment.serviceIds.isEmpty ? <String>[''] : appointment.serviceIds;
-      final parts = <({String id, String name, num price, num? directCost})>[];
+      final parts = <({String id, String name, String category, num price, num? directCost})>[];
       for (final serviceId in ids) {
         final snapshots = appointment.serviceSnapshots.where((item) => item['service_id'] == serviceId).toList();
         final snapshot = snapshots.isEmpty ? null : snapshots.first;
@@ -452,11 +453,12 @@ class MockDashboardRepository implements DashboardRepository {
         final name = (snapshot?['title'] as String?) ??
           (snapshot?['service_name'] as String?) ?? service?.title ??
           (appointment.serviceName.trim().isEmpty ? 'خدمت ثبت‌نشده' : appointment.serviceName);
+        final category = (snapshot?['category'] as String?) ?? service?.category ?? 'بدون دسته‌بندی';
         final savedPrice = snapshot?['price'] as num?;
         final price = savedPrice ?? (ids.length == 1 ? appointment.price : appointment.price / ids.length);
         final directCost = snapshot != null && snapshot['direct_cost'] is num
           ? snapshot['direct_cost'] as num : null;
-        parts.add((id: serviceId, name: name, price: price, directCost: directCost));
+        parts.add((id: serviceId, name: name, category: category, price: price, directCost: directCost));
       }
       final weightTotal = parts.fold<num>(0, (sum, item) => sum + item.price);
       final appointmentRevenue = revenueByAppointmentInRange[appointment.id] ?? 0;
@@ -467,6 +469,7 @@ class MockDashboardRepository implements DashboardRepository {
           ? appointmentRevenue - allocatedRevenue
           : (weightTotal == 0 ? appointmentRevenue / parts.length : appointmentRevenue * part.price / weightTotal);
         allocatedRevenue += amount;
+        revenueByCategory[part.category] = (revenueByCategory[part.category] ?? 0) + amount;
         final key = part.id.isEmpty ? 'legacy:${part.name}' : part.id;
         final current = serviceStats[key];
         final employeeCounts = current?.employeeCounts ?? <String, int>{};
