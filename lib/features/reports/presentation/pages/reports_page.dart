@@ -180,6 +180,9 @@ class ReportsPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const SectionHeader(title: 'فیلترهای ترکیبی مالی و عملیاتی', subtitle: 'ابعاد مرتبط در گزارش‌های مالی، عملیاتی، نمودارها و جزئیات اعمال می‌شوند؛ هزینه عمومی مجموعه به‌صورت کل بازه نمایش داده می‌شود.'),
+                      const SizedBox(height: 5),
+                      Text('دامنه فعلی: کل مجموعه فعال. در مدل داده فعلی شناسه شعبه/چندشعبه‌ای وجود ندارد؛ بنابراین فیلتر شعبه تا زمان تعریف منبع مرجع آن فعال نمی‌شود.',
+                        style: TextStyle(fontSize: 9, color: pal.textMuted)),
                       const SizedBox(height: 10),
                       LayoutBuilder(builder: (context, constraints) {
                         final width = constraints.maxWidth < 440 ? constraints.maxWidth : 205.0;
