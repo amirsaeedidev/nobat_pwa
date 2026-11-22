@@ -6,7 +6,6 @@ import '../../../../core/widgets/app_chart.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/feedback.dart';
 
 /// نمودارها و شاخص‌های داشبورد از مدل گزارش مشترک تغذیه می‌شوند.
 class DashboardInsights extends StatelessWidget {
