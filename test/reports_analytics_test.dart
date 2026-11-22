@@ -26,6 +26,8 @@ void main() {
       expect(report.statusCounts.values.fold<int>(0, (sum, value) => sum + value), report.totalAppointments);
       expect(report.trend, isNotEmpty);
       expect(report.services, isNotEmpty);
+      expect(report.revenueByCategory, isNotEmpty);
+      expect(report.revenueByCategory.values.any((value) => value > 0), isTrue);
     });
 
     test('combined filters match service category, customer, staff and appointment status', () {
