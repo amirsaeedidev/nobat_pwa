@@ -321,7 +321,7 @@ class ReportsPage extends StatelessWidget {
                           'مبلغ ناخالص خدمات تکمیل‌شده: ${Fmt.compactMoney(provider.analytics.grossRevenue)}',
                           'تخفیف و برگشت ثبت‌شده: ${Fmt.compactMoney(provider.analytics.discounts)}',
                         ]), child: _MetricCard(label: 'درآمد ناخالص', value: provider.analytics.grossRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.primaryBright)),
-                        _MetricCard(label: 'تخفیف‌ها', value: provider.analytics.discounts, money: true, icon: HugeIcons.strokeRoundedTag01, color: pal.warning),
+                        _MetricCard(label: 'تخفیف‌ها', value: provider.analytics.discounts, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.warning),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
                           for (final item in provider.analytics.services) '${item.name} · ${item.count} نوبت · ${Fmt.compactMoney(item.revenue)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
