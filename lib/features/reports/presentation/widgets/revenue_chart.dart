@@ -66,11 +66,11 @@ class StatusDonut extends StatelessWidget {
   final ValueChanged<String>? onSegmentTap;
 
   Color _statusColor(String label, AppPalette palette) {
-    if (label.contains('انتظار')) return const Color(0xFFE69A32);
-    if (label.contains('مراجعه') || label.contains('غیبت')) return const Color(0xFF8B929B);
-    if (label.contains('لغو') || label.contains('رد')) return const Color(0xFFD95757);
-    if (label.contains('تأیید') || label.contains('تایید')) return const Color(0xFF3987D7);
-    if (label.contains('تکمیل') || label.contains('انجام')) return const Color(0xFF32966B);
+    if (label.contains('انتظار')) return const Color(0xFFF59E0B);
+    if (label.contains('عدم حضور') || label.contains('مراجعه') || label.contains('غیبت')) return const Color(0xFF9CA3AF);
+    if (label.contains('لغو') || label.contains('رد')) return const Color(0xFFEF4444);
+    if (label.contains('تأیید') || label.contains('تایید')) return const Color(0xFF2563EB);
+    if (label.contains('تکمیل') || label.contains('انجام')) return const Color(0xFF22C55E);
     return palette.primaryBright;
   }
 
