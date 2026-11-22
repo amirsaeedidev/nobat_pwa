@@ -7,18 +7,22 @@ class SavedReportView {
     required this.id, required this.name, required this.start,
     required this.endExclusive, required this.columns, required this.createdAt,
     this.serviceId, this.employeeId, this.customerId, this.statusName,
+    this.category, this.paymentMethod, this.settlementStatusName,
   });
 
   final String id, name, start, endExclusive;
   final List<String> columns;
   final DateTime createdAt;
   final String? serviceId, employeeId, customerId, statusName;
+  final String? category, paymentMethod, settlementStatusName;
 
   Map<String, Object?> toJson() => {
     'id': id, 'name': name, 'start': start, 'endExclusive': endExclusive,
     'columns': columns, 'createdAt': createdAt.toIso8601String(),
     'serviceId': serviceId, 'employeeId': employeeId,
     'customerId': customerId, 'statusName': statusName,
+    'category': category, 'paymentMethod': paymentMethod,
+    'settlementStatusName': settlementStatusName,
   };
 
   factory SavedReportView.fromJson(Map<String, dynamic> json) => SavedReportView(
@@ -28,6 +32,8 @@ class SavedReportView {
     createdAt: DateTime.parse(json['createdAt'] as String),
     serviceId: json['serviceId'] as String?, employeeId: json['employeeId'] as String?,
     customerId: json['customerId'] as String?, statusName: json['statusName'] as String?,
+    category: json['category'] as String?, paymentMethod: json['paymentMethod'] as String?,
+    settlementStatusName: json['settlementStatusName'] as String?,
   );
 }
 
