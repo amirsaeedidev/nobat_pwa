@@ -219,6 +219,8 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             switch (key) {
               'درآمد' => item.revenue.round(),
               'هزینه' => item.commission.round(),
+              'پورسانت پرسنل' => item.commission.round(),
+              'سهم مجموعه' => (item.revenue - item.commission).round(),
               'سود خالص' => (item.revenue - item.commission).round(),
               'نوبت' || 'تکمیل‌شده' => appointments.length,
               'مشتری یکتا' => appointments.map((entry) => entry.customerId).toSet().length,
