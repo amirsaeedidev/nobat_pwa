@@ -1,8 +1,8 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_chart.dart';
 import '../../../../data/models/report_analytics.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -59,64 +59,50 @@ class DashboardInsights extends StatelessWidget {
           onPressed: () => onFilterChanged(const ReportAnalyticsFilter()), child: const Text('پاک‌کردن فیلترها'))),
       ])),
       const SizedBox(height: 12),
-      _Chart(title: 'عملکرد پرسنل', subtitle: 'درآمد و پورسانت', child: SizedBox(height: 210,
-        child: analytics.employees.isEmpty ? const EmptyState(title: 'داده‌ای وجود ندارد', compact: true) : BarChart(BarChartData(
-          maxY: _max(analytics.employees.map((e) => e.revenue).toList()),
-          barGroups: [for (var i=0;i<analytics.employees.length;i++) BarChartGroupData(x:i, barRods:[
-            BarChartRodData(toY: analytics.employees[i].revenue.toDouble(), color: pal.primary, width: 12),
-            BarChartRodData(toY: analytics.employees[i].commission.toDouble(), color: pal.warning, width: 7),
-          ])],
-          barTouchData: BarTouchData(enabled: true, touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (g, gi, rod, ri) => BarTooltipItem(
-              '${analytics.employees[g.x].name}\n${Fmt.money(rod.toY)}', const TextStyle(color: Colors.white, fontSize: 11)))),
-          titlesData: const FlTitlesData(leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
-          gridData: const FlGridData(show: true), borderData: FlBorderData(show: false),
-        )))),
+      _Chart(title: 'عملکرد پرسنل', subtitle: 'درآمد و پورسانت', child: AppChart(
+        type: AppChartType.bar, height: 210,
+        points: [for (final e in analytics.employees) AppChartPoint(label: e.name, value: e.revenue)],
+        series: [
+          AppChartSeries(name: 'درآمد', color: pal.primary,
+            values: [for (final e in analytics.employees) e.revenue]),
+          AppChartSeries(name: 'پورسانت', color: pal.warning,
+            values: [for (final e in analytics.employees) e.commission]),
+        ],
+        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
+      )),
       const SizedBox(height: 12),
-      _Chart(title: 'محبوبیت خدمات', subtitle: 'تعداد نوبت‌های تکمیل‌شده', child: SizedBox(height: 210,
-        child: analytics.services.isEmpty ? const EmptyState(title: 'داده‌ای وجود ندارد', compact: true) : PieChart(PieChartData(
-          centerSpaceRadius: 38, sectionsSpace: 3,
-          sections: [for (var i=0;i<analytics.services.length;i++) PieChartSectionData(
-            value: analytics.services[i].count.toDouble(), title: FaNum.ofInt(analytics.services[i].count),
-            radius: 72, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10))],
-        )))),
+      _Chart(title: 'محبوبیت خدمات', subtitle: 'تعداد نوبت‌های تکمیل‌شده', child: AppChart(
+        type: AppChartType.pie, height: 210,
+        points: [for (final e in analytics.services)
+          AppChartPoint(label: e.name, value: e.count, color: [
+            pal.primaryBright, pal.info, pal.success, pal.warning, pal.purple,
+          ][analytics.services.indexOf(e) % 5])],
+        valueFormatter: (v) => FaNum.ofInt(v.round()),
+      )),
       const SizedBox(height: 12),
-      _Chart(title: 'مقایسه درآمد و هزینه', subtitle: 'روند بازه انتخاب‌شده', child: SizedBox(height: 205,
-        child: BarChart(BarChartData(
-          barGroups: [for (var i=0;i<analytics.trend.length;i++) BarChartGroupData(x:i, barRods:[
-            BarChartRodData(toY: analytics.trend[i].revenue.toDouble(), color: pal.success, width: 10),
-            BarChartRodData(toY: analytics.trend[i].cost.toDouble(), color: pal.danger, width: 10),
-          ])],
-          barTouchData: BarTouchData(enabled: true, touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (g, gi, rod, ri) => BarTooltipItem('${ri == 0 ? 'درآمد' : 'هزینه'}: ${Fmt.money(rod.toY)}', const TextStyle(color: Colors.white, fontSize: 10)))),
-          titlesData: const FlTitlesData(leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
-          gridData: const FlGridData(show: true), borderData: FlBorderData(show: false),
-        )))),
+      _Chart(title: 'مقایسه درآمد و هزینه', subtitle: 'روند بازه انتخاب‌شده', child: AppChart(
+        type: AppChartType.bar, height: 205,
+        points: [for (final e in analytics.trend) AppChartPoint(label: e.label, value: e.revenue)],
+        series: [
+          AppChartSeries(name: 'درآمد', color: pal.success,
+            values: [for (final e in analytics.trend) e.revenue]),
+          AppChartSeries(name: 'هزینه', color: pal.danger,
+            values: [for (final e in analytics.trend) e.cost]),
+        ],
+        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
+      )),
       const SizedBox(height: 12),
-      _Chart(title: 'روند جذب مشتری', subtitle: 'مشتریان جدید در هر بازه', child: SizedBox(height: 190,
-        child: LineChart(LineChartData(
-          lineTouchData: LineTouchData(enabled: true, touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (spots) => spots.map((s) => LineTooltipItem('مشتری جدید: ${FaNum.ofInt(s.y.round())}', const TextStyle(color: Colors.white, fontSize: 10))).toList())),
-          lineBarsData: [LineChartBarData(isCurved: true, color: pal.primary, barWidth: 3,
-            dotData: const FlDotData(show: true),
-            spots: [for (var i=0;i<analytics.newCustomerTrend.length;i++) FlSpot(i.toDouble(), analytics.newCustomerTrend[i].appointments.toDouble())])],
-          titlesData: const FlTitlesData(leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 32)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
-          gridData: const FlGridData(show: true), borderData: FlBorderData(show: false),
-        )))),
+      _Chart(title: 'روند جذب مشتری', subtitle: 'مشتریان جدید در هر بازه', child: AppChart(
+        type: AppChartType.area, height: 190,
+        points: [for (final e in analytics.newCustomerTrend)
+          AppChartPoint(label: e.label, value: e.appointments)],
+        series: [AppChartSeries(name: 'مشتری جدید', color: pal.primary,
+          values: [for (final e in analytics.newCustomerTrend) e.appointments])],
+        valueFormatter: (v) => FaNum.ofInt(v.round()),
+      )),
       const SizedBox(height: 8),
       Text(analytics.costNote, style: TextStyle(fontSize: 10, color: pal.textMuted)),
     ]);
-  }
-
-  static double _max(List<num> values) {
-    final m = values.fold<num>(0, (a,b) => a > b ? a : b).toDouble();
-    return m <= 0 ? 1 : m * 1.2;
   }
 
   Widget _select<T>(String label, T? value, List<DropdownMenuItem<T>> items, ValueChanged<T?> changed) =>
