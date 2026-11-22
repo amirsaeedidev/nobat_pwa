@@ -379,8 +379,8 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             type: AppChartType.bar,
             height: 190,
             points: const [
-              AppChartPoint(label: 'درآمد', value: 0),
-              AppChartPoint(label: 'هزینه', value: 0),
+              AppChartPoint(label: 'درآمد', value: a.revenue),
+              AppChartPoint(label: 'هزینه', value: a.cost),
             ],
             series: [
               AppChartSeries(name: 'دوره جاری', color: pal.primary,
