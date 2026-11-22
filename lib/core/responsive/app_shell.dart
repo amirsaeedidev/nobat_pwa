@@ -112,12 +112,7 @@ class MobileBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    return Container(
-      decoration: BoxDecoration(
-        color: pal.background,
-        border: Border(top: BorderSide(color: pal.border.withValues(alpha: 0.5))),
-      ),
-      child: SafeArea(
+    return SafeArea(
         top: false,
         child: SizedBox(
           height: 92,
@@ -167,8 +162,7 @@ class MobileBottomNav extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildSlot(BuildContext context, int slot) {
@@ -201,9 +195,16 @@ class MobileBottomNav extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
                     decoration: BoxDecoration(
-                      color: pal.backgroundAlt.withValues(alpha: 0.76),
+                      color: pal.backgroundAlt.withValues(alpha: 0.38),
                       borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: pal.border.withValues(alpha: 0.85)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 28,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
