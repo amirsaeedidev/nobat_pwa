@@ -476,20 +476,8 @@ class ReportsPage extends StatelessWidget {
                       AppCard(child: Text('دسترسی به جزئیات نوبت‌ها و گزارش‌های عملیاتی برای نقش فعلی فعال نیست؛ گزارش‌های مالی مطابق مجوز شما نمایش داده می‌شوند.',
                         style: TextStyle(fontSize: 11, color: pal.textMuted))),
                     const SizedBox(height: 12),
-                    LayoutBuilder(builder: (context, constraints) {
-                      final appointmentsCard = _RecentAppointments(items: provider.analytics.recentAppointments);
-                      final transactionsCard = _RecentTransactions(items: provider.analytics.recentTransactions);
-                      if (constraints.maxWidth < 900) return Column(children: [
-                        if (canViewOperations) appointmentsCard,
-                        if (canViewOperations) const SizedBox(height: 12),
-                        transactionsCard,
-                      ]);
-                      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        if (canViewOperations) Expanded(child: appointmentsCard),
-                        if (canViewOperations) const SizedBox(width: 12),
-                        Expanded(child: transactionsCard),
-                      ]);
-                    }),
+                    if (canViewOperations || db.hasPermission('finance.salary.view'))
+                      _RecentTransactions(items: provider.analytics.recentTransactions),
                   ],
                 ),
     );
