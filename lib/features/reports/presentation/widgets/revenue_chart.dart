@@ -80,6 +80,7 @@ class StatusDonut extends StatelessWidget {
     return AppChart(
       type: AppChartType.donut,
       height: size,
+      centerLabel: centerLabel,
       points: [
         for (final entry in counts.entries)
           AppChartPoint(label: entry.key, value: entry.value, color: _statusColor(entry.key, palette)),
