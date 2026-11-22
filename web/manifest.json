@@ -4,7 +4,7 @@
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FFF8F3",
-  "theme_color": "#0A1227",
+  "theme_color": "#FFF8F3",
   "description": "سامانه حرفه‌ای مدیریت نوبت، رزرو آنلاین و CRM مجموعه‌های خدماتی",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
