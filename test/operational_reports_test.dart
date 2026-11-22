@@ -86,9 +86,51 @@ void main() {
       expect(report.newCustomers, 1);
       expect(report.repeatCustomerRate, 100);
       expect(report.rejectedAppointments, 0);
+      expect(report.averageAppointmentMinutes, 45);
     });
 
-    test('status and service filters only narrow operational tables, not financial totals', () async {
+    test('category filter narrows operational and linked financial reports', () async {
+      final db = AppDatabase();
+      final now = DateTime.now();
+      final template = db.appointments.first;
+      final targetService = db.services.first.copyWith(category: 'گروه گزارش تست');
+      db.updateService(targetService);
+      final target = template.copyWith(
+        id: 'report-category-filter',
+        reference: 'REPORT-CATEGORY',
+        serviceIds: [targetService.id],
+        serviceName: targetService.title,
+        employeeId: db.employees.first.id,
+        employeeName: db.employees.first.fullName,
+        startAt: now,
+        createdAt: now,
+        status: AppointmentStatus.pending,
+        serviceSnapshots: [{
+          'service_id': targetService.id,
+          'title': targetService.title,
+          'category': targetService.category,
+          'price': targetService.price,
+          'direct_cost': targetService.directCost,
+        }],
+      );
+      db.addAppointment(target);
+      db.changeStatus(target, AppointmentStatus.completed);
+      final range = ReportDateRange.custom(
+        JalaliDate.fromDateTime(now.subtract(const Duration(days: 2))),
+        JalaliDate.fromDateTime(now.add(const Duration(days: 2))),
+      );
+      final filtered = await MockDashboardRepository(db).fetchReportAnalytics(
+        range: range,
+        filter: const ReportAnalyticsFilter(category: 'گروه گزارش تست'),
+      );
+      expect(filtered.operationalAppointments, isNotEmpty);
+      expect(filtered.operationalAppointments.every((item) =>
+        item.serviceSnapshots.any((snapshot) => snapshot['category'] == 'گروه گزارش تست')), isTrue);
+      expect(filtered.services.map((item) => item.name), contains(targetService.title));
+      expect(filtered.averageAppointmentMinutes, target.durationMinutes);
+    });
+
+    test('combined status and service filters narrow linked finance totals', () async {
       final db = AppDatabase();
       final repository = MockDashboardRepository(db);
       final range = ReportDateRange.custom(
@@ -104,8 +146,8 @@ void main() {
       expect(filtered.operationalAppointments.every((item) =>
         item.serviceIds.contains(serviceId) && item.status == AppointmentStatus.completed), isTrue);
       expect(filtered.operationalAppointments.length, lessThanOrEqualTo(all.operationalAppointments.length));
-      expect(filtered.revenue, all.revenue);
-      expect(filtered.cost, all.cost);
+      expect(filtered.revenue, lessThanOrEqualTo(all.revenue));
+      expect(filtered.commissionCost, lessThanOrEqualTo(all.commissionCost));
     });
   });
 }
