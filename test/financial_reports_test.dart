@@ -115,7 +115,11 @@ void main() {
 
     test('combined payment-method and settlement-status filters stay on their source ledgers', () async {
       final db = AppDatabase();
-      final appointment = db.appointments.firstWhere((item) => item.status == AppointmentStatus.completed);
+      // Use a completed appointment without a seeded receipt so this
+      // filter test exercises a valid collection instead of attempting to
+      // over-collect an already settled Datamonck appointment.
+      final appointment = db.appointments.firstWhere((item) => item.status == AppointmentStatus.pending);
+      db.changeStatus(appointment, AppointmentStatus.completed);
       db.recordAppointmentPayment(
         appointmentId: appointment.id,
         amount: 1,
