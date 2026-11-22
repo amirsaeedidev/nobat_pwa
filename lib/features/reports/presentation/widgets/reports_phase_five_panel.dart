@@ -82,7 +82,9 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       endExclusive: p.range.endExclusive.toIso8601String(),
       columns: _columns.toList(), createdAt: DateTime.now(),
       serviceId: f.serviceId, employeeId: f.employeeId, customerId: f.customerId,
-      statusName: f.status?.name,
+      statusName: f.status?.name, category: f.category,
+      paymentMethod: f.paymentMethod,
+      settlementStatusName: f.settlementStatus?.name,
     ));
     await _loadStore();
     if (mounted) AppToast.show(context, 'گزارش ذخیره شد.');
@@ -94,11 +96,18 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     final to = JalaliDate.fromDateTime(DateTime.parse(view.endExclusive).subtract(const Duration(microseconds: 1)));
     await p.setCustomRange(from, to);
     final matches = AppointmentStatus.values.where((item) => item.name == view.statusName).toList();
+    final settlementMatches = EmployeeWalletSettlementStatus.values
+        .where((item) => item.name == view.settlementStatusName).toList();
     await p.setFilters(
       serviceId: view.serviceId, employeeId: view.employeeId, customerId: view.customerId,
+      category: view.category, paymentMethod: view.paymentMethod,
+      settlementStatus: settlementMatches.isEmpty ? null : settlementMatches.first,
       status: matches.isEmpty ? null : matches.first,
       clearService: view.serviceId == null, clearEmployee: view.employeeId == null,
-      clearCustomer: view.customerId == null, clearStatus: matches.isEmpty,
+      clearCustomer: view.customerId == null, clearCategory: view.category == null,
+      clearPaymentMethod: view.paymentMethod == null,
+      clearSettlementStatus: settlementMatches.isEmpty,
+      clearStatus: matches.isEmpty,
     );
     if (!mounted) return;
     setState(() { _columns..clear()..addAll(view.columns); });
