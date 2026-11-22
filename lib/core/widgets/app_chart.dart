@@ -292,7 +292,7 @@ class AppChart extends StatelessWidget {
     final colors = _colors(p);
     final entries = points.where((e) => e.value > 0).toList();
     final total = entries.fold<double>(0, (sum, e) => sum + e.value.toDouble());
-    final diameter = math.min(height, compact ? 190.0 : 240.0).toDouble();
+    final diameter = math.min(height, compact ? 124.0 : 154.0).toDouble();
     return Center(child: SizedBox(width: diameter, height: diameter,
       child: Stack(alignment: Alignment.center, children: [
         PieChart(PieChartData(startDegreeOffset: -90,
