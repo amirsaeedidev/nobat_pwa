@@ -410,12 +410,12 @@ class MockDashboardRepository implements DashboardRepository {
       }
     }
     final customerDebts = canViewCustomerDetails
-      ? debtByCustomer.entries.map((entry) => ReportCustomerDebt(
+      ? (debtByCustomer.entries.map((entry) => ReportCustomerDebt(
           customerId: entry.key,
           customerName: debtNameByCustomer[entry.key] ?? 'مشتری',
           amount: entry.value,
           appointmentCount: debtAppointments[entry.key] ?? 0,
-        )).toList()..sort((a, b) => b.amount.compareTo(a.amount))
+        )).toList()..sort((a, b) => b.amount.compareTo(a.amount)))
       : <ReportCustomerDebt>[];
 
     final employeeRevenue = <String, num>{};
