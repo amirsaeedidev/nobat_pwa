@@ -183,14 +183,25 @@ class _DateTimeLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 116,
-      height: 40,
-      child: Image.asset(
-        'assets/image/Logotopbar.png',
-        fit: BoxFit.contain,
-        alignment: Alignment.centerLeft,
-        semanticLabel: 'DateTime',
+    return Semantics(
+      label: 'DATADATE',
+      header: true,
+      child: const SizedBox(
+        height: 40,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'DATADATE',
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            softWrap: false,
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.35,
+            ),
+          ),
+        ),
       ),
     );
   }
