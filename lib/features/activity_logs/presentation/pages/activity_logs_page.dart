@@ -107,7 +107,7 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                   children: [
                     Row(
                       children: [
-                        SectionHeader(title: entry.key),
+                        Expanded(child: SectionHeader(title: entry.key)),
                         const Spacer(),
                         CountPill(value: entry.value.length),
                       ],
