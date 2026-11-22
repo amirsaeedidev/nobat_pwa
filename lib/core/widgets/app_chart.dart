@@ -67,7 +67,7 @@ class AppChart extends StatelessWidget {
         : points.isNotEmpty && resolved.any((e) => e.values.isNotEmpty);
     return LayoutBuilder(builder: (context, box) {
       final compact = box.maxWidth < 360;
-      final h = math.max(120.0, height);
+      final h = math.max(120.0, height).toDouble();
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (title != null || onTypeChanged != null)
           Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
@@ -132,7 +132,7 @@ class AppChart extends StatelessWidget {
   Widget _line(BuildContext context, List<AppChartSeries> data) {
     final p = context.pal;
     final colors = _colors(p);
-    final maxValue = data.expand((s) => s.values).fold<double>(0, (a, b) => math.max(a, b.toDouble()));
+    final maxValue = data.expand((s) => s.values).fold<double>(0, (a, b) => a > b.toDouble() ? a : b.toDouble());
     final maxY = maxValue <= 0 ? 1.0 : maxValue * 1.18;
     final count = points.length;
     return LineChart(LineChartData(
@@ -198,9 +198,9 @@ class AppChart extends StatelessWidget {
       for (var i = 0; i < count; i++)
         stacked
           ? data.fold<double>(0, (sum, s) => sum + (i < s.values.length ? s.values[i].toDouble() : 0))
-          : data.fold<double>(0, (max, s) => math.max(max, i < s.values.length ? s.values[i].toDouble() : 0)),
+          : data.fold<double>(0, (max, s) { final value = i < s.values.length ? s.values[i].toDouble() : 0.0; return max > value ? max : value; }),
     ];
-    final peak = totals.fold<double>(0, math.max);
+    final peak = totals.fold<double>(0, (a, b) => a > b ? a : b);
     final maxY = peak <= 0 ? 1.0 : peak * 1.18;
     final groups = <BarChartGroupData>[
       for (var i = 0; i < count; i++)
@@ -282,7 +282,7 @@ class AppChart extends StatelessWidget {
     final colors = _colors(p);
     final entries = points.where((e) => e.value > 0).toList();
     final total = entries.fold<double>(0, (sum, e) => sum + e.value.toDouble());
-    final diameter = math.min(height, compact ? 190.0 : 240.0);
+    final diameter = math.min(height, compact ? 190.0 : 240.0).toDouble();
     return Center(child: SizedBox(width: diameter, height: diameter,
       child: Stack(alignment: Alignment.center, children: [
         PieChart(PieChartData(startDegreeOffset: -90,
