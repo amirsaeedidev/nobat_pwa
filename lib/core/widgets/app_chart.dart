@@ -215,9 +215,9 @@ class AppChart extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(5)))],
         ),
     ];
-    return BarChart(BarChartData(
+    return RotatedBox(quarterTurns: horizontal ? 1 : 0, child: BarChart(BarChartData(
       maxY: maxY, minY: 0, alignment: BarChartAlignment.spaceAround,
-      groupsSpace: 8, rotationQuarterTurns: horizontal ? 1 : 0,
+      groupsSpace: 8,
       gridData: FlGridData(drawVerticalLine: false, horizontalInterval: maxY / 4,
         getDrawingHorizontalLine: (_) => FlLine(color: p.textPrimary.withValues(alpha: .07))),
       borderData: FlBorderData(show: false),
@@ -262,7 +262,7 @@ class AppChart extends StatelessWidget {
           }
         }),
       barGroups: groups,
-    ), duration: const Duration(milliseconds: 700), curve: Curves.easeOutCubic);
+    ), duration: const Duration(milliseconds: 700), curve: Curves.easeOutCubic));
   }
 
   List<BarChartRodStackItem> _stackItems(List<AppChartSeries> data, int index, List<Color> colors) {
