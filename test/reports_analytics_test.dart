@@ -101,6 +101,11 @@ void main() {
       expect(report.customerDebts, isEmpty);
       expect(report.totalAppointments, 0);
       expect(report.uniqueCustomers, 0);
+      final dashboard = await MockDashboardRepository(db).fetchStats();
+      expect(dashboard.totalAppointments, 0);
+      expect(dashboard.totalCustomers, 0);
+      expect(await MockDashboardRepository(db).fetchUpcoming(), isEmpty);
+      expect(await MockDashboardRepository(db).fetchServiceRevenue(), isEmpty);
     });
 
     test('blocks report access without income permission', () async {
