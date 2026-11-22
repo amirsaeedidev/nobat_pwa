@@ -66,6 +66,19 @@ void main() {
       expect(range.endExclusive.difference(range.start).inDays, 3);
     });
 
+    test('dashboard and report monthly revenue reconcile to the same finance ledger', () async {
+      final db = AppDatabase();
+      final repository = MockDashboardRepository(db);
+      final report = await repository.fetchReportAnalytics(
+        range: ReportDateRange.preset(ReportPeriod.thisMonth),
+      );
+      final dashboard = await repository.fetchStats(period: StatsPeriod.monthly);
+      final series = await repository.fetchRevenueSeries(months: 1);
+      expect(dashboard.totalRevenue, report.revenue);
+      expect(dashboard.monthRevenue, report.revenue);
+      expect(series.single.value, report.revenue);
+    });
+
     test('accountant sees financial ledgers but not operational or customer details', () async {
       final db = AppDatabase();
       db.switchMockAccount('demo-accountant');
