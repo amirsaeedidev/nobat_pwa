@@ -649,20 +649,25 @@ void main() {
         home: ActivityLogsPageWithProvider(provider: provider),
       ),
     );
-    await tester.pumpAndSettle();
+    // Activity pages may render an infinite shimmer while a provider refreshes.
+    // Use bounded pumps for route/dialog transitions instead of pumpAndSettle.
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
 
     final undoButton = find.byTooltip('بازگردانی این تغییر');
     expect(undoButton, findsOneWidget);
     await tester.tap(undoButton);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
 
     expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
     expect(find.text('customer-ui-undo-customer'), findsOneWidget);
     await tester.tap(find.text('بازگردانی واقعی'));
-    // The refreshed activity page intentionally shows an animated skeleton while loading;
-    // pump a bounded interval instead of pumpAndSettle waiting for the shimmer to stop.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
+    // Wait for the async local undo + repository refresh without waiting for
+    // the perpetual skeleton animation to become idle.
+    for (var attempt = 0; attempt < 12 && provider.loading; attempt++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     await tester.pump();
 
     expect(db.customerById(customer.id), isNotNull);
