@@ -39,7 +39,7 @@ class AppChart extends StatelessWidget {
     super.key, required this.points, this.type = AppChartType.line,
     this.series = const [], this.height = 220, this.title,
     this.valueSuffix = '', this.valueFormatter, this.onPointTap,
-    this.loading = false, this.error, this.showLegend = true,
+    this.loading = false, this.error, this.showLegend = true, this.onTypeChanged,
   });
   final List<AppChartPoint> points;
   final AppChartType type;
@@ -52,6 +52,8 @@ class AppChart extends StatelessWidget {
   final bool loading;
   final String? error;
   final bool showLegend;
+  final ValueChanged<AppChartType>? onTypeChanged;
+  final List<AppChartType> switchableTypes = const [AppChartType.line, AppChartType.area, AppChartType.bar];
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +67,17 @@ class AppChart extends StatelessWidget {
       final compact = box.maxWidth < 360;
       final h = math.max(120.0, height);
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(title!, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: p.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-          ),
+        if (title != null || onTypeChanged != null)
+          Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
+            if (title != null) Expanded(child: Text(title!, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.textPrimary, fontSize: 13, fontWeight: FontWeight.w700))),
+            if (onTypeChanged != null) PopupMenuButton<AppChartType>(
+              tooltip: 'تغییر نوع نمودار', padding: EdgeInsets.zero,
+              icon: Icon(Icons.swap_horiz_rounded, color: p.textSecondary, size: 20),
+              onSelected: onTypeChanged,
+              itemBuilder: (context) => [for (final t in switchableTypes) PopupMenuItem(value: t, child: Text(t.label))],
+            ),
+          ])),
         if (loading)
           SizedBox(height: h, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: p.primary)))
         else if (error != null)
@@ -295,9 +302,9 @@ class AppChart extends StatelessWidget {
   Widget _legend(BuildContext context, List<AppChartSeries> data, bool compact) {
     final p = context.pal;
     final colors = _colors(p);
-    final items = type == AppChartType.pie || type == AppChartType.donut
-      ? [(for (var i = 0; i < points.length; i++) (points[i].label, points[i].color ?? colors[i % colors.length]))]
-      : [(for (var i = 0; i < data.length; i++) (data[i].name, data[i].color ?? colors[i % colors.length]))];
+    final List<(String, Color)> items = type == AppChartType.pie || type == AppChartType.donut
+      ? [for (var i = 0; i < points.length; i++) (points[i].label, points[i].color ?? colors[i % colors.length])]
+      : [for (var i = 0; i < data.length; i++) (data[i].name, data[i].color ?? colors[i % colors.length])];
     if (items.length <= 1) return const SizedBox.shrink();
     return Padding(padding: const EdgeInsets.only(top: 8), child: Wrap(
       alignment: WrapAlignment.center, spacing: compact ? 8 : 12, runSpacing: 6,
