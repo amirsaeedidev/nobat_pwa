@@ -49,7 +49,7 @@ jobs:
       - name: Generate app icons from Iconapp asset
         run: dart run flutter_launcher_icons
 
-      - name: Enforce Hugeicons-only icon policy
+      - name: Inventory remaining Material icon usage (migration report)
         id: icon_policy
         continue-on-error: true
         shell: bash
@@ -81,7 +81,7 @@ jobs:
                               violations.append((str(file), number, label, stripped[:220]))
           summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
           with summary.open("a", encoding="utf-8") as out:
-              out.write("## Hugeicons-only policy\n\n")
+              out.write("## Icon migration inventory\n\n")
               out.write(f"- Dart files scanned: **{scanned}**\n")
               out.write(f"- Forbidden icon patterns: **{len(violations)}**\n\n")
               if violations:
@@ -89,13 +89,13 @@ jobs:
                   for file, line, label, source in violations:
                       out.write(f"| `{file}` | {line} | {label} | `{source.replace('|', chr(92)+'|')}` |\n")
               else:
-                  out.write("✅ No Material Icons, ImageIcon, handwritten SVG, or custom-painted icons found.\n")
+                  out.write("✅ No remaining Material icon policy violations were found.\n")
           if violations:
-              print("Hugeicons-only policy failed:")
+              print("Remaining Material icon usages (tracked for migration):")
               for file, line, label, source in violations:
                   print(f"{file}:{line}: {label}: {source}")
               sys.exit(1)
-          print(f"Hugeicons-only policy passed ({scanned} Dart files scanned).")
+          print(f"Icon inventory completed ({scanned} Dart files scanned).")
           PY
 
       - name: Analyze Dart code and create report
