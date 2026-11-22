@@ -640,8 +640,10 @@ void main() {
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
     addTearDown(provider.dispose);
+    // The repository uses Future.delayed for local mock latency. In a widget
+    // test, advance the fake clock with pump instead of awaiting that Future
+    // before the test binding has had a chance to advance time.
     provider.search(customer.id);
-    await provider.load();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -653,6 +655,7 @@ void main() {
     // Use bounded pumps for route/dialog transitions instead of pumpAndSettle.
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
+    expect(provider.loading, isFalse, reason: 'activity history should finish its local mock load');
 
     final undoButton = find.byTooltip('بازگردانی این تغییر');
     expect(undoButton, findsOneWidget);
