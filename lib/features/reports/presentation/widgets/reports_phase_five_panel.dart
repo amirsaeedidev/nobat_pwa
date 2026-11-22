@@ -378,7 +378,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             title: 'مقایسه چنددوره‌ای درآمد و هزینه',
             type: AppChartType.bar,
             height: 190,
-            points: const [
+            points: [
               AppChartPoint(label: 'درآمد', value: a.revenue),
               AppChartPoint(label: 'هزینه', value: a.cost),
             ],
