@@ -135,6 +135,26 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
   }
 
+  Future<void> _print() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final p = widget.provider;
+      final comparison = p.comparisonAnalytics ?? ReportAnalytics.empty(p.comparisonRange);
+      await ReportExecutivePdfExport.print(
+        analytics: p.analytics,
+        comparison: comparison,
+        title: 'گزارش مدیریتی DateTime',
+        columns: _columns.toList(),
+      );
+      if (mounted) AppToast.show(context, 'گزارش برای چاپ آماده شد.');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'چاپ گزارش ناموفق بود: $error', success: false);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Future<void> _export(String type) async {
     if (_exporting) return;
     setState(() => _exporting = true);
@@ -314,6 +334,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           OutlinedButton(onPressed: _exporting ? null : () => _export('pdf'), child: const Text('خروجی PDF')),
+          OutlinedButton(onPressed: _exporting ? null : _print, child: const Text('چاپ گزارش')),
           OutlinedButton(onPressed: _exporting ? null : () => _export('excel'), child: const Text('خروجی Excel')),
           OutlinedButton(onPressed: _exporting ? null : () => _export('csv'), child: const Text('خروجی CSV')),
           if (_exporting) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
