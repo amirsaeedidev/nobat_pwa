@@ -48,7 +48,7 @@ class ReportsPage extends StatelessWidget {
     final dayIso = GoRouterState.of(context).uri.queryParameters['date'];
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
     final canViewAll = db.hasPermission('appointments.view_all');
-    final canViewOperations = canViewAll || db.hasPermission('appointments.view_self');
+    final canViewOperations = canViewAll || (db.hasPermission('appointments.view_self') && db.currentAccessAccount.employeeId != null);
     final canViewAllFinancial = db.hasPermission('finance.income.view') &&
       (db.hasPermission('employees.view_list') || canViewAll);
     final visibleAppointments = canViewOperations
