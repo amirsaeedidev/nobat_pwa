@@ -476,6 +476,8 @@ class ReportsPage extends StatelessWidget {
                       AppCard(child: Text('دسترسی به جزئیات نوبت‌ها و گزارش‌های عملیاتی برای نقش فعلی فعال نیست؛ گزارش‌های مالی مطابق مجوز شما نمایش داده می‌شوند.',
                         style: TextStyle(fontSize: 11, color: pal.textMuted))),
                     const SizedBox(height: 12),
+                    if (canViewOperations)
+                      _BusyHoursCard(items: provider.analytics.operationalAppointments),
                     if (canViewOperations || db.hasPermission('finance.salary.view'))
                       _RecentTransactions(items: provider.analytics.recentTransactions),
                   ],
@@ -945,6 +947,53 @@ class _RankedList extends StatelessWidget {
           )),
         ])),
     ]);
+  }
+}
+
+class _BusyHoursCard extends StatelessWidget {
+  const _BusyHoursCard({required this.items});
+  final List<Appointment> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.pal;
+    final counts = <int, int>{};
+    for (final item in items) {
+      if (item.status == AppointmentStatus.cancelled || item.status == AppointmentStatus.noShow) continue;
+      counts.update(item.startAt.hour, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final ranked = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return AppCard(child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'ساعت‌های پرتردد', subtitle: 'بر اساس نوبت‌های بازه و فیلترهای انتخاب‌شده'),
+        const SizedBox(height: 8),
+        if (ranked.isEmpty)
+          const EmptyState(title: 'داده‌ای برای تحلیل ساعت‌های پرتردد وجود ندارد', compact: true)
+        else
+          for (final entry in ranked.take(5))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(children: [
+                SizedBox(width: 52, child: Text('${FaNum.convert(entry.key.toString().padLeft(2, '0'))}:۰۰',
+                  style: TextStyle(fontSize: 11, color: pal.textSecondary, fontWeight: FontWeight.w700))),
+                Expanded(child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: entry.value / ranked.first.value,
+                    minHeight: 8,
+                    backgroundColor: pal.surfaceAlt,
+                    valueColor: AlwaysStoppedAnimation(pal.primaryBright),
+                  ),
+                )),
+                const SizedBox(width: 8),
+                Text('${FaNum.ofInt(entry.value)} نوبت',
+                  style: TextStyle(fontSize: 10, color: pal.textPrimary, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+      ],
+    ));
   }
 }
 
