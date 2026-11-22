@@ -721,7 +721,7 @@ class MockDashboardRepository implements DashboardRepository {
       (canViewAll || employeeId == item.employeeId) &&
       _db.hasPermission('finance.salary.view', employeeId: item.employeeId) &&
       (filter.employeeId == null || filter.employeeId == item.employeeId) &&
-      !item.requestedAt.isBefore(range.start) && item.requestedAt.isBefore(range.endExclusive))
+      item.requestedAt.isBefore(range.endExclusive))
       .fold<int>(0, (sum, item) => sum + item.outstanding);
     final settlements = _db.employeeWalletSettlements.where((item) =>
       range.contains(item.createdAt) && (canViewAll || employeeId == item.employeeId) &&
