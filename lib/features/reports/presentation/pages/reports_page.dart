@@ -48,25 +48,31 @@ class ReportsPage extends StatelessWidget {
     final dayIso = GoRouterState.of(context).uri.queryParameters['date'];
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
     final canViewAll = db.hasPermission('appointments.view_all');
-    final visibleAppointments = db.appointments.where((item) =>
-      canViewAll || (db.hasPermission('appointments.view_self') && item.employeeId == db.currentAccessAccount.employeeId)).toList();
+    final canViewOperations = canViewAll || db.hasPermission('appointments.view_self');
+    final canViewAllFinancial = db.hasPermission('finance.income.view') &&
+      (db.hasPermission('employees.view_list') || canViewAll);
+    final visibleAppointments = canViewOperations
+      ? db.appointments.where((item) =>
+          canViewAll || item.employeeId == db.currentAccessAccount.employeeId).toList()
+      : <Appointment>[];
     final availableEmployees = db.employees.where((item) => db.canViewEmployee(item.id)).toList();
     final availableCategories = <String>{
-      ...db.services.map((service) => service.category),
-      ...db.appointments.expand((appointment) => appointment.serviceSnapshots
-        .map((snapshot) => snapshot['category'])
-        .whereType<String>()),
+      if (canViewOperations) ...db.services.map((service) => service.category),
+      if (canViewOperations) ...db.appointments.expand((appointment) => appointment.serviceSnapshots
+        .map((snapshot) => snapshot['category']).whereType<String>()),
     }.toList()..sort();
     final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
-    final availableCustomers = canViewAll
-      ? db.customers
-      : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
+    final availableCustomers = !canViewOperations || !db.hasPermission('customers.view')
+      ? db.customers.where((_) => false).toList()
+      : canViewAll
+        ? db.customers
+        : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
       visibleAppointments.where((item) => item.jalali.sameDay(selectedDay) && provider.filter.matches(item)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
     final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
       selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
-      (canViewAll || entry.employeeId == db.currentAccessAccount.employeeId) &&
+      (canViewAllFinancial || entry.employeeId == db.currentAccessAccount.employeeId) &&
       db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
       (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
     final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
@@ -79,7 +85,7 @@ class ReportsPage extends StatelessWidget {
     final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
       selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
       item.status == EmployeeWalletTransactionStatus.posted &&
-      (canViewAll || item.employeeId == db.currentAccessAccount.employeeId) &&
+      (canViewAllFinancial || item.employeeId == db.currentAccessAccount.employeeId) &&
       db.hasPermission('finance.salary.view', employeeId: item.employeeId)).toList() : <EmployeeWalletTransaction>[];
     final dayPayrollExpense = dayWalletEntries.where((item) => {
       EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
