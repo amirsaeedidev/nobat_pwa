@@ -127,7 +127,11 @@ void main() {
       expect(filtered.operationalAppointments.every((item) =>
         item.serviceSnapshots.any((snapshot) => snapshot['category'] == 'گروه گزارش تست')), isTrue);
       expect(filtered.services.map((item) => item.name), contains(targetService.title));
-      expect(filtered.averageAppointmentMinutes, target.durationMinutes);
+      expect(filtered.operationalAppointments.any((item) => item.id == target.id), isTrue);
+      final completed = filtered.operationalAppointments
+          .where((item) => item.status == AppointmentStatus.completed).toList();
+      expect(filtered.averageAppointmentMinutes,
+        completed.fold<int>(0, (sum, item) => sum + item.durationMinutes) / completed.length);
     });
 
     test('combined status and service filters narrow linked finance totals', () async {
