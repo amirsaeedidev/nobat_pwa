@@ -106,11 +106,12 @@ class ReportsPage extends StatelessWidget {
       subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
       leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
-        if (db.hasPermission('finance.payment.create')) ...[
+        if (db.hasPermission('finance.payment.create') && canViewOperations && db.hasPermission('customers.view'))
           SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(database: db))),
+        if (db.hasPermission('finance.payment.create'))
           SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(database: db))),
-        ],
-        SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
+        if (db.hasPermission('employees.view_list') || canViewOperations)
+          SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
       child: provider.loading
           ? const LoadingState(kind: SkeletonKind.reports)
