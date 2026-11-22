@@ -239,6 +239,55 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             },
         ]);
       }
+      for (final item in a.paymentTransactions) {
+        rows.add([
+          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
+          'تراکنش پرداخت', '${item.description} · ${item.method.label} · ${item.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}',
+          for (final key in columns)
+            switch (key) {
+              'درآمد' || 'وصول‌شده' => item.signedAmount,
+              'نوبت' => 1,
+              _ => '—',
+            },
+        ]);
+      }
+      for (final item in a.walletTransactions) {
+        final employee = widget.database.employees.where((value) => value.id == item.employeeId).toList();
+        rows.add([
+          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
+          'دفتر کیف پول', '${employee.isEmpty ? 'پرسنل' : employee.first.fullName} · ${item.type.label} · ${item.description}',
+          for (final key in columns)
+            switch (key) {
+              'پورسانت پرسنل' when item.type == EmployeeWalletTransactionType.commission => item.amount,
+              'حقوق پرداختی' when item.type == EmployeeWalletTransactionType.salaryPayment => item.amount.abs(),
+              'هزینه' when item.type != EmployeeWalletTransactionType.commission && item.type != EmployeeWalletTransactionType.salaryPayment => item.amount,
+              _ => '—',
+            },
+        ]);
+      }
+      for (final item in a.settlements) {
+        rows.add([
+          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
+          'تسویه پرسنل', '${item.receiptNumber} · ${item.status == EmployeeWalletSettlementStatus.completed ? 'کامل' : 'جزئی'}',
+          for (final key in columns)
+            switch (key) {
+              'حقوق پرداختی' => item.paidAmount,
+              'مطالبات' => item.remainingAfter,
+              _ => '—',
+            },
+        ]);
+      }
+      for (final item in a.businessExpenses) {
+        rows.add([
+          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
+          'هزینه مجموعه', '${item.category.label} · ${item.description} · سند ${item.sourceDocumentId}',
+          for (final key in columns)
+            switch (key) {
+              'هزینه' => item.amount,
+              _ => '—',
+            },
+        ]);
+      }
       if (type == 'pdf') {
         await ReportExecutivePdfExport.save(
           analytics: a, comparison: comparison, title: 'گزارش مدیریتی DateTime', columns: columns,
