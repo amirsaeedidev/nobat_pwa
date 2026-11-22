@@ -979,6 +979,25 @@ class _RecentTransactions extends StatelessWidget {
       else for (final item in items)
         ListTile(
           dense: true, contentPadding: EdgeInsets.zero,
+          onTap: () {
+            final appointment = item.appointmentId == null ? null : context.read<AppDatabase>().appointmentById(item.appointmentId!);
+            showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+              title: const Text('جزئیات تراکنش کیف پول'),
+              content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('نوع: ${item.type.label}'),
+                Text('تاریخ: ${JalaliDate.fromDateTime(item.createdAt).long}'),
+                Text('مبلغ: ${Fmt.compactMoney(item.amount)}'),
+                Text('وضعیت: ${item.status.name}'),
+                Text('شرح: ${item.description}'),
+                if (item.settlementId != null) Text('شناسه تسویه: ${item.settlementId}'),
+                if (item.sourceFinanceEntryId != null) Text('سند مالی منبع: ${item.sourceFinanceEntryId}'),
+                if (item.paymentId != null) Text('شناسه رسید: ${item.paymentId}'),
+                if (context.read<AppDatabase>().hasPermission('customers.view') && appointment != null)
+                  Text('مشتری: ${appointment.customerName}'),
+              ])),
+              actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
+            ));
+          },
           leading: HugeIcon(icon: HugeIcons.strokeRoundedWallet01, color: item.amount >= 0 ? pal.success : pal.danger, size: 20),
           title: Text(item.description, style: const TextStyle(fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text('${item.type.label} · ${JalaliDate.fromDateTime(item.createdAt).short}', style: TextStyle(fontSize: 10, color: pal.textMuted)),
