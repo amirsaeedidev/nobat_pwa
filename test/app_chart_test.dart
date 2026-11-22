@@ -16,8 +16,8 @@ void main() {
       segments: {'پرسنل اول': 40, 'پرسنل دوم': 50}),
   ];
 
-  Widget host(Widget child) => MaterialApp(
-    theme: ThemeData(extensions: const [AppPalette.creamBrown]),
+  Widget host(Widget child, {AppPalette palette = AppPalette.creamBrown}) => MaterialApp(
+    theme: ThemeData(extensions: [palette]),
     home: Directionality(textDirection: TextDirection.rtl,
       child: Scaffold(body: SingleChildScrollView(child: Padding(
         padding: const EdgeInsets.all(8), child: child,
@@ -27,6 +27,7 @@ void main() {
   testWidgets('all shared chart types render without layout exceptions at 320px', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(320, 900);
+    for (final palette in [AppPalette.pastelPink, AppPalette.creamBrown, AppPalette.white, AppPalette.purpleDark]) {
     for (final type in AppChartType.values) {
       await tester.pumpWidget(host(SizedBox(width: 304, child: AppChart(
         type: type,
@@ -39,9 +40,10 @@ void main() {
               AppChartSeries(name: 'هزینه', values: [35, 55, 20]),
             ]
           : const [],
-      ))));
+      )), palette: palette));
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull, reason: 'chart type $type overflowed at 320px');
+      expect(tester.takeException(), isNull, reason: 'chart type $type overflowed at 320px in ' + palette.id);
+    }
     }
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
