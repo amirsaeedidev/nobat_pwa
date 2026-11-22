@@ -66,9 +66,18 @@ class AppChart extends StatelessWidget {
         ? points.any((e) => e.value > 0)
         : points.isNotEmpty && resolved.any((e) => e.values.isNotEmpty);
     return LayoutBuilder(builder: (context, box) {
-      final compact = box.maxWidth < 360;
+      // Charts are also embedded in horizontally scrollable report panels,
+      // where the incoming maxWidth can be unbounded. Give the renderer a
+      // finite viewport width so its stretch column and fl_chart children
+      // never receive BoxConstraints(width: infinity).
+      final availableWidth = box.maxWidth.isFinite
+          ? box.maxWidth
+          : MediaQuery.sizeOf(context).width;
+      final compact = availableWidth < 360;
       final h = math.max(120.0, height).toDouble();
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      return SizedBox(
+        width: availableWidth,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (title != null || onTypeChanged != null)
           Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
             if (title != null) Expanded(child: Text(title!, maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -92,7 +101,8 @@ class AppChart extends StatelessWidget {
           SizedBox(height: h, child: _render(context, resolved, compact)),
         if (showLegend && valid && !loading && error == null)
           _legend(context, resolved, compact),
-      ]);
+        ]),
+      );
     });
   }
 
