@@ -86,12 +86,12 @@ class ReportAnalyticsFilter {
   bool get isEmpty => serviceId == null && employeeId == null && customerId == null &&
       status == null && paymentMethod == null && category == null && settlementStatus == null;
 
-  bool matches(Appointment item, {String? serviceCategory}) =>
+  bool matches(Appointment item, {Set<String> serviceCategories = const {}}) =>
     (serviceId == null || item.serviceIds.contains(serviceId)) &&
     (employeeId == null || item.employeeId == employeeId) &&
     (customerId == null || item.customerId == customerId) &&
     (status == null || item.status == status) &&
-    (category == null || serviceCategory == category);
+    (category == null || serviceCategories.contains(category));
 
   ReportAnalyticsFilter copyWith({
     String? serviceId, String? employeeId, String? customerId, String? paymentMethod,
