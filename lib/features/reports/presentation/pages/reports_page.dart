@@ -124,14 +124,16 @@ class ReportsPage extends StatelessWidget {
                         SectionHeader(title: 'گزارش روز ${selectedDay.long}', subtitle: 'جزئیات همان روز انتخاب‌شده از نمودار'),
                         const SizedBox(height: 10),
                         Wrap(spacing: 8, runSpacing: 8, children: [
-                          _MetricCard(label: 'کل نوبت‌ها', value: dayAppointments.length, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
-                          _MetricCard(label: 'تکمیل‌شده', value: dayCompleted.length, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
+                          if (canViewOperations) _MetricCard(label: 'کل نوبت‌ها', value: dayAppointments.length, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
+                          if (canViewOperations) _MetricCard(label: 'تکمیل‌شده', value: dayCompleted.length, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
                           _MetricCard(label: 'درآمد ثبت‌شده روز', value: dayRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                           _MetricCard(label: 'هزینه روز', value: dayTotalExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                           _MetricCard(label: 'هزینه عملیاتی', value: dayOperatingExpense, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                         ]),
                         const SizedBox(height: 8),
-                        if (dayAppointments.isEmpty)
+                        if (!canViewOperations)
+                          const Text('جزئیات نوبت‌های این روز برای نقش فعلی قابل مشاهده نیست.', style: TextStyle(fontSize: 10))
+                        else if (dayAppointments.isEmpty)
                           const EmptyState(title: 'برای این روز نوبتی ثبت نشده', compact: true)
                         else
                           for (final item in dayAppointments)
@@ -289,9 +291,9 @@ class ReportsPage extends StatelessWidget {
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
                       _MetricCard(label: 'هزینه ثبت‌شده', value: provider.totalCost, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.warning),
                       _MetricCard(label: 'سود خالص تخمینی', value: provider.netProfit, money: true, icon: HugeIcons.strokeRoundedChartLineData01, color: provider.netProfit >= 0 ? pal.success : pal.danger),
-                      _MetricCard(label: 'تعداد نوبت', value: provider.totalAppointments, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
-                      _MetricCard(label: 'مشتری یکتا', value: provider.totalCustomers, icon: HugeIcons.strokeRoundedUser, color: pal.purple),
-                      _MetricCard(label: 'نوبت تکمیل‌شده', value: provider.completedAppointments, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
+                      if (canViewOperations) _MetricCard(label: 'تعداد نوبت', value: provider.totalAppointments, icon: HugeIcons.strokeRoundedAppointment01, color: pal.primaryBright),
+                      if (canViewOperations) _MetricCard(label: 'مشتری یکتا', value: provider.totalCustomers, icon: HugeIcons.strokeRoundedUser, color: pal.purple),
+                      if (canViewOperations) _MetricCard(label: 'نوبت تکمیل‌شده', value: provider.completedAppointments, icon: HugeIcons.strokeRoundedCheckmarkCircle01, color: pal.success),
                     ]),
                     const SizedBox(height: 8),
                     Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(provider.analytics.costNote, style: TextStyle(fontSize: 10, color: pal.textMuted))),
