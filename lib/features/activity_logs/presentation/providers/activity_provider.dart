@@ -21,6 +21,7 @@ class ActivityProvider extends DbBoundProvider {
   String _query = '';
   bool _loading = true;
   int _loadGeneration = 0;
+  bool _undoing = false;
 
   List<ActivityLog> get logs => _logs;
   List<ActivityLog> get recent => _recent;
@@ -52,7 +53,10 @@ class ActivityProvider extends DbBoundProvider {
 
   @override
   void onDatabaseChanged() {
-    _refresh();
+    // Undo already performs one awaited reload below. Suppress the database
+    // listener's parallel reload to avoid racing generations during the
+    // confirmation flow.
+    if (!_undoing) _refresh();
   }
 
   Future<void> _refresh() async => load();
@@ -64,9 +68,14 @@ class ActivityProvider extends DbBoundProvider {
 
   bool canUndo(ActivityLog log) => _operations.canUndo(log.id);
   Future<bool> undo(ActivityLog log) async {
-    final result = _operations.undo(log.id);
-    if (result) await load();
-    return result;
+    _undoing = true;
+    try {
+      final result = _operations.undo(log.id);
+      if (result) await load();
+      return result;
+    } finally {
+      _undoing = false;
+    }
   }
   void search(String query) {
     _query = query;
