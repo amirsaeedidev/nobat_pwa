@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:datetime/data/mock/app_database.dart';
 import 'package:datetime/data/repositories/appointment_repository.dart';
+import 'package:datetime/data/models/employee_payroll.dart';
+import 'package:datetime/data/models/employee_wallet.dart';
 
 void main() {
   group('Two-role access control', () {
@@ -58,6 +60,55 @@ void main() {
       final db = AppDatabase();
       expect(db.canOpenRoute('/book'), isFalse);
       expect(db.canOpenRoute('/book/manage'), isFalse);
+    });
+
+    test('personnel can request an advance but cannot post a paid advance', () {
+      final db = AppDatabase()..switchMockAccount('demo-staff');
+      db.addPayrollAdvance(PayrollAdvance(
+        id: 'advance-request-test',
+        employeeId: 'emp-zahra',
+        amount: 500000,
+        requestedAt: DateTime(2026, 11, 23),
+        description: 'درخواست مساعده آزمایشی',
+        status: AdvanceStatus.requested,
+      ));
+      expect(db.payrollAdvances.single.status, AdvanceStatus.requested);
+      expect(
+        () => db.addPayrollAdvance(PayrollAdvance(
+          id: 'advance-paid-test',
+          employeeId: 'emp-zahra',
+          amount: 500000,
+          requestedAt: DateTime(2026, 11, 23),
+          paidAt: DateTime(2026, 11, 23),
+          description: 'ثبت پرداخت مستقیم',
+          status: AdvanceStatus.paid,
+        )),
+        throwsA(isA<AccessDeniedException>()),
+      );
+    });
+
+    test('personnel can submit a settlement request and manager can review it', () {
+      final db = AppDatabase()..switchMockAccount('demo-staff');
+      db.requestWalletSettlement(EmployeeWalletSettlementRequest(
+        id: 'settlement-request-test',
+        employeeId: 'emp-zahra',
+        requestedAt: DateTime(2026, 11, 23),
+        periodStart: DateTime(2026, 11, 1),
+        periodEnd: DateTime(2026, 11, 23, 23, 59),
+        amount: 250000,
+        description: 'درخواست تسویه آزمایشی',
+      ));
+      expect(db.walletSettlementRequestsFor('emp-zahra'), hasLength(1));
+      expect(
+        () => db.walletSettlementRequestsFor('emp-shima'),
+        throwsA(isA<AccessDeniedException>()),
+      );
+      db.switchMockAccount('demo-global-admin');
+      db.reviewWalletSettlementRequest('settlement-request-test', EmployeeWalletRequestStatus.approved);
+      expect(
+        db.walletSettlementRequestsFor('emp-zahra').single.status,
+        EmployeeWalletRequestStatus.approved,
+      );
     });
   });
 }
