@@ -199,6 +199,7 @@ class BusinessSettings {
     this.postalCode = '1968913751',
     this.latitude = 35.7448,
     this.longitude = 51.4099,
+    this.mapApps = const ['google_maps'],
     this.instagram = 'https://instagram.com/datetime.salon',
     this.telegram = 'https://t.me/datetime_salon',
     this.whatsapp = 'https://wa.me/989121234567',
@@ -227,6 +228,7 @@ class BusinessSettings {
   final String postalCode;
   final double latitude;
   final double longitude;
+  final List<String> mapApps;
   final String instagram;
   final String telegram;
   final String whatsapp;
@@ -267,6 +269,7 @@ class BusinessSettings {
     String? postalCode,
     double? latitude,
     double? longitude,
+    List<String>? mapApps,
     String? instagram,
     String? telegram,
     String? whatsapp,
@@ -295,6 +298,7 @@ class BusinessSettings {
       postalCode: postalCode ?? this.postalCode,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      mapApps: mapApps ?? this.mapApps,
       instagram: instagram ?? this.instagram,
       telegram: telegram ?? this.telegram,
       whatsapp: whatsapp ?? this.whatsapp,
