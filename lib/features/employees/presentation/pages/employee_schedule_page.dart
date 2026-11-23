@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_schedule.dart';
@@ -29,11 +30,17 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   late JalaliDate _visibleMonth = JalaliDate.today();
   JalaliDate? _selectedDate;
 
-  Future<TimeOfDay?> _time(TimeOfDay? initial) => showTimePicker(
-    context: context,
-    initialTime: initial ?? const TimeOfDay(hour: 9, minute: 0),
-    helpText: 'انتخاب ساعت',
-  );
+  Future<TimeOfDay?> _time(TimeOfDay? initial) async {
+    final picked = await showTimePickerSheet(
+      context,
+      initial: initial == null
+          ? const TimeOfDayLite(9, 0)
+          : TimeOfDayLite(initial.hour, initial.minute),
+      title: 'انتخاب ساعت کاری',
+    );
+    if (picked == null) return null;
+    return TimeOfDay(hour: picked.hour, minute: picked.minute);
+  }
 
   Future<Shift?> _pickShift() async {
     final start = await _time(const TimeOfDay(hour: 9, minute: 0));
@@ -73,8 +80,16 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   }
 
   Future<void> _addException(Employee employee) async {
-    final date = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now().add(const Duration(days: 730)));
-    if (date == null || !mounted) return;
+    final today = JalaliDate.today();
+    final pickedDate = await showJalaliDatePicker(
+      context,
+      initial: today,
+      minDate: today.addDays(-365),
+      maxDate: today.addDays(730),
+      title: 'انتخاب تاریخ تعطیلی یا ساعت ویژه',
+    );
+    if (pickedDate == null || !mounted) return;
+    final date = pickedDate.toDateTime();
     var closed = true;
     var title = 'تعطیلی اختصاصی';
     final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
@@ -108,10 +123,25 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   }
 
   Future<void> _addLeave(Employee employee) async {
-    final startDate = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now().add(const Duration(days: 730)));
-    if (startDate == null || !mounted) return;
-    final endDate = await showDatePicker(context: context, initialDate: startDate, firstDate: startDate, lastDate: DateTime.now().add(const Duration(days: 730)));
-    if (endDate == null || !mounted) return;
+    final today = JalaliDate.today();
+    final startJalali = await showJalaliDatePicker(
+      context,
+      initial: today,
+      minDate: today.addDays(-365),
+      maxDate: today.addDays(730),
+      title: 'شروع مرخصی',
+    );
+    if (startJalali == null || !mounted) return;
+    final endJalali = await showJalaliDatePicker(
+      context,
+      initial: startJalali,
+      minDate: startJalali,
+      maxDate: today.addDays(730),
+      title: 'پایان مرخصی',
+    );
+    if (endJalali == null || !mounted) return;
+    final startDate = startJalali.toDateTime();
+    final endDate = endJalali.toDateTime();
     var type = EmployeeLeaveType.daily;
     var description = '';
     final details = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
