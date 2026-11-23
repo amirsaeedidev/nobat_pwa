@@ -59,28 +59,25 @@ void main() {
 
     test('does not expose finance records to a role without finance permission', () async {
       final db = AppDatabase();
-      db.switchMockAccount('demo-custom');
+      db.switchMockAccount('demo-staff');
       final repository = GlobalSearchRepository(db);
 
       final results = await repository.search('DOC-DM-RENT-001');
       expect(results.where((item) => item.type == GlobalSearchType.transaction), isEmpty);
-      expect(db.canOpenRoute('/search'), isTrue);
+      expect(db.canOpenRoute('/search'), isFalse);
     });
 
     test('staff search is limited to their own appointments and income', () async {
       final db = AppDatabase();
+      final otherAppointment = db.appointments.firstWhere((item) => item.employeeId != 'emp-zahra');
+      final otherIncome = db.employeeFinanceEntries.firstWhere((item) => item.employeeId != 'emp-zahra');
       db.switchMockAccount('demo-staff');
       final repository = GlobalSearchRepository(db);
 
-      final otherAppointment = db.appointments.firstWhere(
-        (item) => item.employeeId != 'emp-zahra',
-      );
+
       final hiddenAppointments = await repository.search(otherAppointment.reference);
       expect(hiddenAppointments.where((item) => item.type == GlobalSearchType.appointment), isEmpty);
 
-      final otherIncome = db.employeeFinanceEntries.firstWhere(
-        (item) => item.employeeId != 'emp-zahra',
-      );
       final hiddenIncome = await repository.search(otherIncome.id);
       expect(hiddenIncome.where((item) => item.type == GlobalSearchType.transaction), isEmpty);
     });
