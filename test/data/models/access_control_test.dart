@@ -95,13 +95,15 @@ void main() {
 
     test('personnel can submit a settlement request and manager can review it', () {
       final db = AppDatabase()..switchMockAccount('demo-staff');
+      final available = db.walletSummaryFor('emp-zahra').payableBalance;
+      expect(available, greaterThan(0));
       db.requestWalletSettlement(EmployeeWalletSettlementRequest(
         id: 'settlement-request-test',
         employeeId: 'emp-zahra',
         requestedAt: DateTime(2026, 11, 23),
         periodStart: DateTime(2026, 11, 1),
         periodEnd: DateTime(2026, 11, 23, 23, 59),
-        amount: 250000,
+        amount: available,
         description: 'درخواست تسویه آزمایشی',
       ));
       expect(db.walletSettlementRequestsFor('emp-zahra'), hasLength(1));
