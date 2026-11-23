@@ -6,6 +6,7 @@ import '../../../../app/theme/app_palette.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
+import '../providers/settings_provider.dart';
 
 /// مرکز تنظیمات؛ دسترسی به همه پیکربندی‌ها و ماژول‌های مدیریتی.
 class SettingsPage extends StatelessWidget {
@@ -13,6 +14,8 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final business = settings.settings;
     final pal = context.pal;
 
     final items = <_SettingEntry>[
