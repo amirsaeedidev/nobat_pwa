@@ -52,9 +52,10 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(de
 GoRouter buildRouter(
   AppDatabase database, {
   SupabaseAuthRepository? authRepository,
-  required SupabaseAuthStateNotifier authStateNotifier,
+  SupabaseAuthStateNotifier? authStateNotifier,
 }) {
-  final refreshListenable = Listenable.merge([database, authStateNotifier]);
+  final sessionNotifier = authStateNotifier ?? SupabaseAuthStateNotifier(null, null);
+  final refreshListenable = Listenable.merge([database, sessionNotifier]);
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
@@ -65,7 +66,7 @@ GoRouter buildRouter(
         if (authRepository.currentUser == null) {
           return isLoginPage ? null : '/login';
         }
-        if (!authStateNotifier.hasActiveBusiness) {
+        if (!sessionNotifier.hasActiveBusiness) {
           return isLoginPage ? null : '/login';
         }
         if (isLoginPage) return '/dashboard';
