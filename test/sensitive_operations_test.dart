@@ -610,6 +610,8 @@ void main() {
     // test, advance the fake clock with pump instead of awaiting that Future
     // before the test binding has had a chance to advance time.
     provider.search(customer.id);
+    await tester.runAsync(() => provider.load());
+    expect(provider.logs.any((log) => log.entityId == customer.id), isTrue);
 
     await tester.pumpWidget(
       MaterialApp(
