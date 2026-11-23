@@ -486,6 +486,9 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void requirePermission(String permissionId, {String? employeeId}) {
+    if (employeeId != null && !canViewEmployee(employeeId)) {
+      throw const AccessDeniedException('فقط اطلاعات و عملیات مربوط به خودتان در دسترس است.');
+    }
     if (!hasPermission(permissionId, employeeId: employeeId)) {
       final matches = AccessPermission.all.where((item) => item.id == permissionId).toList();
       throw AccessDeniedException('برای انجام این عملیات دسترسی «${matches.isEmpty ? permissionId : matches.first.label}» را ندارید.');
@@ -700,6 +703,10 @@ class AppDatabase extends ChangeNotifier {
 
   void addAppointment(Appointment appointment, {String? actor}) {
     requirePermission('appointments.create');
+    if (currentAccessAccount.roleId != 'global_admin' &&
+        currentAccessAccount.employeeId != appointment.employeeId) {
+      throw const AccessDeniedException('پرسنل فقط می‌تواند نوبت مربوط به خودش را ثبت کند.');
+    }
     _appointments.add(appointment);
     log(
       ActivityType.appointmentCreated,
@@ -717,7 +724,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void updateAppointment(Appointment appointment, {String? actor}) {
-    requirePermission('appointments.edit');
+    requirePermission('appointments.edit', employeeId: appointment.employeeId);
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
@@ -738,7 +745,14 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String? actor, String? operationType}) {
-    requirePermission(status == AppointmentStatus.cancelled ? 'appointments.cancel' : status == AppointmentStatus.completed ? 'appointments.complete' : 'appointments.edit');
+    final permissionId = status == AppointmentStatus.confirmed
+        ? 'appointments.confirm'
+        : status == AppointmentStatus.cancelled
+            ? (operationType == 'appointment_reject' ? 'appointments.reject' : 'appointments.cancel')
+            : status == AppointmentStatus.completed
+                ? 'appointments.complete'
+                : 'appointments.edit';
+    requirePermission(permissionId, employeeId: appointment.employeeId);
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
@@ -1964,7 +1978,11 @@ class AppDatabase extends ChangeNotifier {
   void addEmployeeLeave(EmployeeLeave leave) {
     final employee = employeeById(leave.employeeId);
     if (employee == null) throw StateError('پرسنل یافت نشد.');
-    if (currentAccessAccount.employeeId != leave.employeeId) requirePermission('employees.edit', employeeId: leave.employeeId);
+    if (currentAccessAccount.employeeId == leave.employeeId) {
+      requirePermission('employees.leave.request', employeeId: leave.employeeId);
+    } else {
+      requirePermission('employees.edit', employeeId: leave.employeeId);
+    }
     if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
     if (_employeeLeaves.any((item) => item.id == leave.id)) throw StateError('شناسه مرخصی تکراری است.');
     if (_employeeLeaves.any((item) => item.employeeId == leave.employeeId && item.status != EmployeeLeaveStatus.rejected && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt))) {
