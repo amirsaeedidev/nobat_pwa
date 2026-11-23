@@ -14,7 +14,6 @@ import 'package:datetime/data/repositories/sms_repository.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
 import 'package:datetime/features/appointments/presentation/providers/appointments_provider.dart';
-import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
 import 'package:datetime/features/calendar/presentation/providers/calendar_provider.dart';
 import 'package:datetime/features/customers/presentation/providers/customers_provider.dart';
 import 'package:datetime/features/dashboard/presentation/providers/dashboard_provider.dart';
@@ -51,7 +50,6 @@ void main() {
           ChangeNotifierProvider(create: (_) => SmsProvider(MockSmsRepository(db), db)),
           ChangeNotifierProvider(create: (_) => ReportsProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => ActivityProvider(MockActivityRepository(db), db)),
-          ChangeNotifierProvider(create: (_) => BookingProvider(appointments, services, employees, customers, db)),
         ],
         child: const DateTimeApp(),
       ),
