@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/appointment.dart';
+import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/appointments_provider.dart';
 
@@ -11,6 +12,17 @@ import '../providers/appointments_provider.dart';
 Future<void> showAppointmentActions(BuildContext context, Appointment appointment) async {
   final pal = context.pal;
   final provider = context.read<AppointmentsProvider>();
+  final db = context.read<AppDatabase>();
+  final canConfirm = appointment.status == AppointmentStatus.pending &&
+      db.hasPermission('appointments.confirm', employeeId: appointment.employeeId);
+  final canReject = appointment.status == AppointmentStatus.pending &&
+      db.hasPermission('appointments.reject', employeeId: appointment.employeeId);
+  final canComplete = appointment.status != AppointmentStatus.completed &&
+      appointment.status != AppointmentStatus.cancelled &&
+      db.hasPermission('appointments.complete', employeeId: appointment.employeeId);
+  final canCancel = appointment.status != AppointmentStatus.completed &&
+      appointment.status != AppointmentStatus.cancelled &&
+      db.hasPermission('appointments.cancel', employeeId: appointment.employeeId);
   await showAppSheet<void>(
     context,
     title: 'اقدامات نوبت',
@@ -19,7 +31,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
     child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
+          if (canConfirm) ListTile(
             leading: Icon(Icons.verified_rounded, color: pal.success, size: 20),
             title: const Text('تأیید نوبت'),
             onTap: () async {
@@ -35,7 +47,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               }
             },
           ),
-          ListTile(
+          if (canComplete) ListTile(
             leading: Icon(Icons.task_alt_rounded, color: pal.accentGlow, size: 20),
             title: const Text('تکمیل نوبت'),
             onTap: () async {
@@ -44,7 +56,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               if (context.mounted) AppToast.show(context, 'نوبت تکمیل شد');
             },
           ),
-          ListTile(
+          if (canComplete) ListTile(
             leading: Icon(Icons.person_off_rounded, color: pal.warning, size: 20),
             title: const Text('ثبت عدم حضور'),
             onTap: () async {
@@ -53,7 +65,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               if (context.mounted) AppToast.show(context, 'عدم حضور ثبت شد', success: false);
             },
           ),
-          ListTile(
+          if (canCancel || canReject) ListTile(
             leading: Icon(Icons.event_busy_rounded, color: pal.danger, size: 20),
             title: const Text('لغو نوبت'),
             onTap: () async {
