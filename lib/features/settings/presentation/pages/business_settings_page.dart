@@ -75,7 +75,6 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
           telegram: '',
           whatsapp: '',
           website: '',
-          publicSlug: '',
         ),
         logTitle: 'ویرایش اطلاعات مجموعه',
         logDescription: 'اطلاعات مجموعه و نشانی به‌روزرسانی شد.',
