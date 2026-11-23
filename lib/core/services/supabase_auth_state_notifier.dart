@@ -35,6 +35,8 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
 
   StreamSubscription<dynamic>? _subscription;
   Future<bool>? _verification;
+  String? _verificationUserId;
+  int _activeVerifications = 0;
 
   bool _isCheckingMembership = false;
   bool _hasActiveBusiness = false;
@@ -52,31 +54,40 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
   String get roleLabel => _role == 'owner' ? 'مدیر کل' : 'نقش محدود';
 
   Future<bool> verifyMembership() async {
-    final pending = _verification;
-    if (pending != null) return pending;
-
-    final request = _loadMembership();
-    _verification = request;
-    try {
-      return await request;
-    } finally {
-      if (identical(_verification, request)) {
-        _verification = null;
-      }
-    }
-  }
-
-  Future<bool> _loadMembership() async {
-    final auth = _authRepository;
+    final userId = _authRepository?.currentUser?.id;
     final data = _dataRepository;
-
-    if (auth?.currentUser == null || data == null) {
+    if (userId == null || data == null) {
       _clearMembership();
       _verificationError = 'ابتدا وارد حساب Supabase شوید.';
       notifyListeners();
       return false;
     }
 
+    final pending = _verification;
+    if (pending != null && _verificationUserId == userId) {
+      return pending;
+    }
+
+    final request = _loadMembership(userId);
+    _verification = request;
+    _verificationUserId = userId;
+    try {
+      return await request;
+    } finally {
+      if (identical(_verification, request)) {
+        _verification = null;
+        _verificationUserId = null;
+      }
+    }
+  }
+
+  Future<bool> _loadMembership(String expectedUserId) async {
+    final data = _dataRepository;
+    if (data == null || _authRepository?.currentUser?.id != expectedUserId) {
+      return false;
+    }
+
+    _activeVerifications++;
     _isCheckingMembership = true;
     _hasActiveBusiness = false;
     _businessId = null;
@@ -87,6 +98,9 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
 
     try {
       final memberships = await data.fetchMyBusinesses();
+      // A result from a previous account must never authorize a newer session.
+      if (_authRepository?.currentUser?.id != expectedUserId) return false;
+
       for (final rawMembership in memberships) {
         final membership = Map<String, dynamic>.from(rawMembership);
         final role = membership['role'] as String? ?? '';
@@ -118,7 +132,9 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
           'ارتباط با سرور برای بررسی دسترسی برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
       return false;
     } finally {
-      _isCheckingMembership = false;
+      _activeVerifications--;
+      _isCheckingMembership =
+          _activeVerifications > 0 && _authRepository?.currentUser != null;
       notifyListeners();
     }
   }
