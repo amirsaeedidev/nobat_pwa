@@ -6,6 +6,8 @@ import '../../../../app/theme/app_palette.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
+import '../../../../data/repositories/supabase_auth_repository.dart';
 import '../providers/settings_provider.dart';
 
 /// مرکز تنظیمات؛ دسترسی به همه پیکربندی‌ها و ماژول‌های مدیریتی.
@@ -17,6 +19,9 @@ class SettingsPage extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     final business = settings.settings;
     final pal = context.pal;
+    final authRepository = context.read<SupabaseAuthRepository?>();
+    final authSession = context.watch<SupabaseAuthStateNotifier>();
+    final cloudUser = authRepository?.currentUser;
 
     final items = <_SettingEntry>[
       _SettingEntry('تعویض تم', 'انتخاب تم کلی برنامه و تم مستقل فرم‌ها', Icons.palette_rounded, pal.primaryBright, '/settings/appearance'),
@@ -47,18 +52,18 @@ class SettingsPage extends StatelessWidget {
             ),
             child: Row(
               children: [
-                AvatarBadge(name: settings.ownerName, size: 52, color: pal.primaryBright),
+                AvatarBadge(name: cloudUser?.email ?? settings.ownerName, size: 52, color: pal.primaryBright),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        business?.name ?? 'مجموعه',
+                        authSession.businessName ?? business?.name ?? 'مجموعه',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: pal.textPrimary),
                       ),
                       Text(
-                        '${settings.ownerName} • ${settings.ownerRole}',
+                        '${cloudUser?.email ?? settings.ownerName} • ${cloudUser != null ? authSession.roleLabel : settings.ownerRole}',
                         style: TextStyle(fontSize: 11, color: pal.textMuted),
                       ),
                       const SizedBox(height: 6),
@@ -88,6 +93,55 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
+          if (cloudUser != null) ...[
+            const SizedBox(height: 12),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'حساب متصل به Supabase',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: pal.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    cloudUser.email ?? 'کاربر واردشده',
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(fontSize: 12, color: pal.textSecondary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${authSession.businessName ?? 'مجموعه'} • ${authSession.roleLabel}',
+                    style: TextStyle(fontSize: 11, color: pal.textMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await authRepository!.signOut();
+                          if (context.mounted) context.go('/login');
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('خروج از حساب انجام نشد.')),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.logout_rounded, size: 17),
+                      label: const Text('خروج از حساب'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
