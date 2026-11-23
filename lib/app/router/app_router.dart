@@ -54,8 +54,9 @@ GoRouter buildRouter(
   SupabaseAuthRepository? authRepository,
   SupabaseAuthStateNotifier? authStateNotifier,
 }) {
-  final sessionNotifier = authStateNotifier ?? SupabaseAuthStateNotifier(null, null);
-  final refreshListenable = Listenable.merge([database, sessionNotifier]);
+  final refreshListenable = authStateNotifier == null
+      ? database
+      : Listenable.merge([database, authStateNotifier]);
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
@@ -66,7 +67,7 @@ GoRouter buildRouter(
         if (authRepository.currentUser == null) {
           return isLoginPage ? null : '/login';
         }
-        if (!sessionNotifier.hasActiveBusiness) {
+        if (!(authStateNotifier?.hasActiveBusiness ?? false)) {
           return isLoginPage ? null : '/login';
         }
         if (isLoginPage) return '/dashboard';
