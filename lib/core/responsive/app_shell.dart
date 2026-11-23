@@ -175,7 +175,6 @@ class MobileBottomNav extends StatelessWidget {
         onTap: () => showModalBottomSheet<void>(
           context: context,
           backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
           barrierColor: Colors.black.withValues(alpha: 0.30),
           elevation: 0,
           isScrollControlled: true,
