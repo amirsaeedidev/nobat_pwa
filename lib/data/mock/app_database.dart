@@ -521,6 +521,8 @@ class AppDatabase extends ChangeNotifier {
     if (path == '/search' || path == '/search/result') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/book' || path.startsWith('/book/')) return false;
     if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/my-leaves') return currentAccessAccount.roleId == 'staff' && hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
+    if (path == '/my-leaves') return hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
     if (path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
     if (path.startsWith('/settings/hours')) return hasPermission('settings.hours.edit');
