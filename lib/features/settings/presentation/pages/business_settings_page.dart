@@ -90,7 +90,6 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pal = context.pal;
     return PageScaffold(
       title: 'اطلاعات مجموعه',
       subtitle: 'اطلاعات اصلی و راه ارتباطی مجموعه',
