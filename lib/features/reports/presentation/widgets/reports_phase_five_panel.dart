@@ -15,7 +15,6 @@ import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/models/business_finance.dart';
 import '../providers/reports_provider.dart';
 import '../../utils/report_phase_five.dart';
-import '../../utils/report_table_export.dart';
 import '../../utils/report_executive_pdf_export.dart';
 import '../../utils/saved_report_store.dart';
 
@@ -145,150 +144,23 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
   }
 
-  Future<void> _export(String type) async {
+  Future<void> _export() async {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
       widget.database.requirePermission('finance.income.view');
-      final a = widget.provider.analytics;
-      final comparison = widget.provider.comparisonAnalytics ?? a;
+      final analytics = widget.provider.analytics;
+      final comparison = widget.provider.comparisonAnalytics ?? analytics;
       final columns = _allColumns.where(_columns.contains).toList();
-      final all = <String, Object?>{
-        'درآمد ناخالص': a.grossRevenue.round(),
-        'تخفیف': a.discounts.round(),
-        'درآمد': a.netRevenue.round(),
-        'وصول‌شده': a.collectedRevenue.round(),
-        'هزینه': a.cost.round(),
-        'هزینه عمومی': a.operatingExpense.round(),
-        'حقوق و مزایا': a.payrollCost.round(),
-        'سود خالص': a.netProfit.round(),
-        'سهم مجموعه': a.companyShare.round(),
-        'پورسانت پرسنل': a.commissionCost.round(),
-        'حقوق پرداختی': a.staffPaid.round(),
-        'مانده پرسنل': a.staffPayable.round(),
-        'بدهی پرسنل': a.staffDebt.round(),
-        'مساعده باز': a.advancesOutstanding.round(),
-        'مطالبات': a.receivables.round(),
-        'نوبت': a.totalAppointments,
-        'تکمیل‌شده': a.completedAppointments,
-        'لغوشده': a.cancelledAppointments,
-        'عدم مراجعه': a.noShowAppointments,
-        'مشتری یکتا': a.uniqueCustomers,
-        'نرخ بازگشت': a.repeatCustomerRate.toStringAsFixed(1) + '٪',
-        'میانگین مدت نوبت': a.averageAppointmentMinutes.round(),
-      };
-      final generatedAt = JalaliDate.fromDateTime(DateTime.now()).long;
-      final headers = ['گزارش', 'بازه', 'تاریخ تولید', 'بخش', 'عنوان', ...columns];
-      final rows = <List<Object?>>[
-        ['گزارش مدیریتی DateTime', a.range.label, generatedAt, 'شاخص', 'خلاصه',
-          for (final key in columns) all[key] ?? ''],
-      ];
-      for (final item in a.services) {
-        rows.add([
-          'گزارش مدیریتی DateTime', a.range.label, generatedAt, 'خدمت', item.name,
-          for (final key in columns)
-            switch (key) {
-              'درآمد' => item.revenue.round(),
-              'هزینه' => item.directCost?.round() ?? 'ثبت نشده',
-              'سود خالص' => item.profit?.round() ?? 'نامشخص',
-              'نوبت' || 'تکمیل‌شده' => item.count,
-              _ => '—',
-            },
-        ]);
-      }
-      for (final item in a.employees) {
-        final appointments = a.operationalAppointments.where((entry) =>
-          entry.employeeId == item.employeeId && entry.status == AppointmentStatus.completed).toList();
-        rows.add([
-          'گزارش مدیریتی DateTime', a.range.label, generatedAt, 'پرسنل', item.name,
-          for (final key in columns)
-            switch (key) {
-              'درآمد' => item.revenue.round(),
-              'هزینه' => item.commission.round(),
-              'پورسانت پرسنل' => item.commission.round(),
-              'سهم مجموعه' => (item.revenue - item.commission).round(),
-              'سود خالص' => (item.revenue - item.commission).round(),
-              'نوبت' || 'تکمیل‌شده' => appointments.length,
-              'مشتری یکتا' => appointments.map((entry) => entry.customerId).toSet().length,
-              _ => '—',
-            },
-        ]);
-      }
-      for (final item in a.customerMetrics) {
-        rows.add([
-          'گزارش مدیریتی DateTime', a.range.label, generatedAt, 'مشتری', item.name,
-          for (final key in columns)
-            switch (key) {
-              'درآمد' => item.totalSpent.round(),
-              'نوبت' => item.lifetimeVisits,
-              'تکمیل‌شده' => item.visits,
-              'مشتری یکتا' => 1,
-              'نرخ بازگشت' => item.repeatVisits,
-              _ => '—',
-            },
-        ]);
-      }
-      for (final item in a.paymentTransactions) {
-        rows.add([
-          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
-          'تراکنش پرداخت', '${item.description} · ${item.method.label} · ${item.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}',
-          for (final key in columns)
-            switch (key) {
-              'درآمد' || 'وصول‌شده' => item.signedAmount,
-              'نوبت' => 1,
-              _ => '—',
-            },
-        ]);
-      }
-      for (final item in a.walletTransactions) {
-        final employee = widget.database.employees.where((value) => value.id == item.employeeId).toList();
-        rows.add([
-          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
-          'دفتر کیف پول', '${employee.isEmpty ? 'پرسنل' : employee.first.fullName} · ${item.type.label} · ${item.description}',
-          for (final key in columns)
-            switch (key) {
-              'پورسانت پرسنل' when item.type == EmployeeWalletTransactionType.commission => item.amount,
-              'حقوق پرداختی' when item.type == EmployeeWalletTransactionType.salaryPayment => item.amount.abs(),
-              'هزینه' when item.type != EmployeeWalletTransactionType.commission && item.type != EmployeeWalletTransactionType.salaryPayment => item.amount,
-              _ => '—',
-            },
-        ]);
-      }
-      for (final item in a.settlements) {
-        rows.add([
-          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
-          'تسویه پرسنل', '${item.receiptNumber} · ${item.status == EmployeeWalletSettlementStatus.completed ? 'کامل' : 'جزئی'}',
-          for (final key in columns)
-            switch (key) {
-              'حقوق پرداختی' => item.paidAmount,
-              'مطالبات' => item.remainingAfter,
-              _ => '—',
-            },
-        ]);
-      }
-      for (final item in a.businessExpenses) {
-        rows.add([
-          'گزارش مدیریتی DateTime', JalaliDate.fromDateTime(item.createdAt).long, generatedAt,
-          'هزینه مجموعه', '${item.category.label} · ${item.description} · سند ${item.sourceDocumentId}',
-          for (final key in columns)
-            switch (key) {
-              'هزینه' => item.amount,
-              _ => '—',
-            },
-        ]);
-      }
-      if (type == 'pdf') {
-        await ReportExecutivePdfExport.save(
-          analytics: a, comparison: comparison, title: 'گزارش مدیریتی DateTime', columns: columns,
-        );
-      } else if (type == 'excel') {
-        await ReportTableExport.saveExcel(name: 'گزارش-مدیریتی', headers: headers, rows: rows);
-      } else {
-        await ReportTableExport.saveCsv(name: 'گزارش-مدیریتی', headers: headers, rows: rows);
-      }
-      if (mounted) AppToast.show(context, 'فایل گزارش آماده شد.');
+      await ReportExecutivePdfExport.save(
+        analytics: analytics,
+        comparison: comparison,
+        title: 'گزارش مدیریتی DateTime',
+        columns: columns,
+      );
+      if (mounted) AppToast.show(context, 'فایل PDF گزارش آماده شد.');
     } catch (error) {
-      if (mounted) AppToast.show(context, 'خروجی گزارش ناموفق بود: ' + error.toString(), success: false);
+      if (mounted) AppToast.show(context, 'خروجی PDF ناموفق بود: ' + error.toString(), success: false);
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -320,7 +192,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
             ),
         ]),
         const SizedBox(height: 8),
-        OutlinedButton(onPressed: _exporting ? null : () => _export('pdf'),
+        OutlinedButton(onPressed: _exporting ? null : _export,
           child: const Text('دریافت فایل PDF')),
         if (_exporting) const Padding(padding: EdgeInsets.only(top: 8),
           child: LinearProgressIndicator()),
