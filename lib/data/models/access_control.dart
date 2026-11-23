@@ -8,6 +8,7 @@ class AccessPermission {
   static const all = <AccessPermission>[
     AccessPermission('employees.view_profile', 'پرسنل', 'مشاهده پروفایل شخصی'),
     AccessPermission('employees.leave.request', 'پرسنل', 'ثبت درخواست مرخصی'),
+    AccessPermission('customers.create', 'نوبت‌ها', 'ثبت مشتری جدید هنگام ثبت نوبت'),
     AccessPermission('appointments.view_self', 'نوبت‌ها', 'مشاهده نوبت‌های خود'),
     AccessPermission('appointments.confirm', 'نوبت‌ها', 'تأیید نوبت‌های خود'),
     AccessPermission('appointments.reject', 'نوبت‌ها', 'رد نوبت‌های خود'),
@@ -45,7 +46,7 @@ class AccessRole {
   static List<AccessRole> defaults() {
     final all = AccessPermission.ids;
     const staff = [
-      'employees.view_profile', 'appointments.view_self', 'appointments.confirm', 'appointments.reject',
+      'employees.view_profile', 'customers.create', 'appointments.view_self', 'appointments.confirm', 'appointments.reject',
       'appointments.create', 'appointments.edit', 'appointments.cancel',
       'appointments.complete', 'finance.commission.view', 'finance.wallet.view',
       'finance.advance.request', 'finance.settlement.request', 'employees.leave.request',
