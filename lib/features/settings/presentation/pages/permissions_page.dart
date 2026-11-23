@@ -2,387 +2,203 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
-import '../../../../core/utils/fa_num.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
-import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/access_control.dart';
-import '../../../../data/repositories/operations_repository.dart';
 
+/// تنها دو سطح دسترسی برنامه: مدیر کل و پرسنل.
 class PermissionsPage extends StatefulWidget {
   const PermissionsPage({super.key});
+
   @override
   State<PermissionsPage> createState() => _PermissionsPageState();
 }
 
 class _PermissionsPageState extends State<PermissionsPage> {
-  String? _selectedRoleId;
   String? _selectedEmployeeId;
 
   @override
   Widget build(BuildContext context) {
     final db = context.watch<AppDatabase>();
     final pal = context.pal;
-    final roles = db.accessRoles;
-    final selectedRole = roles.firstWhere((role) => role.id == _selectedRoleId, orElse: () => roles.first);
+    final staffRole = db.accessRoleById('staff')!;
     final employees = db.employees;
-    final selectedEmployee = employees.firstWhere((employee) => employee.id == _selectedEmployeeId, orElse: () => employees.first);
+    final selectedEmployee = employees.firstWhere(
+      (employee) => employee.id == _selectedEmployeeId,
+      orElse: () => employees.first,
+    );
     final assignment = db.accessAssignmentFor(selectedEmployee.id);
-    final assignedRoleId = assignment?.roleId ?? 'staff';
-    final assignedRole = db.accessRoleById(assignedRoleId) ?? roles.first;
+    final overrides = assignment?.overrides ?? const <String, bool>{};
 
     return PageScaffold(
-      title: 'مدیریت نقش‌ها و دسترسی‌ها',
-      subtitle: 'کنترل مجوزها در رابط کاربری و لایه داده — حالت آزمایشی آفلاین',
+      title: 'مدیریت دسترسی پرسنل',
+      subtitle: 'فقط دو نقش فعال در برنامه وجود دارد: مدیر کل و پرسنل',
       icon: Icons.admin_panel_settings_rounded,
       showBackButton: true,
-      actions: [
-        FilledButton.icon(onPressed: _createRole, icon: const Icon(Icons.add_rounded), label: const Text('نقش جدید')),
-      ],
-      mobileActions: [
-        IconButton(tooltip: 'ساخت نقش', onPressed: _createRole, icon: const Icon(Icons.add_rounded)),
-      ],
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        AppCard(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SectionHeader(title: 'حساب آزمایشی فعال'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: db.currentAccessAccount.id,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'تغییر حساب برای بررسی نقش‌ها'),
-              items: db.accessAccounts.map((account) => DropdownMenuItem(value: account.id, child: Text(account.name))).toList(),
-              onChanged: (id) {
-                if (id == null) return;
-                try {
-                  db.switchMockAccount(id);
-                  AppToast.show(context, 'حساب آزمایشی تغییر کرد.');
-                } catch (error) { AppToast.show(context, '$error', success: false); }
-              },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'مدیر کل'),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Icon(Icons.verified_user_rounded, color: pal.success, size: 30),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(
+                    'دسترسی کامل به تمام بخش‌ها، اطلاعات و عملیات برنامه؛ امکان مدیریت دسترسی همه پرسنل.',
+                    style: TextStyle(fontSize: 11, height: 1.8, color: pal.textSecondary),
+                  )),
+                  StatusBadge(label: 'همه دسترسی‌ها فعال', color: pal.success, dense: true),
+                ]),
+              ],
             ),
-            const SizedBox(height: 8),
-            Row(children: [
-              StatusBadge(label: db.currentAccessRoleName, color: pal.primaryBright),
-              const SizedBox(width: 8),
-              Expanded(child: Text('این انتخاب فقط برای تست دسترسی است و هیچ ورود یا سرویس آنلاین ندارد.', style: TextStyle(fontSize: 10, color: pal.textMuted))),
-            ]),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SectionHeader(title: 'نقش‌های پیش‌فرض و سفارشی'),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final role in roles)
-              ChoiceChip(
-                selected: selectedRole.id == role.id,
-                label: Text('${role.name} · ${FaNum.ofInt(db.accessAccounts.where((account) => account.roleId == role.id).length)}'),
-                onSelected: (_) => setState(() => _selectedRoleId = role.id),
-              ),
-          ]),
-          const Divider(height: 24),
-          Row(children: [
-            Expanded(child: Text(selectedRole.name, style: TextStyle(fontWeight: FontWeight.w800, color: pal.textPrimary))),
-            if (!selectedRole.isSystem)
-              IconButton(tooltip: 'ویرایش نام نقش', onPressed: () => _renameRole(selectedRole), icon: const Icon(Icons.edit_rounded)),
-            if (selectedRole.isSystem)
-              TextButton.icon(onPressed: () => _resetRole(db, selectedRole), icon: const Icon(Icons.restart_alt_rounded), label: const Text('بازنشانی')),
-          ]),
-          for (final group in AccessPermission.grouped.entries) ...[
-            const SizedBox(height: 8),
-            Text(group.key, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: pal.primaryBright)),
-            const SizedBox(height: 4),
-            for (final permission in group.value)
-              Material(color: Colors.transparent, child: CheckboxListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(permission.label, style: TextStyle(fontSize: 11, color: pal.textPrimary)),
-                value: selectedRole.permissionIds.contains(permission.id),
-                onChanged: selectedRole.isSystem ? null : (checked) => _toggleRolePermission(db, selectedRole, permission.id, checked == true),
-              )),
-          ],
-          if (selectedRole.isSystem)
-            Text('نقش‌های سیستمی محافظت شده‌اند؛ برای ساخت ترکیب اختصاصی از «نقش جدید» استفاده کنید.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
-        ])),
-        const SizedBox(height: 12),
-        AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SectionHeader(title: 'اختصاص نقش و استثناهای هر پرسنل'),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            value: selectedEmployee.id,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'انتخاب پرسنل'),
-            items: employees.map((employee) => DropdownMenuItem(value: employee.id, child: Text(employee.fullName))).toList(),
-            onChanged: (id) => setState(() => _selectedEmployeeId = id),
           ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: roles.any((role) => role.id == assignedRoleId) ? assignedRoleId : roles.first.id,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'نقش پرسنل'),
-            items: roles.map((role) => DropdownMenuItem(value: role.id, child: Text(role.name))).toList(),
-            onChanged: (roleId) {
-              if (roleId == null) return;
-              _saveAssignment(db, selectedEmployee.id, roleId, assignment?.overrides ?? const {},
-                assignment?.canViewOtherEmployees ?? false, assignment?.canViewPersonalIncome ?? true);
-            },
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'پرسنل'),
+                const SizedBox(height: 8),
+                Text(
+                  'دسترسی پایه پرسنل فقط شامل نوبت‌های خودش و امور شخصی اوست. مدیر کل می‌تواند مجوزهای هر پرسنل را جداگانه فعال یا غیرفعال کند.',
+                  style: TextStyle(fontSize: 11, height: 1.8, color: pal.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedEmployee.id,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'انتخاب پرسنل'),
+                  items: employees.map((employee) => DropdownMenuItem(
+                    value: employee.id,
+                    child: Text(employee.fullName),
+                  )).toList(),
+                  onChanged: (id) => setState(() => _selectedEmployeeId = id),
+                ),
+                const SizedBox(height: 10),
+                Row(children: [
+                  StatusBadge(label: 'نقش: پرسنل', color: pal.primaryBright),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                    'مشاهده سایر پرسنل و درآمد دیگران غیرفعال است.',
+                    style: TextStyle(fontSize: 10, color: pal.textMuted),
+                  )),
+                ]),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Material(color: Colors.transparent, child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('مشاهده اطلاعات سایر کارکنان', style: TextStyle(fontSize: 11)),
-            value: assignment?.canViewOtherEmployees ?? false,
-            onChanged: (value) => _saveAssignment(db, selectedEmployee.id, assignedRole.id, assignment?.overrides ?? const {}, value, assignment?.canViewPersonalIncome ?? true),
-          )),
-          Material(color: Colors.transparent, child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('مشاهده درآمد شخصی', style: TextStyle(fontSize: 11)),
-            value: assignment?.canViewPersonalIncome ?? true,
-            onChanged: (value) => _saveAssignment(db, selectedEmployee.id, assignedRole.id, assignment?.overrides ?? const {}, assignment?.canViewOtherEmployees ?? false, value),
-          )),
-          const Divider(),
-          Text('استثناهای دسترسی (فعال‌سازی یا منع صریح)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-          for (final permission in AccessPermission.all)
-            Material(color: Colors.transparent, child: CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(permission.label, style: TextStyle(fontSize: 10, color: pal.textSecondary)),
-              tristate: true,
-              value: assignment?.overrides.containsKey(permission.id) == true ? assignment!.overrides[permission.id] : null,
-              onChanged: (value) {
-                final overrides = Map<String, bool>.from(assignment?.overrides ?? const {});
-                if (value == null) { overrides.remove(permission.id); } else { overrides[permission.id] = value; }
-                _saveAssignment(db, selectedEmployee.id, assignedRole.id, overrides,
-                  assignment?.canViewOtherEmployees ?? false, assignment?.canViewPersonalIncome ?? true);
-              },
-            )),
-          Text('سه حالت: خالی = پیروی از نقش، تیک = اجازه، خط = منع.', style: TextStyle(fontSize: 10, color: pal.textMuted)),
-        ])),
-      ]),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'مجوزهای پرسنل'),
+                const SizedBox(height: 6),
+                for (final group in AccessPermission.grouped.entries) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10, bottom: 4),
+                    child: Text(group.key, style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: pal.primaryBright,
+                    )),
+                  ),
+                  for (final permission in group.value)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(permission.label, style: TextStyle(fontSize: 11, color: pal.textPrimary)),
+                      value: overrides.containsKey(permission.id)
+                          ? overrides[permission.id]
+                          : staffRole.permissionIds.contains(permission.id),
+                      onChanged: (value) => _savePermission(
+                        db,
+                        selectedEmployee.id,
+                        permission.id,
+                        value == (staffRole.permissionIds.contains(permission.id)) ? null : value,
+                        overrides,
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  'تغییرات برای همان پرسنل ذخیره می‌شود؛ مدیر کل همچنان دسترسی کامل دارد.',
+                  style: TextStyle(fontSize: 10, height: 1.7, color: pal.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'حساب‌های آزمایشی'),
+                const SizedBox(height: 8),
+                Text(
+                  'مدیر کل و پرسنل دو حساب نمونه برای بررسی رفتار دسترسی‌ها در حالت آفلاین هستند.',
+                  style: TextStyle(fontSize: 10.5, height: 1.7, color: pal.textMuted),
+                ),
+                const SizedBox(height: 8),
+                for (final account in db.accessAccounts)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(account.roleId == 'global_admin'
+                        ? Icons.admin_panel_settings_rounded
+                        : Icons.badge_rounded),
+                    title: Text(account.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                    subtitle: Text(account.roleId == 'global_admin' ? 'مدیر کل' : 'پرسنل'),
+                    trailing: TextButton(
+                      onPressed: () {
+                        try {
+                          db.switchMockAccount(account.id);
+                          AppToast.show(context, 'حساب آزمایشی تغییر کرد.');
+                        } catch (error) {
+                          AppToast.show(context, error.toString(), success: false);
+                        }
+                      },
+                      child: const Text('فعال‌سازی'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Future<void> _saveAssignment(AppDatabase db, String employeeId, String roleId, Map<String, bool> overrides, bool other, bool income) async {
-    final employee = db.employeeById(employeeId);
-    final previous = db.accessAssignmentFor(employeeId);
-    final oldRole = db.accessRoleById(previous?.roleId ?? 'staff')?.name ?? 'پرسنل';
-    final newRole = db.accessRoleById(roleId)?.name ?? roleId;
-    final confirmed = await showSensitiveOperationDialog(
-      context,
-      title: 'تغییر نقش و سطح دسترسی',
-      description: 'این تغییر بلافاصله روی دسترسی صفحه‌ها، اطلاعات پرسنل و داده‌های مالی اثر می‌گذارد.',
-      recordDetails: {
-        'پرسنل': employee?.fullName ?? employeeId,
-        'نقش قبلی': oldRole,
-        'نقش جدید': newRole,
-        'مشاهده سایر پرسنل': other ? 'مجاز' : 'ممنوع',
-        'مشاهده درآمد شخصی': income ? 'مجاز' : 'ممنوع',
-        'استثناهای دسترسی': overrides.length.toString(),
-      },
-      isReversible: true,
-      confirmLabel: 'ثبت تغییر دسترسی',
-    );
-    if (!confirmed || !mounted) return;
+  void _savePermission(
+    AppDatabase db,
+    String employeeId,
+    String permissionId,
+    bool? value,
+    Map<String, bool> current,
+  ) {
+    final next = Map<String, bool>.from(current);
+    if (value == null) {
+      next.remove(permissionId);
+    } else {
+      next[permissionId] = value;
+    }
     try {
-      await OperationsRepository(db).assignEmployeeRole(
+      db.assignEmployeeAccess(
         employeeId: employeeId,
-        roleId: roleId,
-        overrides: overrides,
-        canViewOtherEmployees: other,
-        canViewPersonalIncome: income,
+        roleId: 'staff',
+        overrides: next,
+        canViewOtherEmployees: false,
+        canViewPersonalIncome: true,
       );
-      if (mounted) {
-        final operations = OperationsRepository(db);
-        final undoLog = operations.latestUndoableLogFor(employeeId);
-        if (undoLog != null) {
-          showUndoableOperationSnackBarForLog(
-            context,
-            message: 'سطح دسترسی پرسنل به‌روزرسانی شد.',
-            activityLogId: undoLog.id,
-            undo: operations.undo,
-            onUndoSuccess: () { if (mounted) setState(() {}); },
-          );
-        } else {
-          AppToast.show(context, 'سطح دسترسی به‌روزرسانی شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-        }
-      }
+      AppToast.show(context, 'دسترسی پرسنل ذخیره شد.');
     } catch (error) {
-      if (mounted) AppToast.show(context, '$error', success: false);
-    }
-  }
-
-  Future<void> _toggleRolePermission(AppDatabase db, AccessRole role, String id, bool enabled) async {
-    final permissionMatches = AccessPermission.all.where((item) => item.id == id).toList();
-    final permission = permissionMatches.isEmpty ? null : permissionMatches.first;
-    final ids = role.permissionIds.toSet();
-    enabled ? ids.add(id) : ids.remove(id);
-    final confirmed = await showSensitiveOperationDialog(
-      context,
-      title: 'تغییر مجوز نقش',
-      description: 'با این تغییر، دسترسی تمام حساب‌هایی که از این نقش استفاده می‌کنند به‌روزرسانی می‌شود.',
-      recordDetails: {
-        'نقش': role.name,
-        'مجوز': permission?.label ?? id,
-        'وضعیت جدید': enabled ? 'فعال' : 'غیرفعال',
-      },
-      isReversible: true,
-      confirmLabel: 'ثبت مجوز',
-    );
-    if (!confirmed || !mounted) return;
-    try {
-      await OperationsRepository(db).updateAccessRole(role.id, name: role.name, permissionIds: ids.toList());
-      if (mounted) {
-        final operations = OperationsRepository(db);
-        final undoLog = operations.latestUndoableLogFor(role.id);
-        if (undoLog != null) {
-          showUndoableOperationSnackBarForLog(
-            context,
-            message: 'مجوز نقش تغییر کرد.',
-            activityLogId: undoLog.id,
-            undo: operations.undo,
-            onUndoSuccess: () { if (mounted) setState(() {}); },
-          );
-        } else {
-          AppToast.show(context, 'مجوز نقش تغییر کرد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-        }
-      }
-    } catch (error) {
-      if (mounted) AppToast.show(context, '$error', success: false);
-    }
-  }
-
-  Future<void> _createRole() async {
-    final name = TextEditingController();
-    final created = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('ساخت نقش سفارشی'),
-      content: TextField(controller: name, autofocus: true, decoration: const InputDecoration(labelText: 'نام نقش')),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
-        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ادامه')),
-      ],
-    ));
-    if (created == true && mounted) {
-      try {
-        final approved = await showSensitiveOperationDialog(
-          context,
-          title: 'تأیید ایجاد نقش سفارشی',
-          description: 'یک نقش جدید با مجوزهای اولیه خالی ساخته می‌شود. پس از ایجاد می‌توانید مجوزها را جداگانه تنظیم کنید. این عملیات قابل بازگردانی است، مگر اینکه نقش به پرسنل اختصاص داده شود.',
-          recordDetails: {
-            'نام نقش': name.text.trim(),
-            'نوع': 'سفارشی',
-            'مجوزهای اولیه': '۰',
-          },
-          isReversible: true,
-          confirmLabel: 'ایجاد نقش',
-        );
-        if (approved && mounted) {
-          final db = context.read<AppDatabase>();
-          final role = await OperationsRepository(db).createAccessRole(
-            name: name.text,
-            permissionIds: const [],
-          );
-          if (mounted) {
-            final operations = OperationsRepository(db);
-            final undoLog = operations.latestUndoableLogFor(role.id);
-            if (undoLog != null) {
-              showUndoableOperationSnackBarForLog(
-                context,
-                message: 'نقش «${role.name}» ایجاد شد.',
-                activityLogId: undoLog.id,
-                undo: operations.undo,
-                onUndoSuccess: () { if (mounted) setState(() {}); },
-              );
-            } else {
-              AppToast.show(context, 'نقش ایجاد شد؛ به‌دلیل تخصیص یا تغییرات وابسته قابل بازگردانی نیست.');
-            }
-          }
-        }
-      } catch (error) {
-        if (mounted) AppToast.show(context, '$error', success: false);
-      }
-    }
-    name.dispose();
-  }
-
-  Future<void> _renameRole(AccessRole role) async {
-    final name = TextEditingController(text: role.name);
-    final saved = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('ویرایش نقش سفارشی'),
-      content: TextField(controller: name, decoration: const InputDecoration(labelText: 'نام نقش')),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
-        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ذخیره')),
-      ],
-    ));
-    if (saved == true && mounted) {
-      final db = context.read<AppDatabase>();
-      final approved = await showSensitiveOperationDialog(
-        context,
-        title: 'تغییر نام نقش',
-        description: 'نام نقش در تمام بخش‌های مدیریت دسترسی نمایش داده می‌شود.',
-        recordDetails: {'نام قبلی': role.name, 'نام جدید': name.text.trim(), 'شناسه نقش': role.id},
-        isReversible: true,
-        confirmLabel: 'ثبت نام جدید',
-      );
-      if (!approved || !mounted) { name.dispose(); return; }
-      try {
-        await OperationsRepository(db).updateAccessRole(role.id, name: name.text, permissionIds: role.permissionIds);
-        if (mounted) {
-          final operations = OperationsRepository(db);
-          final undoLog = operations.latestUndoableLogFor(role.id);
-          if (undoLog != null) {
-            showUndoableOperationSnackBarForLog(
-              context,
-              message: 'نام نقش به‌روزرسانی شد.',
-              activityLogId: undoLog.id,
-              undo: operations.undo,
-              onUndoSuccess: () { if (mounted) setState(() {}); },
-            );
-          } else {
-            AppToast.show(context, 'نام نقش به‌روزرسانی شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-          }
-        }
-      } catch (error) {
-        if (mounted) AppToast.show(context, '$error', success: false);
-      }
-    }
-    name.dispose();
-  }
-
-  Future<void> _resetRole(AppDatabase db, AccessRole role) async {
-    final confirmed = await showSensitiveOperationDialog(
-      context,
-      title: 'بازنشانی نقش',
-      description: 'تمام مجوزهای سفارشی این نقش با مقادیر پیش‌فرض جایگزین می‌شوند.',
-      recordDetails: {'نقش': role.name, 'تعداد مجوز فعلی': role.permissionIds.length.toString()},
-      isReversible: true,
-      confirmLabel: 'بازنشانی نقش',
-    );
-    if (!confirmed || !mounted) return;
-    try {
-      await OperationsRepository(db).resetAccessRole(role.id);
-      if (mounted) {
-        final operations = OperationsRepository(db);
-        final undoLog = operations.latestUndoableLogFor(role.id);
-        if (undoLog != null) {
-          showUndoableOperationSnackBarForLog(
-            context,
-            message: 'مجوزهای نقش بازنشانی شد.',
-            activityLogId: undoLog.id,
-            undo: operations.undo,
-            onUndoSuccess: () { if (mounted) setState(() {}); },
-          );
-        } else {
-          AppToast.show(context, 'مجوزهای نقش بازنشانی شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-        }
-      }
-    } catch (error) {
-      if (mounted) AppToast.show(context, '$error', success: false);
+      AppToast.show(context, error.toString(), success: false);
     }
   }
 }
