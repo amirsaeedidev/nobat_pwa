@@ -95,7 +95,9 @@ void main() {
 
     test('personnel can submit a settlement request and manager can review it', () {
       final db = AppDatabase()..switchMockAccount('demo-staff');
-      final available = db.walletSummaryFor('emp-zahra').payableBalance;
+      final available = db.walletTransactionsFor('emp-zahra')
+          .where((item) => item.status == EmployeeWalletTransactionStatus.posted)
+          .fold<int>(0, (sum, item) => sum + item.amount);
       expect(available, greaterThan(0));
       final available = db.walletSummaryFor('emp-zahra').payableBalance;
       expect(available, greaterThan(0));
