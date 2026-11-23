@@ -39,7 +39,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             leading: Icon(Icons.task_alt_rounded, color: pal.accentGlow, size: 20),
             title: const Text('تکمیل نوبت'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               await provider.changeStatus(appointment, AppointmentStatus.completed);
               if (context.mounted) AppToast.show(context, 'نوبت تکمیل شد');
             },
@@ -48,7 +48,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             leading: Icon(Icons.person_off_rounded, color: pal.warning, size: 20),
             title: const Text('ثبت عدم حضور'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               await provider.changeStatus(appointment, AppointmentStatus.noShow);
               if (context.mounted) AppToast.show(context, 'عدم حضور ثبت شد', success: false);
             },
@@ -57,7 +57,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             leading: Icon(Icons.event_busy_rounded, color: pal.danger, size: 20),
             title: const Text('لغو نوبت'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               final confirmed = await showConfirmDialog(
                 context,
                 title: 'لغو نوبت',
