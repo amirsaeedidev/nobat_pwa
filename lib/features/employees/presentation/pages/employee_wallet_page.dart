@@ -48,8 +48,9 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     final walletService = EmployeeWalletService(EmployeeWalletRepository(db));
     final wallet = walletService.readWallet(employee.id);
     final summary = wallet.summary;
-    final canRequestAdvance = db.hasPermission('finance.advance.request', employeeId: employee.id);
-    final canRequestSettlement = db.hasPermission('finance.settlement.request', employeeId: employee.id);
+    final isPersonnelAccount = db.currentAccessAccount.roleId == 'staff';
+    final canRequestAdvance = isPersonnelAccount && db.hasPermission('finance.advance.request', employeeId: employee.id);
+    final canRequestSettlement = isPersonnelAccount && db.hasPermission('finance.settlement.request', employeeId: employee.id);
     final canReviewRequests = db.hasPermission('finance.settlement.view', employeeId: employee.id);
     final advanceRequests = db.payrollAdvances.where((item) =>
       item.employeeId == employee.id && item.status == AdvanceStatus.requested).toList();
