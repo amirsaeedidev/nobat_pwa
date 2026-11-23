@@ -11,26 +11,19 @@ import '../providers/appointments_provider.dart';
 Future<void> showAppointmentActions(BuildContext context, Appointment appointment) async {
   final pal = context.pal;
   final provider = context.read<AppointmentsProvider>();
-  await showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: pal.backgroundAlt,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-    builder: (sheetContext) => SafeArea(
-      child: Column(
+  await showAppSheet<void>(
+    context,
+    title: 'اقدامات نوبت',
+    useRootNavigator: true,
+    scrollable: false,
+    child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 42,
-            height: 4,
-            decoration: BoxDecoration(color: pal.borderStrong, borderRadius: BorderRadius.circular(4)),
-          ),
-          const SizedBox(height: 12),
           ListTile(
             leading: Icon(Icons.verified_rounded, color: pal.success, size: 20),
             title: const Text('تأیید نوبت'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               final previousStatus = appointment.status;
               await provider.changeStatus(appointment, AppointmentStatus.confirmed);
               if (context.mounted) {
@@ -46,7 +39,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             leading: Icon(Icons.task_alt_rounded, color: pal.accentGlow, size: 20),
             title: const Text('تکمیل نوبت'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               await provider.changeStatus(appointment, AppointmentStatus.completed);
               if (context.mounted) AppToast.show(context, 'نوبت تکمیل شد');
             },
@@ -55,7 +48,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             leading: Icon(Icons.person_off_rounded, color: pal.warning, size: 20),
             title: const Text('ثبت عدم حضور'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               await provider.changeStatus(appointment, AppointmentStatus.noShow);
               if (context.mounted) AppToast.show(context, 'عدم حضور ثبت شد', success: false);
             },
@@ -64,7 +57,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             leading: Icon(Icons.event_busy_rounded, color: pal.danger, size: 20),
             title: const Text('لغو نوبت'),
             onTap: () async {
-              Navigator.of(sheetContext).pop();
+              Navigator.of(context, rootNavigator: true).pop();
               final confirmed = await showConfirmDialog(
                 context,
                 title: 'لغو نوبت',
@@ -89,6 +82,5 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
           const SizedBox(height: 8),
         ],
       ),
-    ),
   );
 }

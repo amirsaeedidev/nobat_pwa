@@ -116,7 +116,7 @@ class MobileBottomNav extends StatelessWidget {
     return SafeArea(
         top: false,
         child: SizedBox(
-          height: 92,
+          height: 108,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
@@ -159,7 +159,7 @@ class MobileBottomNav extends StatelessWidget {
                   ),
                 ),
               ),
-              if (showAdd) Positioned(bottom: 36, child: _AddButton(onTap: onAdd)),
+              if (showAdd) Positioned(bottom: 42, child: _AddButton(onTap: onAdd)),
             ],
           ),
         ),

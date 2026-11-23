@@ -483,6 +483,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       subtitle: _existing == null ? 'ثبت سریع نوبت برای مشتری' : 'کد پیگیری ${FaNum.convert(_existing!.reference)}',
       icon: Icons.event_available_rounded,
       showBackButton: true,
+      bottomContentPadding: isDesktop ? 28 : 132,
       headerActionLabel: isDesktop ? null : 'قواعد',
       onHeaderAction: () => context.push('/settings/rules'),
       child: isDesktop

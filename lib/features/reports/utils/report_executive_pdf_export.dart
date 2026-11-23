@@ -1,12 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:file_saver/file_saver.dart';
-import 'package:flutter/services.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../../core/utils/jalali.dart';
+import '../../../../core/utils/pdf_table_document_builder.dart';
 import '../../../../data/models/report_analytics.dart';
 
 class ReportExecutivePdfExport {
@@ -18,12 +16,6 @@ class ReportExecutivePdfExport {
     required String title,
     required List<String> columns,
   }) async {
-    final fontData = await rootBundle.load('assets/fonts/Vazirmatn-Regular.ttf');
-    final font = pw.Font.ttf(fontData);
-    final document = pw.Document(
-      theme: pw.ThemeData.withFont(base: font, bold: font),
-    );
-    final generatedAt = DateTime.now();
     final values = <String, String>{
       'درآمد ناخالص': analytics.grossRevenue.round().toString(),
       'تخفیف': analytics.discounts.round().toString(),
@@ -45,144 +37,96 @@ class ReportExecutivePdfExport {
       'لغوشده': analytics.cancelledAppointments.toString(),
       'عدم مراجعه': analytics.noShowAppointments.toString(),
       'مشتری یکتا': analytics.uniqueCustomers.toString(),
-      'نرخ بازگشت': '${analytics.repeatCustomerRate.toStringAsFixed(1)}٪',
-      'میانگین مدت نوبت': '${analytics.averageAppointmentMinutes.round()} دقیقه',
+      'نرخ بازگشت': '\${analytics.repeatCustomerRate.toStringAsFixed(1)}٪',
+      'میانگین مدت نوبت': '\${analytics.averageAppointmentMinutes.round()} دقیقه',
     };
-
-    pw.Widget cell(String value, {bool header = false}) => pw.Padding(
-      padding: const pw.EdgeInsets.all(6),
-      child: pw.Text(value, textAlign: pw.TextAlign.right,
-        style: pw.TextStyle(font: font, fontSize: header ? 9 : 8,
-          fontWeight: header ? pw.FontWeight.bold : pw.FontWeight.normal)),
-    );
-
-    final rows = <pw.TableRow>[
-      pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-        children: [cell('شاخص', header: true), cell('مقدار', header: true)]),
-      for (final column in columns)
-        if (values.containsKey(column))
-          pw.TableRow(children: [cell(column), cell(values[column]!)]),
+    final sections = <Map<String, Object>>[
+      {
+        'title': 'خلاصه مدیریتی',
+        'rows': <List<String>>[
+          ['شاخص', 'مقدار'],
+          for (final column in columns)
+            if (values.containsKey(column)) [column, values[column]!],
+        ],
+      },
+      {
+        'title': 'مقایسه با بازه انتخاب‌شده',
+        'rows': <List<String>>[
+          ['شاخص', 'مقدار'],
+          ['درآمد مقایسه', comparison.revenue.round().toString()],
+          ['هزینه مقایسه', comparison.cost.round().toString()],
+          ['نوبت مقایسه', comparison.totalAppointments.toString()],
+        ],
+      },
+      {
+        'title': 'روند درآمد',
+        'rows': <List<String>>[
+          ['بازه', 'درآمد'],
+          for (final item in analytics.trend) [item.label, item.revenue.round().toString()],
+        ],
+      },
+      {
+        'title': 'خدمات',
+        'rows': <List<String>>[
+          ['خدمت', 'تعداد', 'درآمد'],
+          for (final item in analytics.services)
+            [item.name, item.count.toString(), item.revenue.round().toString()],
+        ],
+      },
+      {
+        'title': 'عملکرد پرسنل',
+        'rows': <List<String>>[
+          ['پرسنل', 'درآمد', 'پورسانت'],
+          for (final item in analytics.employees)
+            [item.name, item.revenue.round().toString(), item.commission.round().toString()],
+        ],
+      },
+      {
+        'title': 'مشتریان برتر',
+        'rows': <List<String>>[
+          ['مشتری', 'مراجعه', 'مجموع خرید'],
+          for (final item in analytics.customerMetrics)
+            [item.name, item.lifetimeVisits.toString(), item.totalSpent.round().toString()],
+        ],
+      },
+      {
+        'title': 'تراکنش‌های دریافت و برگشت وجه',
+        'rows': <List<String>>[
+          ['شرح', 'روش', 'نوع', 'مبلغ'],
+          for (final item in analytics.paymentTransactions)
+            [item.description, item.method.label, item.type.name == 'refund' ? 'برگشت وجه' : 'دریافت', item.signedAmount.toString()],
+        ],
+      },
+      {
+        'title': 'دفتر کل کیف پول پرسنل',
+        'rows': <List<String>>[
+          ['نوع', 'شرح', 'تاریخ', 'مبلغ'],
+          for (final item in analytics.walletTransactions)
+            [item.type.label, item.description, JalaliDate.fromDateTime(item.createdAt).short, item.amount.toString()],
+        ],
+      },
+      {
+        'title': 'تسویه‌های پرسنل',
+        'rows': <List<String>>[
+          ['رسید', 'وضعیت', 'مبلغ پرداختی', 'مانده'],
+          for (final item in analytics.settlements)
+            [item.receiptNumber, item.status.name == 'completed' ? 'کامل' : 'جزئی', item.paidAmount.toString(), item.remainingAfter.toString()],
+        ],
+      },
+      {
+        'title': 'هزینه‌های ثبت‌شده مجموعه',
+        'rows': <List<String>>[
+          ['دسته', 'شرح', 'سند منبع', 'مبلغ'],
+          for (final item in analytics.businessExpenses)
+            [item.category.label, item.description, item.sourceDocumentId, item.amount.toString()],
+        ],
+      },
     ];
-
-    final maxRevenue = analytics.trend.fold<double>(0,
-      (max, item) => item.revenue > max ? item.revenue.toDouble() : max);
-
-    document.addPage(pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.all(28),
-      build: (context) => [
-        pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
-          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
-            pw.Text(title, style: pw.TextStyle(font: font, fontSize: 19, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 5),
-            pw.Text('بازه گزارش: ${analytics.range.label}',
-              style: pw.TextStyle(font: font, fontSize: 9, color: PdfColors.grey700)),
-            pw.Text('تاریخ تولید: ${JalaliDate.fromDateTime(generatedAt).long}',
-              style: pw.TextStyle(font: font, fontSize: 8, color: PdfColors.grey700)),
-            pw.SizedBox(height: 14),
-            pw.Text('خلاصه مدیریتی', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 6),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: rows),
-            pw.SizedBox(height: 14),
-            pw.Text('مقایسه با بازه انتخاب‌شده', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 5),
-            pw.Text('درآمد مقایسه: ${comparison.revenue.round()} · هزینه مقایسه: ${comparison.cost.round()} · نوبت مقایسه: ${comparison.totalAppointments}',
-              style: pw.TextStyle(font: font, fontSize: 8)),
-            pw.SizedBox(height: 14),
-            pw.Text('نمودار روند درآمد', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 6),
-            for (final point in analytics.trend)
-              pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2), child: pw.Row(children: [
-                pw.SizedBox(width: 45, child: pw.Text(point.label, style: pw.TextStyle(font: font, fontSize: 7))),
-                pw.Expanded(child: pw.Container(height: 8,
-                  alignment: pw.Alignment.centerRight,
-                  decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                  child: pw.Align(alignment: pw.Alignment.centerRight,
-                    child: pw.Container(height: 8, width: maxRevenue <= 0 ? 0.0 : (260 * point.revenue / maxRevenue).toDouble(),
-                      color: PdfColors.brown)),
-                )),
-                pw.SizedBox(width: 8),
-                pw.Text(point.revenue.round().toString(), style: pw.TextStyle(font: font, fontSize: 7)),
-              ])),
-            pw.SizedBox(height: 14),
-            pw.Text('خدمات پرفروش', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('خدمت', header: true), cell('تعداد', header: true), cell('درآمد', header: true)]),
-              for (final item in analytics.services)
-                pw.TableRow(children: [cell(item.name), cell(item.count.toString()), cell(item.revenue.round().toString())]),
-            ]),
-            pw.SizedBox(height: 14),
-            pw.Text('عملکرد پرسنل', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('پرسنل', header: true), cell('درآمد', header: true), cell('پورسانت', header: true)]),
-              for (final item in analytics.employees)
-                pw.TableRow(children: [cell(item.name), cell(item.revenue.round().toString()), cell(item.commission.round().toString())]),
-            ]),
-            pw.SizedBox(height: 14),
-            pw.Text('مشتریان برتر', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('مشتری', header: true), cell('مراجعه', header: true), cell('مجموع خرید', header: true)]),
-              for (final item in analytics.customerMetrics)
-                pw.TableRow(children: [cell(item.name), cell(item.lifetimeVisits.toString()), cell(item.totalSpent.round().toString())]),
-            ]),
-            pw.SizedBox(height: 10),
-            pw.SizedBox(height: 14),
-            pw.Text('تراکنش‌های دریافت و برگشت وجه', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('شرح', header: true), cell('روش', header: true), cell('نوع', header: true), cell('مبلغ', header: true)]),
-              for (final item in analytics.paymentTransactions)
-                pw.TableRow(children: [
-                  cell(item.description), cell(item.method.label),
-                  cell(item.type.name == 'refund' ? 'برگشت وجه' : 'دریافت'),
-                  cell(item.signedAmount.toString()),
-                ]),
-            ]),
-            pw.SizedBox(height: 14),
-            pw.Text('دفتر کل کیف پول پرسنل', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('نوع', header: true), cell('شرح', header: true), cell('تاریخ', header: true), cell('مبلغ', header: true)]),
-              for (final item in analytics.walletTransactions)
-                pw.TableRow(children: [
-                  cell(item.type.label), cell(item.description),
-                  cell(JalaliDate.fromDateTime(item.createdAt).short), cell(item.amount.toString()),
-                ]),
-            ]),
-            pw.SizedBox(height: 14),
-            pw.Text('تسویه‌های پرسنل', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('رسید', header: true), cell('وضعیت', header: true), cell('مبلغ پرداختی', header: true), cell('مانده', header: true)]),
-              for (final item in analytics.settlements)
-                pw.TableRow(children: [
-                  cell(item.receiptNumber),
-                  cell(item.status.name == 'completed' ? 'کامل' : 'جزئی'),
-                  cell(item.paidAmount.toString()), cell(item.remainingAfter.toString()),
-                ]),
-            ]),
-            pw.SizedBox(height: 14),
-            pw.Text('هزینه‌های ثبت‌شده مجموعه', style: pw.TextStyle(font: font, fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            pw.Table(border: pw.TableBorder.all(color: PdfColors.grey300, width: .5), children: [
-              pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.brown100),
-                children: [cell('دسته', header: true), cell('شرح', header: true), cell('سند منبع', header: true), cell('مبلغ', header: true)]),
-              for (final item in analytics.businessExpenses)
-                pw.TableRow(children: [
-                  cell(item.category.label), cell(item.description),
-                  cell(item.sourceDocumentId), cell(item.amount.toString()),
-                ]),
-            ]),
-            pw.Text('این گزارش به‌صورت محلی از داده‌های Datamonck تولید شده است.',
-              style: pw.TextStyle(font: font, fontSize: 7, color: PdfColors.grey700)),
-          ]),
-        ),
-      ],
-    ));
-    return Uint8List.fromList(await document.save());
+    return PdfTableDocumentBuilder.build(
+      title: title,
+      subtitle: 'بازه گزارش: \${analytics.range.label} — تاریخ تولید: \${JalaliDate.fromDateTime(DateTime.now()).long}',
+      sections: sections,
+    );
   }
 
   static Future<void> print({

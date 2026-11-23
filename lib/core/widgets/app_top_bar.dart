@@ -47,7 +47,7 @@ class AppTopBar extends StatelessWidget {
     return LiquidGlassLayer(
       settings: LiquidGlassSettings.ios27Regular(
         brightness: Theme.of(context).brightness,
-        tintAmount: 0.58,
+        tintAmount: 0.46,
       ),
       defaultAppearance: LiquidGlassAppearance.ios27Regular(
         brightness: Theme.of(context).brightness,
@@ -63,8 +63,8 @@ class AppTopBar extends StatelessWidget {
         ],
         child: Container(
           decoration: BoxDecoration(
-            color: pal.backgroundAlt.withValues(alpha: 0.12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
+            color: pal.backgroundAlt.withValues(alpha: 0.085),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
             borderRadius: BorderRadius.circular(22),
           ),
           child: SafeArea(
@@ -205,22 +205,19 @@ class _DateTimeLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'DATADATE',
+      label: 'DateTime',
       header: true,
-      child: const SizedBox(
+      child: SizedBox(
         height: 40,
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(
-            'DATADATE',
-            textDirection: TextDirection.ltr,
-            maxLines: 1,
-            softWrap: false,
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.35,
-            ),
+          child: Image.asset(
+            'assets/image/bria-rmbg3-cutout.png',
+            height: 40,
+            width: 124,
+            fit: BoxFit.contain,
+            alignment: Alignment.centerLeft,
+            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
           ),
         ),
       ),

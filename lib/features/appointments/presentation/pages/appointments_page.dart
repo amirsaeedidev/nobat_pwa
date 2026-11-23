@@ -205,27 +205,25 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         confirmDismiss: (direction) async {
                           // در رابط راست‌به‌چپ، startToEnd یعنی کشیدن کارت به سمت چپ: تأیید.
                           if (direction == DismissDirection.startToEnd) return true;
-                          final action = await showModalBottomSheet<String>(
-                            context: context,
-                            backgroundColor: pal.surface,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                            ),
-                            builder: (sheetContext) => SafeArea(
-                              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                const SizedBox(height: 12),
+                          final action = await showAppSheet<String>(
+                            context,
+                            title: 'اقدامات نوبت',
+                            useRootNavigator: true,
+                            scrollable: false,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 ListTile(
                                   leading: Icon(Icons.event_busy_rounded, color: pal.danger),
                                   title: const Text('لغو نوبت'),
-                                  onTap: () => Navigator.pop(sheetContext, 'cancel'),
+                                  onTap: () => Navigator.of(context, rootNavigator: true).pop('cancel'),
                                 ),
                                 ListTile(
                                   leading: Icon(Icons.edit_calendar_rounded, color: pal.primaryBright),
                                   title: const Text('جابه‌جایی نوبت'),
-                                  onTap: () => Navigator.pop(sheetContext, 'move'),
+                                  onTap: () => Navigator.of(context, rootNavigator: true).pop('move'),
                                 ),
-                                const SizedBox(height: 8),
-                              ]),
+                              ],
                             ),
                           );
                           if (action == 'cancel') {
