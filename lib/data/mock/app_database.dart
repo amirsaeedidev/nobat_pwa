@@ -518,7 +518,6 @@ class AppDatabase extends ChangeNotifier {
       return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
     if (path == '/search' || path == '/search/result') return currentAccessAccount.roleId == 'global_admin';
-    if (path == '/book' || path.startsWith('/book/')) return false;
     if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
@@ -2032,7 +2031,7 @@ class AppDatabase extends ChangeNotifier {
     }
     _employeeLeaves.add(leave);
     _notifyEmployee(leave.employeeId,EmployeeNoticeType.leaveRequested,'درخواست مرخصی ثبت شد.','درخواست مرخصی شما در انتظار بررسی است.');
-    for(final manager in _accessAccounts.where((account)=>account.isEnabled && account.employeeId!=null && (account.roleId=='global_admin'||account.roleId=='manager'))){
+    for(final manager in _accessAccounts.where((account)=>account.isEnabled && account.employeeId!=null && account.roleId=='global_admin')){
       _notifyEmployee(manager.employeeId!,EmployeeNoticeType.leaveRequested,'درخواست مرخصی جدید','درخواست مرخصی برای ${employee.fullName} ثبت شده و نیازمند بررسی است.');
     }
     log(ActivityType.settingsChanged, 'ثبت مرخصی پرسنل', 'مرخصی جدید برای ' + employee.fullName + ' ثبت شد.', entity: 'مرخصی پرسنل');
