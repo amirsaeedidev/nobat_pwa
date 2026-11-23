@@ -426,7 +426,7 @@ class AppDatabase extends ChangeNotifier {
         id: 'demo-global-admin',
         name: 'فاطمه رضایی — مدیر کل',
         roleId: 'global_admin',
-        employeeId: 'emp-fateme',
+        employeeId: 'emp-shima',
       ),
       AccessAccount(
         id: 'demo-staff',
@@ -443,8 +443,8 @@ class AppDatabase extends ChangeNotifier {
         canViewPersonalIncome: true,
       );
     }
-    _accessAssignments['emp-fateme'] = const AccessAssignment(
-      employeeId: 'emp-fateme',
+    _accessAssignments['emp-shima'] = const AccessAssignment(
+      employeeId: 'emp-shima',
       roleId: 'global_admin',
       canViewOtherEmployees: true,
       canViewPersonalIncome: true,
@@ -837,7 +837,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void addPayrollAdvance(PayrollAdvance advance) {
-    if (currentAccessAccount.employeeId == advance.employeeId) {
+    if (currentAccessAccount.roleId == 'staff' && currentAccessAccount.employeeId == advance.employeeId) {
       requirePermission('finance.advance.request', employeeId: advance.employeeId);
       if (advance.status != AdvanceStatus.requested) {
         throw const AccessDeniedException('پرسنل فقط می‌تواند درخواست مساعده ثبت کند.');
