@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/supabase_service.dart';
+import 'core/services/supabase_auth_state_notifier.dart';
 import 'data/repositories/supabase_auth_repository.dart';
 import 'data/repositories/supabase_repository.dart';
 
@@ -90,19 +91,24 @@ Future<void> main() async {
   final settingsRepository = MockSettingsRepository(database);
   final dashboardRepository = MockDashboardRepository(database);
   final activityRepository = MockActivityRepository(database);
+  final supabaseClient = SupabaseService.client;
+  final supabaseRepository = supabaseClient == null
+      ? null
+      : SupabaseRepository(supabaseClient);
+  final supabaseAuthRepository = supabaseClient == null
+      ? null
+      : SupabaseAuthRepository(supabaseClient);
 
   runApp(
     MultiProvider(
       providers: [
-        Provider<SupabaseRepository?>.value(
-          value: SupabaseService.client == null
-              ? null
-              : SupabaseRepository(SupabaseService.client!),
-        ),
-        Provider<SupabaseAuthRepository?>.value(
-          value: SupabaseService.client == null
-              ? null
-              : SupabaseAuthRepository(SupabaseService.client!),
+        Provider<SupabaseRepository?>.value(value: supabaseRepository),
+        Provider<SupabaseAuthRepository?>.value(value: supabaseAuthRepository),
+        ChangeNotifierProvider(
+          create: (_) => SupabaseAuthStateNotifier(
+            supabaseAuthRepository,
+            supabaseRepository,
+          ),
         ),
         ChangeNotifierProvider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
