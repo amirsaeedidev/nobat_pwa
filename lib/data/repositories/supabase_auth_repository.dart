@@ -32,5 +32,12 @@ class SupabaseAuthRepository {
     );
   }
 
+  Future<void> resetPasswordForEmail({required String email, String? redirectTo}) {
+    return _client.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: redirectTo,
+    );
+  }
+
   Future<void> signOut() => _client.auth.signOut();
 }
