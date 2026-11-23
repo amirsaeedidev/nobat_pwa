@@ -8,9 +8,40 @@ import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
 import '../../data/mock/app_database.dart';
-import '../utils/fa_num.dart';
 import '../widgets/badges.dart';
 import 'nav_destinations.dart';
+
+
+/// Returns the HugeIcons 4.4.0 glyph for a navigation destination.
+List<List<dynamic>> _navIcon(NavDestination destination) {
+  switch (destination.route) {
+    case '/dashboard':
+      return HugeIcons.strokeRoundedDashboardSquare01;
+    case '/appointments':
+      return HugeIcons.strokeRoundedAppointment01;
+    case '/calendar':
+      return HugeIcons.strokeRoundedCalendar03;
+    case '/customers':
+    case '/employees':
+      return HugeIcons.strokeRoundedUserGroup;
+    case '/services':
+      return HugeIcons.strokeRoundedScissor;
+    case '/my-wallet':
+      return HugeIcons.strokeRoundedMoneyBagTime;
+    case '/my-leaves':
+      return HugeIcons.strokeRoundedCalendarBlock01;
+    case '/sms':
+      return HugeIcons.strokeRoundedMessage01;
+    case '/reports':
+      return HugeIcons.strokeRoundedAnalytics01;
+    case '/activity':
+      return HugeIcons.strokeRoundedActivity01;
+    case '/settings':
+      return HugeIcons.strokeRoundedSettings01;
+    default:
+      return HugeIcons.strokeRoundedLayer;
+  }
+}
 
 void _showMockAccountPicker(BuildContext context, AppDatabase database) {
   showModalBottomSheet<void>(
