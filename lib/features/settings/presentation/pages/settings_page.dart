@@ -3,13 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
-import '../../../../app/theme/app_tokens.dart';
-import '../../../../core/utils/fa_num.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
-import '../../../../core/widgets/feedback.dart';
 import '../providers/settings_provider.dart';
 
 /// مرکز تنظیمات؛ دسترسی به همه پیکربندی‌ها و ماژول‌های مدیریتی.
@@ -33,7 +30,6 @@ class SettingsPage extends StatelessWidget {
       _SettingEntry('دسترسی‌ها و نقش‌ها', 'مجوزهای پرسنل و نقش‌ها', Icons.security_rounded, pal.info, '/settings/permissions'),
       _SettingEntry('مدیریت خدمات', 'خدمات، قیمت و زمان‌بندی', Icons.content_cut_rounded, pal.primaryBright, '/services'),
       _SettingEntry('مدیریت پرسنل', 'پرسنل، برنامه کاری و مجوزها', Icons.badge_rounded, pal.purple, '/employees'),
-      _SettingEntry('لینک رزرو عمومی', 'آدرس صفحه رزرو مشتریان', Icons.public_rounded, pal.success, '/settings/link'),
       _SettingEntry('گزارش فعالیت‌ها', 'ردگیری رویدادهای سیستم', Icons.history_rounded, pal.textSecondary, '/activity'),
     ];
 
@@ -41,9 +37,6 @@ class SettingsPage extends StatelessWidget {
       title: 'تنظیمات',
       subtitle: 'پیکربندی کامل مجموعه',
       icon: Icons.settings_rounded,
-      actions: [
-        SoftButton(label: 'صفحه رزرو', icon: Icons.public_rounded, onTap: () => context.push('/book')),
-      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -146,49 +139,7 @@ class SettingsPage extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 12),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionHeader(title: 'لینک رزرو عمومی', subtitle: business?.publicUrl ?? ''),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: pal.surfaceAlt,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                          border: Border.all(color: pal.border),
-                        ),
-                        child: Text(
-                          business?.fullUrl ?? '',
-                          textDirection: TextDirection.ltr,
-                          style: TextStyle(fontSize: 11, color: pal.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SoftButton(
-                      label: 'کپی',
-                      icon: Icons.copy_rounded,
-                      onTap: () => AppToast.show(context, 'لینک کپی شد (${FaNum.ofInt(1)} مورد)'),
-                    ),
-                    const SizedBox(width: 8),
-                    SolidButton(
-                      label: 'مشاهده',
-                      height: 44,
-                      onPressed: () => context.push('/book'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+
         ],
       ),
     );
