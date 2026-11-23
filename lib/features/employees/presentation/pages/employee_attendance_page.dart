@@ -192,8 +192,15 @@ class EmployeeAttendancePage extends StatelessWidget {
   final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setState)=>AlertDialog(
    title:const Text('اصلاح رکورد حضور'),
    content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-    ListTile(title:const Text('تاریخ'),subtitle:Text(date.toString().split(' ').first),onTap:()async{final v=await showDatePicker(context:c,initialDate:date,firstDate:DateTime(2020),lastDate:DateTime.now().add(const Duration(days:365)));if(v!=null)setState(()=>date=v);}),
-    ListTile(title:const Text('ساعت'),subtitle:Text(time.format(c)),onTap:()async{final v=await showTimePicker(context:c,initialTime:time);if(v!=null)setState(()=>time=v);}),
+    ListTile(title:const Text('تاریخ'),subtitle:Text(JalaliDate.fromDateTime(date).numeric),onTap:()async{
+     final today=JalaliDate.today();
+     final v=await showJalaliDatePicker(c,initial:JalaliDate.fromDateTime(date),minDate:JalaliDate(1400,1,1),maxDate:today.addDays(365),title:'تاریخ رکورد حضور');
+     if(v!=null)setState(()=>date=v.toDateTime());
+    }),
+    ListTile(title:const Text('ساعت'),subtitle:Text(time.format(c)),onTap:()async{
+     final v=await showTimePickerSheet(c,initial:TimeOfDayLite(time.hour,time.minute),title:'ساعت رکورد حضور');
+     if(v!=null)setState(()=>time=TimeOfDay(hour:v.hour,minute:v.minute));
+    }),
     if(record.type==AttendanceEventType.checkIn)TextField(controller:late,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'دقایق تأخیر')),
     if(record.type==AttendanceEventType.checkOut)...[TextField(controller:overtime,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'دقایق اضافه‌کاری')),TextField(controller:early,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'دقایق خروج زودهنگام'))],
     TextField(controller:note,decoration:const InputDecoration(labelText:'دلیل اصلاح (الزامی)')),
