@@ -46,7 +46,13 @@ void main() {
       expect(db.canOpenRoute('/settings/permissions'), isFalse);
       expect(db.canOpenRoute('/services'), isFalse);
       expect(db.canOpenRoute('/employees'), isFalse);
+      expect(db.canOpenRoute('/employees/emp-zahra/leaves'), isTrue);
+      expect(db.canOpenRoute('/employees/emp-zahra/schedule'), isFalse);
+      expect(db.canOpenRoute('/dashboard'), isFalse);
+      expect(db.canOpenRoute('/search'), isFalse);
       expect(db.canOpenRoute('/my-wallet'), isTrue);
+      expect(db.employees.map((employee) => employee.id).toSet(), {'emp-zahra'});
+      expect(db.appointments.every((appointment) => appointment.employeeId == 'emp-zahra'), isTrue);
     });
 
     test('personnel appointment repository only returns own appointments', () async {
