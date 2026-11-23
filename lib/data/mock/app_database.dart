@@ -500,9 +500,10 @@ class AppDatabase extends ChangeNotifier {
       final employeeId = currentAccessAccount.employeeId;
       return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
-    if (path == '/search' || path == '/search/result') return true;
+    if (path == '/search' || path == '/search/result') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/book' || path.startsWith('/book/')) return false;
-    if (path == '/dashboard' || path == '/access-denied') return true;
+    if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
     if (path.startsWith('/settings/hours')) return hasPermission('settings.hours.edit');
     if (path.startsWith('/settings')) return hasPermission('settings.view') || hasPermission('permissions.manage');
@@ -511,8 +512,11 @@ class AppDatabase extends ChangeNotifier {
       if (parts.length == 1) return hasPermission('employees.view_list');
       if (parts.length == 2 && parts[1] == 'new') return hasPermission('employees.create');
       final employeeId = parts.length > 1 ? parts[1] : '';
-      if (parts.contains('wallet')) return canViewEmployeeIncome(employeeId);
+      if (parts.contains('wallet')) return canViewEmployeeIncome(employeeId) && hasPermission('finance.wallet.view', employeeId: employeeId);
       if (parts.contains('finance')) return canViewEmployeeIncome(employeeId) && hasPermission('finance.salary.view', employeeId: employeeId);
+      if (parts.contains('schedule')) return hasPermission('employees.edit', employeeId: employeeId);
+      if (parts.contains('attendance')) return hasPermission('employees.edit', employeeId: employeeId);
+      if (parts.contains('analytics')) return hasPermission('finance.income.view', employeeId: employeeId);
       if (parts.contains('analytics')) return canViewEmployeeIncome(employeeId);
       if (parts.contains('edit')) return canViewEmployee(employeeId) && hasPermission('employees.edit');
       return canViewEmployee(employeeId) && hasPermission('employees.view_profile');
@@ -544,7 +548,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   bool canOpenNavigation(String path) {
-    if (path == '/dashboard') return true;
+    if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/my-wallet') {
       final employeeId = currentAccessAccount.employeeId;
       return employeeId != null && canViewEmployeeIncome(employeeId);
@@ -561,49 +565,12 @@ class AppDatabase extends ChangeNotifier {
 
   AccessRole createAccessRole({required String name, required List<String> permissionIds}) {
     requirePermission('permissions.manage');
-    final normalized = name.trim();
-    if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
-    if (_accessRoles.values.any((role) => role.name == normalized)) throw StateError('نقشی با این نام وجود دارد.');
-    final role = AccessRole(
-      id: 'custom-${DateTime.now().microsecondsSinceEpoch}',
-      name: normalized,
-      permissionIds: List.unmodifiable(permissionIds.where(AccessPermission.ids.contains)),
-    );
-    _accessRoles[role.id] = role;
-    log(
-      ActivityType.settingsChanged,
-      'ایجاد نقش دسترسی',
-      'نقش سفارشی «${role.name}» با ${role.permissionIds.length} مجوز ایجاد شد.',
-      entity: 'نقش دسترسی',
-      entityId: role.id,
-      undoAction: 'access_role_delete',
-      undoData: {
-        'id': role.id,
-        'name': role.name,
-        'permission_ids': role.permissionIds,
-        'description': role.description,
-        'is_system': role.isSystem,
-      },
-      operationType: 'access_role_create',
-      isReversible: true,
-    );
-    _commit();
-    return role;
+    throw StateError('در DateTime فقط دو نقش مدیر کل و پرسنل مجاز است.');
   }
 
   void updateAccessRole(String roleId, {required String name, required List<String> permissionIds}) {
     requirePermission('permissions.manage');
-    final current = _accessRoles[roleId];
-    if (current == null || current.isSystem) throw StateError('نقش سیستمی قابل ویرایش نیست.');
-    final normalized = name.trim();
-    if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
-    final normalizedPermissions = permissionIds.where(AccessPermission.ids.contains).toSet();
-    if (current.name == normalized && current.permissionIds.toSet().difference(normalizedPermissions).isEmpty && normalizedPermissions.difference(current.permissionIds.toSet()).isEmpty) return;
-    _accessRoles[roleId] = current.copyWith(name: normalized, permissionIds: normalizedPermissions.toList());
-    log(ActivityType.settingsChanged, 'ویرایش نقش دسترسی', 'نقش «${current.name}» و مجوزهای آن تغییر کرد.', entity: 'نقش دسترسی', entityId: roleId,
-      undoAction: 'access_role_restore', undoData: {'id': current.id, 'name': current.name, 'permission_ids': current.permissionIds, 'description': current.description, 'is_system': current.isSystem},
-      operationType: 'access_role_update', isReversible: true);
-    _commit();
+    throw StateError('نقش‌های سیستمی قابل تغییر نیستند؛ مجوز هر پرسنل را جداگانه مدیریت کنید.');
   }
 
   void resetAccessRole(String roleId) {
@@ -630,7 +597,12 @@ class AppDatabase extends ChangeNotifier {
   }) {
     requirePermission('permissions.manage');
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل پیدا نشد.');
-    if (!_accessRoles.containsKey(roleId)) throw StateError('نقش انتخاب‌شده پیدا نشد.');
+    if (roleId != 'staff' || !_accessRoles.containsKey(roleId)) {
+      throw StateError('برای حساب‌های پرسنلی فقط نقش «پرسنل» قابل اختصاص است.');
+    }
+    if (_accessAccounts.any((account) => account.employeeId == employeeId && account.roleId == 'global_admin')) {
+      throw AccessDeniedException('حساب مدیر کل از مدیریت دسترسی پرسنل جدا است.');
+    }
     if (roleId == 'global_admin' && currentAccessAccount.roleId != 'global_admin') {
       throw AccessDeniedException('فقط مدیر کل می‌تواند نقش مدیر کل را اختصاص دهد.');
     }
