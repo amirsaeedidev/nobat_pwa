@@ -323,7 +323,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text(item.dateKey, style: TextStyle(color: pal.textMuted, fontSize: 11)),
+                Text(DateTime.tryParse(item.dateKey) == null ? item.dateKey : Fmt.jalaliDate(DateTime.parse(item.dateKey)), style: TextStyle(color: pal.textMuted, fontSize: 11)),
                 Text(item.isClosed ? 'تعطیل کامل' : item.shifts.map((s) => s.label).join('، '), style: const TextStyle(fontSize: 11)),
               ])),
               IconButton(onPressed: () => db.deleteEmployeeScheduleException(employee.id, item.dateKey), icon: const Icon(Icons.delete_outline_rounded)),
