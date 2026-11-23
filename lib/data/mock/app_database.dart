@@ -522,7 +522,6 @@ class AppDatabase extends ChangeNotifier {
     if (path == '/book' || path.startsWith('/book/')) return false;
     if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/my-leaves') return currentAccessAccount.roleId == 'staff' && hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
-    if (path == '/my-leaves') return hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
     if (path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
     if (path.startsWith('/settings/hours')) return hasPermission('settings.hours.edit');
@@ -568,6 +567,7 @@ class AppDatabase extends ChangeNotifier {
 
   bool canOpenNavigation(String path) {
     if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/my-leaves') return currentAccessAccount.roleId == 'staff' && hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
     if (path == '/my-wallet') {
       final employeeId = currentAccessAccount.employeeId;
       return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
