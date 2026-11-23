@@ -401,29 +401,37 @@ class AppDatabase extends ChangeNotifier {
   // کنترل دسترسی و نقش‌ها — منبع حقیقت در لایه داده
   // ---------------------------------------------------------------------------
   void _seedAccessControl() {
-    for (final role in AccessRole.defaults()) { _accessRoles[role.id] = role; }
-    final custom = AccessRole(
-      id: 'custom_limited', name: 'نقش سفارشی محدود',
-      permissionIds: const ['appointments.view_self', 'customers.view'],
-      description: 'نقش نمونه برای بررسی دسترسی محدود',
-    );
-    _accessRoles[custom.id] = custom;
+    for (final role in AccessRole.defaults()) {
+      _accessRoles[role.id] = role;
+    }
     _accessAccounts.addAll(const [
-      AccessAccount(id: 'demo-global-admin', name: 'فاطمه رضایی — مدیر کل', roleId: 'global_admin', employeeId: 'emp-fateme'),
-      AccessAccount(id: 'demo-manager', name: 'مدیر مجموعه آزمایشی', roleId: 'manager', employeeId: 'emp-shima'),
-      AccessAccount(id: 'demo-operator', name: 'نیما احمدی — اپراتور', roleId: 'operator', employeeId: 'emp-nima'),
-      AccessAccount(id: 'demo-staff', name: 'زهرا نوری — پرسنل', roleId: 'staff', employeeId: 'emp-zahra'),
-      AccessAccount(id: 'demo-accountant', name: 'الهه یاری — حسابدار', roleId: 'accountant', employeeId: 'emp-elham'),
-      AccessAccount(id: 'demo-custom', name: 'امیر کاظمی — نقش سفارشی', roleId: 'custom_limited', employeeId: 'emp-amir'),
+      AccessAccount(
+        id: 'demo-global-admin',
+        name: 'فاطمه رضایی — مدیر کل',
+        roleId: 'global_admin',
+        employeeId: 'emp-fateme',
+      ),
+      AccessAccount(
+        id: 'demo-staff',
+        name: 'زهرا نوری — پرسنل',
+        roleId: 'staff',
+        employeeId: 'emp-zahra',
+      ),
     ]);
-    for (final account in _accessAccounts.where((item) => item.employeeId != null)) {
-      _accessAssignments[account.employeeId!] = AccessAssignment(
-        employeeId: account.employeeId!,
-        roleId: account.roleId,
-        canViewOtherEmployees: account.roleId == 'global_admin' || account.roleId == 'manager' || account.roleId == 'operator' || account.roleId == 'accountant',
-        canViewPersonalIncome: account.roleId != 'custom_limited',
+    for (final employee in _employees) {
+      _accessAssignments[employee.id] = AccessAssignment(
+        employeeId: employee.id,
+        roleId: 'staff',
+        canViewOtherEmployees: false,
+        canViewPersonalIncome: true,
       );
     }
+    _accessAssignments['emp-fateme'] = const AccessAssignment(
+      employeeId: 'emp-fateme',
+      roleId: 'global_admin',
+      canViewOtherEmployees: true,
+      canViewPersonalIncome: true,
+    );
   }
 
   AccessRole? accessRoleById(String id) => _accessRoles[id];
@@ -487,10 +495,10 @@ class AppDatabase extends ChangeNotifier {
   bool canOpenRoute(String path) {
     if (path == '/my-wallet') {
       final employeeId = currentAccessAccount.employeeId;
-      return employeeId != null && canViewEmployeeIncome(employeeId);
+      return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
     if (path == '/search' || path == '/search/result') return true;
-    if (path == '/book' || path.startsWith('/book/')) return true;
+    if (path == '/book' || path.startsWith('/book/')) return false;
     if (path == '/dashboard' || path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
     if (path.startsWith('/settings/hours')) return hasPermission('settings.hours.edit');
