@@ -32,7 +32,7 @@ class SettingsProvider extends DbBoundProvider {
   String get formThemeId => _formThemeId;
   String get paletteId => _paletteId;
   String get ownerName => 'فاطمه رضایی';
-  String get ownerRole => 'مدیر مجموعه';
+  String get ownerRole => 'مدیر کل';
   int get totalUnread => 3;
 
   BookingRules get rules => _settings?.bookingRules ?? const BookingRules();
