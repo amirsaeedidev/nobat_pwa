@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/theme/app_palette.dart';
@@ -402,11 +403,35 @@ class TimeDropdown extends StatelessWidget {
       onTap: () async {
         final picked = await showModalBottomSheet<String>(
           context: context,
-          backgroundColor: pal.surface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.28),
+          elevation: 0,
+          builder: (sheetContext) => Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27Regular(
+                brightness: Theme.of(sheetContext).brightness,
+                tintAmount: 0.60,
+              ),
+              defaultAppearance: LiquidGlassAppearance.ios27Regular(
+                brightness: Theme.of(sheetContext).brightness,
+              ),
+              child: LiquidGlass(
+                shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+                shadows: const [
+                  BoxShadow(color: Color(0x26000000), blurRadius: 28, offset: Offset(0, 10)),
+                ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: pal.backgroundAlt.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.36)),
+                  ),
+                  child: _TimeWheelSheet(initial: normalized, options: options),
+                ),
+              ),
+            ),
           ),
-          builder: (_) => _TimeWheelSheet(initial: normalized, options: options),
         );
         if (picked != null) onChanged(picked);
       },
