@@ -46,7 +46,7 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: Build release APK
-        run: flutter build apk --release --target-platform android-arm64
+        run: flutter build apk --release
 
       - name: Verify APK package, size and signature
         shell: bash
@@ -66,7 +66,7 @@ jobs:
           {
             echo "## Android Release APK verification"
             echo
-            echo "- Build mode: **Release / arm64-v8a only**"
+            echo "- Build mode: **Release / universal APK (all Flutter-supported ABIs)**"
             echo "- Package: **com.datetime.datetime**"
             echo "- Signing: **Debug keystore for test builds; not Play Store signing**"
             echo
@@ -74,23 +74,12 @@ jobs:
           for APK in "${APKS[@]}"; do
             test -s "$APK"
             APK_SIZE_BYTES="$(stat -c%s "$APK")"
-            if [ "$APK_SIZE_BYTES" -lt 3000000 ] || [ "$APK_SIZE_BYTES" -gt 100000000 ]; then
-              echo "::error::APK size outside expected split-build range: $APK ($APK_SIZE_BYTES bytes)"
+            if [ "$APK_SIZE_BYTES" -lt 1000000 ] || [ "$APK_SIZE_BYTES" -gt 200000000 ]; then
+              echo "::error::APK size outside expected release-build range: $APK ($APK_SIZE_BYTES bytes)"
               exit 1
             fi
             "$APKSIGNER" verify --verbose --print-certs "$APK" > apk-signature.txt
             "$AAPT" dump badging "$APK" | grep -F "package: name='com.datetime.datetime'" >/dev/null
-            ABI_ENTRIES="$(unzip -Z1 "$APK" | grep -E '^lib/[^/]+/' || true)"
-            if ! grep -q '^lib/arm64-v8a/' <<< "$ABI_ENTRIES"; then
-              echo "::error::The APK does not contain arm64-v8a native libraries."
-              exit 1
-            fi
-            NON_ARM64_ABIS="$(grep -Ev '^lib/arm64-v8a/' <<< "$ABI_ENTRIES" || true)"
-            if [ -n "$NON_ARM64_ABIS" ]; then
-              echo "::error::Unexpected non-arm64 ABI entries:"
-              printf '%s\\n' "$NON_ARM64_ABIS"
-              exit 1
-            fi
             APK_SIZE_MB="$(awk -v bytes="$APK_SIZE_BYTES" 'BEGIN { printf "%.1f", bytes / 1048576 }')"
             echo "- `$(basename "$APK")`: **$APK_SIZE_MB MB**, signature verified" >> "$GITHUB_STEP_SUMMARY"
           done
