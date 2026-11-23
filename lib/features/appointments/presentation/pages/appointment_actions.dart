@@ -68,7 +68,12 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               );
               if (confirmed) {
                 final previousStatus = appointment.status;
-                await provider.changeStatus(appointment, AppointmentStatus.cancelled, reason: 'رد / لغو توسط پرسنل');
+                await provider.changeStatus(
+                  appointment,
+                  AppointmentStatus.cancelled,
+                  reason: 'رد / لغو توسط پرسنل',
+                  operationType: appointment.status == AppointmentStatus.pending ? 'appointment_reject' : null,
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: const Text('نوبت رد یا لغو شد'),
