@@ -63,7 +63,7 @@ class AccessRole {
   static List<AccessRole> defaults() {
     final all = AccessPermission.ids;
     const staff = [
-      'appointments.view_self', 'appointments.confirm', 'appointments.reject',
+      'employees.view_profile', 'appointments.view_self', 'appointments.confirm', 'appointments.reject',
       'appointments.create', 'appointments.edit', 'appointments.cancel',
       'appointments.complete', 'finance.commission.view', 'finance.wallet.view',
       'finance.advance.request', 'finance.settlement.request', 'employees.leave.request',
