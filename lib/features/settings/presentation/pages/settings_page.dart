@@ -26,7 +26,7 @@ class SettingsPage extends StatelessWidget {
       _SettingEntry('تنظیمات پیامک', 'پنل پیامک، قالب‌ها و یادآوری', Icons.sms_rounded, pal.purple, '/sms/settings'),
       _SettingEntry('اطلاع‌رسانی', 'پیامک‌های خودکار و زمان‌بندی', Icons.notifications_active_outlined, pal.warning, '/settings/notifications'),
       _SettingEntry('موقعیت مکانی', 'نقشه، مختصات و آدرس', Icons.location_on_rounded, pal.danger, '/settings/location'),
-      _SettingEntry('دسترسی‌ها و نقش‌ها', 'مدیریت دسترسی پرسنل؛ مدیر کل دسترسی کامل دارد', Icons.security_rounded, pal.info, '/settings/permissions'),
+      _SettingEntry('مدیریت دسترسی پرسنل', 'مدیریت دسترسی پرسنل؛ مدیر کل دسترسی کامل دارد', Icons.security_rounded, pal.info, '/settings/permissions'),
       _SettingEntry('مدیریت خدمات', 'خدمات، قیمت و زمان‌بندی', Icons.content_cut_rounded, pal.primaryBright, '/services'),
       _SettingEntry('مدیریت پرسنل', 'پرسنل، برنامه کاری و مجوزها', Icons.badge_rounded, pal.purple, '/employees'),
       _SettingEntry('گزارش فعالیت‌ها', 'ردگیری رویدادهای سیستم', Icons.history_rounded, pal.textSecondary, '/activity'),
