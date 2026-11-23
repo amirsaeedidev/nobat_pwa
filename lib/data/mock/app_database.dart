@@ -1368,7 +1368,9 @@ class AppDatabase extends ChangeNotifier {
         request.periodEnd.isBefore(request.periodStart)) {
       throw ArgumentError('مبلغ، توضیحات و بازه درخواست تسویه معتبر نیست.');
     }
-    final availableBalance = walletSummaryFor(request.employeeId).payableBalance;
+    final availableBalance = walletTransactionsFor(request.employeeId)
+        .where((item) => item.status == EmployeeWalletTransactionStatus.posted)
+        .fold<int>(0, (sum, item) => sum + item.amount);
     if (request.amount > availableBalance) {
       throw ArgumentError('مبلغ درخواست از مانده قابل تسویه کیف پول بیشتر است.');
     }
