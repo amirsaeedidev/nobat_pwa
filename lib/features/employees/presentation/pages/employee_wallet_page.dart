@@ -5,10 +5,12 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/fa_num.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_wallet.dart';
@@ -258,22 +260,31 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   }
 
   Future<void> _chooseRange() async {
-    final selected = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: DateTimeRange(start: _from, end: _to.isBefore(_from) ? _from : _to),
-      helpText: 'انتخاب بازه مالی',
-      cancelText: 'انصراف',
-      confirmText: 'تأیید بازه',
+    final today = JalaliDate.today();
+    final last = today.addDays(365);
+    final start = await showJalaliDatePicker(
+      context,
+      initial: JalaliDate.fromDateTime(_from),
+      minDate: JalaliDate(1400, 1, 1),
+      maxDate: last,
+      title: 'شروع بازه مالی',
     );
-    if (selected != null && mounted) {
-      setState(() {
-        _from = selected.start;
-        _to = selected.end;
-        _period = EmployeeWalletPeriodType.manual;
-      });
-    }
+    if (start == null || !mounted) return;
+    final end = await showJalaliDatePicker(
+      context,
+      initial: JalaliDate.fromDateTime(_to).isBefore(start)
+          ? start
+          : JalaliDate.fromDateTime(_to),
+      minDate: start,
+      maxDate: last,
+      title: 'پایان بازه مالی',
+    );
+    if (end == null || !mounted) return;
+    setState(() {
+      _from = start.toDateTime();
+      _to = end.toDateTime();
+      _period = EmployeeWalletPeriodType.manual;
+    });
   }
 
   Future<void> _addTransaction(AppDatabase db, String employeeId) async {
