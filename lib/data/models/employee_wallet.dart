@@ -177,6 +177,51 @@ class EmployeeWalletSettlement {
   );
 }
 
+enum EmployeeWalletRequestStatus { pending, approved, rejected }
+
+class EmployeeWalletSettlementRequest {
+  const EmployeeWalletSettlementRequest({
+    required this.id,
+    required this.employeeId,
+    required this.requestedAt,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.amount,
+    required this.description,
+    this.status = EmployeeWalletRequestStatus.pending,
+    this.reviewedAt,
+    this.reviewedBy,
+  });
+
+  final String id;
+  final String employeeId;
+  final DateTime requestedAt;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final int amount;
+  final String description;
+  final EmployeeWalletRequestStatus status;
+  final DateTime? reviewedAt;
+  final String? reviewedBy;
+
+  EmployeeWalletSettlementRequest copyWith({
+    EmployeeWalletRequestStatus? status,
+    DateTime? reviewedAt,
+    String? reviewedBy,
+  }) => EmployeeWalletSettlementRequest(
+    id: id,
+    employeeId: employeeId,
+    requestedAt: requestedAt,
+    periodStart: periodStart,
+    periodEnd: periodEnd,
+    amount: amount,
+    description: description,
+    status: status ?? this.status,
+    reviewedAt: reviewedAt ?? this.reviewedAt,
+    reviewedBy: reviewedBy ?? this.reviewedBy,
+  );
+}
+
 class EmployeeWalletSummary {
   const EmployeeWalletSummary({
     required this.earned, required this.paid, required this.debits,
