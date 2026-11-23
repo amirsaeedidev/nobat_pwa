@@ -66,7 +66,12 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
         context.go('/dashboard');
       }
     } catch (error) {
-      if (mounted) setState(() => _message = _friendlyError(error));
+      if (mounted) {
+        setState(() {
+          _message = _friendlyError(error);
+          _messageIsError = true;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
