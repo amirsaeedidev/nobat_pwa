@@ -47,6 +47,7 @@ class AppDatabase extends ChangeNotifier {
   final List<EmployeeWalletTransaction> _employeeWalletTransactions = [];
   final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
   final List<EmployeeWalletPayment> _employeeWalletPayments = [];
+  final List<EmployeeWalletSettlementRequest> _employeeWalletSettlementRequests = [];
   final List<AppointmentPayment> _appointmentPayments = [];
   final List<BusinessExpense> _businessExpenses = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
@@ -78,7 +79,11 @@ class AppDatabase extends ChangeNotifier {
   List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
   List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
   List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments);
-  List<PayrollAdvance> get payrollAdvances => List.unmodifiable(_payrollAdvances);
+  List<PayrollAdvance> get payrollAdvances => List.unmodifiable(
+    _payrollAdvances.where((item) =>
+      currentAccessAccount.roleId == 'global_admin' ||
+      item.employeeId == currentAccessAccount.employeeId),
+  );
   List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
   /// Public wallet collections are row-scoped too; callers cannot bypass walletTransactionsFor.
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(
@@ -824,7 +829,14 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void addPayrollAdvance(PayrollAdvance advance) {
-    requirePermission('finance.advance.create', employeeId: advance.employeeId);
+    if (currentAccessAccount.employeeId == advance.employeeId) {
+      requirePermission('finance.advance.request', employeeId: advance.employeeId);
+      if (advance.status != AdvanceStatus.requested) {
+        throw const AccessDeniedException('پرسنل فقط می‌تواند درخواست مساعده ثبت کند.');
+      }
+    } else {
+      requirePermission('finance.advance.create', employeeId: advance.employeeId);
+    }
     if (!_employees.any((item) => item.id == advance.employeeId)) throw StateError('پرسنل پیدا نشد.');
     if (advance.amount <= 0 || advance.description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات مساعده الزامی است.');
     if (_payrollAdvances.any((item) => item.id == advance.id)) throw StateError('شناسه مساعده تکراری است.');
@@ -1303,6 +1315,54 @@ class AppDatabase extends ChangeNotifier {
     }
     _commit();
     return [reversal, correction];
+  }
+
+  List<EmployeeWalletSettlementRequest> walletSettlementRequestsFor(String employeeId) {
+    if (currentAccessAccount.roleId != 'global_admin' &&
+        currentAccessAccount.employeeId != employeeId) {
+      throw const AccessDeniedException('فقط درخواست‌های تسویه شخصی قابل مشاهده است.');
+    }
+    return List.unmodifiable(_employeeWalletSettlementRequests.where((item) => item.employeeId == employeeId));
+  }
+
+  void requestWalletSettlement(EmployeeWalletSettlementRequest request) {
+    requirePermission('finance.settlement.request', employeeId: request.employeeId);
+    if (request.amount <= 0 || request.description.trim().isEmpty ||
+        request.periodEnd.isBefore(request.periodStart)) {
+      throw ArgumentError('مبلغ، توضیحات و بازه درخواست تسویه معتبر نیست.');
+    }
+    if (_employeeWalletSettlementRequests.any((item) =>
+        item.employeeId == request.employeeId &&
+        item.status == EmployeeWalletRequestStatus.pending &&
+        !item.periodStart.isAfter(request.periodEnd) &&
+        !request.periodStart.isAfter(item.periodEnd))) {
+      throw StateError('برای این بازه یک درخواست تسویه در انتظار بررسی وجود دارد.');
+    }
+    _employeeWalletSettlementRequests.add(request);
+    log(ActivityType.settingsChanged, 'درخواست تسویه پرسنل',
+      'درخواست تسویه ${request.amount} تومان برای ${employeeById(request.employeeId)?.fullName ?? request.employeeId} ثبت شد.',
+      entity: 'درخواست تسویه', entityId: request.id, operationType: 'wallet_settlement_request');
+    _commit();
+  }
+
+  void reviewWalletSettlementRequest(String requestId, EmployeeWalletRequestStatus status) {
+    requirePermission('finance.settlement.view');
+    final index = _employeeWalletSettlementRequests.indexWhere((item) => item.id == requestId);
+    if (index < 0) throw StateError('درخواست تسویه پیدا نشد.');
+    final current = _employeeWalletSettlementRequests[index];
+    if (current.status != EmployeeWalletRequestStatus.pending ||
+        status == EmployeeWalletRequestStatus.pending) {
+      throw StateError('وضعیت این درخواست قبلاً بررسی شده است.');
+    }
+    _employeeWalletSettlementRequests[index] = current.copyWith(
+      status: status,
+      reviewedAt: DateTime.now(),
+      reviewedBy: currentAccessAccount.name,
+    );
+    log(ActivityType.settingsChanged, 'بررسی درخواست تسویه',
+      'درخواست تسویه ${current.amount} تومان ${status == EmployeeWalletRequestStatus.approved ? 'تأیید' : 'رد'} شد.',
+      entity: 'درخواست تسویه', entityId: requestId, operationType: 'wallet_settlement_request_review');
+    _commit();
   }
 
   EmployeeWalletSettlement settleEmployeeWallet({
