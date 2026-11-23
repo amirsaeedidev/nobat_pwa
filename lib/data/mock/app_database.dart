@@ -518,6 +518,7 @@ class AppDatabase extends ChangeNotifier {
       return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
     if (path == '/search' || path == '/search/result') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/book' || path.startsWith('/book/')) return false;
     if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
