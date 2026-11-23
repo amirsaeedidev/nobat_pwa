@@ -14,6 +14,7 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_wallet.dart';
+import '../../../../data/models/employee_payroll.dart';
 import '../../../../data/repositories/employee_wallet_repository.dart';
 import '../../../../data/services/employee_wallet_service.dart';
 
@@ -47,6 +48,12 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     final walletService = EmployeeWalletService(EmployeeWalletRepository(db));
     final wallet = walletService.readWallet(employee.id);
     final summary = wallet.summary;
+    final canRequestAdvance = db.hasPermission('finance.advance.request', employeeId: employee.id);
+    final canRequestSettlement = db.hasPermission('finance.settlement.request', employeeId: employee.id);
+    final canReviewRequests = db.hasPermission('finance.settlement.view', employeeId: employee.id);
+    final advanceRequests = db.payrollAdvances.where((item) =>
+      item.employeeId == employee.id && item.status == AdvanceStatus.requested).toList();
+    final settlementRequests = db.walletSettlementRequestsFor(employee.id);
     final canViewSalary = db.hasPermission('finance.salary.view', employeeId: employee.id);
     final canViewAllSalary = db.hasPermission('finance.salary.view');
     final canViewSettlementHistory = canViewSalary && db.hasPermission('finance.settlement.view', employeeId: employee.id);
@@ -66,11 +73,15 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       subtitle: employee.fullName,
       showBackButton: true,
       mobileActions: [
+        if (canRequestAdvance) IconButton(tooltip: 'درخواست مساعده', onPressed: () => _requestAdvance(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 21)),
+        if (canRequestSettlement) IconButton(tooltip: 'درخواست تسویه', onPressed: () => _requestSettlement(db, employee.id, summary.payableBalance), icon: const HugeIcon(icon: HugeIcons.strokeRoundedCalendarRange, size: 21)),
         if (canAddTransaction) IconButton(tooltip: 'ثبت تراکنش', onPressed: () => _addTransaction(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 21)),
         if (canAccruePayroll) IconButton(tooltip: 'ثبت حقوق ماه جاری', onPressed: () => _accruePayroll(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
         if (canSettle) IconButton(tooltip: 'ثبت تسویه', onPressed: () => _settle(db, employee.id), icon: const HugeIcon(icon: HugeIcons.strokeRoundedPayment01, size: 21)),
       ],
       actions: [
+        if (canRequestAdvance) SoftButton(label: 'درخواست مساعده', icon: Icons.request_quote_outlined, onTap: () => _requestAdvance(db, employee.id)),
+        if (canRequestSettlement) SoftButton(label: 'درخواست تسویه حساب', icon: Icons.payments_outlined, onTap: () => _requestSettlement(db, employee.id, summary.payableBalance)),
         if (canAddTransaction) SoftButton(label: 'ثبت تراکنش', onTap: () => _addTransaction(db, employee.id)),
         if (canAccruePayroll) SoftButton(label: 'ثبت حقوق ماه جاری', icon: Icons.account_balance_wallet_outlined, onTap: () => _accruePayroll(db, employee.id)),
         if (canSettle) SolidButton(label: 'ثبت تسویه', onPressed: () => _settle(db, employee.id)),
@@ -99,6 +110,39 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 _WalletMetric(label: 'بدهی و کسورات', amount: summary.debits, color: pal.danger),
                 _WalletMetric(label: 'در انتظار تأیید', amount: summary.pending, color: pal.warning),
               ]),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          if (canRequestAdvance || canRequestSettlement || canReviewRequests) AppCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const SectionHeader(title: 'درخواست‌های پرسنل'),
+              if (advanceRequests.isEmpty && settlementRequests.isEmpty)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('درخواستی ثبت نشده است.', style: TextStyle(fontSize: 11))),
+              for (final request in advanceRequests)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.request_quote_outlined),
+                  title: Text('درخواست مساعده • ${Fmt.money(request.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  subtitle: Text('${request.description} • ${Fmt.jalaliDate(request.requestedAt)}', style: const TextStyle(fontSize: 10)),
+                  trailing: const Text('در انتظار', style: TextStyle(fontSize: 10, color: Colors.orange)),
+                ),
+              for (final request in settlementRequests)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.payments_outlined),
+                  title: Text('درخواست تسویه • ${Fmt.money(request.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  subtitle: Text('${request.description} • ${Fmt.jalaliDate(request.requestedAt)}', style: const TextStyle(fontSize: 10)),
+                  trailing: canReviewRequests && request.status == EmployeeWalletRequestStatus.pending
+                      ? Wrap(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(tooltip: 'تأیید درخواست', onPressed: () => db.reviewWalletSettlementRequest(request.id, EmployeeWalletRequestStatus.approved), icon: const Icon(Icons.check_circle_outline, color: Colors.green)),
+                          IconButton(tooltip: 'رد درخواست', onPressed: () => db.reviewWalletSettlementRequest(request.id, EmployeeWalletRequestStatus.rejected), icon: const Icon(Icons.cancel_outlined, color: Colors.red)),
+                        ])
+                      : Text(switch (request.status) {
+                          EmployeeWalletRequestStatus.pending => 'در انتظار',
+                          EmployeeWalletRequestStatus.approved => 'تأیید شد',
+                          EmployeeWalletRequestStatus.rejected => 'رد شد',
+                        }, style: const TextStyle(fontSize: 10)),
+                ),
             ]),
           ),
           const SizedBox(height: 12),
@@ -285,6 +329,92 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       _to = end.toDateTime();
       _period = EmployeeWalletPeriodType.manual;
     });
+  }
+
+  Future<void> _requestAdvance(AppDatabase db, String employeeId) async {
+    final amount = TextEditingController();
+    final description = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('درخواست مساعده'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ درخواستی (تومان)')),
+          TextField(controller: description, maxLines: 2, decoration: const InputDecoration(labelText: 'دلیل درخواست')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ثبت درخواست')),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      final value = int.tryParse(amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
+      try {
+        if (value == null || value <= 0 || description.text.trim().isEmpty) {
+          throw ArgumentError('مبلغ و دلیل درخواست الزامی است.');
+        }
+        db.addPayrollAdvance(PayrollAdvance(
+          id: db.nextId('advance-request'),
+          employeeId: employeeId,
+          amount: value,
+          requestedAt: DateTime.now(),
+          description: description.text.trim(),
+          status: AdvanceStatus.requested,
+        ));
+        AppToast.show(context, 'درخواست مساعده ثبت شد و در انتظار بررسی مدیر است.');
+      } catch (error) {
+        AppToast.show(context, error.toString(), success: false);
+      }
+    }
+    amount.dispose();
+    description.dispose();
+  }
+
+  Future<void> _requestSettlement(AppDatabase db, String employeeId, int payableBalance) async {
+    if (payableBalance <= 0) {
+      AppToast.show(context, 'در حال حاضر مانده قابل درخواست برای تسویه وجود ندارد.', success: false);
+      return;
+    }
+    final amount = TextEditingController(text: payableBalance.toString());
+    final description = TextEditingController(text: 'درخواست تسویه کیف پول');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('درخواست تسویه حساب'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('مانده قابل درخواست: ${Fmt.money(payableBalance)}'),
+          TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ درخواستی (تومان)')),
+          TextField(controller: description, maxLines: 2, decoration: const InputDecoration(labelText: 'توضیحات')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ثبت درخواست')),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      final value = int.tryParse(amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
+      try {
+        if (value == null || value <= 0 || value > payableBalance || description.text.trim().isEmpty) {
+          throw ArgumentError('مبلغ باید بین یک تا مانده قابل درخواست باشد و توضیحات الزامی است.');
+        }
+        db.requestWalletSettlement(EmployeeWalletSettlementRequest(
+          id: db.nextId('settlement-request'),
+          employeeId: employeeId,
+          requestedAt: DateTime.now(),
+          periodStart: _from,
+          periodEnd: _endOfDay,
+          amount: value,
+          description: description.text.trim(),
+        ));
+        AppToast.show(context, 'درخواست تسویه برای مدیر ارسال شد.');
+      } catch (error) {
+        AppToast.show(context, error.toString(), success: false);
+      }
+    }
+    amount.dispose();
+    description.dispose();
   }
 
   Future<void> _addTransaction(AppDatabase db, String employeeId) async {
