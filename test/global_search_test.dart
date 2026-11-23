@@ -113,7 +113,7 @@ void main() {
           item.type == GlobalSearchType.customer && item.id == customer.id);
       expect(canOpenGlobalSearchResult(db, result), isTrue);
 
-      db.switchMockAccount('demo-custom');
+      db.switchMockAccount('demo-staff');
       expect(canOpenGlobalSearchResult(db, result), isFalse);
     });
 
