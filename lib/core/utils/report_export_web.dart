@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:html' as html;
 
 Future<bool> printReport(String reportHtml) async {

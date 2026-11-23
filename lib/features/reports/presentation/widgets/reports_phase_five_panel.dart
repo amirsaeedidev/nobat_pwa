@@ -12,7 +12,6 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/employee_wallet.dart';
-import '../../../../data/models/business_finance.dart';
 import '../providers/reports_provider.dart';
 import '../../utils/report_phase_five.dart';
 import '../../utils/report_executive_pdf_export.dart';
@@ -306,7 +305,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
         ]),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          OutlinedButton(onPressed: _exporting ? null : () => _export('pdf'), child: const Text('خروجی PDF')),
+          OutlinedButton(onPressed: _exporting ? null : _export, child: const Text('خروجی PDF')),
           if (_exporting) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
         ]),
       ])),

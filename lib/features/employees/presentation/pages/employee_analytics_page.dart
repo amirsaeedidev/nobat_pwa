@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
-import '../../../../core/utils/report_export.dart';
 import '../../../../core/utils/jalali.dart';
+import '../../../../core/utils/pdf_table_document_builder.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
@@ -104,94 +105,54 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
   String _money(num value) => '${Fmt.compactMoney(value)} تومان';
   String _periodLabel() => '${JalaliDate.fromDateTime(_from).numeric} تا ${JalaliDate.fromDateTime(_to.subtract(const Duration(days: 1))).numeric}';
 
-  Future<void> _exportCsv(Employee employee, EmployeeAnalytics report) async {
-    final rows = <List<String>>[
-      ['شاخص', 'مقدار', 'واحد'],
-      ['پرسنل', employee.fullName, ''],
-      ['بازه', _periodLabel(), ''],
-      ['کل نوبت‌ها', report.totalAppointments.toString(), 'عدد'],
-      ['تکمیل‌شده', report.completed.toString(), 'عدد'],
-      ['لغوشده', report.cancelled.toString(), 'عدد'],
-      ['عدم حضور', report.noShow.toString(), 'عدد'],
-      ['درآمد ناخالص', report.grossRevenue.toString(), 'تومان'],
-      ['درآمد پس از تخفیف', report.netRevenue.toString(), 'تومان'],
-      ['پورسانت', report.commission.toString(), 'تومان'],
-      ['سهم مجموعه', report.companyShare.toString(), 'تومان'],
-      ['میانگین هر نوبت', report.averageTicket.toString(), 'تومان'],
-      ['مشتریان یکتا', report.uniqueCustomers.toString(), 'نفر'],
-      ['استفاده از ظرفیت برنامه', report.utilizationRate.toStringAsFixed(1), 'درصد'],
-      ['ساعات برنامه‌ریزی‌شده', report.workingMinutes.toString(), 'دقیقه'],
-      ['ساعات حضور واقعی', report.actualWorkedMinutes.toString(), 'دقیقه'],
-      ['روزهای حضور', report.attendanceDays.toString(), 'روز'],
-      ['غیبت', report.absentDays.toString(), 'روز'],
-      ['مرخصی تأییدشده', report.leaveCount.toString(), 'مورد'],
-      if (report.salaryDataAvailable) ...[
-        ['حقوق ثابت ثبت‌شده', report.fixedSalary.toString(), 'تومان'],
-        ['پاداش', report.bonusAmount.toString(), 'تومان'],
-        ['کسورات', report.deductionAmount.toString(), 'تومان'],
-        ['مساعده', report.advanceAmount.toString(), 'تومان'],
-        ['پرداخت حقوق', report.salaryPaid.toString(), 'تومان'],
-        ['مانده دفتر کیف پول', report.salaryBalance.toString(), 'تومان'],
-      ],
-      ...report.services.map((s) => ['خدمت: ${s.name}', s.revenue.toString(), 'تومان']),
-      ...report.services.map((s) => ['کمیسیون خدمت: ${s.name}', s.commission.toString(), 'تومان']),
-    ];
-    final csv = '\uFEFF' + rows.map((row) => row.map((cell) => '"${cell.replaceAll('"', '""')}"').join(',')).join('\r\n');
-    final exported = await downloadCsv('employee-analytics-${employee.id}.csv', csv);
-    if (!exported && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خروجی فایل در نسخه وب فعال است.')));
-    }
-  }
-
-  String _escapeHtml(String value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-
   Future<void> _exportPdf(Employee employee, EmployeeAnalytics report) async {
     final rows = <List<String>>[
       ['شاخص', 'مقدار'],
-      ['کل نوبت‌ها', FaNum.ofInt(report.totalAppointments)],
-      ['تکمیل‌شده', FaNum.ofInt(report.completed)],
-      ['لغوشده', FaNum.ofInt(report.cancelled)],
-      ['عدم حضور', FaNum.ofInt(report.noShow)],
-      ['درآمد ناخالص', _money(report.grossRevenue)],
-      ['درآمد پس از تخفیف', _money(report.netRevenue)],
-      ['پورسانت', _money(report.commission)],
-      ['سهم مجموعه', _money(report.companyShare)],
-      ['میانگین مبلغ هر نوبت', _money(report.averageTicket)],
-      ['مشتریان یکتا', FaNum.ofInt(report.uniqueCustomers)],
-      ['استفاده از ظرفیت برنامه', '${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪'],
-      ['ساعات حضور واقعی', FaNum.ofInt(report.actualWorkedMinutes ~/ 60)],
-      ['روزهای حضور', FaNum.ofInt(report.attendanceDays)],
-      ['غیبت', FaNum.ofInt(report.absentDays)],
-      ['مرخصی تأییدشده', FaNum.ofInt(report.leaveCount)],
-      if (report.salaryDataAvailable) ...[
-        ['حقوق ثابت ثبت‌شده', _money(report.fixedSalary)],
-        ['پاداش', _money(report.bonusAmount)],
-        ['کسورات', _money(report.deductionAmount)],
-        ['مساعده', _money(report.advanceAmount)],
-        ['پرداخت حقوق', _money(report.salaryPaid)],
-        ['مانده کیف پول', _money(report.salaryBalance)],
-      ],
-      ...report.services.map((s) => ['خدمت: ${s.name}', _money(s.revenue)]),
-      ...report.services.map((s) => ['کمیسیون خدمت: ${s.name}', _money(s.commission)]),
-    ];
-    final table = rows.map((row) => '<tr><td>${_escapeHtml(row[0])}</td><td>${_escapeHtml(row[1])}</td></tr>').join();
-    final html = '''
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>گزارش عملکرد ${_escapeHtml(employee.fullName)}</title>
-<style>
-@page{size:A4;margin:18mm}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#222;direction:rtl}
-h1{font-size:22px;margin:0 0 8px}p{color:#666;font-size:12px;margin:0 0 20px}
-table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:10px;border:1px solid #ddd;text-align:right}
-th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:18px;font-size:10px;color:#777}
-</style></head><body><h1>گزارش عملکرد پرسنل</h1>
-<p>${_escapeHtml(employee.fullName)} — ${_escapeHtml(_periodLabel())} — سامانه DateTime</p>
-<table><thead><tr><th>شاخص</th><th>مقدار</th></tr></thead><tbody>$table</tbody></table>
-<div class="footer">این گزارش به‌صورت آفلاین از داده‌های محلی Datamonck تهیه شده است.</div>
-<script>window.onload=function(){window.print();};</script></body></html>''';
-    final exported = await printReport(html);
-    if (!exported && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ذخیره PDF از طریق نسخه وب و پنجره چاپ انجام می‌شود.')));
+      ['  Future<void> _exportPdf(Employee employee, EmployeeAnalytics report) async {
+    try {
+      final rows = <List<String>>[
+        ['شاخص', 'مقدار'],
+        ['کل نوبت‌ها', FaNum.ofInt(report.totalAppointments)],
+        ['تکمیل‌شده', FaNum.ofInt(report.completed)],
+        ['لغوشده', FaNum.ofInt(report.cancelled)],
+        ['عدم حضور', FaNum.ofInt(report.noShow)],
+        ['درآمد ناخالص', _money(report.grossRevenue)],
+        ['درآمد پس از تخفیف', _money(report.netRevenue)],
+        ['پورسانت', _money(report.commission)],
+        ['سهم مجموعه', _money(report.companyShare)],
+        ['میانگین مبلغ هر نوبت', _money(report.averageTicket)],
+        ['مشتریان یکتا', FaNum.ofInt(report.uniqueCustomers)],
+        ['استفاده از ظرفیت برنامه', '\${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪'],
+        ['ساعات حضور واقعی', FaNum.ofInt(report.actualWorkedMinutes ~/ 60)],
+        ['روزهای حضور', FaNum.ofInt(report.attendanceDays)],
+        ['غیبت', FaNum.ofInt(report.absentDays)],
+        ['مرخصی تأییدشده', FaNum.ofInt(report.leaveCount)],
+        if (report.salaryDataAvailable) ...[
+          ['حقوق ثابت ثبت‌شده', _money(report.fixedSalary)],
+          ['پاداش', _money(report.bonusAmount)],
+          ['کسورات', _money(report.deductionAmount)],
+          ['مساعده', _money(report.advanceAmount)],
+          ['پرداخت حقوق', _money(report.salaryPaid)],
+          ['مانده کیف پول', _money(report.salaryBalance)],
+        ],
+        ...report.services.map((s) => ['خدمت: \${s.name}', _money(s.revenue)]),
+        ...report.services.map((s) => ['کمیسیون خدمت: \${s.name}', _money(s.commission)]),
+      ];
+      final bytes = await PdfTableDocumentBuilder.build(
+        title: 'گزارش عملکرد پرسنل',
+        subtitle: '\${employee.fullName} — \${_periodLabel()} — سامانه DateTime',
+        sections: [{'title': 'شاخص‌های عملکرد', 'rows': rows}],
+      );
+      await FileSaver.instance.saveFile(
+        name: 'گزارش-عملکرد-\${employee.id}',
+        bytes: bytes,
+        fileExtension: 'pdf',
+        mimeType: MimeType.custom,
+        customMimeType: 'application/pdf',
+      );
+      if (mounted) AppToast.show(context, 'فایل PDF آماده شد.');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ساخت PDF ناموفق بود: \$error', success: false);
     }
   }
 
@@ -218,7 +179,6 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
       icon: Icons.query_stats_rounded,
       showBackButton: true,
       actions: [
-        OutlinedButton.icon(onPressed: () => _exportCsv(selected, report), icon: const Icon(Icons.download_rounded, size: 16), label: const Text('خروجی CSV')),
         OutlinedButton.icon(onPressed: () => _exportPdf(selected, report), icon: const Icon(Icons.picture_as_pdf_outlined, size: 16), label: const Text('ذخیره PDF')),
       ],
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -227,7 +187,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             isExpanded: true,
-            value: selected.id,
+            initialValue: selected.id,
             decoration: const InputDecoration(labelText: 'پرسنل'),
             items: [for (final e in employees) DropdownMenuItem(value: e.id, child: Text(e.fullName))],
             onChanged: (value) => setState(() => _employeeId = value),
@@ -250,7 +210,7 @@ th{background:#f2f3f5}tr:nth-child(even){background:#fafafa}.footer{margin-top:1
           const SizedBox(height: 10),
           DropdownButtonFormField<String?>(
             isExpanded: true,
-            value: _serviceId,
+            initialValue: _serviceId,
             decoration: const InputDecoration(labelText: 'خدمت'),
             items: [const DropdownMenuItem<String?>(value: null, child: Text('همه خدمات')), for (final s in db.services) DropdownMenuItem(value: s.id, child: Text(s.title))],
             onChanged: (value) => setState(() => _serviceId = value),

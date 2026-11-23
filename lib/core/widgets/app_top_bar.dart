@@ -211,16 +211,13 @@ class _DateTimeLogo extends StatelessWidget {
         height: 40,
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(
-            'DATADATE',
-            textDirection: TextDirection.ltr,
-            maxLines: 1,
-            softWrap: false,
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.35,
-            ),
+          child: Image.asset(
+            'assets/image/bria-rmbg3-cutout.png',
+            height: 40,
+            width: 124,
+            fit: BoxFit.contain,
+            alignment: Alignment.centerLeft,
+            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
           ),
         ),
       ),
