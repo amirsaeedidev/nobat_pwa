@@ -134,7 +134,6 @@ class NotificationSettings {
 /// قواعد رزرو، لغو و جابه‌جایی.
 class BookingRules {
   const BookingRules({
-    this.allowOnlineBooking = true,
     this.allowCustomerCancel = true,
     this.allowReschedule = true,
     this.maxReschedules = 1,
@@ -146,7 +145,6 @@ class BookingRules {
     this.cancelPenaltyCount = 3,
   });
 
-  final bool allowOnlineBooking;
   final bool allowCustomerCancel;
   final bool allowReschedule;
   final int maxReschedules;
@@ -158,7 +156,6 @@ class BookingRules {
   final int cancelPenaltyCount;
 
   BookingRules copyWith({
-    bool? allowOnlineBooking,
     bool? allowCustomerCancel,
     bool? allowReschedule,
     int? maxReschedules,
@@ -170,7 +167,6 @@ class BookingRules {
     int? cancelPenaltyCount,
   }) {
     return BookingRules(
-      allowOnlineBooking: allowOnlineBooking ?? this.allowOnlineBooking,
       allowCustomerCancel: allowCustomerCancel ?? this.allowCustomerCancel,
       allowReschedule: allowReschedule ?? this.allowReschedule,
       maxReschedules: maxReschedules ?? this.maxReschedules,
@@ -204,7 +200,6 @@ class BusinessSettings {
     this.telegram = 'https://t.me/datetime_salon',
     this.whatsapp = 'https://wa.me/989121234567',
     this.website = 'https://datetime.app',
-    this.publicSlug = 'datetime-salon',
     this.currency = 'تومان',
     this.logoText = 'DT',
     this.workingHours = const {},
@@ -233,7 +228,6 @@ class BusinessSettings {
   final String telegram;
   final String whatsapp;
   final String website;
-  final String publicSlug;
   final String currency;
   final String logoText;
 
@@ -253,9 +247,6 @@ class BusinessSettings {
   final NotificationSettings notifications;
   final BookingRules bookingRules;
 
-  String get publicUrl => 'datetime.app/book/$publicSlug';
-  String get fullUrl => 'https://datetime.app/book/$publicSlug';
-
   BusinessSettings copyWith({
     String? name,
     String? slogan,
@@ -274,7 +265,6 @@ class BusinessSettings {
     String? telegram,
     String? whatsapp,
     String? website,
-    String? publicSlug,
     String? currency,
     String? logoText,
     Map<int, List<Shift>>? workingHours,
@@ -303,7 +293,6 @@ class BusinessSettings {
       telegram: telegram ?? this.telegram,
       whatsapp: whatsapp ?? this.whatsapp,
       website: website ?? this.website,
-      publicSlug: publicSlug ?? this.publicSlug,
       currency: currency ?? this.currency,
       logoText: logoText ?? this.logoText,
       workingHours: workingHours ?? this.workingHours,
