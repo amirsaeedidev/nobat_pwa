@@ -30,6 +30,10 @@ extensions.configure<ApplicationExtension> {
         targetSdk = flutterTargetSdk
         versionCode = flutterVersionCode
         versionName = flutterVersionName
+        // Enforce ARM64 at the Android packaging layer as well as the Flutter CLI.
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     buildTypes {
