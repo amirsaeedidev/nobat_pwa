@@ -16,7 +16,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
         if (state.session == null) {
           _clearMembership();
         } else {
-          unawaited(verifyMembership());
+          unawaited(verifyMembership().then<void>((_) {}));
         }
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -26,7 +26,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
     );
 
     if (_authRepository!.currentUser != null) {
-      unawaited(verifyMembership());
+      unawaited(verifyMembership().then<void>((_) {}));
     }
   }
 
