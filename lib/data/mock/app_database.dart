@@ -869,6 +869,32 @@ class AppDatabase extends ChangeNotifier {
     _commit();
   }
 
+  void reviewPayrollAdvanceRequest(String requestId, AdvanceStatus status) {
+    requirePermission('finance.advance.create');
+    if (status != AdvanceStatus.approved && status != AdvanceStatus.rejected) {
+      throw ArgumentError('وضعیت بررسی مساعده معتبر نیست.');
+    }
+    final index = _payrollAdvances.indexWhere((item) => item.id == requestId);
+    if (index < 0) throw StateError('درخواست مساعده پیدا نشد.');
+    final current = _payrollAdvances[index];
+    if (current.status != AdvanceStatus.requested) throw StateError('این درخواست قبلاً بررسی شده است.');
+    _payrollAdvances[index] = PayrollAdvance(
+      id: current.id,
+      employeeId: current.employeeId,
+      amount: current.amount,
+      requestedAt: current.requestedAt,
+      description: current.description,
+      status: status,
+      paidAt: current.paidAt,
+      deductedAmount: current.deductedAmount,
+      sourceWalletTransactionId: current.sourceWalletTransactionId,
+    );
+    log(ActivityType.settingsChanged, 'بررسی درخواست مساعده',
+      'درخواست مساعده ${current.amount} تومان ${status == AdvanceStatus.approved ? 'تأیید' : 'رد'} شد.',
+      entity: 'درخواست مساعده', entityId: requestId, operationType: 'payroll_advance_request_review');
+    _commit();
+  }
+
   void addPerformanceTarget(EmployeePerformanceTarget target) {
     requirePermission('employees.edit');
     if (!_employees.any((item) => item.id == target.employeeId)) throw StateError('پرسنل پیدا نشد.');
