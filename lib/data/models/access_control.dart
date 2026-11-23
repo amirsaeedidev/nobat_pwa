@@ -13,6 +13,8 @@ class AccessPermission {
     AccessPermission('employees.view_profile', 'پرسنل', 'مشاهده پروفایل پرسنل'),
     AccessPermission('appointments.view_all', 'نوبت‌ها', 'مشاهده تمام نوبت‌ها'),
     AccessPermission('appointments.view_self', 'نوبت‌ها', 'مشاهده نوبت‌های خود'),
+    AccessPermission('appointments.confirm', 'نوبت‌ها', 'تأیید نوبت‌های خود'),
+    AccessPermission('appointments.reject', 'نوبت‌ها', 'رد نوبت‌های خود'),
     AccessPermission('appointments.create', 'نوبت‌ها', 'ثبت نوبت'),
     AccessPermission('appointments.edit', 'نوبت‌ها', 'ویرایش نوبت'),
     AccessPermission('appointments.cancel', 'نوبت‌ها', 'لغو نوبت'),
@@ -26,6 +28,10 @@ class AccessPermission {
     AccessPermission('finance.salary.view', 'مالی', 'مشاهده حقوق'),
     AccessPermission('finance.payment.create', 'مالی', 'ثبت پرداخت'),
     AccessPermission('finance.advance.create', 'مالی', 'ثبت مساعده'),
+    AccessPermission('finance.advance.request', 'مالی', 'ثبت درخواست مساعده'),
+    AccessPermission('finance.wallet.view', 'مالی', 'مشاهده کیف پول شخصی'),
+    AccessPermission('finance.settlement.request', 'مالی', 'ثبت درخواست تسویه حساب'),
+    AccessPermission('employees.leave.request', 'پرسنل', 'ثبت درخواست مرخصی'),
     AccessPermission('finance.settlement.view', 'مالی', 'مشاهده تسویه‌ها'),
     AccessPermission('settings.view', 'تنظیمات', 'مشاهده تنظیمات'),
     AccessPermission('settings.hours.edit', 'تنظیمات', 'ویرایش ساعت کاری'),
@@ -56,29 +62,27 @@ class AccessRole {
 
   static List<AccessRole> defaults() {
     final all = AccessPermission.ids;
-    const manager = [
-      'employees.view_list', 'employees.create', 'employees.edit', 'employees.deactivate', 'employees.view_profile',
-      'appointments.view_all', 'appointments.create', 'appointments.edit', 'appointments.cancel', 'appointments.complete',
-      'customers.view', 'customers.create', 'customers.edit', 'customers.history',
-      'finance.income.view', 'finance.commission.view', 'finance.salary.view', 'finance.payment.create',
-      'finance.advance.create', 'finance.settlement.view', 'settings.view', 'settings.hours.edit', 'services.manage', 'users.manage', 'permissions.manage',
-    ];
-    const operator = [
-      'employees.view_list', 'employees.view_profile', 'appointments.view_all', 'appointments.create',
-      'appointments.edit', 'appointments.cancel', 'appointments.complete', 'customers.view',
-      'customers.create', 'customers.edit', 'customers.history', 'settings.view',
-    ];
-    const staff = ['employees.view_profile', 'appointments.view_self', 'appointments.complete', 'customers.view', 'customers.history', 'finance.commission.view'];
-    const accountant = [
-      'employees.view_list', 'employees.view_profile', 'finance.income.view', 'finance.commission.view',
-      'finance.salary.view', 'finance.payment.create', 'finance.advance.create', 'finance.settlement.view',
+    const staff = [
+      'appointments.view_self', 'appointments.confirm', 'appointments.reject',
+      'appointments.create', 'appointments.edit', 'appointments.cancel',
+      'appointments.complete', 'finance.commission.view', 'finance.wallet.view',
+      'finance.advance.request', 'finance.settlement.request', 'employees.leave.request',
     ];
     return [
-      AccessRole(id: 'global_admin', name: 'مدیر کل', permissionIds: all, isSystem: true, description: 'دسترسی کامل به همه بخش‌ها'),
-      AccessRole(id: 'manager', name: 'مدیر مجموعه', permissionIds: manager, isSystem: true),
-      AccessRole(id: 'operator', name: 'اپراتور', permissionIds: operator, isSystem: true),
-      AccessRole(id: 'staff', name: 'پرسنل', permissionIds: staff, isSystem: true),
-      AccessRole(id: 'accountant', name: 'حسابدار', permissionIds: accountant, isSystem: true),
+      AccessRole(
+        id: 'global_admin',
+        name: 'مدیر کل',
+        permissionIds: all,
+        isSystem: true,
+        description: 'دسترسی کامل به تمام بخش‌ها و مدیریت دسترسی پرسنل',
+      ),
+      AccessRole(
+        id: 'staff',
+        name: 'پرسنل',
+        permissionIds: staff,
+        isSystem: true,
+        description: 'دسترسی محدود به نوبت‌ها و امور شخصی پرسنل',
+      ),
     ];
   }
 }
