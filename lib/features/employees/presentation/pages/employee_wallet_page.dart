@@ -52,6 +52,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     final canRequestAdvance = isPersonnelAccount && db.hasPermission('finance.advance.request', employeeId: employee.id);
     final canRequestSettlement = isPersonnelAccount && db.hasPermission('finance.settlement.request', employeeId: employee.id);
     final canReviewRequests = db.hasPermission('finance.settlement.view', employeeId: employee.id);
+    final canReviewAdvanceRequests = db.hasPermission('finance.advance.create', employeeId: employee.id);
     final advanceRequests = db.payrollAdvances.where((item) =>
       item.employeeId == employee.id && item.status == AdvanceStatus.requested).toList();
     final settlementRequests = db.walletSettlementRequestsFor(employee.id);
@@ -125,7 +126,12 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                   leading: const Icon(Icons.request_quote_outlined),
                   title: Text('درخواست مساعده • ${Fmt.money(request.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   subtitle: Text('${request.description} • ${Fmt.jalaliDate(request.requestedAt)}', style: const TextStyle(fontSize: 10)),
-                  trailing: const Text('در انتظار', style: TextStyle(fontSize: 10, color: Colors.orange)),
+                  trailing: canReviewAdvanceRequests
+                      ? Wrap(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(tooltip: 'تأیید مساعده', onPressed: () => db.reviewPayrollAdvanceRequest(request.id, AdvanceStatus.approved), icon: const Icon(Icons.check_circle_outline, color: Colors.green)),
+                          IconButton(tooltip: 'رد مساعده', onPressed: () => db.reviewPayrollAdvanceRequest(request.id, AdvanceStatus.rejected), icon: const Icon(Icons.cancel_outlined, color: Colors.red)),
+                        ])
+                      : const Text('در انتظار', style: TextStyle(fontSize: 10, color: Colors.orange)),
                 ),
               for (final request in settlementRequests)
                 ListTile(
