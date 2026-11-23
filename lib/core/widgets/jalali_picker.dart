@@ -18,6 +18,8 @@ Future<JalaliDate?> showJalaliDatePicker(
   return showAppSheet<JalaliDate>(
     context,
     title: title,
+    useRootNavigator: true,
+    bottomOffset: MediaQuery.sizeOf(context).width < 900 ? 112 : 0,
     child: _JalaliPickerBody(initial: initial, minDate: minDate, maxDate: maxDate),
   );
 }
@@ -167,6 +169,8 @@ Future<TimeOfDayLite?> showTimePickerSheet(
   return showAppSheet<TimeOfDayLite>(
     context,
     title: title,
+    useRootNavigator: true,
+    bottomOffset: MediaQuery.sizeOf(context).width < 900 ? 112 : 0,
     child: Wrap(
       spacing: 8,
       runSpacing: 8,

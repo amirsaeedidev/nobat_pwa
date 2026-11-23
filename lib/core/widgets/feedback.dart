@@ -285,17 +285,20 @@ Future<T?> showAppSheet<T>(
   required String title,
   required Widget child,
   bool scrollable = true,
+  bool useRootNavigator = false,
+  double bottomOffset = 0,
 }) {
   final pal = context.pal;
   return showModalBottomSheet<T>(
     context: context,
+    useRootNavigator: useRootNavigator,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.28),
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: AppRadius.brTopXxl),
     builder: (context) => Padding(
-      padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.viewInsetsOf(context).bottom + 12),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.viewInsetsOf(context).bottom + bottomOffset + 12),
       child: LiquidGlassLayer(
         settings: LiquidGlassSettings.ios27Regular(
           brightness: Theme.of(context).brightness,
