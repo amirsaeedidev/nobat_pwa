@@ -127,7 +127,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                   title: Text('درخواست مساعده • ${Fmt.money(request.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   subtitle: Text('${request.description} • ${Fmt.jalaliDate(request.requestedAt)}', style: const TextStyle(fontSize: 10)),
                   trailing: canReviewAdvanceRequests
-                      ? Wrap(mainAxisSize: MainAxisSize.min, children: [
+                      ? Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(tooltip: 'تأیید مساعده', onPressed: () => db.reviewPayrollAdvanceRequest(request.id, AdvanceStatus.approved), icon: const Icon(Icons.check_circle_outline, color: Colors.green)),
                           IconButton(tooltip: 'رد مساعده', onPressed: () => db.reviewPayrollAdvanceRequest(request.id, AdvanceStatus.rejected), icon: const Icon(Icons.cancel_outlined, color: Colors.red)),
                         ])
