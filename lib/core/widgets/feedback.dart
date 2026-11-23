@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
@@ -289,11 +290,30 @@ Future<T?> showAppSheet<T>(
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: pal.backgroundAlt,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.28),
+    elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: AppRadius.brTopXxl),
     builder: (context) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: ConstrainedBox(
+      padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.viewInsetsOf(context).bottom + 12),
+      child: LiquidGlassLayer(
+        settings: LiquidGlassSettings.ios27Regular(
+          brightness: Theme.of(context).brightness,
+          tintAmount: 0.60,
+        ),
+        defaultAppearance: LiquidGlassAppearance.ios27Regular(
+          brightness: Theme.of(context).brightness,
+        ),
+        child: LiquidGlass(
+          shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+          shadows: const [BoxShadow(color: Color(0x26000000), blurRadius: 28, offset: Offset(0, 10))],
+          child: Container(
+            decoration: BoxDecoration(
+              color: pal.backgroundAlt.withValues(alpha: 0.20),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.36)),
+            ),
+            child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -330,6 +350,9 @@ Future<T?> showAppSheet<T>(
                   : Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 24), child: child),
             ),
           ],
+        ),
+      ),
+          ),
         ),
       ),
     ),
