@@ -10,8 +10,6 @@ import '../../features/activity_logs/presentation/pages/activity_logs_page.dart'
 import '../../features/appointments/presentation/pages/appointment_details_page.dart';
 import '../../features/appointments/presentation/pages/appointment_form_page.dart';
 import '../../features/appointments/presentation/pages/appointments_page.dart';
-import '../../features/booking/presentation/pages/booking_flow_page.dart';
-import '../../features/booking/presentation/pages/booking_manage_page.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/customers/presentation/pages/customer_form_page.dart';
 import '../../features/customers/presentation/pages/customer_profile_page.dart';
@@ -40,7 +38,6 @@ import '../../features/settings/presentation/pages/business_settings_page.dart';
 import '../../features/settings/presentation/pages/location_settings_page.dart';
 import '../../features/settings/presentation/pages/notifications_page.dart';
 import '../../features/settings/presentation/pages/permissions_page.dart';
-import '../../features/settings/presentation/pages/public_link_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/sms/presentation/pages/sms_monitor_page.dart';
 import '../../features/sms/presentation/pages/sms_settings_page.dart';
@@ -173,7 +170,6 @@ GoRouter buildRouter(AppDatabase database) {
               GoRoute(path: 'appearance', builder: (context, state) => const AppearanceSettingsPage()),
               GoRoute(path: 'permissions', builder: (context, state) => const PermissionsPage()),
               GoRoute(path: 'notifications', builder: (context, state) => const NotificationsPage()),
-              GoRoute(path: 'link', builder: (context, state) => const PublicLinkPage()),
             ],
           ),
         ],
@@ -209,8 +205,6 @@ GoRouter buildRouter(AppDatabase database) {
         ),
       ),
       // تجربه مشتری (بدون پوسته مدیریتی)
-      GoRoute(path: '/book', builder: (context, state) => const BookingFlowPage()),
-      GoRoute(path: '/book/manage', builder: (context, state) => const BookingManagePage()),
     ],
     errorBuilder: (context, state) => Scaffold(
       backgroundColor: context.pal.background,
