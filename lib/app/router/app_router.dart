@@ -51,7 +51,12 @@ GoRouter buildRouter(AppDatabase database) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
     refreshListenable: database,
-    redirect: (context, state) => database.canOpenRoute(state.uri.path) ? null : '/access-denied',
+    redirect: (context, state) {
+      if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
+        return '/appointments';
+      }
+      return database.canOpenRoute(state.uri.path) ? null : '/access-denied';
+    },
     routes: [
       ShellRoute(
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
