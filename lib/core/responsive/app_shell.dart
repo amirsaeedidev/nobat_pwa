@@ -9,6 +9,7 @@ import '../../app/theme/app_tokens.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
 import '../../data/mock/app_database.dart';
 import '../widgets/badges.dart';
+import '../widgets/app_card.dart';
 import 'nav_destinations.dart';
 
 
