@@ -155,13 +155,13 @@ void main() {
 
     await operations.assignEmployeeRole(
       employeeId: employee.id,
-      roleId: 'operator',
+      roleId: 'staff',
       overrides: const {'customers.view': false},
       canViewOtherEmployees: false,
       canViewPersonalIncome: false,
     );
 
-    expect(db.accessAssignmentFor(employee.id)?.roleId, 'operator');
+    expect(db.accessAssignmentFor(employee.id)?.roleId, 'staff');
     final audit = operations.latestUndoableLogFor(employee.id);
     expect(audit?.operationType, 'access_assignment');
     expect(audit?.isReversible, isTrue);
@@ -308,32 +308,30 @@ void main() {
     expect(db.paymentsForAppointment(appointment.id), hasLength(1));
   });
 
-  test('custom role creation is audited, idempotent and undoable', () async {
-    final role = await operations.createAccessRole(
-      name: 'نقش آزمایشی قابل بازگردانی',
-      permissionIds: const ['customers.view', 'appointments.view_self'],
+  test('additional custom roles are rejected and the two system roles remain', () async {
+    await expectLater(
+      operations.createAccessRole(
+        name: 'نقش آزمایشی غیرمجاز',
+        permissionIds: const ['appointments.view_self'],
+      ),
+      throwsA(isA<StateError>()),
     );
-
-    expect(db.accessRoleById(role.id)?.permissionIds, contains('customers.view'));
-    final audit = operations.latestUndoableLogFor(role.id);
-    expect(audit, isNotNull);
-    expect(audit!.operationType, 'access_role_create');
-    expect(audit.operationLabel, 'ایجاد نقش دسترسی');
-    expect(audit.actor, db.currentAccessAccount.name);
-    expect(audit.isReversible, isTrue);
-    expect(operations.undo(audit.id), isTrue);
-    expect(db.accessRoleById(role.id), isNull);
-    expect(db.hasExecutedOperation('access-role-create:نقش آزمایشی قابل بازگردانی'), isFalse);
+    expect(db.accessRoles.map((role) => role.id).toSet(), {'global_admin', 'staff'});
   });
 
-  test('custom role creation cannot be undone after a staff member is assigned to it', () async {
-    final role = await operations.createAccessRole(name: 'نقش دارای تخصیص');
+  test('only personnel role can be assigned to an employee', () {
     final employee = db.employees.first;
-
-    await operations.assignEmployeeRole(employeeId: employee.id, roleId: role.id);
-
-    expect(db.accessRoleById(role.id), isNotNull);
-    expect(operations.latestUndoableLogFor(role.id), isNull);
+    expect(
+      () => db.assignEmployeeAccess(
+        employeeId: employee.id,
+        roleId: 'global_admin',
+        overrides: const {},
+        canViewOtherEmployees: false,
+        canViewPersonalIncome: true,
+      ),
+      throwsA(isA<AccessDeniedException>()),
+    );
+    expect(db.accessRoles.length, 2);
   });
 
   test('attendance payroll policy changes are confirmed through repository, audited and undoable', () async {
