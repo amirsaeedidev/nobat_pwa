@@ -4,6 +4,8 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/jalali_picker.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_schedule.dart';
 
@@ -52,13 +54,16 @@ class EmployeeLeaveRequestsPage extends StatelessWidget {
   final color=switch(status){EmployeeLeaveStatus.pending=>Colors.orange,EmployeeLeaveStatus.approved=>Colors.green,EmployeeLeaveStatus.rejected=>Theme.of(context).colorScheme.error};
   return Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),decoration:BoxDecoration(color:color.withValues(alpha:.1),borderRadius:BorderRadius.circular(20)),child:Text(status.label,style:TextStyle(color:color,fontSize:11,fontWeight:FontWeight.w700)));
  }
- static String _date(DateTime d)=>d.year.toString()+'/'+d.month.toString().padLeft(2,'0')+'/'+d.day.toString().padLeft(2,'0');
+ static String _date(DateTime d)=>JalaliDate.fromDateTime(d).numeric;
  static Future<void> _request(BuildContext context,AppDatabase db,String id) async {
   final now=DateTime.now();final note=TextEditingController();EmployeeLeaveType type=EmployeeLeaveType.daily;
-  final start=await showDatePicker(context:context,initialDate:now,firstDate:now,lastDate:now.add(const Duration(days:365)));
-  if(start==null||!context.mounted){note.dispose();return;}
-  final end=await showDatePicker(context:context,initialDate:start,firstDate:start,lastDate:now.add(const Duration(days:365)));
-  if(end==null||!context.mounted){note.dispose();return;}
+  final today=JalaliDate.today();
+  final startJalali=await showJalaliDatePicker(context,initial:today,minDate:today,maxDate:today.addDays(365),title:'شروع مرخصی');
+  if(startJalali==null||!context.mounted){note.dispose();return;}
+  final endJalali=await showJalaliDatePicker(context,initial:startJalali,minDate:startJalali,maxDate:today.addDays(365),title:'پایان مرخصی');
+  if(endJalali==null||!context.mounted){note.dispose();return;}
+  final start=startJalali.toDateTime();
+  final end=endJalali.toDateTime();
   final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,setState)=>AlertDialog(
    title:const Text('ثبت درخواست مرخصی'),
    content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
@@ -73,10 +78,12 @@ class EmployeeLeaveRequestsPage extends StatelessWidget {
     var leaveStart=DateTime(start.year,start.month,start.day);
     var leaveEnd=DateTime(end.year,end.month,end.day,23,59);
     if(type==EmployeeLeaveType.hourly){
-     final fromTime=await showTimePicker(context:context,initialTime:const TimeOfDay(hour:9,minute:0));
-     if(fromTime==null||!context.mounted){note.dispose();return;}
-     final toTime=await showTimePicker(context:context,initialTime:const TimeOfDay(hour:10,minute:0));
-     if(toTime==null||!context.mounted){note.dispose();return;}
+     final fromLite=await showTimePickerSheet(context,initial:const TimeOfDayLite(9,0),title:'ساعت شروع مرخصی');
+     if(fromLite==null||!context.mounted){note.dispose();return;}
+     final toLite=await showTimePickerSheet(context,initial:const TimeOfDayLite(10,0),title:'ساعت پایان مرخصی');
+     if(toLite==null||!context.mounted){note.dispose();return;}
+     final fromTime=TimeOfDay(hour:fromLite.hour,minute:fromLite.minute);
+     final toTime=TimeOfDay(hour:toLite.hour,minute:toLite.minute);
      leaveStart=DateTime(start.year,start.month,start.day,fromTime.hour,fromTime.minute);
      leaveEnd=DateTime(end.year,end.month,end.day,toTime.hour,toTime.minute);
     }
