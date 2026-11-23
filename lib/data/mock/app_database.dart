@@ -122,7 +122,8 @@ class AppDatabase extends ChangeNotifier {
   List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   List<EmployeeNotice> get employeeNotices => List.unmodifiable(_employeeNotices.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   List<AccessRole> get accessRoles => List.unmodifiable(_accessRoles.values);
-  List<AccessAccount> get accessAccounts => List.unmodifiable(_isGlobalAdmin ? _accessAccounts : _accessAccounts.where((item) => item.id == currentAccessAccount.id));
+  /// حساب‌های آزمایشی فقط برای جابه‌جایی بین دو نقش در محیط آفلاین Datamonck.
+  List<AccessAccount> get accessAccounts => List.unmodifiable(_accessAccounts);
   AccessAccount get currentAccessAccount => _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
   String get currentAccessRoleName => _accessRoles[currentAccessAccount.roleId]?.name ?? 'نقش نامشخص';
   List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
