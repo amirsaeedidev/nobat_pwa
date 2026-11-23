@@ -87,32 +87,24 @@ void main() {
       expect(services.fold<num>(0, (sum, item) => sum + item.value), allTime.revenue);
     });
 
-    test('accountant sees financial ledgers but not operational or customer details', () async {
+    test('personnel cannot access management reports or business-wide metrics', () async {
       final db = AppDatabase();
-      db.switchMockAccount('demo-accountant');
+      db.switchMockAccount('demo-staff');
       final range = ReportDateRange.custom(
         JalaliDate(1400, 1, 1),
         JalaliDate(1450, 1, 1),
       );
-      final report = await MockDashboardRepository(db).fetchReportAnalytics(range: range);
-      expect(report.revenue, greaterThan(0));
-      expect(report.employees, isNotEmpty);
-      expect(report.walletTransactions, isNotEmpty);
-      expect(report.operationalAppointments, isEmpty);
-      expect(report.customerMetrics, isEmpty);
-      expect(report.customerDebts, isEmpty);
-      expect(report.totalAppointments, 0);
-      expect(report.uniqueCustomers, 0);
-      final dashboard = await MockDashboardRepository(db).fetchStats();
-      expect(dashboard.totalAppointments, 0);
-      expect(dashboard.totalCustomers, 0);
-      expect(await MockDashboardRepository(db).fetchUpcoming(), isEmpty);
-      expect(await MockDashboardRepository(db).fetchServiceRevenue(), isEmpty);
+      expect(db.canOpenRoute('/reports'), isFalse);
+      expect(db.businessExpenses, isEmpty);
+      await expectLater(
+        MockDashboardRepository(db).fetchReportAnalytics(range: range),
+        throwsA(isA<AccessDeniedException>()),
+      );
     });
 
     test('blocks report access without income permission', () async {
       final db = AppDatabase();
-      db.switchMockAccount('demo-operator');
+      db.switchMockAccount('demo-staff');
       final repository = MockDashboardRepository(db);
       final range = ReportDateRange.preset(ReportPeriod.thisMonth);
       await expectLater(repository.fetchReportAnalytics(range: range), throwsA(isA<AccessDeniedException>()));
