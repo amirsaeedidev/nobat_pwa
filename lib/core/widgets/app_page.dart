@@ -23,7 +23,7 @@ class PageScaffold extends StatelessWidget {
     this.bottomBar,
     this.scrollable = true,
     this.padding,
-    this.bottomContentPadding = 28,
+    this.bottomContentPadding = 132,
     this.header,
     this.floatingAction,
     this.mobileHeader,
