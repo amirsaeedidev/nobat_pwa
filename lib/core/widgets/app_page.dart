@@ -109,7 +109,7 @@ class PageScaffold extends StatelessWidget {
                     thickness: 3,
                     radius: const Radius.circular(4),
                     child: SingleChildScrollView(
-                    padding: EdgeInsets.only(top: isDesktop ? 22 : 16, bottom: bottomContentPadding),
+                    padding: EdgeInsets.only(top: isDesktop ? 22 : 16, bottom: isDesktop ? 32 : bottomContentPadding),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: Breakpoints.contentMaxWidth(width)),
