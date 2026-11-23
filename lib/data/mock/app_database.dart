@@ -68,23 +68,35 @@ class AppDatabase extends ChangeNotifier {
   final Set<String> _undoneLogIds = {};
   final Set<String> _executedOperationKeys = {};
 
-  /// فقط مشتریان فعال در فهرست عمومی؛ پروفایل‌های بایگانی‌شده برای سوابق با customerById در دسترس می‌مانند.
-  List<Customer> get customers => List.unmodifiable(_customers.where((customer) => !customer.isArchived));
-  List<Appointment> get appointments => List.unmodifiable(_appointments);
-  List<Service> get services => List.unmodifiable(_services);
-  List<String> get serviceCategories => List.unmodifiable(_serviceCategories);
-  List<Employee> get employees => List.unmodifiable(_employees);
-  List<SmsMessage> get smsMessages => List.unmodifiable(_sms);
-  List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
-  List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
-  List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
-  List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments);
+  bool get _isGlobalAdmin => currentAccessAccount.roleId == 'global_admin';
+  String? get _activeEmployeeId => currentAccessAccount.employeeId;
+
+  /// پرسنل فقط مشتریانی را می‌بیند که در نوبت‌های خودش ثبت شده‌اند.
+  List<Customer> get customers => List.unmodifiable(_customers.where((customer) =>
+    !customer.isArchived && (_isGlobalAdmin || _appointments.any((item) =>
+      item.employeeId == _activeEmployeeId && item.customerId == customer.id))));
+  List<Appointment> get appointments => List.unmodifiable(_appointments.where((item) =>
+    _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<Service> get services => List.unmodifiable(_services.where((service) =>
+    _isGlobalAdmin || (_activeEmployeeId != null &&
+      (_employees.firstWhere((item) => item.id == _activeEmployeeId, orElse: () => _employees.first).serviceIds.contains(service.id)))));
+  List<String> get serviceCategories => List.unmodifiable(services.map((service) => service.category).toSet().toList()..sort());
+  List<Employee> get employees => List.unmodifiable(_employees.where((employee) =>
+    _isGlobalAdmin || employee.id == _activeEmployeeId));
+  List<SmsMessage> get smsMessages => List.unmodifiable(_isGlobalAdmin ? _sms : const <SmsMessage>[]);
+  List<ActivityLog> get activityLogs => List.unmodifiable(_isGlobalAdmin ? _logs : const <ActivityLog>[]);
+  List<SmsTemplate> get smsTemplates => List.unmodifiable(_isGlobalAdmin ? _templates : const <SmsTemplate>[]);
+  List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries.where((entry) =>
+    _isGlobalAdmin || (entry.employeeId == _activeEmployeeId &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund))));
+  List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments.where((item) =>
+    _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   List<PayrollAdvance> get payrollAdvances => List.unmodifiable(
     _payrollAdvances.where((item) =>
       currentAccessAccount.roleId == 'global_admin' ||
       item.employeeId == currentAccessAccount.employeeId),
   );
-  List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
+  List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   /// Public wallet collections are row-scoped too; callers cannot bypass walletTransactionsFor.
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(
     _employeeWalletTransactions.where((entry) =>
@@ -103,17 +115,17 @@ class AppDatabase extends ChangeNotifier {
       hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
       hasPermission('finance.settlement.view', employeeId: entry.employeeId)),
   );
-  List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_appointmentPayments);
-  List<BusinessExpense> get businessExpenses => List.unmodifiable(_businessExpenses);
-  List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
-  List<AttendanceRecord> get attendanceRecords => List.unmodifiable(_attendanceRecords);
-  List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments);
-  List<EmployeeNotice> get employeeNotices => List.unmodifiable(_employeeNotices);
+  List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_isGlobalAdmin ? _appointmentPayments : const <AppointmentPayment>[]);
+  List<BusinessExpense> get businessExpenses => List.unmodifiable(_isGlobalAdmin ? _businessExpenses : const <BusinessExpense>[]);
+  List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<AttendanceRecord> get attendanceRecords => List.unmodifiable(_attendanceRecords.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<EmployeeNotice> get employeeNotices => List.unmodifiable(_employeeNotices.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   List<AccessRole> get accessRoles => List.unmodifiable(_accessRoles.values);
-  List<AccessAccount> get accessAccounts => List.unmodifiable(_accessAccounts);
+  List<AccessAccount> get accessAccounts => List.unmodifiable(_isGlobalAdmin ? _accessAccounts : _accessAccounts.where((item) => item.id == currentAccessAccount.id));
   AccessAccount get currentAccessAccount => _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
   String get currentAccessRoleName => _accessRoles[currentAccessAccount.roleId]?.name ?? 'نقش نامشخص';
-  List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values);
+  List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   EmployeePayProfile payProfileFor(String employeeId) {
     requirePermission('finance.salary.view', employeeId: employeeId);
     return _employeePayProfiles[employeeId] ?? EmployeePayProfile(employeeId: employeeId);
@@ -652,7 +664,7 @@ class AppDatabase extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   Appointment? appointmentById(String id) {
     for (final a in _appointments) {
-      if (a.id == id) return a;
+      if (a.id == id && (_isGlobalAdmin || a.employeeId == _activeEmployeeId)) return a;
     }
     return null;
   }
@@ -1493,7 +1505,7 @@ class AppDatabase extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   Customer? customerById(String id) {
     for (final c in _customers) {
-      if (c.id == id) return c;
+      if (c.id == id && (_isGlobalAdmin || _appointments.any((item) => item.employeeId == _activeEmployeeId && item.customerId == id))) return c;
     }
     return null;
   }
@@ -1539,6 +1551,7 @@ class AppDatabase extends ChangeNotifier {
   // خدمات
   // ---------------------------------------------------------------------------
   Service? serviceById(String id) {
+    if (!_isGlobalAdmin && !services.any((item) => item.id == id)) return null;
     for (final s in _services) {
       if (s.id == id) return s;
     }
@@ -1693,6 +1706,7 @@ class AppDatabase extends ChangeNotifier {
   // پرسنل
   // ---------------------------------------------------------------------------
   Employee? employeeById(String id) {
+    if (!_isGlobalAdmin && id != _activeEmployeeId) return null;
     for (final e in _employees) {
       if (e.id == id) return e;
     }
