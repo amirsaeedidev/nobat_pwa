@@ -737,6 +737,8 @@ List<List> _navIcon(NavDestination destination) {
       return HugeIcons.strokeRoundedGroup;
     case '/my-wallet':
       return HugeIcons.strokeRoundedWallet01;
+    case '/my-leaves':
+      return HugeIcons.strokeRoundedCalendar03;
     case '/sms':
       return HugeIcons.strokeRoundedMessage01;
     case '/reports':
