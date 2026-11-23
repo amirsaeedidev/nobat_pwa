@@ -106,9 +106,6 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
   String _periodLabel() => '${JalaliDate.fromDateTime(_from).numeric} تا ${JalaliDate.fromDateTime(_to.subtract(const Duration(days: 1))).numeric}';
 
   Future<void> _exportPdf(Employee employee, EmployeeAnalytics report) async {
-    final rows = <List<String>>[
-      ['شاخص', 'مقدار'],
-      ['  Future<void> _exportPdf(Employee employee, EmployeeAnalytics report) async {
     try {
       final rows = <List<String>>[
         ['شاخص', 'مقدار'],
@@ -122,7 +119,7 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
         ['سهم مجموعه', _money(report.companyShare)],
         ['میانگین مبلغ هر نوبت', _money(report.averageTicket)],
         ['مشتریان یکتا', FaNum.ofInt(report.uniqueCustomers)],
-        ['استفاده از ظرفیت برنامه', '\${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪'],
+        ['استفاده از ظرفیت برنامه', '${FaNum.convert(report.utilizationRate.toStringAsFixed(1))}٪'],
         ['ساعات حضور واقعی', FaNum.ofInt(report.actualWorkedMinutes ~/ 60)],
         ['روزهای حضور', FaNum.ofInt(report.attendanceDays)],
         ['غیبت', FaNum.ofInt(report.absentDays)],
@@ -135,16 +132,16 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
           ['پرداخت حقوق', _money(report.salaryPaid)],
           ['مانده کیف پول', _money(report.salaryBalance)],
         ],
-        ...report.services.map((s) => ['خدمت: \${s.name}', _money(s.revenue)]),
-        ...report.services.map((s) => ['کمیسیون خدمت: \${s.name}', _money(s.commission)]),
+        ...report.services.map((s) => ['خدمت: ${s.name}', _money(s.revenue)]),
+        ...report.services.map((s) => ['کمیسیون خدمت: ${s.name}', _money(s.commission)]),
       ];
       final bytes = await PdfTableDocumentBuilder.build(
         title: 'گزارش عملکرد پرسنل',
-        subtitle: '\${employee.fullName} — \${_periodLabel()} — سامانه DateTime',
+        subtitle: '${employee.fullName} — ${_periodLabel()} — سامانه DateTime',
         sections: [{'title': 'شاخص‌های عملکرد', 'rows': rows}],
       );
       await FileSaver.instance.saveFile(
-        name: 'گزارش-عملکرد-\${employee.id}',
+        name: 'گزارش-عملکرد-${employee.id}',
         bytes: bytes,
         fileExtension: 'pdf',
         mimeType: MimeType.custom,
@@ -152,7 +149,7 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
       );
       if (mounted) AppToast.show(context, 'فایل PDF آماده شد.');
     } catch (error) {
-      if (mounted) AppToast.show(context, 'ساخت PDF ناموفق بود: \$error', success: false);
+      if (mounted) AppToast.show(context, 'ساخت PDF ناموفق بود: ${error}', success: false);
     }
   }
 

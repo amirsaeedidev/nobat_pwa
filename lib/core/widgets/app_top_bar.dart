@@ -205,9 +205,9 @@ class _DateTimeLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'DATADATE',
+      label: 'DateTime',
       header: true,
-      child: const SizedBox(
+      child: SizedBox(
         height: 40,
         child: Align(
           alignment: Alignment.centerLeft,
