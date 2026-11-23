@@ -140,7 +140,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                   title: Text('درخواست تسویه • ${Fmt.money(request.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   subtitle: Text('${request.description} • ${Fmt.jalaliDate(request.requestedAt)}', style: const TextStyle(fontSize: 10)),
                   trailing: canReviewRequests && request.status == EmployeeWalletRequestStatus.pending
-                      ? Wrap(mainAxisSize: MainAxisSize.min, children: [
+                      ? Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(tooltip: 'تأیید درخواست', onPressed: () => db.reviewWalletSettlementRequest(request.id, EmployeeWalletRequestStatus.approved), icon: const Icon(Icons.check_circle_outline, color: Colors.green)),
                           IconButton(tooltip: 'رد درخواست', onPressed: () => db.reviewWalletSettlementRequest(request.id, EmployeeWalletRequestStatus.rejected), icon: const Icon(Icons.cancel_outlined, color: Colors.red)),
                         ])
