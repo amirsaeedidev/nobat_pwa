@@ -11,7 +11,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
   SupabaseAuthStateNotifier(this._authRepository, this._dataRepository) {
     if (_authRepository == null || _dataRepository == null) return;
 
-    _subscription = _authRepository!.onAuthStateChange.listen(
+    _subscription = _authRepository.onAuthStateChange.listen(
       (state) {
         if (state.session == null) {
           _clearMembership();
@@ -25,7 +25,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
       },
     );
 
-    if (_authRepository!.currentUser != null) {
+    if (_authRepository.currentUser != null) {
       unawaited(verifyMembership().then<void>((_) {}));
     }
   }
