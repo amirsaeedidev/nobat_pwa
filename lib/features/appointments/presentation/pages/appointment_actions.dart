@@ -13,15 +13,13 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
   final pal = context.pal;
   final provider = context.read<AppointmentsProvider>();
   final db = context.read<AppDatabase>();
-  final canConfirm = appointment.status == AppointmentStatus.pending &&
+  final canConfirm = appointment.status == AppointmentStatus.pending && db.canViewEmployee(appointment.employeeId) &&
       db.hasPermission('appointments.confirm', employeeId: appointment.employeeId);
-  final canReject = appointment.status == AppointmentStatus.pending &&
+  final canReject = appointment.status == AppointmentStatus.pending && db.canViewEmployee(appointment.employeeId) &&
       db.hasPermission('appointments.reject', employeeId: appointment.employeeId);
-  final canComplete = appointment.status != AppointmentStatus.completed &&
-      appointment.status != AppointmentStatus.cancelled &&
+  final canComplete = appointment.status == AppointmentStatus.confirmed && db.canViewEmployee(appointment.employeeId) &&
       db.hasPermission('appointments.complete', employeeId: appointment.employeeId);
-  final canCancel = appointment.status != AppointmentStatus.completed &&
-      appointment.status != AppointmentStatus.cancelled &&
+  final canCancel = appointment.status != AppointmentStatus.completed && appointment.status != AppointmentStatus.cancelled && db.canViewEmployee(appointment.employeeId) &&
       db.hasPermission('appointments.cancel', employeeId: appointment.employeeId);
   await showAppSheet<void>(
     context,
@@ -56,7 +54,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               if (context.mounted) AppToast.show(context, 'نوبت تکمیل شد');
             },
           ),
-          if (canComplete) ListTile(
+          if (canComplete && db.hasPermission('appointments.edit', employeeId: appointment.employeeId)) ListTile(
             leading: Icon(Icons.person_off_rounded, color: pal.warning, size: 20),
             title: const Text('ثبت عدم حضور'),
             onTap: () async {
