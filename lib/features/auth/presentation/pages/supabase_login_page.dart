@@ -41,6 +41,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
       return;
     }
 
+    final sessionNotifier = context.read<SupabaseAuthStateNotifier>();
     setState(() {
       _isSubmitting = true;
       _message = null;
@@ -53,16 +54,14 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
         password: _passwordController.text,
       );
 
-      final session = context.read<SupabaseAuthStateNotifier>();
-      final allowed = await session.verifyMembership();
+      final allowed = await sessionNotifier.verifyMembership();
+      if (!mounted) return;
       if (!allowed) {
-        if (mounted) {
-          setState(() {
-            _message = session.verificationError ??
-                'این حساب اجازه ورود به مجموعه را ندارد.';
-          });
-        }
-      } else if (mounted) {
+        setState(() {
+          _message = sessionNotifier.verificationError ??
+              'این حساب اجازه ورود به مجموعه را ندارد.';
+        });
+      } else {
         context.go('/dashboard');
       }
     } catch (error) {
