@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../data/mock/app_database.dart';
+import '../../core/services/supabase_auth_state_notifier.dart';
+import '../../data/repositories/supabase_auth_repository.dart';
+import '../../features/auth/presentation/pages/supabase_login_page.dart';
 import '../../core/responsive/app_shell.dart';
 import '../../core/widgets/app_buttons.dart';
 import '../../core/widgets/badges.dart';
@@ -46,18 +49,37 @@ import '../../features/sms/presentation/pages/sms_templates_page.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// مسیرهای برنامه؛ ناوبری مستقل از منطق کسب‌وکار.
-GoRouter buildRouter(AppDatabase database) {
+GoRouter buildRouter(
+  AppDatabase database, {
+  SupabaseAuthRepository? authRepository,
+  required SupabaseAuthStateNotifier authStateNotifier,
+}) {
+  final refreshListenable = Listenable.merge([database, authStateNotifier]);
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
-    refreshListenable: database,
+    refreshListenable: refreshListenable,
     redirect: (context, state) {
+      if (authRepository != null) {
+        final isLoginPage = state.uri.path == '/login';
+        if (authRepository.currentUser == null) {
+          return isLoginPage ? null : '/login';
+        }
+        if (!authStateNotifier.hasActiveBusiness) {
+          return isLoginPage ? null : '/login';
+        }
+        if (isLoginPage) return '/dashboard';
+      }
       if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
         return '/appointments';
       }
       return database.canOpenRoute(state.uri.path) ? null : '/access-denied';
     },
     routes: [
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) => const NoTransitionPage(child: SupabaseLoginPage()),
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
         routes: [
