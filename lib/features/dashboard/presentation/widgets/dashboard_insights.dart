@@ -77,20 +77,11 @@ class DashboardInsights extends StatelessWidget {
         valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
       const SizedBox(height: 12),
-      _Chart(title: 'رتبه‌بندی خدمات بر اساس درآمد', subtitle: 'خدمات برتر در یک ماه اخیر', child: AppChart(
+      _Chart(title: 'رتبه‌بندی خدمات بر اساس درآمد', subtitle: 'رتبه‌بندی بر اساس درآمد · ${analytics.range.label}', child: AppChart(
         type: AppChartType.horizontalBar, height: 190,
         points: [for (final item in (analytics.services.toList()
           ..sort((a, b) => b.revenue.compareTo(a.revenue))).take(8))
           AppChartPoint(label: item.name, value: item.revenue)],
-        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
-      )),
-      const SizedBox(height: 12),
-      _Chart(title: 'ترکیب درآمد و هزینه', subtitle: 'سهم هر بخش از مجموع مبالغ ثبت‌شده', child: AppChart(
-        type: AppChartType.donut, height: 148,
-        points: [
-          AppChartPoint(label: 'درآمد', value: analytics.revenue, color: pal.success),
-          AppChartPoint(label: 'هزینه', value: analytics.cost, color: pal.danger),
-        ],
         valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
       const SizedBox(height: 12),
@@ -99,18 +90,6 @@ class DashboardInsights extends StatelessWidget {
         points: [for (final service in analytics.services)
           AppChartPoint(label: service.name, value: service.count, segments: service.employeeCounts)],
         valueFormatter: (v) => FaNum.ofInt(v.round()),
-      )),
-      const SizedBox(height: 12),
-      _Chart(title: 'مقایسه درآمد و هزینه', subtitle: 'روند بازه انتخاب‌شده', child: AppChart(
-        type: AppChartType.bar, height: 205,
-        points: [for (final e in analytics.trend) AppChartPoint(label: e.label, value: e.revenue)],
-        series: [
-          AppChartSeries(name: 'درآمد', color: pal.success,
-            values: [for (final e in analytics.trend) e.revenue]),
-          AppChartSeries(name: 'هزینه', color: pal.danger,
-            values: [for (final e in analytics.trend) e.cost]),
-        ],
-        valueFormatter: (v) => Fmt.compactMoney(v.toDouble()),
       )),
       const SizedBox(height: 12),
       _Chart(title: 'روند جذب مشتری', subtitle: 'مشتریان جدید در هر بازه', child: AppChart(

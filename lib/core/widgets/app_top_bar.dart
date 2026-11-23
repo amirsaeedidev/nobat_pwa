@@ -47,7 +47,7 @@ class AppTopBar extends StatelessWidget {
     return LiquidGlassLayer(
       settings: LiquidGlassSettings.ios27Regular(
         brightness: Theme.of(context).brightness,
-        tintAmount: 0.58,
+        tintAmount: 0.46,
       ),
       defaultAppearance: LiquidGlassAppearance.ios27Regular(
         brightness: Theme.of(context).brightness,
@@ -63,8 +63,8 @@ class AppTopBar extends StatelessWidget {
         ],
         child: Container(
           decoration: BoxDecoration(
-            color: pal.backgroundAlt.withValues(alpha: 0.12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
+            color: pal.backgroundAlt.withValues(alpha: 0.085),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
             borderRadius: BorderRadius.circular(22),
           ),
           child: SafeArea(
