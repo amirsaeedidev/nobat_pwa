@@ -6,7 +6,6 @@ import '../../../../app/theme/app_palette.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
-import '../providers/settings_provider.dart';
 
 /// مرکز تنظیمات؛ دسترسی به همه پیکربندی‌ها و ماژول‌های مدیریتی.
 class SettingsPage extends StatelessWidget {
@@ -14,9 +13,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
     final pal = context.pal;
-    final business = settings.settings;
 
     final items = <_SettingEntry>[
       _SettingEntry('تعویض تم', 'انتخاب تم کلی برنامه و تم مستقل فرم‌ها', Icons.palette_rounded, pal.primaryBright, '/settings/appearance'),
