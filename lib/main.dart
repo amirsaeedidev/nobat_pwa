@@ -19,7 +19,6 @@ import 'data/repositories/settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
 import 'features/appointments/presentation/providers/appointments_provider.dart';
-import 'features/booking/presentation/providers/booking_provider.dart';
 import 'features/calendar/presentation/providers/calendar_provider.dart';
 import 'features/customers/presentation/providers/customers_provider.dart';
 import 'features/dashboard/presentation/providers/dashboard_provider.dart';
@@ -126,15 +125,6 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database)),
         ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database)),
         ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database)),
-        ChangeNotifierProvider(
-          create: (_) => BookingProvider(
-            appointmentRepository,
-            serviceRepository,
-            employeeRepository,
-            customerRepository,
-            database,
-          ),
-        ),
       ],
       child: const DateTimeApp(),
     ),
