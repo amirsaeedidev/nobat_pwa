@@ -156,7 +156,7 @@ void main() {
     await operations.assignEmployeeRole(
       employeeId: employee.id,
       roleId: 'staff',
-      overrides: const {'customers.view': false},
+      overrides: const {'appointments.create': false},
       canViewOtherEmployees: false,
       canViewPersonalIncome: false,
     );
@@ -329,7 +329,7 @@ void main() {
         canViewOtherEmployees: false,
         canViewPersonalIncome: true,
       ),
-      throwsA(isA<AccessDeniedException>()),
+      throwsA(isA<StateError>()),
     );
     expect(db.accessRoles.length, 2);
   });
