@@ -25,10 +25,8 @@ class _PermissionsPageState extends State<PermissionsPage> {
     final db = context.watch<AppDatabase>();
     final pal = context.pal;
     final staffRole = db.accessRoleById('staff')!;
-    final adminEmployeeId = db.accessAccounts
-        .where((account) => account.roleId == 'global_admin')
-        .map((account) => account.employeeId)
-        .firstOrNull;
+    final adminAccounts = db.accessAccounts.where((account) => account.roleId == 'global_admin').toList();
+    final adminEmployeeId = adminAccounts.isEmpty ? null : adminAccounts.first.employeeId;
     final employees = db.employees.where((employee) => employee.id != adminEmployeeId).toList();
     final selectedEmployee = employees.firstWhere(
       (employee) => employee.id == _selectedEmployeeId,
