@@ -165,7 +165,6 @@ class CalendarPage extends StatelessWidget {
               ],
             ),
           const SizedBox(height: 12),
-          const PublicBookingHint(),
           const SizedBox(height: 6),
           Text(
             'تعطیلات هفتگی: ${context.watch<CalendarProvider>().isHoliday(JalaliDate.today()) ? 'امروز تعطیل است' : 'بر اساس تنظیمات مجموعه'}',
