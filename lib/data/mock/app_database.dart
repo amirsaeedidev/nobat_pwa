@@ -522,7 +522,6 @@ class AppDatabase extends ChangeNotifier {
       if (parts.contains('schedule')) return hasPermission('employees.edit', employeeId: employeeId);
       if (parts.contains('attendance')) return hasPermission('employees.edit', employeeId: employeeId);
       if (parts.contains('analytics')) return hasPermission('finance.income.view', employeeId: employeeId);
-      if (parts.contains('analytics')) return canViewEmployeeIncome(employeeId);
       if (parts.contains('edit')) return canViewEmployee(employeeId) && hasPermission('employees.edit');
       return canViewEmployee(employeeId) && hasPermission('employees.view_profile');
     }
@@ -556,7 +555,7 @@ class AppDatabase extends ChangeNotifier {
     if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
     if (path == '/my-wallet') {
       final employeeId = currentAccessAccount.employeeId;
-      return employeeId != null && canViewEmployeeIncome(employeeId);
+      return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
     if (path == '/appointments' || path == '/calendar') return hasPermission('appointments.view_all') || hasPermission('appointments.view_self');
     if (path == '/customers') return hasPermission('customers.view');
@@ -607,9 +606,6 @@ class AppDatabase extends ChangeNotifier {
     }
     if (_accessAccounts.any((account) => account.employeeId == employeeId && account.roleId == 'global_admin')) {
       throw AccessDeniedException('حساب مدیر کل از مدیریت دسترسی پرسنل جدا است.');
-    }
-    if (roleId == 'global_admin' && currentAccessAccount.roleId != 'global_admin') {
-      throw AccessDeniedException('فقط مدیر کل می‌تواند نقش مدیر کل را اختصاص دهد.');
     }
     final previous = _accessAssignments[employeeId];
     final nextOverrides = Map<String, bool>.fromEntries(overrides.entries.where((entry) => AccessPermission.ids.contains(entry.key)));
