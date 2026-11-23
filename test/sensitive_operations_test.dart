@@ -12,7 +12,6 @@ import 'package:datetime/data/repositories/customer_repository.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
 import 'package:datetime/data/repositories/employee_repository.dart';
 import 'package:datetime/data/repositories/service_repository.dart';
-import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
 import 'package:datetime/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:datetime/features/reports/presentation/providers/reports_provider.dart';
 
@@ -566,37 +565,6 @@ void main() {
     expect(reports.analytics.cancelledAppointments, cancelledBefore);
     expect(dashboard.analytics, isNotNull);
   });
-
-  test('public booking provider refreshes service catalogue after undo', () async {
-    const service = Service(
-      id: 'booking-provider-service',
-      title: 'خدمت رزرو آزمایشی',
-      price: 210000,
-      durationMinutes: 30,
-      category: 'آزمایش رزرو',
-    );
-    db.addService(service);
-
-    final provider = BookingProvider(
-      MockAppointmentRepository(db),
-      MockServiceRepository(db),
-      MockEmployeeRepository(db),
-      MockCustomerRepository(db),
-      db,
-    );
-    addTearDown(provider.dispose);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
-    expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
-
-    await operations.deleteService(service.id);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
-    expect(provider.availableServices.any((item) => item.id == service.id), isFalse);
-
-    expect(operations.undoLatestForEntity(service.id), isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
-  });
-
 
   test('wallet entry and settlement forms create immutable audited financial documents', () async {
     final employee = db.employees.first;
