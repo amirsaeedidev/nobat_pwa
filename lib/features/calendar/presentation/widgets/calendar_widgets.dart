@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../app/theme/app_tokens.dart';
@@ -556,39 +555,6 @@ class DayTimeline extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// دکمه‌های ناوبری سریع به صفحه رزرو.
-class PublicBookingHint extends StatelessWidget {
-  const PublicBookingHint({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.pal;
-    return AppCard(
-      color: pal.primary.withValues(alpha: 0.08),
-      borderColor: pal.primary.withValues(alpha: 0.3),
-      child: Row(
-        children: [
-          IconTile(icon: Icons.public_rounded, color: pal.primaryBright, size: 36, radius: 11),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('لینک رزرو اختصاصی شما',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-                Text('datetime.app/book/datetime-salon',
-                    textDirection: TextDirection.ltr,
-                    style: TextStyle(fontSize: 10, color: pal.textMuted)),
-              ],
-            ),
-          ),
-          SoftButton(label: 'مشاهده', dense: true, onTap: () => context.push('/book')),
-        ],
-      ),
     );
   }
 }
