@@ -97,6 +97,8 @@ void main() {
       final db = AppDatabase()..switchMockAccount('demo-staff');
       final available = db.walletSummaryFor('emp-zahra').payableBalance;
       expect(available, greaterThan(0));
+      final available = db.walletSummaryFor('emp-zahra').payableBalance;
+      expect(available, greaterThan(0));
       db.requestWalletSettlement(EmployeeWalletSettlementRequest(
         id: 'settlement-request-test',
         employeeId: 'emp-zahra',
