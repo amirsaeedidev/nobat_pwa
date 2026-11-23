@@ -6,12 +6,8 @@ class AccessPermission {
   final String label;
 
   static const all = <AccessPermission>[
-    AccessPermission('employees.view_list', 'پرسنل', 'مشاهده فهرست پرسنل'),
-    AccessPermission('employees.create', 'پرسنل', 'افزودن پرسنل'),
-    AccessPermission('employees.edit', 'پرسنل', 'ویرایش اطلاعات پرسنل'),
-    AccessPermission('employees.deactivate', 'پرسنل', 'غیرفعال‌سازی پرسنل'),
-    AccessPermission('employees.view_profile', 'پرسنل', 'مشاهده پروفایل پرسنل'),
-    AccessPermission('appointments.view_all', 'نوبت‌ها', 'مشاهده تمام نوبت‌ها'),
+    AccessPermission('employees.view_profile', 'پرسنل', 'مشاهده پروفایل شخصی'),
+    AccessPermission('employees.leave.request', 'پرسنل', 'ثبت درخواست مرخصی'),
     AccessPermission('appointments.view_self', 'نوبت‌ها', 'مشاهده نوبت‌های خود'),
     AccessPermission('appointments.confirm', 'نوبت‌ها', 'تأیید نوبت‌های خود'),
     AccessPermission('appointments.reject', 'نوبت‌ها', 'رد نوبت‌های خود'),
@@ -19,25 +15,11 @@ class AccessPermission {
     AccessPermission('appointments.edit', 'نوبت‌ها', 'ویرایش نوبت'),
     AccessPermission('appointments.cancel', 'نوبت‌ها', 'لغو نوبت'),
     AccessPermission('appointments.complete', 'نوبت‌ها', 'تکمیل نوبت'),
-    AccessPermission('customers.view', 'مشتریان', 'مشاهده مشتریان'),
-    AccessPermission('customers.create', 'مشتریان', 'ثبت مشتری'),
-    AccessPermission('customers.edit', 'مشتریان', 'ویرایش اطلاعات مشتری'),
-    AccessPermission('customers.history', 'مشتریان', 'مشاهده سوابق مشتریان'),
-    AccessPermission('finance.income.view', 'مالی', 'مشاهده درآمد'),
-    AccessPermission('finance.commission.view', 'مالی', 'مشاهده پورسانت'),
-    AccessPermission('finance.salary.view', 'مالی', 'مشاهده حقوق'),
-    AccessPermission('finance.payment.create', 'مالی', 'ثبت پرداخت'),
-    AccessPermission('finance.advance.create', 'مالی', 'ثبت مساعده'),
-    AccessPermission('finance.advance.request', 'مالی', 'ثبت درخواست مساعده'),
     AccessPermission('finance.wallet.view', 'مالی', 'مشاهده کیف پول شخصی'),
+    AccessPermission('finance.commission.view', 'مالی', 'مشاهده پورسانت شخصی'),
+    AccessPermission('finance.advance.request', 'مالی', 'ثبت درخواست مساعده'),
     AccessPermission('finance.settlement.request', 'مالی', 'ثبت درخواست تسویه حساب'),
-    AccessPermission('employees.leave.request', 'پرسنل', 'ثبت درخواست مرخصی'),
-    AccessPermission('finance.settlement.view', 'مالی', 'مشاهده تسویه‌ها'),
-    AccessPermission('settings.view', 'تنظیمات', 'مشاهده تنظیمات'),
-    AccessPermission('settings.hours.edit', 'تنظیمات', 'ویرایش ساعت کاری'),
-    AccessPermission('services.manage', 'تنظیمات', 'مدیریت خدمات'),
-    AccessPermission('users.manage', 'تنظیمات', 'مدیریت کاربران'),
-    AccessPermission('permissions.manage', 'تنظیمات', 'مدیریت دسترسی‌ها'),
+
   ];
 
   static List<String> get ids => all.map((permission) => permission.id).toList(growable: false);
