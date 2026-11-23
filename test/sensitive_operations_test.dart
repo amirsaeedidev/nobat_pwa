@@ -8,10 +8,7 @@ import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
 import 'package:datetime/features/activity_logs/presentation/pages/activity_logs_page.dart';
 import 'package:datetime/data/repositories/appointment_repository.dart';
-import 'package:datetime/data/repositories/customer_repository.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
-import 'package:datetime/data/repositories/employee_repository.dart';
-import 'package:datetime/data/repositories/service_repository.dart';
 import 'package:datetime/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:datetime/features/reports/presentation/providers/reports_provider.dart';
 
