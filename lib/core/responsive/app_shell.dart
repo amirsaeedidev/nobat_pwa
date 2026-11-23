@@ -9,7 +9,6 @@ import '../../app/theme/app_tokens.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
 import '../../data/mock/app_database.dart';
 import '../utils/fa_num.dart';
-import '../widgets/app_card.dart';
 import '../widgets/badges.dart';
 import 'nav_destinations.dart';
 
@@ -504,18 +503,7 @@ class AppSidebar extends StatelessWidget {
                       expanded: expanded,
                       onTap: () => onSelect(i),
                     ),
-                  const SizedBox(height: 14),
-                  if (expanded)
-                    _BookingLinkCard(onTap: () => context.push('/book'))
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: IconButton(
-                        tooltip: 'صفحه رزرو عمومی',
-                        onPressed: () => context.push('/book'),
-                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedHome01, color: Colors.blue),
-                      ),
-                    ),
+
                 ],
               ),
             ),
@@ -656,98 +644,5 @@ class _SidebarItem extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _BookingLinkCard extends StatelessWidget {
-  const _BookingLinkCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.pal;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [pal.primary.withValues(alpha: 0.22), pal.purple.withValues(alpha: 0.12)],
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: pal.primary.withValues(alpha: 0.35)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.public_rounded, size: 15, color: pal.primaryBright),
-                const SizedBox(width: 6),
-                Expanded(child: Text(
-                  'صفحه رزرو عمومی',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                )),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'datetime.app/book',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textDirection: TextDirection.ltr,
-              style: TextStyle(fontSize: 10, color: pal.textMuted),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'مشاهده صفحه مشتری',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: pal.primaryBright, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// نمایش شماره صفحه‌ها برای هدر‌ها.
-String faCount(int value) => FaNum.ofInt(value);
-
-/// آیکون هر مقصد بر اساس مسیر؛ مستقل از ترتیب فیلترشدن دسترسی‌ها.
-List<List> _navIcon(NavDestination destination) {
-  switch (destination.route) {
-    case '/dashboard':
-      return HugeIcons.strokeRoundedHome01;
-    case '/appointments':
-      return HugeIcons.strokeRoundedCalendarCheckIn01;
-    case '/calendar':
-      return HugeIcons.strokeRoundedCalendar03;
-    case '/customers':
-      return HugeIcons.strokeRoundedUser;
-    case '/services':
-      return HugeIcons.strokeRoundedScissor;
-    case '/employees':
-      return HugeIcons.strokeRoundedGroup;
-    case '/my-wallet':
-      return HugeIcons.strokeRoundedWallet01;
-    case '/my-leaves':
-      return HugeIcons.strokeRoundedCalendar03;
-    case '/sms':
-      return HugeIcons.strokeRoundedMessage01;
-    case '/reports':
-      return HugeIcons.strokeRoundedChartColumnDots;
-    case '/activity':
-      return HugeIcons.strokeRoundedActivity01;
-    case '/settings':
-      return HugeIcons.strokeRoundedSettings01;
-    default:
-      return HugeIcons.strokeRoundedHome01;
   }
 }
