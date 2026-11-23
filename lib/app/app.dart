@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../features/settings/presentation/providers/settings_provider.dart';
 import '../data/mock/app_database.dart';
+import '../core/services/supabase_auth_state_notifier.dart';
+import '../data/repositories/supabase_auth_repository.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -16,7 +18,11 @@ class DateTimeApp extends StatefulWidget {
 }
 
 class _DateTimeAppState extends State<DateTimeApp> {
-  late final _router = buildRouter(context.read<AppDatabase>());
+  late final _router = buildRouter(
+    context.read<AppDatabase>(),
+    authRepository: context.read<SupabaseAuthRepository?>(),
+    authStateNotifier: context.read<SupabaseAuthStateNotifier>(),
+  );
 
   @override
   Widget build(BuildContext context) {
