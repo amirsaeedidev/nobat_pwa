@@ -125,8 +125,18 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_category.trim().isEmpty) {
+      AppToast.show(context, 'ابتدا یک دسته‌بندی واقعی ایجاد یا انتخاب کنید.', success: false);
+      return;
+    }
     final discountStart = _discountStartsAt.text.trim().isEmpty ? null : DateTime.tryParse(_discountStartsAt.text.trim());
     final discountEnd = _discountEndsAt.text.trim().isEmpty ? null : DateTime.tryParse(_discountEndsAt.text.trim());
+    final discountValue = _discountPrice.text.trim().isEmpty ? null : num.tryParse(FaNum.toLatin(_discountPrice.text));
+    final basePrice = num.tryParse(FaNum.toLatin(_price.text)) ?? 0;
+    if (discountValue != null && (discountValue < 0 || discountValue >= basePrice)) {
+      AppToast.show(context, 'قیمت تخفیفی باید از صفر تا کمتر از قیمت اصلی باشد.', success: false);
+      return;
+    }
     if (discountStart != null && discountEnd != null && discountEnd.isBefore(discountStart)) {
       AppToast.show(context, 'پایان تخفیف نمی‌تواند قبل از شروع آن باشد', success: false);
       return;
