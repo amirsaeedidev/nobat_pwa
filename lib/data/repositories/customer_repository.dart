@@ -2,7 +2,6 @@ import '../../core/models/page_result.dart';
 import '../../core/models/app_failure.dart';
 import '../mock/app_database.dart';
 import '../models/customer.dart';
-import '../models/appointment.dart';
 import '../models/enums.dart';
 import 'operations_repository.dart';
 import 'appointment_repository.dart';
