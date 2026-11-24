@@ -8,7 +8,7 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
-/// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
+/// مدیریت پرسنل و برنامه کاری از طریق مخزن داده فعال.
 class EmployeesProvider extends DbBoundProvider {
   EmployeesProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
@@ -108,17 +108,20 @@ class EmployeesProvider extends DbBoundProvider {
   Future<bool> create(Employee employee) async {
     if (phoneExists(employee.phone)) return false;
     await _repository.create(employee);
+    await load();
     return true;
   }
 
   Future<bool> update(Employee employee) async {
     if (phoneExists(employee.phone, excludingId: employee.id)) return false;
     await _repository.update(employee);
+    await load();
     return true;
   }
 
   Future<bool> remove(String id) async {
     await _repository.delete(id);
+    await load();
     return true;
   }
 
