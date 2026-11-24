@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -45,42 +47,52 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   List<String> _serviceIds = [];
   final Map<int, List<Shift>> _schedule = {};
   bool _saving = false;
-  bool _prefilled = false;
+  bool _loadingExisting = false;
+  String? _loadError;
   Employee? _existing;
 
 
   @override
   void initState() {
     super.initState();
+    if (widget.employeeId != null) {
+      _loadingExisting = true;
+      unawaited(_loadExisting());
+    }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_prefilled) return;
-    _prefilled = true;
-    if (widget.employeeId != null) {
-      final employee = context.read<EmployeesProvider>().byIdSync(widget.employeeId!);
-      if (employee != null) {
-        _existing = employee;
-        _name.text = employee.fullName;
-        _phone.text = employee.phone;
-        _title.text = employee.title;
-        _email.text = employee.email;
-        _specialties.text = employee.specialties.join('، ');
-        _notes.text = employee.notes;
-        _emergencyName.text = employee.emergencyContactName;
-        _emergencyPhone.text = employee.emergencyContactPhone;
-        _avatarAsset.text = employee.avatarAsset;
-        _status = employee.employmentStatus;
-        _startedAt = employee.startedAt;
-        _role = employee.role;
-        _status = employee.employmentStatus;
-        _serviceIds = [...employee.serviceIds];
-        _schedule
-          ..clear()
-          ..addAll(employee.schedule.map((k, v) => MapEntry(k, [...v])));
-      }
+  Future<void> _loadExisting() async {
+    try {
+      final employee = await context.read<EmployeesProvider>().byId(widget.employeeId!);
+      if (!mounted) return;
+      if (employee == null) throw StateError('پروفایل پرسنل در Supabase پیدا نشد یا دسترسی مشاهده آن وجود ندارد.');
+      _existing = employee;
+      _name.text = employee.fullName;
+      _phone.text = employee.phone;
+      _title.text = employee.title;
+      _email.text = employee.email;
+      _specialties.text = employee.specialties.join('، ');
+      _notes.text = employee.notes;
+      _emergencyName.text = employee.emergencyContactName;
+      _emergencyPhone.text = employee.emergencyContactPhone;
+      _avatarAsset.text = employee.avatarAsset;
+      _status = employee.employmentStatus;
+      _startedAt = employee.startedAt;
+      _role = employee.role;
+      _serviceIds = [...employee.serviceIds];
+      _schedule
+        ..clear()
+        ..addAll(employee.schedule.map((key, value) => MapEntry(key, [...value])));
+      setState(() {
+        _loadingExisting = false;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingExisting = false;
+        _loadError = error.toString();
+      });
     }
   }
 
@@ -99,6 +111,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   }
 
   Future<void> _save() async {
+    if (widget.employeeId != null && _existing == null) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     final provider = context.read<EmployeesProvider>();
@@ -154,6 +167,18 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final services = context.watch<ServicesProvider>().items;
+
+    if (_loadingExisting) {
+      return PageScaffold(title: 'ویرایش پرسنل', showBackButton: true,
+        child: const LoadingState(kind: SkeletonKind.personnel));
+    }
+    if (_loadError != null) {
+      return PageScaffold(title: 'ویرایش پرسنل', showBackButton: true,
+        child: ErrorStateView(description: _loadError, onRetry: () {
+          setState(() { _loadingExisting = true; _loadError = null; });
+          unawaited(_loadExisting());
+        }));
+    }
 
     return PageScaffold(
       title: widget.employeeId == null ? 'پرسنل جدید' : 'ویرایش پرسنل',
