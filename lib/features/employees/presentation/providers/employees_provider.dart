@@ -38,7 +38,7 @@ class EmployeesProvider extends DbBoundProvider {
       _items = await _repository.fetchEmployees();
       _loadNotice = null;
     } catch (error) {
-      _items = db.employees;
+      _items = const [];
       _error = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _loadNotice = _error;
     } finally {
