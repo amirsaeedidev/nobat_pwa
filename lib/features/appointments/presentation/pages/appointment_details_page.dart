@@ -73,7 +73,8 @@ class AppointmentDetailsPage extends StatelessWidget {
       );
     }
 
-    final canEdit = hasPermission('appointments.edit');
+    final canEdit = hasPermission('appointments.edit') &&
+        (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed);
     final canConfirm = appointment.status == AppointmentStatus.pending && hasPermission('appointments.confirm');
     final canReject = appointment.status == AppointmentStatus.pending && hasPermission('appointments.reject');
     final canComplete = appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.complete');
