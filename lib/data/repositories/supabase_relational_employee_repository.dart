@@ -239,30 +239,18 @@ class SupabaseRelationalEmployeeRepository implements EmployeeRepository {
   @override
   Future<void> saveScheduleException(EmployeeScheduleException exception) async {
     final tenant = _tenant();
-    final date = exception.dateKey;
-    await _client.from('employee_schedule_exceptions').delete()
-        .eq('business_id', tenant).eq('employee_id', exception.employeeId).eq('work_date', date);
-    if (exception.isClosed) {
-      await _client.from('employee_schedule_exceptions').insert({
-        'business_id': tenant,
-        'employee_id': exception.employeeId,
-        'work_date': date,
-        'is_available': false,
-        'reason': exception.title,
-      });
-      return;
-    }
     EmployeeScheduleRules.validateShifts(exception.shifts);
-    if (exception.shifts.isEmpty) return;
-    await _client.from('employee_schedule_exceptions').insert(exception.shifts.map((shift) => {
-      'business_id': tenant,
-      'employee_id': exception.employeeId,
-      'work_date': date,
-      'is_available': true,
-      'starts_at': shift.start,
-      'ends_at': shift.end,
-      'reason': exception.title,
-    }).toList());
+    await _client.rpc('replace_employee_schedule_exception', params: {
+      'p_business_id': tenant,
+      'p_employee_id': exception.employeeId,
+      'p_work_date': exception.dateKey,
+      'p_is_closed': exception.isClosed,
+      'p_reason': exception.title,
+      'p_shifts': exception.isClosed ? const [] : exception.shifts.map((shift) => {
+        'starts_at': shift.start,
+        'ends_at': shift.end,
+      }).toList(growable: false),
+    });
   }
 
   @override
