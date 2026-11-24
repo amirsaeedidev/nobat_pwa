@@ -52,8 +52,22 @@ abstract class DbBoundProvider extends ChangeNotifier {
   /// state changes. Feature providers can invalidate tenant-scoped caches.
   @protected
   void onAuthContextChanged() {
+    if (hasVerifiedBusinessMembership) {
+      onAuthenticatedTenantChanged();
+    } else {
+      onTenantContextCleared();
+    }
     notifyListeners();
   }
+
+  /// Reload tenant-owned records after a new user/business/role is verified.
+  @protected
+  void onAuthenticatedTenantChanged() {}
+
+  /// Drop all previously visible tenant data as soon as auth is lost or
+  /// membership verification becomes uncertain.
+  @protected
+  void onTenantContextCleared() {}
 
   @protected
   void onDatabaseChanged() {}
