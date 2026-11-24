@@ -308,7 +308,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                               label: 'دسته‌بندی',
                               items: categories,
                               value: categories.contains(_category) ? _category : (categories.isEmpty ? null : categories.first),
-                              onChanged: categories.isEmpty ? null : (v) => setState(() => _category = v ?? _category),
+                              onChanged: (v) { if (v != null) setState(() => _category = v); },
                             ),
                           ),
                         ],
