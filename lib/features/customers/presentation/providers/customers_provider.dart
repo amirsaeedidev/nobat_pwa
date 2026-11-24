@@ -61,6 +61,7 @@ class CustomersProvider extends DbBoundProvider {
     _loading = false;
     _loadNotice = null;
     _busy = false;
+    _showArchived = false;
   }
 
   @override
