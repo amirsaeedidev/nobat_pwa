@@ -42,9 +42,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppointmentsProvider>();
-    final auth = context.watch<SupabaseAuthStateNotifier>();
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
     bool hasPermission(String permission) =>
-        auth.hasActiveBusiness &&
+        auth != null && auth.hasActiveBusiness &&
         (auth.role == 'owner' || auth.permissions[permission] == true);
     final canCreate = hasPermission('appointments.create');
     final canEdit = hasPermission('appointments.edit');
