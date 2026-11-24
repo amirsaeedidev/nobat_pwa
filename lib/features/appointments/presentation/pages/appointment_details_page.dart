@@ -59,10 +59,10 @@ class AppointmentDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AppointmentsProvider>();
     final appointment = provider.appointmentById(appointmentId);
-    final auth = context.watch<SupabaseAuthStateNotifier>();
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
     final pal = context.pal;
     bool hasPermission(String permission) =>
-        auth.hasActiveBusiness &&
+        auth != null && auth.hasActiveBusiness &&
         (auth.role == 'owner' || auth.permissions[permission] == true);
 
     if (appointment == null) {
