@@ -6,6 +6,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
@@ -330,6 +331,8 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
+    final auth = context.watch<SupabaseAuthStateNotifier>();
+    final canManageSchedule = auth.role == 'owner' || auth.permissions['employees.schedule.manage'] == true;
     final employee = provider.byIdSync(widget.employeeId);
     final pal = context.pal;
     if (employee == null) {
@@ -356,7 +359,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
           subtitle: employee.fullName,
           icon: Icons.calendar_month_rounded,
           showBackButton: true,
-          actions: [SoftButton(label: employee.scheduleEnabled ? 'برنامه فعال' : 'برنامه غیرفعال', icon: Icons.toggle_on_rounded,
+          actions: [if (canManageSchedule) SoftButton(label: employee.scheduleEnabled ? 'برنامه فعال' : 'برنامه غیرفعال', icon: Icons.toggle_on_rounded,
             onTap: () => _saveEmployee(employee, enabled: !employee.scheduleEnabled))],
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Wrap(spacing: 8, runSpacing: 8, children: [
@@ -371,29 +374,29 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
                 const SectionHeader(title: 'تنظیمات برنامه'),
                 Material(color: Colors.transparent, child: SwitchListTile(contentPadding: EdgeInsets.zero,
                   title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled,
-                  onChanged: (value) => _saveEmployee(employee, enabled: value))),
+                  onChanged: canManageSchedule ? (value) => _saveEmployee(employee, enabled: value) : null)),
                 Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 8, runSpacing: 4, children: [
                     const Text('فاصله بین نوبت‌ها', style: TextStyle(fontSize: 12)),
                     DropdownButton<int>(value: employee.bufferMinutes,
                       items: [0, 5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقیقه'))).toList(),
-                      onChanged: (value) { if (value != null) _saveEmployee(employee, bufferMinutes: value); }),
+                      onChanged: canManageSchedule ? (value) { if (value != null) _saveEmployee(employee, bufferMinutes: value); } : null),
                   ]),
               ])),
               const SizedBox(height: 10),
               for (var day = 0; day < 7; day++)
                 AppCard(margin: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SectionHeader(title: WeekDay.names[day], actionLabel: 'افزودن شیفت', onAction: () => _addShift(employee, day)),
+                  SectionHeader(title: WeekDay.names[day], actionLabel: canManageSchedule ? 'افزودن شیفت' : null, onAction: canManageSchedule ? () => _addShift(employee, day) : null),
                   const SizedBox(height: 8),
                   if (employee.shiftsFor(day).isEmpty)
                     Text('روز تعطیل', style: TextStyle(color: pal.textMuted, fontSize: 12))
                   else Wrap(spacing: 6, runSpacing: 6, children: [
                     for (final shift in employee.shiftsFor(day))
-                      InputChip(label: Text(shift.label), onDeleted: () => _removeShift(employee, day, shift)),
+                      InputChip(label: Text(shift.label), onDeleted: canManageSchedule ? () => _removeShift(employee, day, shift) : null),
                   ]),
                 ])),
             ] else if (_tab == 1) ...[
-              SectionHeader(title: 'استثناهای تاریخ‌دار', actionLabel: 'افزودن', onAction: () => _addException(employee)),
+              SectionHeader(title: 'استثناهای تاریخ‌دار', actionLabel: canManageSchedule ? 'افزودن' : null, onAction: canManageSchedule ? () => _addException(employee) : null),
               const SizedBox(height: 8),
               if (exceptions.isEmpty) const EmptyState(compact: true, title: 'استثنایی ثبت نشده')
               else for (final item in exceptions)
@@ -405,7 +408,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
                     Text(DateTime.tryParse(item.dateKey) == null ? item.dateKey : Fmt.jalaliDate(DateTime.parse(item.dateKey)), style: TextStyle(color: pal.textMuted, fontSize: 11)),
                     Text(item.isClosed ? 'تعطیل کامل' : item.shifts.map((s) => s.label).join('، '), style: const TextStyle(fontSize: 11)),
                   ])),
-                  IconButton(onPressed: () => _deleteException(item), icon: const Icon(Icons.delete_outline_rounded)),
+                  if (canManageSchedule) IconButton(onPressed: () => _deleteException(item), icon: const Icon(Icons.delete_outline_rounded)),
                 ])),
             ] else ...[
               SectionHeader(title: 'درخواست‌ها و مرخصی‌ها', actionLabel: 'ثبت مرخصی', onAction: () => _addLeave(employee)),
