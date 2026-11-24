@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/utils/jalali.dart';
@@ -118,6 +119,23 @@ class DashboardProvider extends DbBoundProvider {
     _stats = await _repository.fetchStats(period: period);
     await _loadAnalytics();
     notifyListeners();
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _stats = null;
+    _upcoming = const [];
+    _dayAppointments = const [];
+    _revenueSeries = const [];
+    _analytics = null;
+    _comparisonAnalytics = null;
+    _error = false;
+    _failure = null;
+    _loading = false;
   }
 
   @override
