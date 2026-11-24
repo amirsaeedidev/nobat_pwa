@@ -211,7 +211,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                           final canCancel = appointment.status != AppointmentStatus.completed &&
                               appointment.status != AppointmentStatus.cancelled &&
                               hasPermission('appointments.cancel');
-                          final canOpenActions = canConfirm || canReject || canCancel ||
+                          final canDelete = hasPermission('appointments.cancel');
+                          final canOpenActions = canConfirm || canReject || canCancel || canDelete ||
                               (appointment.status == AppointmentStatus.confirmed &&
                                   hasPermission('appointments.complete'));
                           final canEditAppointment = canEdit &&
