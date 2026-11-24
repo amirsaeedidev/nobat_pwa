@@ -197,7 +197,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         configs.add(EmployeeServiceConfig(
           employeeId: employeeId,
           serviceId: serviceId,
-          active: previous?.active ?? true,
+          active: true,
           customPrice: _optionalInteger(fields.price.text, 'قیمت اختصاصی'),
           customDurationMinutes: _optionalInteger(fields.duration.text, 'مدت اختصاصی'),
           commissionRateBps: percent == null ? null : (percent * 100).round(),
