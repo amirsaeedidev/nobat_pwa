@@ -11,6 +11,7 @@ import 'data/repositories/supabase_repository.dart';
 import 'app/app.dart';
 import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
+import 'data/repositories/supabase_activity_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
@@ -22,6 +23,7 @@ import 'data/repositories/service_repository.dart';
 import 'data/repositories/supabase_relational_service_repository.dart';
 import 'data/repositories/settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
+import 'data/repositories/supabase_sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
 import 'features/appointments/presentation/providers/appointments_provider.dart';
 import 'features/calendar/presentation/providers/calendar_provider.dart';
@@ -117,10 +119,13 @@ Future<void> main() async {
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
   );
-  final smsRepository = MockSmsRepository(database);
+  final smsRepository = const SupabaseSmsRepository();
   final settingsRepository = MockSettingsRepository(database);
   final dashboardRepository = MockDashboardRepository(database);
-  final activityRepository = MockActivityRepository(database);
+  final activityRepository = SupabaseActivityRepository(
+    records: supabaseRepository,
+    businessId: () => authStateNotifier.businessId,
+  );
 
   runApp(
     MultiProvider(
