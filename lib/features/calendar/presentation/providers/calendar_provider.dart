@@ -124,9 +124,9 @@ class CalendarProvider extends DbBoundProvider {
       _rangeAppointments = appointments;
     } catch (_) {
       if (generation != _loadGeneration) return;
-      _employeeList = db.employees;
-      _serviceList = db.services;
-      _rangeAppointments = db.appointments;
+      _employeeList = const [];
+      _serviceList = const [];
+      _rangeAppointments = const [];
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
