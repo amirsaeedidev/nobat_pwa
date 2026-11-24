@@ -52,7 +52,7 @@ class CalendarProvider extends DbBoundProvider {
   String? get employeeId => _employeeId;
   String? get serviceId => _serviceId;
   bool get loading => _loading;
-  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => db.employeeOffersService(employee.id, _serviceId!)).toList();
+  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => employee.serviceIds.contains(_serviceId)).toList();
   List<Service> get services => _serviceList;
   List<Appointment> get appointments => _rangeAppointments;
 
