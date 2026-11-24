@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
@@ -10,7 +11,7 @@ import '../../../../data/repositories/appointment_repository.dart';
 
 /// وضعیت صفحه پیشخوان.
 class DashboardProvider extends DbBoundProvider {
-  DashboardProvider(this._repository, AppDatabase db, {AppointmentRepository? appointmentRepository, this.isAdminView = true}) : _appointmentRepository = appointmentRepository, super(db) {
+  DashboardProvider(this._repository, AppDatabase db, {AppointmentRepository? appointmentRepository, this.isAdminView = true, SupabaseAuthStateNotifier? authStateNotifier}) : _appointmentRepository = appointmentRepository, super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
