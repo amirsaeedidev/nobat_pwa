@@ -66,6 +66,30 @@ class SupabaseCustomerRepository implements CustomerRepository {
   Customer _customer(Map<String, dynamic> row) =>
       Customer.fromJson(_customerJson(row));
 
+  Customer _customerListModel(Map<String, dynamic> row) {
+    final customer = _customer(row);
+    final appointments = (row['appointments'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+    final completed = appointments.where((item) => item['status'] == 'completed').toList();
+    final cancelled = appointments.where((item) => item['status'] == 'cancelled' || item['status'] == 'rejected').length;
+    final noShows = appointments.where((item) => item['status'] == 'no_show').length;
+    final visitDates = completed
+        .map((item) => DateTime.tryParse(item['starts_at'] as String? ?? '')?.toLocal())
+        .whereType<DateTime>()
+        .toList();
+    final lastVisit = visitDates.isEmpty
+        ? null
+        : visitDates.reduce((a, b) => a.isAfter(b) ? a : b);
+    return customer.copyWith(
+      visitCount: completed.length,
+      cancelCount: cancelled,
+      noShowCount: noShows,
+      lastVisitAt: lastVisit,
+    );
+  }
+
   Appointment _appointment(Map<String, dynamic> row) {
     final rawCustomer = row['customers'];
     final customer = rawCustomer is Map
