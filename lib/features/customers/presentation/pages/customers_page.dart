@@ -121,7 +121,7 @@ class _CustomersPageState extends State<CustomersPage> {
           if (provider.items.isEmpty && provider.loadNotice != null)
             ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
           else if (provider.items.isEmpty)
-            const EmptyState(
+            EmptyState(
               title: provider.showArchived ? 'مشتری بایگانی‌شده‌ای وجود ندارد' : 'مشتری‌ای یافت نشد',
               description: provider.showArchived ? 'در بایگانی مجموعه مشتری‌ای ثبت نشده است.' : 'شماره یا نام دیگری را جست‌وجو کنید یا مشتری جدید اضافه کنید.',
               icon: Icons.person_search_rounded,
