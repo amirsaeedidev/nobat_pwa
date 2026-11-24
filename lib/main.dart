@@ -98,17 +98,18 @@ Future<void> main() async {
   final supabaseAuthRepository = supabaseClient == null
       ? null
       : SupabaseAuthRepository(supabaseClient);
+  final authStateNotifier = SupabaseAuthStateNotifier(
+    supabaseAuthRepository,
+    supabaseRepository,
+  );
 
   runApp(
     MultiProvider(
       providers: [
         Provider<SupabaseRepository?>.value(value: supabaseRepository),
         Provider<SupabaseAuthRepository?>.value(value: supabaseAuthRepository),
-        ChangeNotifierProvider(
-          create: (_) => SupabaseAuthStateNotifier(
-            supabaseAuthRepository,
-            supabaseRepository,
-          ),
+        ChangeNotifierProvider<SupabaseAuthStateNotifier>.value(
+          value: authStateNotifier,
         ),
         ChangeNotifierProvider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
@@ -119,18 +120,18 @@ Future<void> main() async {
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
-        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
-        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(
-          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database),
+          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database, authStateNotifier: authStateNotifier),
         ),
-        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database)),
-        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database)),
-        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database)),
-        ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database)),
-        ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database)),
-        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database)),
+        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database, authStateNotifier: authStateNotifier)),
       ],
       child: const DateTimeApp(),
     ),
