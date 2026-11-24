@@ -100,7 +100,7 @@ class MockCustomerRepository implements CustomerRepository {
   Future<CustomerProfile?> fetchProfile(String id) async {
     final customer = await findById(id);
     if (customer == null) return null;
-    final appointments = await AppointmentRepository(_db).fetchForCustomer(id);
+    final appointments = await MockAppointmentRepository(_db).fetchForCustomer(id);
     final completed = appointments.where((a) => a.status == AppointmentStatus.completed).toList();
     final cancelled = appointments.where((a) => a.status == AppointmentStatus.cancelled).length;
     final noShow = appointments.where((a) => a.status == AppointmentStatus.noShow).length;
