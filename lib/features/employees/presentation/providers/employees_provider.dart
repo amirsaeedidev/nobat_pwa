@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../data/mock/app_database.dart';
@@ -7,7 +8,7 @@ import '../../../../data/repositories/employee_repository.dart';
 
 /// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
 class EmployeesProvider extends DbBoundProvider {
-  EmployeesProvider(this._repository, AppDatabase db) : super(db) {
+  EmployeesProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
