@@ -52,6 +52,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
   bool get hasActiveBusiness => _status == SupabaseAuthStatus.authenticated;
   bool get isSignedIn => _authRepository?.currentUser != null;
   String? get userId => _userId;
+  String? get userEmail => _authRepository?.currentUser?.email;
   String? get businessId => _businessId;
   String? get businessName => _businessName;
   String? get role => _role;
