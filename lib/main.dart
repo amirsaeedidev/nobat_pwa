@@ -12,6 +12,7 @@ import 'app/app.dart';
 import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
 import 'data/repositories/appointment_repository.dart';
+import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
@@ -104,7 +105,10 @@ Future<void> main() async {
   );
   // These modules are migrated in separate steps; their local repositories
   // now start empty because production AppDatabase is never seeded.
-  final appointmentRepository = MockAppointmentRepository(database);
+  final appointmentRepository = SupabaseRelationalAppointmentRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
   final serviceRepository = SupabaseRelationalServiceRepository(
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
