@@ -12,8 +12,6 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
-import '../../../../data/mock/app_database.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/enums.dart';
 import '../../../services/presentation/providers/services_provider.dart';
@@ -55,9 +53,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
     switch (_sort) {
       case 'start':
         filtered.sort((a, b) => (b.startedAt ?? DateTime(1900)).compareTo(a.startedAt ?? DateTime(1900)));
-        break;
-      case 'performance':
-        filtered.sort((a, b) => b.bookedCount.compareTo(a.bookedCount));
         break;
       default:
         filtered.sort((a, b) => a.fullName.compareTo(b.fullName));
@@ -145,7 +140,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
                       items: const [
                         DropdownMenuItem(value: 'name', child: Text('نام')),
                         DropdownMenuItem(value: 'start', child: Text('تاریخ همکاری')),
-                        DropdownMenuItem(value: 'performance', child: Text('تعداد نوبت')),
                       ],
                       onChanged: (value) => setState(() => _sort = value ?? 'name'),
                     )),
@@ -194,19 +188,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
                           try {
                             await provider.remove(employee.id);
                             if (context.mounted) {
-                              final operations = OperationsRepository(context.read<AppDatabase>());
-                              final undoLog = operations.latestUndoableLogFor(employee.id);
-                              if (undoLog != null) {
-                                showUndoableOperationSnackBarForLog(
-                                  context,
-                                  message: 'عملیات پرسنل انجام شد.',
-                                  activityLogId: undoLog.id,
-                                  undo: operations.undo,
-                                  onUndoSuccess: provider.load,
-                                );
-                              } else {
-                                AppToast.show(context, 'عملیات پرسنل انجام شد؛ بازگردانی به‌دلیل سوابق وابسته ممکن نیست.');
-                              }
+                              AppToast.show(context, 'پروفایل پرسنل در Supabase بایگانی شد.');
                             }
                           } catch (error) {
                             if (context.mounted) AppToast.show(context, '$error', success: false);
