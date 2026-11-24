@@ -13,9 +13,9 @@ import '../providers/appointments_provider.dart';
 Future<void> showAppointmentActions(BuildContext context, Appointment appointment) async {
   final pal = context.pal;
   final provider = context.read<AppointmentsProvider>();
-  final auth = context.read<SupabaseAuthStateNotifier>();
+  final auth = context.read<SupabaseAuthStateNotifier?>();
   bool hasPermission(String permission) =>
-      auth.hasActiveBusiness &&
+      auth != null && auth.hasActiveBusiness &&
       (auth.role == 'owner' || auth.permissions[permission] == true);
 
   final canConfirm = appointment.status == AppointmentStatus.pending &&
