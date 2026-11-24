@@ -301,7 +301,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'مجوزهای ورود و مشاهده اطلاعات از بخش مدیریت دسترسی‌ها و بر اساس عضویت واقعی حساب در مجموعه کنترل می‌شود.',
+                    'این فرم حساب ورود نمی‌سازد یا مجوز حساب را تغییر نمی‌دهد؛ برای دسترسی شخصی باید حساب Supabase پرسنل به رکورد پرسنل متصل شود.',
                     style: TextStyle(fontSize: 11, height: 1.7),
                   ),
                 ],
