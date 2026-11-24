@@ -14,7 +14,8 @@ enum EmployeeLeaveType {
 enum EmployeeLeaveStatus {
   pending('در انتظار تأیید'),
   approved('تأیید شده'),
-  rejected('رد شده');
+  rejected('رد شده'),
+  cancelled('لغو شده');
 
   const EmployeeLeaveStatus(this.label);
   final String label;
