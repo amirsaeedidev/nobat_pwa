@@ -84,15 +84,23 @@ class SupabaseDashboardRepository implements DashboardRepository {
       to: monthStart.addMonths(1).toDateTime(),
     );
     final todayItems = all.where((item) => item.jalali.sameDay(today)).toList();
+    final weeklyPayments = await _payments(
+      from: weekStart.toDateTime(),
+      to: weekStart.addDays(7).toDateTime(),
+    );
     final weekly = <WeekdayPerformance>[];
     for (var i = 0; i < 7; i++) {
       final date = weekStart.addDays(i);
       final dayItems = all.where((item) => item.jalali.sameDay(date)).toList();
+      final dayPayments = weeklyPayments.where((row) =>
+        JalaliDate.fromDateTime(DateTime.parse(row['created_at'] as String).toLocal()).sameDay(date));
       weekly.add(WeekdayPerformance(
         label: date.short,
-        percent: dayItems.isEmpty ? 0 : (dayItems.length * 20).clamp(0, 100),
+        // Utilization cannot be truthfully calculated until actual working-hour
+        // capacity has been loaded; keep it unknown rather than estimate it.
+        percent: 0,
         count: dayItems.length,
-        revenue: 0,
+        revenue: _netPayments(dayPayments),
         dateIso: date.iso,
       ));
     }
