@@ -231,5 +231,5 @@ class AppointmentsProvider extends DbBoundProvider {
   /// یافتن همگام (برای فرم‌ها).
   Appointment? appointmentById(String id) => db.appointmentById(id);
 
-  List<Appointment> get allAppointments => db.appointments;
+  List<Appointment> get allAppointments => _page.items;
 }
