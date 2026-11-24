@@ -12,6 +12,18 @@ abstract class ServiceRepository {
 
   Future<void> update(Service service);
 
+  Future<String> saveCatalogItem(Service service, List<EmployeeServiceConfig> configs) async {
+    if (service.id.startsWith('srv-')) {
+      await create(service);
+    } else {
+      await update(service);
+    }
+    for (final config in configs) {
+      await saveEmployeeServiceConfig(config);
+    }
+    return service.id;
+  }
+
   Future<void> delete(String id);
 
   Future<void> toggle(String id, bool isActive);
