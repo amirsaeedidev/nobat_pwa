@@ -149,11 +149,7 @@ class CalendarProvider extends DbBoundProvider {
 
   @override
   void onDatabaseChanged() {
-    _loadGeneration++;
-    _rangeAppointments = db.appointments;
-    _employeeList = db.employees;
-    _serviceList = db.services;
-    notifyListeners();
+    unawaited(load());
   }
 
   /// همه نوبت‌های یک روز (با اعمال فیلترها).
