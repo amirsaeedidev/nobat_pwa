@@ -32,9 +32,9 @@ class SettingsProvider extends DbBoundProvider {
   Color get formAccentColor => formTheme.accent;
   String get formThemeId => _formThemeId;
   String get paletteId => _paletteId;
-  String get ownerName => 'فاطمه رضایی';
-  String get ownerRole => 'مدیر کل';
-  int get totalUnread => 3;
+  String get ownerName => authStateNotifier?.userEmail ?? 'کاربر';
+  String get ownerRole => authStateNotifier?.roleLabel ?? 'بدون نقش';
+  int get totalUnread => 0;
 
   BookingRules get rules => _settings?.bookingRules ?? const BookingRules();
   Map<int, List<Shift>> get workingHours => _settings?.workingHours ?? const {};
