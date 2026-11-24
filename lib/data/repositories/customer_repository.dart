@@ -13,6 +13,7 @@ abstract class CustomerRepository {
     int page = 1,
     int pageSize = 8,
     String sortBy = 'createdAt',
+    bool archivedOnly = false,
   });
 
   Future<List<Customer>> fetchAll({String query = ''});
@@ -33,16 +34,16 @@ class MockCustomerRepository implements CustomerRepository {
 
   final AppDatabase _db;
 
-  List<Customer> _filtered(String query) {
+  List<Customer> _filtered(String query, {bool archivedOnly = false}) {
     _db.requirePermission('customers.view');
     final q = query.trim();
     List<Customer> list;
     if (q.isEmpty) {
-      list = _db.customers.where((customer) => !customer.isArchived).toList();
+      list = _db.customers.where((customer) => customer.isArchived == archivedOnly).toList();
     } else {
       final latin = _toLatin(q);
       list = _db.customers.where((c) {
-        return !c.isArchived && (c.fullName.contains(q) || c.phone.contains(latin) || c.phone.contains(q));
+        return c.isArchived == archivedOnly && (c.fullName.contains(q) || c.phone.contains(latin) || c.phone.contains(q));
       }).toList();
     }
     list.sort((a, b) {
@@ -73,10 +74,11 @@ class MockCustomerRepository implements CustomerRepository {
     int page = 1,
     int pageSize = 8,
     String sortBy = 'createdAt',
+    bool archivedOnly = false,
   }) async {
     return await AppFailure.guard(() async {
       await _db.delay(160);
-      final list = _filtered(query);
+      final list = _filtered(query, archivedOnly: archivedOnly);
       final start = (page - 1) * pageSize;
       if (start >= list.length) {
         return PageResult(items: const [], total: list.length, page: page, pageSize: pageSize);
