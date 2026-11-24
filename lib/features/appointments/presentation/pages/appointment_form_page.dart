@@ -150,15 +150,6 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     }).toList(growable: false);
   }
 
-  bool _isEmployeeScheduled(Employee employee, DateTime start, int durationMinutes) {
-    final shifts = employee.shiftsFor(_date.weekday);
-    if (shifts.isEmpty) return false;
-    final startMinutes = start.hour * 60 + start.minute;
-    final endMinutes = startMinutes + durationMinutes;
-    return shifts.any((shift) =>
-      startMinutes >= shift.startMinutes && endMinutes <= shift.endMinutes);
-  }
-
   Future<void> _pickCustomer() async {
     final customers = await context.read<CustomersProvider>().fetchAll();
     final selected = await showAppSheet<Customer>(
