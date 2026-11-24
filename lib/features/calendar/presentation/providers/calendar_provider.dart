@@ -236,8 +236,10 @@ class CalendarProvider extends DbBoundProvider {
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
     if (employeeId != null) {
-      final employee = _employeeList.where((item) => item.id == employeeId).firstOrNull;
-      return employee == null || employee.shiftsFor(date.weekday).isEmpty;
+      for (final employee in _employeeList) {
+        if (employee.id == employeeId) return employee.shiftsFor(date.weekday).isEmpty;
+      }
+      return true;
     }
     return !_employeeList.any((item) => item.shiftsFor(date.weekday).isNotEmpty);
   }
