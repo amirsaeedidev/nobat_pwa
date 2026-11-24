@@ -1,3 +1,5 @@
+import 'appointment.dart';
+
 /// مشتری (بیمار / مراجع) — آماده برای جدول customers در Supabase.
 class Customer {
   const Customer({
