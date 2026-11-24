@@ -284,8 +284,8 @@ class SupabaseRelationalEmployeeRepository implements EmployeeRepository {
       return EmployeeLeave(
         id: row['id'] as String,
         employeeId: row['employee_id'] as String,
-        startAt: DateTime.parse(row['starts_at'] as String),
-        endAt: DateTime.parse(row['ends_at'] as String),
+        startAt: DateTime.parse(row['starts_at'] as String).toLocal(),
+        endAt: DateTime.parse(row['ends_at'] as String).toLocal(),
         type: typeKey,
         status: statusKey,
         description: row['description'] as String? ?? '',
