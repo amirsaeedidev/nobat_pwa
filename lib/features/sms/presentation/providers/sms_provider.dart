@@ -15,11 +15,12 @@ class SmsProvider extends DbBoundProvider {
   }
 
   final SmsRepository _repository;
+  static const _emptyProvider = SmsProviderSettings(providerName: '', endpoint: '', credit: 0);
 
   PageResult<SmsMessage> _page = PageResult.empty(pageSize: 8);
   SmsStats? _stats;
   List<SmsTemplate> _templates = const [];
-  SmsProviderSettings _provider = const SmsProviderSettings();
+  SmsProviderSettings _provider = _emptyProvider;
   String _query = '';
   SmsStatus? _statusFilter;
   int _pageNumber = 1;
@@ -52,7 +53,7 @@ class SmsProvider extends DbBoundProvider {
       _page = PageResult.empty(pageSize: 8);
       _stats = null;
       _templates = const [];
-      _provider = const SmsProviderSettings();
+      _provider = _emptyProvider;
     } finally {
       _loading = false;
       notifyListeners();
@@ -103,7 +104,14 @@ class SmsProvider extends DbBoundProvider {
     load();
   }
 
-  NotificationSettings get dbSettingsNotifications => db.settings.notifications;
+  NotificationSettings get dbSettingsNotifications => const NotificationSettings(
+    confirmationEnabled: false,
+    reminderEnabled: false,
+    cancellationEnabled: false,
+    rescheduleEnabled: false,
+    reminderHours: [],
+    sendToStaff: false,
+  );
 
   Future<void> saveNotifications(NotificationSettings settings) async {
     await _repository.updateNotifications(settings);
@@ -116,7 +124,7 @@ class SmsProvider extends DbBoundProvider {
 
   Future<void> saveProvider(SmsProviderSettings settings) async {
     await _repository.updateProviderSettings(settings);
-    _provider = db.settings.smsProvider;
+    _provider = await _repository.fetchProviderSettings();
     notifyListeners();
   }
 
@@ -143,7 +151,7 @@ class SmsProvider extends DbBoundProvider {
         phone: phone,
         templateKey: 'test',
         templateLabel: 'پیامک آزمایشی',
-        content: content ?? 'این یک پیامک آزمایشی از سامانه ${db.settings.name} است.',
+        content: content ?? 'پیام از مجموعه ${authStateNotifier?.businessName ?? ''}',
       );
     } finally {
       _sendingTest = false;
