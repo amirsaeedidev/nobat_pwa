@@ -157,6 +157,7 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
         ascending: false,
         customerId: customerId,
       );
+      if (result.items.isEmpty) break;
       all.addAll(result.items);
       total = result.total;
       page++;
