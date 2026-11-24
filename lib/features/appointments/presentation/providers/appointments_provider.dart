@@ -145,7 +145,7 @@ class AppointmentsProvider extends DbBoundProvider {
   }
 
   void clearFilters() {
-    _filter = AppointmentFilter(query: _filter.query);
+    _filter = const AppointmentFilter();
     _pageNumber = 1;
     load();
   }
