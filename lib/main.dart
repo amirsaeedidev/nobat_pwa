@@ -16,7 +16,9 @@ import 'data/repositories/customer_repository.dart';
 import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
+import 'data/repositories/supabase_relational_employee_repository.dart';
 import 'data/repositories/service_repository.dart';
+import 'data/repositories/supabase_relational_service_repository.dart';
 import 'data/repositories/settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
@@ -103,8 +105,14 @@ Future<void> main() async {
   // These modules are migrated in separate steps; their local repositories
   // now start empty because production AppDatabase is never seeded.
   final appointmentRepository = MockAppointmentRepository(database);
-  final serviceRepository = MockServiceRepository(database);
-  final employeeRepository = MockEmployeeRepository(database);
+  final serviceRepository = SupabaseRelationalServiceRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final employeeRepository = SupabaseRelationalEmployeeRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
   final smsRepository = MockSmsRepository(database);
   final settingsRepository = MockSettingsRepository(database);
   final dashboardRepository = MockDashboardRepository(database);
