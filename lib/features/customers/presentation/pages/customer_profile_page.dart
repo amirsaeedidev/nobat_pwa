@@ -101,6 +101,17 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
       }
     }
 
+    Future<void> restoreCustomer() async {
+      try {
+        await context.read<CustomersProvider>().update(customer.copyWith(isArchived: false));
+        if (!context.mounted) return;
+        AppToast.show(context, 'مشتری از بایگانی بازیابی شد.');
+        setState(() => _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId));
+      } catch (error) {
+        if (context.mounted) AppToast.show(context, 'بازیابی مشتری انجام نشد: $error', success: false);
+      }
+    }
+
     return PageScaffold(
       title: 'پروفایل مشتری',
       subtitle: Fmt.phone(customer.phone),
@@ -108,16 +119,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
       showBackButton: true,
       actions: [
         if (customer.isArchived)
-          SoftButton(label: 'بازیابی از بایگانی', icon: Icons.unarchive_rounded, onTap: () async {
-            try {
-              await context.read<CustomersProvider>().update(customer.copyWith(isArchived: false));
-              if (!context.mounted) return;
-              AppToast.show(context, 'مشتری از بایگانی بازیابی شد.');
-              setState(() => _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId));
-            } catch (error) {
-              if (context.mounted) AppToast.show(context, 'بازیابی مشتری انجام نشد: $error', success: false);
-            }
-          })
+          SoftButton(label: 'بازیابی از بایگانی', icon: Icons.unarchive_rounded, onTap: restoreCustomer)
         else
           SoftButton(label: 'حذف / بایگانی', color: pal.danger, onTap: deleteCustomer),
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/customers/${customer.id}/edit')),
@@ -129,7 +131,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
         ),
       ],
       mobileActions: [
-        if (!customer.isArchived) TextButton(onPressed: deleteCustomer, child: const Text('بایگانی')),
+        if (customer.isArchived)\n          TextButton(onPressed: restoreCustomer, child: const Text('بازیابی'))\n        else\n          TextButton(onPressed: deleteCustomer, child: const Text('بایگانی')),
         CircleIconButton(icon: Icons.edit_rounded, size: 38, onTap: () => context.push('/customers/${customer.id}/edit')),
       ],
       child: Column(
