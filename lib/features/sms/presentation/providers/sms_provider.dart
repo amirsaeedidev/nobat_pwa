@@ -48,10 +48,11 @@ class SmsProvider extends DbBoundProvider {
       _templates = await _repository.fetchTemplates();
       _provider = await _repository.fetchProviderSettings();
     } catch (error) {
-      // Keep the seeded in-memory values visible if a mock read fails.
-      _page = PageResult(items: db.smsMessages, total: db.smsMessages.length, page: 1, pageSize: 8);
-      _templates = db.smsTemplates;
-      _provider = db.settings.smsProvider;
+      // A failed remote read is an error, never a reason to display local/demo data.
+      _page = PageResult.empty(pageSize: 8);
+      _stats = null;
+      _templates = const [];
+      _provider = const SmsProviderSettings();
     } finally {
       _loading = false;
       notifyListeners();
