@@ -339,6 +339,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       'OUTSIDE_EXCEPTION_WORKING_HOURS': 'زمان انتخاب‌شده خارج از ساعات کاری استثنایی پرسنل است.',
       'OUTSIDE_EMPLOYEE_WORKING_HOURS': 'زمان انتخاب‌شده خارج از ساعات کاری پرسنل است.',
       'APPOINTMENT_TIME_CONFLICT': 'این بازه با نوبت دیگری یا فاصله استراحت پرسنل تداخل دارد.',
+      'APPOINTMENT_RESCHEDULE_LIMIT_REACHED': 'این نوبت قبلاً یک‌بار جابه‌جا شده و امکان تغییر زمان دوباره وجود ندارد.',
       'SERVICE_DAILY_CAPACITY_REACHED': 'ظرفیت روزانه یکی از خدمات تکمیل شده است.',
       'SERVICE_ADVANCE_BOOKING_LIMIT': 'تاریخ انتخاب‌شده خارج از بازه مجاز رزرو خدمت است.',
       'INVALID_APPOINTMENT_STATUS_TRANSITION': 'تغییر وضعیت انتخاب‌شده مجاز نیست.',
