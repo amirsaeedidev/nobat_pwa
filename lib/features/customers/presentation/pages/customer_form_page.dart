@@ -132,7 +132,10 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
       child: _loadingExisting
           ? const LoadingState(kind: SkeletonKind.customers)
           : _loadError != null
-              ? ErrorStateView(description: _loadError!, onRetry: () {\n                  setState(() => _loadingExisting = true);\n                  _loadExisting();\n                })
+              ? ErrorStateView(description: _loadError!, onRetry: () {
+                  setState(() => _loadingExisting = true);
+                  _loadExisting();
+                })
               : Form(
         key: _formKey,
         child: Column(
