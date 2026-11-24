@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
@@ -26,6 +27,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
   final canCancel = appointment.status != AppointmentStatus.completed &&
       appointment.status != AppointmentStatus.cancelled &&
       hasPermission('appointments.cancel');
+  final canDelete = hasPermission('appointments.cancel');
   final canNoShow = canComplete && hasPermission('appointments.edit');
 
   await showAppSheet<void>(
@@ -115,6 +117,37 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
                   if (context.mounted) {
                     AppToast.show(context, 'لغو نوبت در سرور انجام نشد؛ دسترسی یا وضعیت نوبت را بررسی کنید.', success: false);
                   }
+                }
+              }
+            },
+          ),
+        if (canDelete)
+          ListTile(
+            leading: Icon(Icons.delete_outline_rounded, color: pal.danger, size: 20),
+            title: const Text('حذف امن نوبت'),
+            onTap: () async {
+              Navigator.of(context, rootNavigator: true).pop();
+              final confirmed = await showConfirmDialog(
+                context,
+                title: 'حذف امن نوبت',
+                message: 'نوبت از فهرست فعال خارج می‌شود؛ Snapshot خدمات، سوابق و اسناد مالی حذف نخواهند شد.',
+                confirmLabel: 'حذف نوبت',
+                destructive: true,
+                icon: Icons.delete_outline_rounded,
+              );
+              if (!confirmed || !context.mounted) return;
+              try {
+                await provider.delete(appointment.id);
+                if (!context.mounted) return;
+                AppToast.show(context, 'نوبت به‌صورت امن بایگانی شد و در تاریخچه ثبت شد.');
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/appointments');
+                }
+              } catch (error) {
+                if (context.mounted) {
+                  AppToast.show(context, 'حذف امن نوبت انجام نشد: $error', success: false);
                 }
               }
             },
