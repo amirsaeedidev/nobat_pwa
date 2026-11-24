@@ -132,7 +132,6 @@ class DashboardProvider extends DbBoundProvider {
     _dayAppointments = const [];
     _revenueSeries = const [];
     _analytics = null;
-    _comparisonAnalytics = null;
     _error = false;
     _failure = null;
     _loading = false;
