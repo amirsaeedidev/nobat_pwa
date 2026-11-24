@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/utils/jalali.dart';
@@ -132,6 +133,18 @@ class CalendarProvider extends DbBoundProvider {
         notifyListeners();
       }
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _rangeAppointments = const [];
+    _employeeList = const [];
+    _serviceList = const [];
+    _loading = false;
   }
 
   @override
