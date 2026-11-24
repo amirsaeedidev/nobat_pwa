@@ -67,7 +67,13 @@ class CustomersProvider extends DbBoundProvider {
   }
 
   Future<void> _refresh() async {
-    _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
+    try {
+      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
+      _loadNotice = null;
+    } catch (error) {
+      _page = PageResult.empty(pageSize: _pageSize);
+      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
+    }
     notifyListeners();
   }
 
@@ -83,6 +89,8 @@ class CustomersProvider extends DbBoundProvider {
   }
 
   Future<Customer?> byId(String id) => _repository.findById(id);
+
+  Future<CustomerProfile?> fetchProfile(String id) => _repository.fetchProfile(id);
 
   Future<List<Customer>> fetchAll() => _repository.fetchAll();
 
@@ -105,6 +113,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.create(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -117,6 +126,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.update(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -124,7 +134,10 @@ class CustomersProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> delete(String id) => _repository.delete(id);
+  Future<void> delete(String id) async {
+    await _repository.delete(id);
+    await load();
+  }
 
   Customer? findById(String id) {
     for (final c in _page.items) {
