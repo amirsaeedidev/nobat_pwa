@@ -5,6 +5,7 @@ import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
 /// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
@@ -65,6 +66,31 @@ class EmployeesProvider extends DbBoundProvider {
 
   Future<List<Employee>> forService(String serviceId) => _repository.fetchEmployees(onlyActive: true, serviceId: serviceId);
   Future<Employee?> byId(String id) => _repository.findById(id);
+
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions({
+    required String employeeId,
+    required DateTime from,
+    required DateTime to,
+  }) => _repository.fetchScheduleExceptions(employeeId: employeeId, from: from, to: to);
+
+  Future<void> saveScheduleException(EmployeeScheduleException exception) =>
+      _repository.saveScheduleException(exception);
+
+  Future<void> deleteScheduleException(String employeeId, String dateKey) =>
+      _repository.deleteScheduleException(employeeId, dateKey);
+
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId) =>
+      _repository.fetchLeaves(employeeId);
+
+  Future<void> createLeave(EmployeeLeave leave) async {
+    await _repository.createLeave(leave);
+    notifyListeners();
+  }
+
+  Future<void> reviewLeave(EmployeeLeave leave) async {
+    await _repository.reviewLeave(leave);
+    notifyListeners();
+  }
 
   Employee? byIdSync(String id) {
     for (final employee in _items) {
