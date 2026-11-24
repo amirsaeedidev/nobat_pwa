@@ -210,15 +210,16 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<Appointment?> findById(String id) async {
-    final tenant = _tenant();
-    final row = await _client
-        .from('appointments')
-        .select(_columns)
-        .eq('business_id', tenant)
-        .eq('id', id)
-        .isFilter('deleted_at', null)
-        .maybeSingle();
-    return row == null ? null : _model(Map<String, dynamic>.from(row));
+    _tenant();
+    final result = await _fetchPage(
+      filter: AppointmentFilter(query: id),
+      page: 1,
+      pageSize: 1,
+    );
+    for (final appointment in result.items) {
+      if (appointment.id == id) return appointment;
+    }
+    return null;
   }
 
   @override
