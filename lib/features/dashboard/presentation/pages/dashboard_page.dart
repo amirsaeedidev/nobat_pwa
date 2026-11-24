@@ -364,7 +364,7 @@ class _HeroStatsCard extends StatelessWidget {
                 ],
               );
 
-              if (constraints.maxWidth < 390) {
+              if (constraints.maxWidth < 440) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
