@@ -75,6 +75,9 @@ GoRouter buildRouter(
           return isLoginPage ? null : '/login';
         }
         if (isLoginPage) return '/dashboard';
+        // Cloud authorization is enforced by Supabase RLS/RPC. Do not apply
+        // the local demo-account permission model to an authenticated user.
+        return null;
       }
       if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
         return '/appointments';
