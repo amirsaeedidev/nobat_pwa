@@ -1,21 +1,32 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/models/page_result.dart';
+import '../../core/utils/fa_num.dart';
+import '../models/appointment.dart';
 import '../models/customer.dart';
+import '../models/enums.dart';
 import 'customer_repository.dart';
 
-/// Relational customer repository. Every query is tenant-scoped and still
-/// passes through Supabase RLS; the business id is read from the verified
-/// membership at call time rather than captured during application startup.
+/// Customer data is read and written only through the authenticated tenant's
+/// Supabase rows. RLS remains the final authorization boundary.
 class SupabaseCustomerRepository implements CustomerRepository {
   SupabaseCustomerRepository({
     required SupabaseClient client,
     required String? Function() businessId,
+    required bool Function() canViewFinance,
   })  : _client = client,
-        _businessId = businessId;
+        _businessId = businessId,
+        _canViewFinance = canViewFinance;
 
   final SupabaseClient _client;
   final String? Function() _businessId;
+  final bool Function() _canViewFinance;
+
+  static const _customerColumns =
+      'id,full_name,phone,notes,tags,is_active,created_at';
+
+  static const _appointmentColumns =
+      'id,reference,customer_id,employee_id,starts_at,ends_at,status,note,price_toman,discount_toman,reschedule_count,cancel_reason,created_at,updated_at,customers(full_name,phone),employees(full_name),appointment_services(service_id,title_snapshot,duration_minutes,price_toman,sort_order)';
 
   String _tenant() {
     if (_client.auth.currentUser == null) {
@@ -28,7 +39,21 @@ class SupabaseCustomerRepository implements CustomerRepository {
     return id;
   }
 
-  Map<String, dynamic> _toModel(Map<String, dynamic> row) => {
+  String _normalizedPhone(String value) {
+    return FaNum.toLatin(value).replaceAll(RegExp(r'[^0-9+]'), '');
+  }
+
+  String _safeFilterValue(String value) {
+    return value
+        .replaceAll(',', ' ')
+        .replaceAll('(', ' ')
+        .replaceAll(')', ' ')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_')
+        .trim();
+  }
+
+  Map<String, dynamic> _customerJson(Map<String, dynamic> row) => {
         'id': row['id'],
         'full_name': row['full_name'],
         'phone': row['phone'],
@@ -38,6 +63,84 @@ class SupabaseCustomerRepository implements CustomerRepository {
         'is_archived': row['is_active'] == false,
       };
 
+  Customer _customer(Map<String, dynamic> row) =>
+      Customer.fromJson(_customerJson(row));
+
+  Appointment _appointment(Map<String, dynamic> row) {
+    final rawCustomer = row['customers'];
+    final customer = rawCustomer is Map
+        ? Map<String, dynamic>.from(rawCustomer)
+        : <String, dynamic>{};
+    final rawEmployee = row['employees'];
+    final employee = rawEmployee is Map
+        ? Map<String, dynamic>.from(rawEmployee)
+        : <String, dynamic>{};
+    final services = (row['appointment_services'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList()
+      ..sort((a, b) => ((a['sort_order'] as num?) ?? 0)
+          .compareTo((b['sort_order'] as num?) ?? 0));
+    final start = DateTime.parse(row['starts_at'] as String).toLocal();
+    final end = DateTime.parse(row['ends_at'] as String).toLocal();
+    final rawStatus = row['status'] as String? ?? 'pending';
+    final status = rawStatus == 'rejected'
+        ? AppointmentStatus.cancelled
+        : AppointmentStatus.fromKey(
+            rawStatus == 'no_show' ? 'noShow' : rawStatus,
+          );
+    final names = services
+        .map((item) => item['title_snapshot'] as String? ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList(growable: false);
+    return Appointment(
+      id: row['id'] as String,
+      reference: row['reference'] as String? ?? '',
+      customerId: row['customer_id'] as String,
+      customerName: customer['full_name'] as String? ?? '',
+      customerPhone: customer['phone'] as String? ?? '',
+      serviceIds: services
+          .map((item) => item['service_id'] as String)
+          .toList(growable: false),
+      serviceName: names.join('، '),
+      employeeId: row['employee_id'] as String,
+      employeeName: employee['full_name'] as String? ?? '',
+      startAt: start,
+      durationMinutes: end.difference(start).inMinutes,
+      status: status,
+      note: row['note'] as String? ?? '',
+      price: row['price_toman'] as num? ?? 0,
+      createdAt: row['created_at'] == null
+          ? null
+          : DateTime.tryParse(row['created_at'] as String)?.toLocal(),
+      updatedAt: row['updated_at'] == null
+          ? null
+          : DateTime.tryParse(row['updated_at'] as String)?.toLocal(),
+      rescheduleCount: (row['reschedule_count'] as num?)?.toInt() ?? 0,
+      cancelReason: row['cancel_reason'] as String?,
+      serviceSnapshots: services
+          .map((item) => {
+                'service_id': item['service_id'],
+                'title': item['title_snapshot'],
+                'duration_minutes': item['duration_minutes'],
+                'price': item['price_toman'],
+              })
+          .toList(growable: false),
+    );
+  }
+
+  dynamic _applySearch(dynamic request, String query) {
+    final value = query.trim();
+    if (value.isEmpty) return request;
+    final safe = _safeFilterValue(value);
+    final clauses = <String>['full_name.ilike.%$safe%', 'phone.ilike.%$safe%'];
+    final phone = _normalizedPhone(value);
+    if (phone.isNotEmpty) {
+      clauses.add('normalized_phone.ilike.%$phone%');
+    }
+    return request.or(clauses.join(','));
+  }
+
   @override
   Future<PageResult<Customer>> fetchCustomers({
     String query = '',
@@ -46,26 +149,30 @@ class SupabaseCustomerRepository implements CustomerRepository {
     String sortBy = 'createdAt',
   }) async {
     final tenant = _tenant();
+    if (page < 1 || pageSize < 1 || pageSize > 100) {
+      throw ArgumentError('شماره صفحه یا اندازه صفحه معتبر نیست.');
+    }
     final start = (page - 1) * pageSize;
-    final normalized = query.trim();
+    final sortColumn = switch (sortBy) {
+      'fullName' => 'full_name',
+      _ => 'created_at',
+    };
     var request = _client
         .from('customers')
-        .select('id,full_name,phone,notes,tags,is_active,created_at')
+        .select(_customerColumns)
         .eq('business_id', tenant)
         .eq('is_active', true);
-
-    if (normalized.isNotEmpty) {
-      final safe = normalized.replaceAll(',', '').replaceAll('%', r'\%').replaceAll('_', r'\_');
-      request = request.or('full_name.ilike.%$safe%,phone.ilike.%$safe%');
-    }
-
-    final rows = await request.order('created_at', ascending: false);
-    final total = rows.length;
-    final pageRows = rows.skip(start).take(pageSize);
-
+    request = _applySearch(request, query);
+    final response = await request
+        .order(sortColumn, ascending: sortColumn == 'full_name')
+        .range(start, start + pageSize - 1)
+        .count(CountOption.exact);
+    final rows = response.data;
     return PageResult<Customer>(
-      items: pageRows.map((row) => Customer.fromJson(_toModel(Map<String, dynamic>.from(row)))).toList(growable: false),
-      total: total,
+      items: rows
+          .map((row) => _customer(Map<String, dynamic>.from(row)))
+          .toList(growable: false),
+      total: response.count ?? 0,
       page: page,
       pageSize: pageSize,
     );
@@ -76,16 +183,14 @@ class SupabaseCustomerRepository implements CustomerRepository {
     final tenant = _tenant();
     var request = _client
         .from('customers')
-        .select('id,full_name,phone,notes,tags,is_active,created_at')
+        .select(_customerColumns)
         .eq('business_id', tenant)
         .eq('is_active', true);
-    final normalized = query.trim();
-    if (normalized.isNotEmpty) {
-      final safe = normalized.replaceAll(',', '').replaceAll('%', r'\%').replaceAll('_', r'\_');
-      request = request.or('full_name.ilike.%$safe%,phone.ilike.%$safe%');
-    }
+    request = _applySearch(request, query);
     final rows = await request.order('created_at', ascending: false);
-    return rows.map((row) => Customer.fromJson(_toModel(Map<String, dynamic>.from(row)))).toList(growable: false);
+    return rows
+        .map((row) => _customer(Map<String, dynamic>.from(row)))
+        .toList(growable: false);
   }
 
   @override
@@ -93,11 +198,103 @@ class SupabaseCustomerRepository implements CustomerRepository {
     final tenant = _tenant();
     final row = await _client
         .from('customers')
-        .select('id,full_name,phone,notes,tags,is_active,created_at')
+        .select(_customerColumns)
         .eq('business_id', tenant)
         .eq('id', id)
         .maybeSingle();
-    return row == null ? null : Customer.fromJson(_toModel(Map<String, dynamic>.from(row)));
+    return row == null ? null : _customer(Map<String, dynamic>.from(row));
+  }
+
+  @override
+  Future<CustomerProfile?> fetchProfile(String id) async {
+    final tenant = _tenant();
+    final customerRow = await _client
+        .from('customers')
+        .select(_customerColumns)
+        .eq('business_id', tenant)
+        .eq('id', id)
+        .maybeSingle();
+    if (customerRow == null) return null;
+    final customer = _customer(Map<String, dynamic>.from(customerRow));
+
+    final appointmentRows = await _client
+        .from('appointments')
+        .select(_appointmentColumns)
+        .eq('business_id', tenant)
+        .eq('customer_id', id)
+        .order('starts_at', ascending: false);
+    final appointments = appointmentRows
+        .map((row) => _appointment(Map<String, dynamic>.from(row)))
+        .toList(growable: false);
+    final completed = appointments
+        .where((a) => a.status == AppointmentStatus.completed)
+        .toList(growable: false);
+    final cancelled = appointments
+        .where((a) => a.status == AppointmentStatus.cancelled)
+        .length;
+    final noShows = appointments
+        .where((a) => a.status == AppointmentStatus.noShow)
+        .length;
+    final lastVisit = completed.isEmpty
+        ? null
+        : completed.map((a) => a.startAt).reduce(
+              (a, b) => a.isAfter(b) ? a : b,
+            );
+    final services = completed
+        .expand((a) => a.serviceName.split('،'))
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
+    final billed = completed.fold<num>(
+      0,
+      (sum, appointment) => sum + appointment.price,
+    );
+    final financeVisible = _canViewFinance();
+    num? paid;
+    num? outstanding;
+    if (financeVisible) {
+      final paymentRows = await _client
+          .from('appointment_payments')
+          .select('amount_toman,payment_type')
+          .eq('business_id', tenant)
+          .eq('customer_id', id);
+      var receipts = 0;
+      var refunds = 0;
+      for (final row in paymentRows) {
+        final amount = (row['amount_toman'] as num?)?.toInt() ?? 0;
+        if (row['payment_type'] == 'receipt') {
+          receipts += amount;
+        } else if (row['payment_type'] == 'refund') {
+          refunds += amount;
+        }
+      }
+      paid = receipts - refunds;
+      outstanding = (billed - paid).clamp(0, billed);
+    }
+
+    final profileCustomer = customer.copyWith(
+      visitCount: completed.length,
+      totalSpent: paid ?? 0,
+      cancelCount: cancelled,
+      noShowCount: noShows,
+      lastVisitAt: lastVisit,
+    );
+    return CustomerProfile(
+      customer: profileCustomer,
+      appointments: appointments,
+      services: services,
+      completedVisits: completed.length,
+      cancelledAppointments: cancelled,
+      noShowAppointments: noShows,
+      lastVisitAt: lastVisit,
+      financeVisible: financeVisible,
+      totalBilled: financeVisible ? billed : null,
+      totalPaid: paid,
+      outstanding: outstanding,
+    );
   }
 
   @override
@@ -109,13 +306,13 @@ class SupabaseCustomerRepository implements CustomerRepository {
       'phone': customer.phone.trim(),
       'notes': customer.notes,
       'tags': customer.tags,
-    });
+    }).select('id').single();
   }
 
   @override
   Future<void> update(Customer customer) async {
     final tenant = _tenant();
-    await _client
+    final rows = await _client
         .from('customers')
         .update({
           'full_name': customer.fullName.trim(),
@@ -125,17 +322,24 @@ class SupabaseCustomerRepository implements CustomerRepository {
           'is_active': !customer.isArchived,
         })
         .eq('business_id', tenant)
-        .eq('id', customer.id);
+        .eq('id', customer.id)
+        .select('id');
+    if (rows.isEmpty) {
+      throw StateError('مشتری به‌روزرسانی نشد؛ دسترسی یا وجود رکورد را بررسی کنید.');
+    }
   }
 
   @override
   Future<void> delete(String id) async {
     final tenant = _tenant();
-    // Keep customer appointment/finance history referentially intact.
-    await _client
+    final rows = await _client
         .from('customers')
         .update({'is_active': false})
         .eq('business_id', tenant)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
+    if (rows.isEmpty) {
+      throw StateError('بایگانی مشتری انجام نشد؛ دسترسی یا وجود رکورد را بررسی کنید.');
+    }
   }
 }
