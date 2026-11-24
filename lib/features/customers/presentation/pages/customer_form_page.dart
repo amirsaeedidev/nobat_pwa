@@ -47,10 +47,7 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
   }
 
   Future<void> _loadExisting() async {
-    setState(() {
-      _loadingExisting = true;
-      _loadError = null;
-    });
+    _loadError = null;
     try {
       final customer = await context.read<CustomersProvider>().byId(widget.customerId!);
       if (!mounted) return;
@@ -135,7 +132,7 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
       child: _loadingExisting
           ? const LoadingState(kind: SkeletonKind.customers)
           : _loadError != null
-              ? ErrorStateView(description: _loadError!, onRetry: _loadExisting)
+              ? ErrorStateView(description: _loadError!, onRetry: () {\n                  setState(() => _loadingExisting = true);\n                  _loadExisting();\n                })
               : Form(
         key: _formKey,
         child: Column(
