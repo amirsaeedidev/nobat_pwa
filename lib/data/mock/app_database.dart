@@ -62,7 +62,42 @@ class AppDatabase extends ChangeNotifier {
   final Map<String, AccessAssignment> _accessAssignments = {};
   final List<AccessAccount> _accessAccounts = [];
   String _currentAccessAccountId = 'demo-global-admin';
-  BusinessSettings _settings = const BusinessSettings();
+  BusinessSettings _settings = const BusinessSettings(
+    name: '',
+    slogan: '',
+    description: '',
+    phone: '',
+    mobile: '',
+    email: '',
+    province: '',
+    city: '',
+    address: '',
+    postalCode: '',
+    latitude: 0,
+    longitude: 0,
+    currency: '',
+    logoText: '',
+    smsProvider: SmsProviderSettings(providerName: '', endpoint: '', credit: 0),
+    notifications: NotificationSettings(
+      confirmationEnabled: false,
+      reminderEnabled: false,
+      cancellationEnabled: false,
+      rescheduleEnabled: false,
+      reminderHours: [],
+      sendToStaff: false,
+    ),
+    bookingRules: BookingRules(
+      allowCustomerCancel: false,
+      allowReschedule: false,
+      maxReschedules: 0,
+      minHoursBeforeChange: 0,
+      maxAdvanceDays: 0,
+      requireConfirmation: false,
+      preventOverlap: false,
+      slotIntervalMinutes: 0,
+      cancelPenaltyCount: 0,
+    ),
+  );
 
   int _idCounter = 5000;
   final Set<String> _undoneLogIds = {};
