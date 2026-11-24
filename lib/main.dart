@@ -107,8 +107,8 @@ Future<void> main() async {
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
   );
-  // These modules are migrated in separate steps; their local repositories
-  // now start empty because production AppDatabase is never seeded.
+  // Primary business data modules use tenant-scoped Supabase repositories.
+  // SMS stays explicitly unavailable until a real gateway is configured.
   final appointmentRepository = SupabaseRelationalAppointmentRepository(
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
