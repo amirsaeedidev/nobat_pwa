@@ -14,7 +14,6 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/pagination_bar.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/repositories/operations_repository.dart';
@@ -46,7 +45,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     final provider = context.watch<AppointmentsProvider>();
     final services = context.watch<ServicesProvider>();
     final employees = context.watch<EmployeesProvider>();
-    final db = context.watch<AppDatabase>();
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
 
@@ -76,12 +74,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              _AppointmentStatusChip(label: 'همه', count: db.appointments.length, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
+              _AppointmentStatusChip(label: 'همه', count: provider.page.total, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
               const SizedBox(width: 7),
               for (final status in AppointmentStatus.values) ...[
                 _AppointmentStatusChip(
                   label: status.label,
-                  count: db.appointments.where((a) => a.status == status).length,
                   selected: provider.filter.status == status,
                   color: status.color,
                   onTap: () => provider.setStatus(status),
@@ -330,9 +327,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
 }
 
 class _AppointmentStatusChip extends StatelessWidget {
-  const _AppointmentStatusChip({required this.label, required this.count, required this.selected, required this.color, required this.onTap});
+  const _AppointmentStatusChip({required this.label, this.count, required this.selected, required this.color, required this.onTap});
   final String label;
-  final int count;
+  final int? count;
   final bool selected;
   final Color color;
   final VoidCallback onTap;
@@ -355,8 +352,10 @@ class _AppointmentStatusChip extends StatelessWidget {
             else Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 6),
             Text(label, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, color: selected ? color : pal.textSecondary)),
-            const SizedBox(width: 5),
-            Text(FaNum.ofInt(count), style: TextStyle(fontSize: 10, color: selected ? color : pal.textMuted)),
+            if (count != null) ...[
+              const SizedBox(width: 5),
+              Text(FaNum.ofInt(count!), style: TextStyle(fontSize: 10, color: selected ? color : pal.textMuted)),
+            ],
           ]),
         ),
       ),
