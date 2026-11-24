@@ -264,7 +264,7 @@ class EmployeeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final color = Color(employee.colorValue);
-    final workDays = [for (var i = 0; i < 7; i++) if (employee.worksOn(i)) i];
+    final workDays = employee.scheduleEnabled ? [for (var i = 0; i < 7; i++) if (employee.worksOn(i)) i] : const <int>[];
     final statusColor = switch (employee.employmentStatus) {
       EmployeeStatus.active => pal.success,
       EmployeeStatus.onLeave => pal.warning,
@@ -342,8 +342,6 @@ class EmployeeCard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Wrap(spacing: 10, runSpacing: 6, children: [
-          _Meta(icon: Icons.star_rounded, text: FaNum.convert(employee.rating.toStringAsFixed(1))),
-          _Meta(icon: Icons.event_available_rounded, text: '${FaNum.ofInt(employee.bookedCount)} نوبت'),
           _Meta(icon: Icons.call_outlined, text: Fmt.phone(employee.phone)),
         ]),
         if (employee.specialties.isNotEmpty) ...[
