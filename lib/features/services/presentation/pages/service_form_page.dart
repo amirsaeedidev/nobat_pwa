@@ -205,6 +205,15 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
           specialtyNote: previous?.specialtyNote ?? '',
         ));
       }
+      // Keep inactive historical staff-service configurations unless the manager
+      // explicitly reactivates/selects them; only active selections are editable here.
+      if (_existing != null) {
+        for (final previous in provider.employeeServiceConfigsForService(serviceId)) {
+          if (!previous.active && !_employeeIds.contains(previous.employeeId)) {
+            configs.add(previous);
+          }
+        }
+      }
       await provider.saveCatalogItem(service, configs);
     } catch (error) {
       if (mounted) {
