@@ -67,7 +67,11 @@ GoRouter buildRouter(
         if (authRepository.currentUser == null) {
           return isLoginPage ? null : '/login';
         }
-        if (!(authStateNotifier?.hasActiveBusiness ?? false)) {
+        // Do not redirect on a transient loading frame before the stored
+        // Supabase session has finished checking its active membership.
+        if (authStateNotifier == null ||
+            authStateNotifier.isCheckingMembership ||
+            !authStateNotifier.hasActiveBusiness) {
           return isLoginPage ? null : '/login';
         }
         if (isLoginPage) return '/dashboard';
