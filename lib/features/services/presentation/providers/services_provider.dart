@@ -84,14 +84,7 @@ class ServicesProvider extends DbBoundProvider {
 
   @override
   void onDatabaseChanged() {
-    _items = db.services;
-    _categories = db.serviceCategories;
-    _employeeConfigs
-      ..clear()
-      ..addEntries(db.employees
-          .expand((employee) => db.employeeServiceConfigsFor(employee.id))
-          .map((config) => MapEntry('${config.employeeId}::${config.serviceId}', config)));
-    notifyListeners();
+    unawaited(load());
   }
 
   void search(String query) {
