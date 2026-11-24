@@ -59,21 +59,12 @@ class SupabaseCustomerRepository implements CustomerRepository {
       request = request.or('full_name.ilike.%$safe%,phone.ilike.%$safe%');
     }
 
-    final countQuery = await _client
-        .from('customers')
-        .select('id')
-        .eq('business_id', tenant)
-        .eq('is_active', true);
-    final total = normalized.isEmpty
-        ? countQuery.length
-        : (await request).length;
-
-    final rows = await request
-        .order('created_at', ascending: false)
-        .range(start, start + pageSize - 1);
+    final rows = await request.order('created_at', ascending: false);
+    final total = rows.length;
+    final pageRows = rows.skip(start).take(pageSize);
 
     return PageResult<Customer>(
-      items: rows.map((row) => Customer.fromJson(_toModel(Map<String, dynamic>.from(row)))).toList(growable: false),
+      items: pageRows.map((row) => Customer.fromJson(_toModel(Map<String, dynamic>.from(row)))).toList(growable: false),
       total: total,
       page: page,
       pageSize: pageSize,
