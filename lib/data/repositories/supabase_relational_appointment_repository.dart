@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/models/page_result.dart';
-import '../../core/utils/jalali.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
 import 'appointment_repository.dart';
