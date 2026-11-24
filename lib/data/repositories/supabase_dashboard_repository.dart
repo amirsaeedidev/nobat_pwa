@@ -1,0 +1,227 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/utils/jalali.dart';
+import '../models/appointment.dart';
+import '../models/dashboard_stats.dart';
+import '../models/enums.dart';
+import '../models/report_analytics.dart';
+import 'appointment_repository.dart';
+import 'dashboard_repository.dart';
+
+/// Dashboard and report aggregates computed exclusively from relational
+/// appointments, payment and expense rows. Unsupported financial metrics stay
+/// empty rather than being estimated or fabricated.
+class SupabaseDashboardRepository implements DashboardRepository {
+  SupabaseDashboardRepository({
+    required SupabaseClient client,
+    required String? Function() businessId,
+    required AppointmentRepository appointments,
+  })  : _client = client,
+        _businessId = businessId,
+        _appointments = appointments;
+
+  final SupabaseClient _client;
+  final String? Function() _businessId;
+  final AppointmentRepository _appointments;
+
+  String _tenant() {
+    if (_client.auth.currentUser == null) {
+      throw StateError('نشست Supabase منقضی شده است؛ دوباره وارد شوید.');
+    }
+    final id = _businessId();
+    if (id == null || id.isEmpty) {
+      throw StateError('عضویت فعال مجموعه تأیید نشده است.');
+    }
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> _payments({DateTime? from, DateTime? to}) async {
+    final tenant = _tenant();
+    var request = _client.from('appointment_payments')
+        .select('amount_toman,payment_type,method,created_at')
+        .eq('business_id', tenant);
+    if (from != null) request = request.gte('created_at', from.toUtc().toIso8601String());
+    if (to != null) request = request.lt('created_at', to.toUtc().toIso8601String());
+    final rows = await request;
+    return rows.map((row) => Map<String, dynamic>.from(row)).toList(growable: false);
+  }
+
+  num _netPayments(Iterable<Map<String, dynamic>> rows) => rows.fold<num>(0, (sum, row) {
+    final amount = row['amount_toman'] as num? ?? 0;
+    return sum + (row['payment_type'] == 'refund' ? -amount : amount);
+  });
+
+  Future<int> _count(String table, {String? column, bool? value}) async {
+    final tenant = _tenant();
+    var request = _client.from(table).select('id').eq('business_id', tenant);
+    if (column != null && value != null) request = request.eq(column, value);
+    return (await request).length;
+  }
+
+  @override
+  Future<DashboardStats> fetchStats({StatsPeriod period = StatsPeriod.weekly}) async {
+    final all = await _appointments.fetchAll();
+    final today = JalaliDate.today();
+    final weekStart = today.addDays(-today.weekday);
+    final monthStart = JalaliDate(today.year, today.month, 1);
+    final start = switch (period) {
+      StatsPeriod.daily => today,
+      StatsPeriod.weekly => weekStart,
+      StatsPeriod.monthly => monthStart,
+    };
+    final end = switch (period) {
+      StatsPeriod.daily => today.addDays(1),
+      StatsPeriod.weekly => weekStart.addDays(7),
+      StatsPeriod.monthly => monthStart.addMonths(1),
+    };
+    final from = start.toDateTime();
+    final to = end.toDateTime();
+    final periodItems = all.where((item) =>
+      !item.startAt.isBefore(from) && item.startAt.isBefore(to)).toList();
+    final payments = await _payments(from: from, to: to);
+    final monthPayments = await _payments(
+      from: monthStart.toDateTime(),
+      to: monthStart.addMonths(1).toDateTime(),
+    );
+    final todayItems = all.where((item) => item.jalali.sameDay(today)).toList();
+    final weekly = <WeekdayPerformance>[];
+    for (var i = 0; i < 7; i++) {
+      final date = weekStart.addDays(i);
+      final dayItems = all.where((item) => item.jalali.sameDay(date)).toList();
+      weekly.add(WeekdayPerformance(
+        label: date.short,
+        percent: dayItems.isEmpty ? 0 : (dayItems.length * 20).clamp(0, 100),
+        count: dayItems.length,
+        revenue: 0,
+        dateIso: date.iso,
+      ));
+    }
+    final statuses = <String, int>{
+      for (final status in AppointmentStatus.values)
+        status.label: periodItems.where((item) => item.status == status).length,
+    };
+    return DashboardStats(
+      totalAppointments: periodItems.length,
+      todayAppointments: todayItems.length,
+      upcomingAppointments: all.where((item) => item.isUpcoming).length,
+      completedAppointments: periodItems.where((item) => item.status == AppointmentStatus.completed).length,
+      cancelledAppointments: periodItems.where((item) => item.status == AppointmentStatus.cancelled || item.status == AppointmentStatus.noShow).length,
+      totalRevenue: _netPayments(payments),
+      monthRevenue: _netPayments(monthPayments),
+      totalCustomers: await _count('customers'),
+      activeEmployees: await _count('employees', column: 'is_active', value: true),
+      weeklyTrend: weekly,
+      weekdayPerformance: weekly,
+      statusBreakdown: statuses,
+    );
+  }
+
+  @override
+  Future<List<Appointment>> fetchUpcoming({int limit = 4}) async {
+    final items = await _appointments.fetchAll();
+    final upcoming = items.where((item) => item.isUpcoming).toList()
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
+    return upcoming.take(limit).toList(growable: false);
+  }
+
+  @override
+  Future<List<RevenuePoint>> fetchRevenueSeries({int months = 6}) async {
+    final now = JalaliDate.today();
+    final first = JalaliDate(now.year, now.month, 1).addMonths(-(months - 1));
+    final rows = await _payments(from: first.toDateTime(), to: now.addDays(1).toDateTime());
+    final grouped = <String, num>{};
+    for (final row in rows) {
+      final at = DateTime.parse(row['created_at'] as String).toLocal();
+      final jalali = JalaliDate.fromDateTime(at);
+      final key = '${jalali.year}/${jalali.month}';
+      final amount = row['amount_toman'] as num? ?? 0;
+      grouped.update(key, (value) => value + (row['payment_type'] == 'refund' ? -amount : amount), ifAbsent: () => row['payment_type'] == 'refund' ? -amount : amount);
+    }
+    return grouped.entries.map((entry) => RevenuePoint(label: entry.key, value: entry.value)).toList(growable: false);
+  }
+
+  @override
+  Future<List<RevenuePoint>> fetchServiceRevenue({int limit = 5}) async {
+    final items = await _appointments.fetchAll();
+    final totals = <String, num>{};
+    final counts = <String, int>{};
+    for (final appointment in items.where((item) => item.status == AppointmentStatus.completed)) {
+      for (final snapshot in appointment.serviceSnapshots) {
+        final name = snapshot['title'] as String? ?? '';
+        if (name.isEmpty) continue;
+        totals.update(name, (value) => value + ((snapshot['price'] as num?) ?? 0), ifAbsent: () => (snapshot['price'] as num?) ?? 0);
+        counts.update(name, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+    final entries = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return entries.take(limit).map((entry) => RevenuePoint(
+      label: entry.key,
+      value: entry.value,
+      secondary: counts[entry.key] ?? 0,
+    )).toList(growable: false);
+  }
+
+  @override
+  Future<ReportAnalytics> fetchReportAnalytics({
+    required ReportDateRange range,
+    ReportAnalyticsFilter filter = const ReportAnalyticsFilter(),
+  }) async {
+    final appointments = (await _appointments.fetchAll()).where((item) =>
+      range.contains(item.startAt) && filter.matches(item)).toList();
+    final payments = await _payments(from: range.start, to: range.endExclusive);
+    final tenant = _tenant();
+    final expenseRows = await _client.from('business_expenses')
+        .select('amount_toman,category,created_at')
+        .eq('business_id', tenant)
+        .gte('created_at', range.start.toUtc().toIso8601String())
+        .lt('created_at', range.endExclusive.toUtc().toIso8601String());
+    final expenses = expenseRows.map((row) => Map<String, dynamic>.from(row)).toList();
+    final expenseTotal = expenses.fold<num>(0, (sum, row) => sum + ((row['amount_toman'] as num?) ?? 0));
+    final gross = appointments.where((item) => item.status == AppointmentStatus.completed)
+        .fold<num>(0, (sum, item) => sum + item.price);
+    final statusCounts = <String, int>{
+      for (final status in AppointmentStatus.values)
+        status.label: appointments.where((item) => item.status == status).length,
+    };
+    final paymentsByMethod = <String, num>{};
+    for (final row in payments) {
+      final method = row['method'] as String? ?? 'other';
+      final amount = row['amount_toman'] as num? ?? 0;
+      paymentsByMethod.update(method, (value) => value + (row['payment_type'] == 'refund' ? -amount : amount), ifAbsent: () => row['payment_type'] == 'refund' ? -amount : amount);
+    }
+    final expensesByCategory = <String, num>{};
+    for (final row in expenses) {
+      final category = row['category'] as String? ?? '';
+      expensesByCategory.update(category, (value) => value + ((row['amount_toman'] as num?) ?? 0), ifAbsent: () => (row['amount_toman'] as num?) ?? 0);
+    }
+    final uniqueCustomers = appointments.map((item) => item.customerId).toSet().length;
+    final recent = [...appointments]..sort((a, b) => b.startAt.compareTo(a.startAt));
+    return ReportAnalytics(
+      range: range,
+      revenue: _netPayments(payments),
+      grossRevenue: gross,
+      collectedRevenue: _netPayments(payments),
+      receivables: (gross - _netPayments(payments)).clamp(0, double.infinity),
+      cost: expenseTotal,
+      operatingExpense: expenseTotal,
+      commissionCost: 0,
+      payrollCost: 0,
+      totalAppointments: appointments.length,
+      completedAppointments: appointments.where((item) => item.status == AppointmentStatus.completed).length,
+      cancelledAppointments: appointments.where((item) => item.status == AppointmentStatus.cancelled).length,
+      noShowAppointments: appointments.where((item) => item.status == AppointmentStatus.noShow).length,
+      uniqueCustomers: uniqueCustomers,
+      statusCounts: statusCounts,
+      trend: const [],
+      employees: const [],
+      services: const [],
+      recentAppointments: recent.take(10).toList(growable: false),
+      recentTransactions: const [],
+      costNote: 'هزینه‌های عملیاتی از اسناد واقعی ثبت‌شده محاسبه شده‌اند؛ پورسانت و حقوق تا اتصال کامل دفتر مالی نمایش داده نمی‌شوند.',
+      paymentsByMethod: paymentsByMethod,
+      expensesByCategory: expensesByCategory,
+      operationalAppointments: appointments,
+      filter: filter,
+    );
+  }
+}
