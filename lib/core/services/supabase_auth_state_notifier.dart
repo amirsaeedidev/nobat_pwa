@@ -195,6 +195,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
       _authRepository?.currentUser?.id == expectedUserId;
 
   void _setNetworkError(Object error) {
+    debugPrint('[DateTime][SupabaseAuth] Session state became unreliable: $error');
     if (_authRepository?.currentUser == null) {
       _clearMembership(status: SupabaseAuthStatus.signedOut);
       return;
