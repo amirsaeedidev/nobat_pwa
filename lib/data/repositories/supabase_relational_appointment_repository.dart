@@ -1,12 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/models/page_result.dart';
+import '../../core/utils/jalali.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
 import 'appointment_repository.dart';
 
-/// Appointment repository using the relational schema and the protected
-/// create/status/reschedule RPCs. It never writes appointment rows directly.
+/// Supabase appointment repository. All writes go through atomic database RPCs;
+/// list filtering, search and pagination are executed in PostgreSQL.
 class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
   SupabaseRelationalAppointmentRepository({
     required SupabaseClient client,
@@ -29,7 +30,7 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
   }
 
   static const _columns =
-      'id,reference,customer_id,employee_id,starts_at,ends_at,status,note,price_toman,reschedule_count,cancel_reason,created_at,updated_at,customers(full_name,phone),employees(full_name),appointment_services(service_id,title_snapshot,duration_minutes,price_toman,sort_order)';
+      'id,reference,customer_id,employee_id,starts_at,ends_at,status,note,price_toman,discount_toman,reschedule_count,cancel_reason,created_by,created_at,updated_at,deleted_at,customers(full_name,phone),employees(full_name),appointment_services(service_id,title_snapshot,category_snapshot,description_snapshot,duration_minutes,price_toman,list_price_toman_snapshot,discount_toman_snapshot,commission_rate_bps_snapshot,fixed_commission_amount_toman_snapshot,sort_order)';
 
   Appointment _model(Map<String, dynamic> row) {
     final customer = row['customers'] is Map
@@ -42,21 +43,28 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList()
-      ..sort((a, b) => ((a['sort_order'] as num?) ?? 0).compareTo((b['sort_order'] as num?) ?? 0));
+      ..sort((a, b) => ((a['sort_order'] as num?) ?? 0)
+          .compareTo((b['sort_order'] as num?) ?? 0));
     final start = DateTime.parse(row['starts_at'] as String).toLocal();
     final end = DateTime.parse(row['ends_at'] as String).toLocal();
     final rawStatus = row['status'] as String? ?? 'pending';
     final status = rawStatus == 'rejected'
         ? AppointmentStatus.cancelled
         : AppointmentStatus.fromKey(rawStatus == 'no_show' ? 'noShow' : rawStatus);
-    final serviceNames = services.map((item) => item['title_snapshot'] as String? ?? '').where((name) => name.isNotEmpty).toList();
+    final serviceNames = services
+        .map((item) => item['title_snapshot'] as String? ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+
     return Appointment(
       id: row['id'] as String,
       reference: row['reference'] as String? ?? '',
       customerId: row['customer_id'] as String,
       customerName: customer['full_name'] as String? ?? '',
       customerPhone: customer['phone'] as String? ?? '',
-      serviceIds: services.map((item) => item['service_id'] as String).toList(growable: false),
+      serviceIds: services
+          .map((item) => item['service_id'] as String)
+          .toList(growable: false),
       serviceName: serviceNames.join('، '),
       employeeId: row['employee_id'] as String,
       employeeName: employee['full_name'] as String? ?? '',
@@ -65,24 +73,95 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
       status: status,
       note: row['note'] as String? ?? '',
       price: row['price_toman'] as num? ?? 0,
-      createdAt: row['created_at'] == null ? null : DateTime.tryParse(row['created_at'] as String)?.toLocal(),
-      updatedAt: row['updated_at'] == null ? null : DateTime.tryParse(row['updated_at'] as String)?.toLocal(),
+      discount: row['discount_toman'] as num? ?? 0,
+      createdAt: row['created_at'] == null
+          ? null
+          : DateTime.tryParse(row['created_at'] as String)?.toLocal(),
+      updatedAt: row['updated_at'] == null
+          ? null
+          : DateTime.tryParse(row['updated_at'] as String)?.toLocal(),
       rescheduleCount: (row['reschedule_count'] as num?)?.toInt() ?? 0,
       cancelReason: row['cancel_reason'] as String?,
-      serviceSnapshots: services.map((item) => {
-        'service_id': item['service_id'],
-        'title': item['title_snapshot'],
-        'duration_minutes': item['duration_minutes'],
-        'price': item['price_toman'],
-      }).toList(growable: false),
+      createdBy: row['created_by'] as String? ?? 'سیستم',
+      serviceSnapshots: services
+          .map((item) => <String, dynamic>{
+                'service_id': item['service_id'],
+                'title': item['title_snapshot'],
+                'category': item['category_snapshot'],
+                'description': item['description_snapshot'],
+                'duration_minutes': item['duration_minutes'],
+                'price': item['price_toman'],
+                'list_price': item['list_price_toman_snapshot'],
+                'discount': item['discount_toman_snapshot'],
+                'commission_rate_bps': item['commission_rate_bps_snapshot'],
+                'fixed_commission_amount': item['fixed_commission_amount_toman_snapshot'],
+              })
+          .toList(growable: false),
     );
   }
 
-  Future<List<Appointment>> _fetchAll() async {
+  DateTime? _fromUtc(AppointmentFilter filter) =>
+      filter.fromDate?.toDateTime().toUtc();
+
+  DateTime? _toUtc(AppointmentFilter filter) =>
+      filter.toDate?.addDays(1).toDateTime().toUtc();
+
+  Future<PageResult<Appointment>> _fetchPage({
+    AppointmentFilter filter = const AppointmentFilter(),
+    int page = 1,
+    int pageSize = 20,
+    bool ascending = false,
+    String? customerId,
+  }) async {
     final tenant = _tenant();
-    final rows = await _client.from('appointments').select(_columns)
-        .eq('business_id', tenant).order('starts_at', ascending: false);
-    return rows.map((row) => _model(Map<String, dynamic>.from(row))).toList(growable: false);
+    final response = await _client.rpc('list_appointments', params: {
+      'p_business_id': tenant,
+      'p_query': filter.query.trim(),
+      'p_status': filter.status == null ? null : _statusKey(filter.status!),
+      'p_service_id': filter.serviceId,
+      'p_employee_id': filter.employeeId,
+      'p_customer_id': customerId,
+      'p_from': _fromUtc(filter)?.toIso8601String(),
+      'p_to': _toUtc(filter)?.toIso8601String(),
+      'p_page': page,
+      'p_page_size': pageSize.clamp(1, 100),
+      'p_ascending': ascending,
+    });
+
+    final payload = Map<String, dynamic>.from(response as Map);
+    final rows = (payload['items'] as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => _model(Map<String, dynamic>.from(row)))
+        .toList(growable: false);
+    return PageResult<Appointment>(
+      items: rows,
+      total: (payload['total'] as num?)?.toInt() ?? 0,
+      page: (payload['page'] as num?)?.toInt() ?? page,
+      pageSize: (payload['page_size'] as num?)?.toInt() ?? pageSize,
+    );
+  }
+
+  Future<List<Appointment>> _fetchAll({
+    AppointmentFilter filter = const AppointmentFilter(),
+    String? customerId,
+  }) async {
+    const pageSize = 100;
+    final all = <Appointment>[];
+    var page = 1;
+    var total = 0;
+    do {
+      final result = await _fetchPage(
+        filter: filter,
+        page: page,
+        pageSize: pageSize,
+        ascending: false,
+        customerId: customerId,
+      );
+      all.addAll(result.items);
+      total = result.total;
+      page++;
+    } while (all.length < total);
+    return all;
   }
 
   @override
@@ -91,45 +170,51 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
     int page = 1,
     int pageSize = 8,
     bool ascending = true,
-  }) async {
-    final items = await fetchAll(filter: filter);
-    items.sort((a, b) => ascending ? a.startAt.compareTo(b.startAt) : b.startAt.compareTo(a.startAt));
-    final start = (page - 1) * pageSize;
-    return PageResult<Appointment>(
-      items: items.skip(start).take(pageSize).toList(growable: false),
-      total: items.length,
-      page: page,
-      pageSize: pageSize,
+  }) =>
+      _fetchPage(
+        filter: filter,
+        page: page,
+        pageSize: pageSize,
+        ascending: ascending,
+      );
+
+  @override
+  Future<List<Appointment>> fetchAll({
+    AppointmentFilter filter = const AppointmentFilter(),
+  }) =>
+      _fetchAll(filter: filter);
+
+  @override
+  Future<List<Appointment>> fetchForDay(
+    DateTime day, {
+    String? employeeId,
+    String? serviceId,
+  }) {
+    final jalali = JalaliDate.fromDateTime(day);
+    return _fetchAll(
+      filter: AppointmentFilter(
+        employeeId: employeeId,
+        serviceId: serviceId,
+        fromDate: jalali,
+        toDate: jalali,
+      ),
     );
   }
 
   @override
-  Future<List<Appointment>> fetchAll({AppointmentFilter filter = const AppointmentFilter()}) async {
-    final items = await _fetchAll();
-    return items.where(filter.matches).toList(growable: false);
-  }
-
-  @override
-  Future<List<Appointment>> fetchForDay(DateTime day, {String? employeeId, String? serviceId}) async {
-    final items = await _fetchAll();
-    return items.where((item) =>
-      item.startAt.year == day.year &&
-      item.startAt.month == day.month &&
-      item.startAt.day == day.day &&
-      (employeeId == null || item.employeeId == employeeId) &&
-      (serviceId == null || item.serviceIds.contains(serviceId)))
-      .toList(growable: false);
-  }
-
-  @override
-  Future<List<Appointment>> fetchForCustomer(String customerId) async =>
-      (await _fetchAll()).where((item) => item.customerId == customerId).toList(growable: false);
+  Future<List<Appointment>> fetchForCustomer(String customerId) =>
+      _fetchAll(customerId: customerId);
 
   @override
   Future<Appointment?> findById(String id) async {
     final tenant = _tenant();
-    final row = await _client.from('appointments').select(_columns)
-        .eq('business_id', tenant).eq('id', id).maybeSingle();
+    final row = await _client
+        .from('appointments')
+        .select(_columns)
+        .eq('business_id', tenant)
+        .eq('id', id)
+        .isFilter('deleted_at', null)
+        .maybeSingle();
     return row == null ? null : _model(Map<String, dynamic>.from(row));
   }
 
@@ -142,9 +227,12 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
   }) async {
     final tenant = _tenant();
     final endAt = startAt.add(Duration(minutes: durationMinutes));
-    var query = _client.from('appointments').select('id')
+    var query = _client
+        .from('appointments')
+        .select('id')
         .eq('business_id', tenant)
         .eq('employee_id', employeeId)
+        .isFilter('deleted_at', null)
         .inFilter('status', ['pending', 'confirmed'])
         .lt('starts_at', endAt.toUtc().toIso8601String())
         .gt('ends_at', startAt.toUtc().toIso8601String());
@@ -173,41 +261,54 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
   Future<void> update(Appointment appointment) async {
     final current = await findById(appointment.id);
     if (current == null) throw StateError('نوبت مورد نظر پیدا نشد.');
-    if (current.customerId != appointment.customerId ||
-        current.employeeId != appointment.employeeId ||
-        current.serviceIds.join('|') != appointment.serviceIds.join('|')) {
-      throw UnsupportedError('تغییر مشتری، پرسنل یا خدمات نوبت تا زمان ارائه RPC ویرایش امن پشتیبانی نمی‌شود.');
-    }
-    if (current.startAt != appointment.startAt) {
-      await reschedule(current, appointment.startAt);
-    }
-    if (current.note != appointment.note) {
-      throw UnsupportedError('ویرایش توضیحات نوبت هنوز در RPC امن سمت سرور فعال نشده است.');
-    }
+
+    await _client.rpc('update_appointment', params: {
+      'p_appointment_id': appointment.id,
+      'p_customer_id': appointment.customerId,
+      'p_employee_id': appointment.employeeId,
+      'p_starts_at': appointment.startAt.toUtc().toIso8601String(),
+      'p_service_ids': appointment.serviceIds,
+      'p_note': appointment.note,
+    });
+
     if (current.status != appointment.status) {
-      await changeStatus(appointment, appointment.status);
+      await changeStatus(
+        appointment,
+        appointment.status,
+      );
     }
   }
 
   String _statusKey(AppointmentStatus status) => switch (status) {
-    AppointmentStatus.noShow => 'no_show',
-    AppointmentStatus.pending => 'pending',
-    AppointmentStatus.confirmed => 'confirmed',
-    AppointmentStatus.completed => 'completed',
-    AppointmentStatus.cancelled => 'cancelled',
-  };
+        AppointmentStatus.noShow => 'no_show',
+        AppointmentStatus.pending => 'pending',
+        AppointmentStatus.confirmed => 'confirmed',
+        AppointmentStatus.completed => 'completed',
+        AppointmentStatus.cancelled => 'cancelled',
+      };
 
   @override
-  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String? operationType}) async {
+  Future<void> changeStatus(
+    Appointment appointment,
+    AppointmentStatus status, {
+    String? reason,
+    String? operationType,
+  }) async {
     await _client.rpc('set_appointment_status', params: {
       'p_appointment_id': appointment.id,
-      'p_status': _statusKey(status),
+      'p_status': operationType == 'appointment_reject'
+          ? 'rejected'
+          : _statusKey(status),
       'p_reason': reason,
     });
   }
 
   @override
-  Future<void> reschedule(Appointment appointment, DateTime newStart, {bool byCustomer = false}) async {
+  Future<void> reschedule(
+    Appointment appointment,
+    DateTime newStart, {
+    bool byCustomer = false,
+  }) async {
     await _client.rpc('reschedule_appointment', params: {
       'p_appointment_id': appointment.id,
       'p_new_starts_at': newStart.toUtc().toIso8601String(),
@@ -216,10 +317,9 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
 
   @override
   Future<void> delete(String id) async {
-    await _client.rpc('set_appointment_status', params: {
+    await _client.rpc('delete_appointment', params: {
       'p_appointment_id': id,
-      'p_status': 'cancelled',
-      'p_reason': 'حذف از پنل مدیریت',
+      'p_reason': 'حذف امن از پنل مدیریت',
     });
   }
 }
