@@ -39,7 +39,7 @@ abstract class EmployeeRepository {
   }
 }
 
-class MockEmployeeRepository implements EmployeeRepository {
+class MockEmployeeRepository extends EmployeeRepository {
   MockEmployeeRepository(this._db);
 
   final AppDatabase _db;
