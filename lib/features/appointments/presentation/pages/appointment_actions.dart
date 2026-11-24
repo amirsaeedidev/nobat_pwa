@@ -140,11 +140,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
                 await provider.delete(appointment.id);
                 if (!context.mounted) return;
                 AppToast.show(context, 'نوبت به‌صورت امن بایگانی شد و در تاریخچه ثبت شد.');
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/appointments');
-                }
+                context.go('/appointments');
               } catch (error) {
                 if (context.mounted) {
                   AppToast.show(context, 'حذف امن نوبت انجام نشد: $error', success: false);
