@@ -51,6 +51,13 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     );
   }
 
+  EmployeeScheduleException? _exceptionForDate(List<EmployeeScheduleException> values, String key) {
+    for (final item in values) {
+      if (item.dateKey == key) return item;
+    }
+    return null;
+  }
+
   void _refreshData() {
     if (mounted) setState(() => _dataFuture = _loadData());
   }
@@ -95,7 +102,6 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
       _refreshData();
     } catch (error) {
       if (mounted) AppToast.show(context, error.toString(), success: false);
-      rethrow;
     }
   }
 
@@ -249,7 +255,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     final selectedStart = selected.toDateTime();
     final selectedEnd = selectedStart.add(const Duration(days: 1));
     final selectedKey = EmployeeScheduleRules.dateKey(selectedStart);
-    final selectedException = exceptions.where((item) => item.dateKey == selectedKey).firstOrNull;
+    final selectedException = _exceptionForDate(exceptions, selectedKey);
     final selectedShifts = selectedException != null
         ? selectedException.shifts
         : employee.scheduleEnabled ? employee.shiftsFor(selected.weekday - 1) : const <Shift>[];
@@ -278,7 +284,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
               final dateStart = day.toDateTime();
               final dateEnd = dateStart.add(const Duration(days: 1));
               final key = EmployeeScheduleRules.dateKey(dateStart);
-              final exception = exceptions.where((item) => item.dateKey == key).firstOrNull;
+              final exception = _exceptionForDate(exceptions, key);
               final onLeave = leaves.any((leave) => leave.overlaps(dateStart, dateEnd));
               final hasShift = exception != null
                   ? !exception.isClosed && exception.shifts.isNotEmpty
