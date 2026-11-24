@@ -14,8 +14,6 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/customer.dart';
-import '../../../../data/models/appointment.dart';
-import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../providers/customers_provider.dart';
 
@@ -40,7 +38,6 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<CustomersProvider>();
     return FutureBuilder<CustomerProfile?>(
       future: _profileFuture,
       builder: (context, snapshot) {
@@ -81,7 +78,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
       final confirmed = await showSensitiveOperationDialog(
         context,
         title: 'حذف یا بایگانی مشتری',
-        description: 'اگر مشتری سابقه نوبت یا دریافت مالی داشته باشد، پروفایل بایگانی می‌شود تا پیوند سوابق حفظ شود؛ در غیر این صورت حذف قابل بازگردانی انجام می‌شود.',
+        description: 'پروفایل مشتری در Supabase بایگانی می‌شود و سوابق نوبت و پرداخت‌های مرتبط حفظ می‌شوند. هر زمان امکان بازیابی وجود دارد.',
         recordDetails: {
           'نام مشتری': customer.fullName,
           'شماره تماس': customer.phone,
@@ -110,7 +107,19 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
       icon: Icons.person_rounded,
       showBackButton: true,
       actions: [
-        SoftButton(label: 'حذف / بایگانی', color: pal.danger, onTap: deleteCustomer),
+        if (customer.isArchived)
+          SoftButton(label: 'بازیابی از بایگانی', icon: Icons.unarchive_rounded, onTap: () async {
+            try {
+              await context.read<CustomersProvider>().update(customer.copyWith(isArchived: false));
+              if (!context.mounted) return;
+              AppToast.show(context, 'مشتری از بایگانی بازیابی شد.');
+              setState(() => _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId));
+            } catch (error) {
+              if (context.mounted) AppToast.show(context, 'بازیابی مشتری انجام نشد: $error', success: false);
+            }
+          })
+        else
+          SoftButton(label: 'حذف / بایگانی', color: pal.danger, onTap: deleteCustomer),
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/customers/${customer.id}/edit')),
         SolidButton(
           label: 'نوبت جدید',
@@ -120,7 +129,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
         ),
       ],
       mobileActions: [
-        TextButton(onPressed: deleteCustomer, child: const Text('حذف')),
+        if (!customer.isArchived) TextButton(onPressed: deleteCustomer, child: const Text('بایگانی')),
         CircleIconButton(icon: Icons.edit_rounded, size: 38, onTap: () => context.push('/customers/${customer.id}/edit')),
       ],
       child: Column(
@@ -247,6 +256,28 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
                           value: customer.lastVisitAt == null ? 'ندارد' : JalaliDate.fromDateTime(customer.lastVisitAt!).long,
                           icon: Icons.history_rounded,
                         ),
+                        if (profile.financeVisible) ...[
+                          InfoRow(
+                            label: 'مبلغ خدمات انجام‌شده',
+                            value: '${FaNum.ofInt((profile.totalBilled ?? 0).round())} تومان',
+                            icon: Icons.receipt_long_rounded,
+                          ),
+                          InfoRow(
+                            label: 'دریافتی خالص',
+                            value: '${FaNum.ofInt((profile.totalPaid ?? 0).round())} تومان',
+                            icon: Icons.payments_outlined,
+                          ),
+                          InfoRow(
+                            label: 'مانده حساب',
+                            value: '${FaNum.ofInt((profile.outstanding ?? 0).round())} تومان',
+                            icon: Icons.account_balance_wallet_outlined,
+                          ),
+                        ] else
+                          const InfoRow(
+                            label: 'اطلاعات مالی',
+                            value: 'دسترسی مشاهده مالی ندارید',
+                            icon: Icons.lock_outline_rounded,
+                          ),
                         InfoRow(
                           label: 'نوبت آینده',
                           value: upcoming.isEmpty ? 'ندارد' : upcoming.first.jalali.long,
