@@ -233,38 +233,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final provider = context.read<AppointmentsProvider>();
     final start = _date.toDateTime().add(Duration(hours: _time!.hour, minutes: _time!.minute));
 
-    Appointment? conflict;
-    try {
-      conflict = await provider.checkConflict(
-        employeeId: employee.id,
-        startAt: start,
-        durationMinutes: _totalDuration,
-        ignoreId: _existing?.id,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      AppToast.show(context, _appointmentFailure(error), success: false);
-      return;
-    }
-    // Date exceptions, leave, working hours, capacity and overlaps are
-    // validated again atomically by the Supabase booking RPC.
-
-    if (conflict != null) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      await showConfirmDialog(
-        context,
-        title: 'تداخل زمانی',
-        message:
-            'برای ${employee.fullName} در این بازه نوبت دیگری ثبت شده است (${Fmt.time(conflict.startAt.hour, conflict.startAt.minute)} - ${conflict.customerName}). لطفاً زمان دیگری انتخاب کنید.',
-        confirmLabel: 'متوجه شدم',
-        cancelLabel: 'بستن',
-        destructive: true,
-        icon: Icons.warning_amber_rounded,
-      );
-      return;
-    }
+    // زمان، ظرفیت، مرخصی و ساعات کاری به‌صورت اتمیک در RPC دیتابیس بررسی می‌شوند.
 
     if (!mounted) return;
 
