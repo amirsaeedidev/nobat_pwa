@@ -26,8 +26,8 @@ class AccessDeniedException implements Exception { const AccessDeniedException(t
 /// پایگاه‌داده درون‌حافظه‌ای (شبیه‌ساز Supabase در این فاز).
 /// تمام تغییرات، گزارش فعالیت و وضعیت‌های وابسته را به‌صورت مرکزی به‌روزرسانی می‌کند.
 class AppDatabase extends ChangeNotifier {
-  AppDatabase() {
-    _seed();
+  AppDatabase({bool seed = true}) {
+    if (seed) _seed();
   }
 
   final List<Customer> _customers = [];
