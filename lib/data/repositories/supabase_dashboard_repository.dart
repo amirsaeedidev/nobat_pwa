@@ -112,7 +112,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
           .fold<int>(0, (sum, item) => sum + item.durationMinutes);
       final utilization = capacityMinutes == 0
           ? 0
-          : (bookedMinutes * 100 / capacityMinutes).round().clamp(0, 100);
+          : (bookedMinutes * 100 / capacityMinutes).round().clamp(0, 100).toInt();
       weekly.add(WeekdayPerformance(
         label: date.short,
         percent: utilization,
