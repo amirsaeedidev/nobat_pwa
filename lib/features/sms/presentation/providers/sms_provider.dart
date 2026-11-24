@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/services/supabase_auth_state_notifier.dart';
@@ -55,6 +56,20 @@ class SmsProvider extends DbBoundProvider {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _page = PageResult.empty(pageSize: 8);
+    _stats = null;
+    _templates = const [];
+    _provider = const SmsProviderSettings();
+    _loading = false;
+    _testing = false;
+    _sendingTest = false;
   }
 
   @override
