@@ -159,13 +159,16 @@ class SmsProvider extends DbBoundProvider {
     }
   }
 
-  /// ارسال پیامک تأیید برای یک نوبت (شبیه‌سازی).
-  Future<SmsMessage> sendConfirmation({
+  /// Sends only when a real configured gateway is available. The current
+  /// Supabase setup has no SMS gateway, so booking is saved without inventing
+  /// a delivered-message record.
+  Future<SmsMessage?> sendConfirmation({
     required String recipient,
     required String phone,
     required String content,
     required String appointmentId,
   }) async {
+    if (!_provider.isEnabled || !_provider.isConfigured) return null;
     return _repository.sendMock(
       recipientName: recipient,
       phone: phone,
