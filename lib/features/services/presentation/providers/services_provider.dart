@@ -129,6 +129,9 @@ class ServicesProvider extends DbBoundProvider {
 
   Future<Service?> byId(String id) => _repository.findById(id);
 
+  Future<ServiceHistoryPage> fetchServiceHistory(String id, {int limit = 8}) =>
+      _repository.fetchServiceHistory(id, limit: limit);
+
   Future<bool> create(Service service) async {
     await _repository.create(service);
     await load();
