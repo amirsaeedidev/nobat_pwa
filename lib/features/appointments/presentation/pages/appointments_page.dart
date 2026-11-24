@@ -265,6 +265,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                     AppToast.show(context, 'نوبت لغو شد و در تاریخچه فعالیت ثبت شد.');
                                   }
                                 } catch (error) {
+                                  await provider.load();
                                   if (context.mounted) AppToast.show(context, '$error', success: false);
                                 }
                               } else if (action == 'move' && context.mounted) {
@@ -279,6 +280,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                   AppToast.show(context, 'نوبت تأیید شد و در تاریخچه فعالیت ثبت شد.');
                                 }
                               } catch (error) {
+                                await provider.load();
                                 if (context.mounted) AppToast.show(context, '$error', success: false);
                               }
                             },
