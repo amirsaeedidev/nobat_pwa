@@ -30,6 +30,10 @@ class _FakeAuthRepository extends SupabaseAuthRepository {
   Stream<AuthState> get onAuthStateChange => _events.stream;
 
   @override
+  Future<AuthResponse> refreshSession() async =>
+      AuthResponse(user: user, session: null);
+
+  @override
   Future<void> signOut() async {
     user = null;
   }
