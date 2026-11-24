@@ -45,7 +45,7 @@ class CustomersProvider extends DbBoundProvider {
       _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      _page = PageResult.empty(pageSize: _pageSize, archivedOnly: _showArchived);
+      _page = PageResult.empty(pageSize: _pageSize);
     } finally {
       _loading = false;
       notifyListeners();
@@ -71,7 +71,7 @@ class CustomersProvider extends DbBoundProvider {
 
   Future<void> _refresh() async {
     try {
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
+      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
       _loadNotice = null;
     } catch (error) {
       _page = PageResult.empty(pageSize: _pageSize);
