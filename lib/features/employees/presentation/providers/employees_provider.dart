@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
@@ -44,6 +45,17 @@ class EmployeesProvider extends DbBoundProvider {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _items = const [];
+    _loading = false;
+    _error = null;
+    _loadNotice = null;
   }
 
   @override
