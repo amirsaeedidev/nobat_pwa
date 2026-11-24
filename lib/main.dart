@@ -13,6 +13,7 @@ import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
+import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/service_repository.dart';
@@ -82,29 +83,32 @@ Future<void> main() async {
     }
   }
 
-  // AppDatabase is retained only as a legacy UI dependency during repository
-  // migration. Production startup never seeds it with sample business records.
+  // The legacy database remains only as a compatibility dependency for
+  // pages not yet migrated. It is never seeded in production.
   final database = AppDatabase(seed: false);
 
+  final supabaseClient = SupabaseService.client!;
+  final supabaseRepository = SupabaseRepository(supabaseClient);
+  final supabaseAuthRepository = SupabaseAuthRepository(supabaseClient);
+  final authStateNotifier = SupabaseAuthStateNotifier(
+    supabaseAuthRepository,
+    supabaseRepository,
+  );
+
+  // Customer CRUD is backed by the normalized public.customers table.
+  final customerRepository = SupabaseCustomerRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  // These modules are migrated in separate steps; their local repositories
+  // now start empty because production AppDatabase is never seeded.
   final appointmentRepository = MockAppointmentRepository(database);
-  final customerRepository = MockCustomerRepository(database);
   final serviceRepository = MockServiceRepository(database);
   final employeeRepository = MockEmployeeRepository(database);
   final smsRepository = MockSmsRepository(database);
   final settingsRepository = MockSettingsRepository(database);
   final dashboardRepository = MockDashboardRepository(database);
   final activityRepository = MockActivityRepository(database);
-  final supabaseClient = SupabaseService.client;
-  final supabaseRepository = supabaseClient == null
-      ? null
-      : SupabaseRepository(supabaseClient);
-  final supabaseAuthRepository = supabaseClient == null
-      ? null
-      : SupabaseAuthRepository(supabaseClient);
-  final authStateNotifier = SupabaseAuthStateNotifier(
-    supabaseAuthRepository,
-    supabaseRepository,
-  );
 
   runApp(
     MultiProvider(
