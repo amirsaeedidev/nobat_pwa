@@ -82,7 +82,7 @@ class SmsProvider extends DbBoundProvider {
     _page = await _repository.fetchMessages(query: _query, status: _statusFilter, page: _pageNumber, pageSize: 8);
     _stats = await _repository.fetchStats();
     _templates = await _repository.fetchTemplates();
-    _provider = db.settings.smsProvider;
+    _provider = await _repository.fetchProviderSettings();
     notifyListeners();
   }
 
