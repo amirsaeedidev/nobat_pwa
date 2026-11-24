@@ -61,13 +61,9 @@ class ServicesProvider extends DbBoundProvider {
         ));
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      _items = db.services;
-      _categories = db.serviceCategories;
-      _employeeConfigs
-        ..clear()
-        ..addEntries(db.employees
-            .expand((employee) => db.employeeServiceConfigsFor(employee.id))
-            .map((config) => MapEntry('${config.employeeId}::${config.serviceId}', config)));
+      _items = const [];
+      _categories = const [];
+      _employeeConfigs.clear();
     } finally {
       _loading = false;
       notifyListeners();
