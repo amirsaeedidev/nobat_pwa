@@ -110,7 +110,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر قواعد رزرو',
       logDescription: 'قواعد لغو و جابه‌جایی نوبت به‌روزرسانی شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -122,7 +122,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر تنظیمات اطلاع‌رسانی',
       logDescription: 'تنظیمات پیامک‌های خودکار به‌روزرسانی شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -134,7 +134,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر ساعت کاری',
       logDescription: 'شیفت‌های کاری و روزهای تعطیل به‌روزرسانی شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -142,7 +142,7 @@ class SettingsProvider extends DbBoundProvider {
     final current = _settings;
     if (current == null) return;
     await _repository.saveSettings(current.copyWith(scheduleExceptions: List.unmodifiable(exceptions)), logTitle: 'تغییر محدودیت‌های تقویم', logDescription: 'تعطیلات و ساعات ویژه تاریخ‌دار به‌روزرسانی شد.');
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -154,7 +154,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: logTitle ?? 'به‌روزرسانی پنل پیامک',
       logDescription: logDescription ?? 'تنظیمات پنل پیامک ذخیره شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 }
