@@ -199,10 +199,39 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
       _clearMembership(status: SupabaseAuthStatus.signedOut);
       return;
     }
-    _status = SupabaseAuthStatus.networkError;
+
+    // Fail closed: never keep a previously verified tenant or role available
+    // after the auth stream or membership request becomes unreliable.
+    _generation++;
+    _verification = null;
+    _verificationUserId = null;
+    _clearMembership(status: SupabaseAuthStatus.networkError);
     _verificationError =
         'ارتباط با سرویس احراز هویت برقرار نشد. پس از بررسی اینترنت دوباره تلاش کنید.';
     notifyListeners();
+  }
+
+  /// Revalidates the current stored session after a network interruption.
+  Future<bool> retryVerification() async {
+    if (_authRepository?.currentUser == null) {
+      _clearMembership(status: SupabaseAuthStatus.signedOut);
+      return false;
+    }
+    return verifyMembership();
+  }
+
+  /// Clears the Supabase session and tenant context together.
+  Future<void> signOut() async {
+    final auth = _authRepository;
+    if (auth == null) {
+      _clearMembership(status: SupabaseAuthStatus.unavailable);
+      return;
+    }
+    await auth.signOut();
+    _generation++;
+    _verification = null;
+    _verificationUserId = null;
+    _clearMembership(status: SupabaseAuthStatus.signedOut);
   }
 
   void _clearMembership({required SupabaseAuthStatus status}) {
