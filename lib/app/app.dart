@@ -21,7 +21,9 @@ class _DateTimeAppState extends State<DateTimeApp> {
   late final _router = buildRouter(
     context.read<AppDatabase>(),
     authRepository: context.read<SupabaseAuthRepository?>(),
-    authStateNotifier: context.read<SupabaseAuthStateNotifier>(),
+    // Widget tests and embedded previews may intentionally omit cloud auth.
+    // Production injects this notifier from main.dart.
+    authStateNotifier: context.read<SupabaseAuthStateNotifier?>(),
   );
 
   @override
