@@ -83,6 +83,40 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
     return row == null ? null : _model(Map<String, dynamic>.from(row));
   }
 
+  @override
+  Future<ServiceHistoryPage> fetchServiceHistory(String serviceId, {int limit = 8}) async {
+    final tenant = _tenant();
+    if (limit < 1 || limit > 50) throw ArgumentError('اندازه تاریخچه معتبر نیست.');
+    final response = await _client
+        .from('appointment_services')
+        .select('title_snapshot,price_toman,created_at,appointments!inner(reference,starts_at,status)',)
+        .eq('business_id', tenant)
+        .eq('service_id', serviceId)
+        .order('created_at', ascending: false)
+        .range(0, limit - 1)
+        .count(CountOption.exact);
+    final items = <ServiceAppointmentSummary>[];
+    for (final raw in response.data) {
+      final row = Map<String, dynamic>.from(raw);
+      final rawAppointment = row['appointments'];
+      final appointment = rawAppointment is Map
+          ? Map<String, dynamic>.from(rawAppointment)
+          : rawAppointment is List && rawAppointment.isNotEmpty
+              ? Map<String, dynamic>.from(rawAppointment.first as Map)
+              : <String, dynamic>{};
+      final startsAt = DateTime.tryParse(appointment['starts_at'] as String? ?? '');
+      if (startsAt == null) continue;
+      items.add(ServiceAppointmentSummary(
+        reference: appointment['reference'] as String? ?? '',
+        title: row['title_snapshot'] as String? ?? '',
+        startsAt: startsAt.toLocal(),
+        status: appointment['status'] as String? ?? '',
+        price: row['price_toman'] as num? ?? 0,
+      ));
+    }
+    return ServiceHistoryPage(totalCount: response.count ?? items.length, items: items);
+  }
+
   Map<String, dynamic> _servicePayload(Service service) => {
     'title': service.title.trim(),
     'category': service.category.trim(),
