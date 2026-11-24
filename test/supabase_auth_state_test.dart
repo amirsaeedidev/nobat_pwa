@@ -14,7 +14,7 @@ User _user(String id) => User.fromJson({
       'user_metadata': <String, dynamic>{},
       'aud': 'authenticated',
       'created_at': DateTime.utc(2026, 1, 1).toIso8601String(),
-    });
+    })!;
 
 class _FakeAuthRepository extends SupabaseAuthRepository {
   _FakeAuthRepository(this.user)
