@@ -78,8 +78,7 @@ class AppointmentDetailsPage extends StatelessWidget {
     final canConfirm = appointment.status == AppointmentStatus.pending && hasPermission('appointments.confirm');
     final canReject = appointment.status == AppointmentStatus.pending && hasPermission('appointments.reject');
     final canComplete = appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.complete');
-    final canCancel = appointment.status != AppointmentStatus.completed &&
-        appointment.status != AppointmentStatus.cancelled && hasPermission('appointments.cancel');
+    final canCancel =  (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed) && hasPermission('appointments.cancel');
     final canDelete = hasPermission('appointments.cancel');
     final canOpenActions = canConfirm || canReject || canComplete || canCancel || canDelete;
     final canReschedule = canEdit && appointment.rescheduleCount < 1 &&
