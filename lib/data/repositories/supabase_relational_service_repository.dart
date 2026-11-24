@@ -252,18 +252,26 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async {
     final tenant = _tenant();
     final rows = await _client.from('employee_services')
-         .select('employee_id,service_id,is_active,custom_price_toman,custom_duration_minutes,commission_rate_bps,fixed_commission_amount_toman,notes')
+        .select('employee_id,service_id,is_active,custom_price_toman,custom_duration_minutes,notes,employee_service_compensation(commission_rate_bps,fixed_commission_amount_toman)')
         .eq('business_id', tenant);
-    return rows.map((row) => EmployeeServiceConfig(
-      employeeId: row['employee_id'] as String,
-      serviceId: row['service_id'] as String,
-      active: row['is_active'] as bool? ?? true,
-      customPrice: (row['custom_price_toman'] as num?)?.toInt(),
-      customDurationMinutes: (row['custom_duration_minutes'] as num?)?.toInt(),
-      commissionRateBps: (row['commission_rate_bps'] as num?)?.toInt(),
-      fixedCommissionAmount: (row['fixed_commission_amount_toman'] as num?)?.toInt(),
-      specialtyNote: row['notes'] as String? ?? '',
-    )).toList(growable: false);
+    return rows.map((row) {
+      final rawCompensation = row['employee_service_compensation'];
+      final compensation = rawCompensation is List && rawCompensation.isNotEmpty
+          ? Map<String, dynamic>.from(rawCompensation.first as Map)
+          : rawCompensation is Map
+              ? Map<String, dynamic>.from(rawCompensation)
+              : <String, dynamic>{};
+      return EmployeeServiceConfig(
+        employeeId: row['employee_id'] as String,
+        serviceId: row['service_id'] as String,
+        active: row['is_active'] as bool? ?? true,
+        customPrice: (row['custom_price_toman'] as num?)?.toInt(),
+        customDurationMinutes: (row['custom_duration_minutes'] as num?)?.toInt(),
+        commissionRateBps: (compensation['commission_rate_bps'] as num?)?.toInt(),
+        fixedCommissionAmount: (compensation['fixed_commission_amount_toman'] as num?)?.toInt(),
+        specialtyNote: row['notes'] as String? ?? '',
+      );
+    }).toList(growable: false);
   }
 
   @override
@@ -276,9 +284,14 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       'is_active': config.active,
       'custom_price_toman': config.customPrice,
       'custom_duration_minutes': config.customDurationMinutes,
+      'notes': config.specialtyNote,
+    }, onConflict: 'business_id,employee_id,service_id');
+    await _client.from('employee_service_compensation').upsert({
+      'business_id': tenant,
+      'employee_id': config.employeeId,
+      'service_id': config.serviceId,
       'commission_rate_bps': config.commissionRateBps,
       'fixed_commission_amount_toman': config.fixedCommissionAmount,
-      'notes': config.specialtyNote,
     }, onConflict: 'business_id,employee_id,service_id');
   }
 }
