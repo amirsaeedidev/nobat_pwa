@@ -13,10 +13,9 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/widgets/jalali_picker.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../../../../data/models/enums.dart';
 import '../../../customers/presentation/providers/customers_provider.dart';
 import '../providers/appointments_provider.dart';
@@ -43,26 +42,28 @@ class AppointmentDetailsPage extends StatelessWidget {
 
     final provider = context.read<AppointmentsProvider>();
     final newStart = date.toDateTime().add(Duration(hours: time.hour, minutes: time.minute));
-    final conflict = await provider.checkConflict(
-      employeeId: appointment.employeeId,
-      startAt: newStart,
-      durationMinutes: appointment.durationMinutes,
-      ignoreId: appointment.id,
-    );
-    if (!context.mounted) return;
-    if (conflict != null) {
-      AppToast.show(context, 'این زمان برای ${appointment.employeeName} رزرو شده است.', success: false);
-      return;
+    try {
+      await provider.reschedule(appointment, newStart);
+      if (context.mounted) AppToast.show(context, 'نوبت جابه‌جا شد و در تاریخچه ثبت شد.');
+    } catch (error) {
+      if (context.mounted) {
+        final message = error.toString().contains('APPOINTMENT_RESCHEDULE_LIMIT_REACHED')
+            ? 'این نوبت قبلاً یک‌بار جابه‌جا شده است.'
+            : 'تغییر زمان توسط سرور تأیید نشد؛ ساعات کاری، مرخصی و ظرفیت را بررسی کنید.';
+        AppToast.show(context, message, success: false);
+      }
     }
-    await provider.reschedule(appointment, newStart);
-    if (context.mounted) AppToast.show(context, 'نوبت جابه‌جا شد');
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppointmentsProvider>();
     final appointment = provider.appointmentById(appointmentId);
+    final auth = context.watch<SupabaseAuthStateNotifier>();
     final pal = context.pal;
+    bool hasPermission(String permission) =>
+        auth.hasActiveBusiness &&
+        (auth.role == 'owner' || auth.permissions[permission] == true);
 
     if (appointment == null) {
       return PageScaffold(
@@ -71,6 +72,17 @@ class AppointmentDetailsPage extends StatelessWidget {
         child: const EmptyState(title: 'نوبت یافت نشد', description: 'این نوبت حذف شده یا وجود ندارد.'),
       );
     }
+
+    final canEdit = hasPermission('appointments.edit');
+    final canConfirm = appointment.status == AppointmentStatus.pending && hasPermission('appointments.confirm');
+    final canReject = appointment.status == AppointmentStatus.pending && hasPermission('appointments.reject');
+    final canComplete = appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.complete');
+    final canCancel = appointment.status != AppointmentStatus.completed &&
+        appointment.status != AppointmentStatus.cancelled && hasPermission('appointments.cancel');
+    final canOpenActions = canConfirm || canReject || canComplete || canCancel ||
+        (appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.edit'));
+    final canReschedule = canEdit && appointment.rescheduleCount < 1 &&
+        (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed);
 
     final customer = context.watch<CustomersProvider>().findById(appointment.customerId);
     final history = provider.allAppointments
@@ -84,24 +96,32 @@ class AppointmentDetailsPage extends StatelessWidget {
       icon: Icons.event_available_rounded,
       showBackButton: true,
       actions: [
-        SoftButton(
-          label: 'ویرایش',
-          icon: Icons.edit_rounded,
-          onTap: () => context.push('/appointments/${appointment.id}/edit'),
-        ),
-        SoftButton(
-          label: 'اقدامات',
-          icon: Icons.more_horiz_rounded,
-          onTap: () => showAppointmentActions(context, appointment),
-        ),
+        if (canEdit)
+          SoftButton(
+            label: 'ویرایش',
+            icon: Icons.edit_rounded,
+            onTap: () => context.push('/appointments/${appointment.id}/edit'),
+          ),
+        if (canOpenActions)
+          SoftButton(
+            label: 'اقدامات',
+            icon: Icons.more_horiz_rounded,
+            onTap: () => showAppointmentActions(context, appointment),
+          ),
       ],
       mobileActions: [
-        CircleIconButton(
-          icon: Icons.edit_rounded,
-          size: 38,
-          onTap: () => context.push('/appointments/${appointment.id}/edit'),
-        ),
-        CircleIconButton(icon: Icons.more_horiz_rounded, size: 38, onTap: () => showAppointmentActions(context, appointment)),
+        if (canEdit)
+          CircleIconButton(
+            icon: Icons.edit_rounded,
+            size: 38,
+            onTap: () => context.push('/appointments/${appointment.id}/edit'),
+          ),
+        if (canOpenActions)
+          CircleIconButton(
+            icon: Icons.more_horiz_rounded,
+            size: 38,
+            onTap: () => showAppointmentActions(context, appointment),
+          ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,14 +177,15 @@ class AppointmentDetailsPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(
-                          child: SoftButton(
-                            label: 'جابه‌جایی',
-                            icon: Icons.swap_horiz_rounded,
-                            onTap: () => _reschedule(context, appointment),
+                        if (canReschedule)
+                          Expanded(
+                            child: SoftButton(
+                              label: 'جابه‌جایی',
+                              icon: Icons.swap_horiz_rounded,
+                              onTap: () => _reschedule(context, appointment),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
+                        if (canReschedule) const SizedBox(width: 8),
                         Expanded(
                           child: SoftButton(
                             label: 'مشاهده مشتری',
@@ -373,105 +394,98 @@ class _StatusHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: SoftButton(
-                  label: 'تأیید',
-                  icon: Icons.verified_rounded,
-                  color: pal.success,
-                  onTap: () => context.read<AppointmentsProvider>().changeStatus(appointment, AppointmentStatus.confirmed),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SoftButton(
-                  label: 'تکمیل',
-                  icon: Icons.task_alt_rounded,
-                  color: pal.accentGlow,
-                  onTap: () async {
-                    final confirmed = await showSensitiveOperationDialog(
-                      context,
-                      title: 'تأیید تکمیل نوبت و ثبت اسناد مالی',
-                      description: 'با تکمیل این نوبت، وضعیت نهایی می‌شود و اسناد درآمد و پورسانت وابسته در دفتر مالی ثبت خواهند شد.',
-                      recordDetails: {
-                        'کد نوبت': appointment.reference,
-                        'مشتری': appointment.customerName,
-                        'خدمت': appointment.serviceName,
-                        'پرسنل': appointment.employeeName,
-                        'مبلغ خدمت': '${FaNum.ofInt(appointment.price.round())} تومان',
-                        'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
-                      },
-                      isReversible: false,
-                      warning: 'پس از ثبت اسناد مالی، تکمیل نوبت قابل Undo نیست. اصلاحات مالی فقط با سند اصلاحی مجاز انجام می‌شود.',
-                      confirmLabel: 'تکمیل و ثبت اسناد مالی',
-                    );
-                    if (!confirmed || !context.mounted) return;
-                    try {
-                      await context.read<AppointmentsProvider>().changeStatus(
-                        appointment,
-                        AppointmentStatus.completed,
-                      );
-                      if (context.mounted) {
-                        AppToast.show(context, 'نوبت تکمیل شد و اسناد مالی ثبت شدند.');
-                      }
-                    } catch (error) {
-                      if (context.mounted) AppToast.show(context, 'تکمیل نوبت انجام نشد: $error', success: false);
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SoftButton(
-                  label: 'لغو',
-                  icon: Icons.event_busy_rounded,
-                  color: pal.danger,
-                  onTap: () async {
-                    final confirmed = await showSensitiveOperationDialog(
-                      context,
-                      title: 'تأیید لغو نوبت',
-                      description: 'وضعیت نوبت به لغوشده تغییر می‌کند. این عملیات قابل بازگردانی است و سوابق مشتری و امور مالی حذف نمی‌شوند.',
-                      recordDetails: {
-                        'کد نوبت': appointment.reference,
-                        'مشتری': appointment.customerName,
-                        'خدمت': appointment.serviceName,
-                        'پرسنل': appointment.employeeName,
-                        'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
-                        'مبلغ': '${FaNum.ofInt(appointment.price.round())} تومان',
-                      },
-                      isReversible: true,
-                      confirmLabel: 'لغو نوبت',
-                    );
-                    if (confirmed && context.mounted) {
-                      try {
-                        await context.read<AppointmentsProvider>().changeStatus(
-                          appointment, AppointmentStatus.cancelled, reason: 'لغو توسط پرسنل');
-                        if (context.mounted) {
-                          final operations = OperationsRepository(context.read<AppDatabase>());
-                          final undoLog = operations.latestUndoableLogFor(appointment.id);
-                          if (undoLog != null) {
-                            showUndoableOperationSnackBarForLog(
-                              context,
-                              message: 'نوبت ${appointment.reference} لغو شد.',
-                              activityLogId: undoLog.id,
-                              undo: operations.undo,
-                              onUndoSuccess: context.read<AppointmentsProvider>().load,
-                            );
-                          } else {
-                            AppToast.show(context, 'نوبت لغو شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-                          }
+          if (canConfirm || canComplete || canCancel)
+            Row(
+              children: [
+                if (canConfirm)
+                  Expanded(
+                    child: SoftButton(
+                      label: 'تأیید',
+                      icon: Icons.verified_rounded,
+                      color: pal.success,
+                      onTap: () async {
+                        try {
+                          await context.read<AppointmentsProvider>().changeStatus(
+                            appointment, AppointmentStatus.confirmed);
+                          if (context.mounted) AppToast.show(context, 'نوبت تأیید و در تاریخچه ثبت شد.');
+                        } catch (error) {
+                          if (context.mounted) AppToast.show(context, 'تأیید نوبت انجام نشد: $error', success: false);
                         }
-                      } catch (error) {
-                        if (context.mounted) AppToast.show(context, '$error', success: false);
-                      }
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          if (appointment.status == AppointmentStatus.pending) ...[
+                      },
+                    ),
+                  ),
+                if (canConfirm && (canComplete || canCancel)) const SizedBox(width: 8),
+                if (canComplete)
+                  Expanded(
+                    child: SoftButton(
+                      label: 'تکمیل',
+                      icon: Icons.task_alt_rounded,
+                      color: pal.accentGlow,
+                      onTap: () async {
+                        final confirmed = await showSensitiveOperationDialog(
+                          context,
+                          title: 'تأیید تکمیل نوبت',
+                          description: 'وضعیت نوبت نهایی می‌شود و رویداد تکمیل در تاریخچه فعالیت ثبت خواهد شد.',
+                          recordDetails: {
+                            'کد نوبت': appointment.reference,
+                            'مشتری': appointment.customerName,
+                            'خدمت': appointment.serviceName,
+                            'پرسنل': appointment.employeeName,
+                            'مبلغ خدمت': '${FaNum.ofInt(appointment.price.round())} تومان',
+                            'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
+                          },
+                          isReversible: false,
+                          warning: 'تکمیل نوبت قابل بازگردانی نیست؛ تغییرات بعدی باید با عملیات اصلاحی مجاز انجام شوند.',
+                          confirmLabel: 'تکمیل نوبت',
+                        );
+                        if (!confirmed || !context.mounted) return;
+                        try {
+                          await context.read<AppointmentsProvider>().changeStatus(
+                            appointment, AppointmentStatus.completed);
+                          if (context.mounted) AppToast.show(context, 'نوبت تکمیل و در تاریخچه ثبت شد.');
+                        } catch (error) {
+                          if (context.mounted) AppToast.show(context, 'تکمیل نوبت انجام نشد: $error', success: false);
+                        }
+                      },
+                    ),
+                  ),
+                if (canCancel) ...[
+                  if (canConfirm || canComplete) const SizedBox(width: 8),
+                  Expanded(
+                    child: SoftButton(
+                      label: 'لغو',
+                      icon: Icons.event_busy_rounded,
+                      color: pal.danger,
+                      onTap: () async {
+                        final confirmed = await showSensitiveOperationDialog(
+                          context,
+                          title: 'تأیید لغو نوبت',
+                          description: 'وضعیت نوبت به لغوشده تغییر می‌کند. تاریخچه و اسناد مالی مرتبط حذف نمی‌شوند.',
+                          recordDetails: {
+                            'کد نوبت': appointment.reference,
+                            'مشتری': appointment.customerName,
+                            'خدمت': appointment.serviceName,
+                            'پرسنل': appointment.employeeName,
+                            'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
+                          },
+                          isReversible: false,
+                          confirmLabel: 'لغو نوبت',
+                        );
+                        if (!confirmed || !context.mounted) return;
+                        try {
+                          await context.read<AppointmentsProvider>().changeStatus(
+                            appointment, AppointmentStatus.cancelled, reason: 'لغو توسط پرسنل');
+                          if (context.mounted) AppToast.show(context, 'نوبت لغو و در تاریخچه ثبت شد.');
+                        } catch (error) {
+                          if (context.mounted) AppToast.show(context, 'لغو نوبت انجام نشد: $error', success: false);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          if (appointment.status == AppointmentStatus.pending && canReject) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -495,25 +509,13 @@ class _StatusHero extends StatelessWidget {
                   );
                   if (!confirmed || !context.mounted) return;
                   try {
-                    await OperationsRepository(context.read<AppDatabase>()).rejectAppointment(
-                      appointment.id,
+                    await context.read<AppointmentsProvider>().changeStatus(
+                      appointment,
+                      AppointmentStatus.cancelled,
                       reason: 'رد درخواست توسط مدیر',
+                      operationType: 'appointment_reject',
                     );
-                    if (context.mounted) {
-                      final operations = OperationsRepository(context.read<AppDatabase>());
-                      final undoLog = operations.latestUndoableLogFor(appointment.id);
-                      if (undoLog != null) {
-                        showUndoableOperationSnackBarForLog(
-                          context,
-                          message: 'درخواست نوبت ${appointment.reference} رد شد.',
-                          activityLogId: undoLog.id,
-                          undo: operations.undo,
-                          onUndoSuccess: context.read<AppointmentsProvider>().load,
-                        );
-                      } else {
-                        AppToast.show(context, 'درخواست رد شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-                      }
-                    }
+                    if (context.mounted) AppToast.show(context, 'درخواست نوبت رد و در تاریخچه ثبت شد.');
                   } catch (error) {
                     if (context.mounted) AppToast.show(context, '$error', success: false);
                   }
