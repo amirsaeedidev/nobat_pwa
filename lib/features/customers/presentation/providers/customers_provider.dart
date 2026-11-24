@@ -45,7 +45,7 @@ class CustomersProvider extends DbBoundProvider {
       _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      _page = PageResult.empty(pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize, archivedOnly: _showArchived);
     } finally {
       _loading = false;
       notifyListeners();
@@ -79,7 +79,13 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
   }
 
-  void toggleArchived() {\n    _showArchived = !_showArchived;\n    _pageNumber = 1;\n    load();\n  }\n\n  void search(String query) {
+  void toggleArchived() {
+    _showArchived = !_showArchived;
+    _pageNumber = 1;
+    load();
+  }
+
+  void search(String query) {
     _query = query;
     _pageNumber = 1;
     load();
