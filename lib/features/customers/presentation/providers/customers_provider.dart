@@ -32,7 +32,7 @@ class CustomersProvider extends DbBoundProvider {
   bool get busy => _busy;
   int get total => _page.total;
 
-  List<Customer> get all => db.customers;
+  List<Customer> get all => _page.items;
 
   Future<void> load() async {
     _loading = true;
@@ -110,7 +110,7 @@ class CustomersProvider extends DbBoundProvider {
   Future<void> delete(String id) => _repository.delete(id);
 
   Customer? findById(String id) {
-    for (final c in db.customers) {
+    for (final c in _page.items) {
       if (c.id == id) return c;
     }
     return null;
