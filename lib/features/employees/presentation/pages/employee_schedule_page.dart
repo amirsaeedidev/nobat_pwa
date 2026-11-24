@@ -32,8 +32,8 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   late Future<({List<EmployeeScheduleException> exceptions, List<EmployeeLeave> leaves})> _dataFuture;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
     _dataFuture = _loadData();
   }
 
