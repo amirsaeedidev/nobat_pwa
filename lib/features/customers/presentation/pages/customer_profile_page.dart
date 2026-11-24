@@ -37,6 +37,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
   }
 
   @override
+  void didUpdateWidget(covariant CustomerProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.customerId != widget.customerId) {
+      _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<CustomerProfile?>(
       future: _profileFuture,
