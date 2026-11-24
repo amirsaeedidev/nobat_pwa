@@ -131,9 +131,10 @@ class SupabaseCustomerRepository implements CustomerRepository {
   @override
   Future<void> delete(String id) async {
     final tenant = _tenant();
+    // Keep customer appointment/finance history referentially intact.
     await _client
         .from('customers')
-        .delete()
+        .update({'is_active': false})
         .eq('business_id', tenant)
         .eq('id', id);
   }
