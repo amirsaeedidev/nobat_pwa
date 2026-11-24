@@ -208,9 +208,10 @@ class SupabaseRepository {
     final userId = _requireUserId();
     final rows = await _client
         .from('business_memberships')
-        .select('business_id,role,permissions,is_active,businesses(id,name)')
+        .select('business_id,user_id,role,permissions,is_active,created_at,businesses(id,name)')
         .eq('user_id', userId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', ascending: true);
 
     return rows.map((row) => Map<String, dynamic>.from(row)).toList(growable: false);
   }
