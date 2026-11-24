@@ -287,7 +287,7 @@ class SupabaseCustomerRepository implements CustomerRepository {
 
     final profileCustomer = customer.copyWith(
       visitCount: completed.length,
-      totalSpent: paid ?? 0,
+      totalSpent: billed,
       cancelCount: cancelled,
       noShowCount: noShows,
       lastVisitAt: lastVisit,
