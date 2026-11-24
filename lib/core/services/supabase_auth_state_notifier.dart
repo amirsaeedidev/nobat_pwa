@@ -214,7 +214,18 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
 
   /// Revalidates the current stored session after a network interruption.
   Future<bool> retryVerification() async {
-    if (_authRepository?.currentUser == null) {
+    final auth = _authRepository;
+    if (auth?.currentUser == null) {
+      _clearMembership(status: SupabaseAuthStatus.signedOut);
+      return false;
+    }
+    try {
+      await auth!.refreshSession();
+    } catch (error) {
+      _setNetworkError(error);
+      return false;
+    }
+    if (auth.currentUser == null) {
       _clearMembership(status: SupabaseAuthStatus.signedOut);
       return false;
     }
