@@ -68,11 +68,17 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     try {
       final appointment = await context.read<AppointmentsProvider>().byId(id);
       if (!mounted) return;
+      final servicesProvider = context.read<ServicesProvider>();
+      final employeesProvider = context.read<EmployeesProvider>();
       await Future.wait([
-        context.read<ServicesProvider>().load(),
-        context.read<EmployeesProvider>().load(),
+        servicesProvider.load(),
+        employeesProvider.load(),
       ]);
       if (!mounted) return;
+      if (servicesProvider.loadNotice != null || employeesProvider.loadNotice != null) {
+        AppToast.show(context, 'اطلاعات واقعی خدمت یا پرسنل از Supabase دریافت نشد؛ ویرایش متوقف شد.', success: false);
+        return;
+      }
       if (appointment == null) {
         AppToast.show(context, 'نوبت مورد نظر در Supabase پیدا نشد.', success: false);
         return;
@@ -227,12 +233,20 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final provider = context.read<AppointmentsProvider>();
     final start = _date.toDateTime().add(Duration(hours: _time!.hour, minutes: _time!.minute));
 
-    final conflict = await provider.checkConflict(
-      employeeId: employee.id,
-      startAt: start,
-      durationMinutes: _totalDuration,
-      ignoreId: _existing?.id,
-    );
+    Appointment? conflict;
+    try {
+      conflict = await provider.checkConflict(
+        employeeId: employee.id,
+        startAt: start,
+        durationMinutes: _totalDuration,
+        ignoreId: _existing?.id,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _appointmentFailure(error), success: false);
+      return;
+    }
     // Date exceptions, leave, working hours, capacity and overlaps are
     // validated again atomically by the Supabase booking RPC.
 
