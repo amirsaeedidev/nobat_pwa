@@ -237,12 +237,8 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       durationMinutes: _totalDuration,
       ignoreId: _existing?.id,
     );
-    if (!_isEmployeeScheduled(employee, start, _totalDuration)) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      AppToast.show(context, 'این زمان خارج از شیفت کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.', success: false);
-      return;
-    }
+    // Date exceptions, leave, working hours, capacity and overlaps are
+    // validated again atomically by the Supabase booking RPC.
 
     if (conflict != null) {
       if (!mounted) return;
@@ -310,10 +306,17 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       createdBy: 'پذیرش',
     );
 
-    if (_existing != null) {
-      await provider.update(appointment);
-    } else {
-      await provider.create(appointment);
+    try {
+      if (_existing != null) {
+        await provider.update(appointment);
+      } else {
+        await provider.create(appointment);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _appointmentFailure(error), success: false);
+      return;
     }
 
     if (!mounted) return;
@@ -336,6 +339,28 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     } else {
       context.go('/appointments');
     }
+  }
+
+
+  String _appointmentFailure(Object error) {
+    final value = error.toString();
+    const messages = <String, String>{
+      'CUSTOMER_NOT_ACTIVE_OR_NOT_FOUND': 'مشتری فعال و معتبر در پایگاه داده پیدا نشد.',
+      'EMPLOYEE_SCHEDULE_DISABLED_OR_NOT_FOUND': 'پرسنل انتخاب‌شده فعال نیست یا برنامه کاری او غیرفعال است.',
+      'SERVICE_NOT_ACTIVE_OR_NOT_ASSIGNED_TO_EMPLOYEE': 'یکی از خدمات فعال نیست یا برای این پرسنل تعریف نشده است.',
+      'EMPLOYEE_ON_APPROVED_LEAVE': 'پرسنل در این بازه مرخصی تأییدشده دارد.',
+      'EMPLOYEE_NOT_AVAILABLE_ON_DATE': 'پرسنل در این تاریخ در دسترس نیست.',
+      'OUTSIDE_EXCEPTION_WORKING_HOURS': 'زمان انتخاب‌شده خارج از ساعات کاری استثنایی پرسنل است.',
+      'OUTSIDE_EMPLOYEE_WORKING_HOURS': 'زمان انتخاب‌شده خارج از ساعات کاری پرسنل است.',
+      'APPOINTMENT_TIME_CONFLICT': 'این بازه با نوبت دیگری یا فاصله استراحت پرسنل تداخل دارد.',
+      'SERVICE_DAILY_CAPACITY_REACHED': 'ظرفیت روزانه یکی از خدمات تکمیل شده است.',
+      'SERVICE_ADVANCE_BOOKING_LIMIT': 'تاریخ انتخاب‌شده خارج از بازه مجاز رزرو خدمت است.',
+      'INVALID_APPOINTMENT_STATUS_TRANSITION': 'تغییر وضعیت انتخاب‌شده مجاز نیست.',
+    };
+    for (final entry in messages.entries) {
+      if (value.contains(entry.key)) return entry.value;
+    }
+    return 'ذخیره نوبت در Supabase ناموفق بود. اتصال و دسترسی‌ها را بررسی و دوباره تلاش کنید.';
   }
 
   @override
