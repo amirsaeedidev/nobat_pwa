@@ -391,10 +391,10 @@ class ServiceCard extends StatelessWidget {
                 onTap: onDelete,
               ),
               StatusBadge(
-                label: service.isActive ? 'فعال' : 'غیرفعال',
-                color: service.isActive ? pal.success : pal.textMuted,
+                label: service.archivedAt != null ? 'بایگانی' : (service.isActive ? 'فعال' : 'غیرفعال'),
+                color: service.archivedAt != null ? pal.textMuted : (service.isActive ? pal.success : pal.textMuted),
                 dense: true,
-                icon: service.isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                icon: service.archivedAt != null ? Icons.archive_outlined : (service.isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded),
               ),
             ],
           ),
