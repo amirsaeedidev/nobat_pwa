@@ -126,21 +126,27 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
       schedule: _schedule,
       startedAt: _startedAt ?? _existing?.startedAt,
     );
-    final saved = _existing != null ? await provider.update(employee) : await provider.create(employee);
-    if (!saved) {
-      if (mounted) {
-        setState(() => _saving = false);
-        AppToast.show(context, 'این شماره موبایل قبلاً برای پرسنل دیگری ثبت شده است.', success: false);
+    try {
+      final saved = _existing != null ? await provider.update(employee) : await provider.create(employee);
+      if (!saved) {
+        if (mounted) {
+          setState(() => _saving = false);
+          AppToast.show(context, 'این شماره موبایل قبلاً برای پرسنل دیگری ثبت شده است.', success: false);
+        }
+        return;
       }
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, _existing != null ? 'اطلاعات پرسنل به‌روزرسانی شد' : 'پرسنل جدید اضافه شد');
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/employees');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _existing != null ? 'اطلاعات پرسنل به‌روزرسانی شد' : 'پرسنل جدید اضافه شد');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/employees');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, error.toString(), success: false);
     }
   }
 
@@ -151,7 +157,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
 
     return PageScaffold(
       title: widget.employeeId == null ? 'پرسنل جدید' : 'ویرایش پرسنل',
-      subtitle: 'پروفایل، دسترسی و برنامه کاری',
+      subtitle: 'پروفایل، تخصص و برنامه کاری',
       icon: Icons.badge_rounded,
       showBackButton: true,
       child: Form(
