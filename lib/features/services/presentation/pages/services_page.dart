@@ -42,11 +42,18 @@ class ServicesPage extends StatelessWidget {
         ),
         CircleIconButton(icon: Icons.settings_rounded, size: 38, onTap: () => context.push('/settings')),
       ],
-      mobileActions: [
-        CircleIconButton(icon: Icons.category_outlined, size: 38, onTap: () => _manageCategories(context)),
-        CircleIconButton(icon: Icons.add_rounded, size: 38, onTap: () => context.push('/services/new')),
-      ],
-      leading: CircleIconButton(icon: Icons.settings_rounded, size: 40, onTap: () => context.push('/settings')),
+      mobileHeader: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          SoftButton(label: 'دسته‌بندی‌ها', icon: Icons.category_outlined,
+            dense: true, onTap: () => _manageCategories(context)),
+          SoftButton(label: 'بازآوری', icon: Icons.refresh_rounded,
+            dense: true, onTap: provider.load),
+          SolidButton(label: 'خدمت جدید', icon: Icons.add_rounded,
+            height: 40, onPressed: () => context.push('/services/new')),
+        ],
+      ),
       child: provider.loading
           ? const LoadingState(kind: SkeletonKind.services)
           : Column(
