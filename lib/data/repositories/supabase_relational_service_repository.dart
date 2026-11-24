@@ -40,8 +40,16 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       description: row['description'] as String? ?? '',
       price: row['price_toman'] as num? ?? 0,
       durationMinutes: (row['duration_minutes'] as num?)?.toInt() ?? 0,
-      bufferMinutes: 0,
-      prepMinutes: 0,
+      bufferMinutes: (row['buffer_minutes'] as num?)?.toInt() ?? 0,
+      prepMinutes: (row['prep_minutes'] as num?)?.toInt() ?? 0,
+      directCost: row['direct_cost_toman'] as num?,
+      imageUrl: row['image_url'] as String?,
+      discountPrice: row['discount_price_toman'] as num?,
+      discountStartsAt: row['discount_starts_on'] == null ? null : DateTime.tryParse(row['discount_starts_on'] as String),
+      discountEndsAt: row['discount_ends_on'] == null ? null : DateTime.tryParse(row['discount_ends_on'] as String),
+      maxPerDay: (row['max_per_day'] as num?)?.toInt(),
+      advanceDays: (row['advance_days'] as num?)?.toInt() ?? 30,
+      requiresConfirmation: row['requires_confirmation'] as bool? ?? false,
       isActive: row['is_active'] as bool? ?? false,
       employeeIds: links,
       category: row['category'] as String? ?? '',
@@ -50,7 +58,7 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   }
 
   static const _columns =
-      'id,title,category,description,duration_minutes,price_toman,is_active,sort_order,employee_services(employee_id,is_active)';
+      'id,title,category,description,duration_minutes,price_toman,is_active,sort_order,direct_cost_toman,image_url,discount_price_toman,discount_starts_on,discount_ends_on,prep_minutes,buffer_minutes,max_per_day,advance_days,requires_confirmation,employee_services(employee_id,is_active)';
 
   @override
   Future<List<Service>> fetchServices({bool onlyActive = false, String query = ''}) async {
@@ -74,24 +82,35 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
     return row == null ? null : _model(Map<String, dynamic>.from(row));
   }
 
+  Map<String, dynamic> _servicePayload(Service service) => {
+    'title': service.title.trim(),
+    'category': service.category.trim(),
+    'description': service.description,
+    'duration_minutes': service.durationMinutes,
+    'price_toman': service.price,
+    'is_active': service.isActive,
+    'sort_order': service.order,
+    'direct_cost_toman': service.directCost,
+    'image_url': service.imageUrl,
+    'discount_price_toman': service.discountPrice,
+    'discount_starts_on': service.discountStartsAt == null ? null : _dateOnly(service.discountStartsAt!),
+    'discount_ends_on': service.discountEndsAt == null ? null : _dateOnly(service.discountEndsAt!),
+    'prep_minutes': service.prepMinutes,
+    'buffer_minutes': service.bufferMinutes,
+    'max_per_day': service.maxPerDay,
+    'advance_days': service.advanceDays,
+    'requires_confirmation': service.requiresConfirmation,
+  };
+
+  String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
   @override
   Future<void> create(Service service) async {
-    final tenant = _tenant();
-    final categoryId = service.category.trim().isEmpty
-        ? null
-        : await _ensureCategory(service.category.trim());
-    final inserted = await _client.from('services').insert({
-      'business_id': tenant,
-      'category_id': categoryId,
-      'title': service.title.trim(),
-      'category': service.category.trim(),
-      'description': service.description,
-      'duration_minutes': service.durationMinutes,
-      'price_toman': service.price,
-      'is_active': service.isActive,
-      'sort_order': service.order,
-    }).select('id').single();
-    await _syncEmployeeLinks(inserted['id'] as String, service.employeeIds);
+    final configs = service.employeeIds.map((employeeId) => EmployeeServiceConfig(
+      employeeId: employeeId, serviceId: service.id,
+    )).toList(growable: false);
+    await saveCatalogItem(service, configs);
   }
 
   @override
@@ -102,15 +121,33 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
         : await _ensureCategory(service.category.trim());
     await _client.from('services').update({
       'category_id': categoryId,
-      'title': service.title.trim(),
-      'category': service.category.trim(),
-      'description': service.description,
-      'duration_minutes': service.durationMinutes,
-      'price_toman': service.price,
-      'is_active': service.isActive,
-      'sort_order': service.order,
+      ..._servicePayload(service),
     }).eq('business_id', tenant).eq('id', service.id);
     await _syncEmployeeLinks(service.id, service.employeeIds);
+  }
+
+  @override
+  Future<String> saveCatalogItem(
+    Service service,
+    List<EmployeeServiceConfig> configs,
+  ) async {
+    final tenant = _tenant();
+    final serviceId = service.id.startsWith('srv-') ? null : service.id;
+    final result = await _client.rpc('save_service_catalog_item', params: {
+      'p_business_id': tenant,
+      'p_service_id': serviceId,
+      'p_service': _servicePayload(service),
+      'p_employee_configs': configs.map((config) => {
+        'employee_id': config.employeeId,
+        'is_active': config.active,
+        'custom_price_toman': config.customPrice,
+        'custom_duration_minutes': config.customDurationMinutes,
+        'commission_rate_bps': config.commissionRateBps,
+        'fixed_commission_amount_toman': config.fixedCommissionAmount,
+        'notes': config.specialtyNote,
+      }).toList(growable: false),
+    });
+    return result as String;
   }
 
   Future<void> _syncEmployeeLinks(String serviceId, List<String> employeeIds) async {
@@ -137,14 +174,8 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
 
   @override
   Future<void> delete(String id) async {
-    final tenant = _tenant();
-    final history = await _client.from('appointment_services').select('id')
-        .eq('business_id', tenant).eq('service_id', id).limit(1);
-    if (history.isNotEmpty) {
-      await toggle(id, false);
-      return;
-    }
-    await _client.from('services').delete().eq('business_id', tenant).eq('id', id);
+    // Keep service identity and snapshots stable for all historical appointments.
+    await toggle(id, false);
   }
 
   @override
@@ -218,7 +249,7 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async {
     final tenant = _tenant();
     final rows = await _client.from('employee_services')
-        .select('employee_id,service_id,is_active,custom_price_toman,custom_duration_minutes,notes')
+         .select('employee_id,service_id,is_active,custom_price_toman,custom_duration_minutes,commission_rate_bps,fixed_commission_amount_toman,notes')
         .eq('business_id', tenant);
     return rows.map((row) => EmployeeServiceConfig(
       employeeId: row['employee_id'] as String,
@@ -226,6 +257,8 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       active: row['is_active'] as bool? ?? true,
       customPrice: (row['custom_price_toman'] as num?)?.toInt(),
       customDurationMinutes: (row['custom_duration_minutes'] as num?)?.toInt(),
+      commissionRateBps: (row['commission_rate_bps'] as num?)?.toInt(),
+      fixedCommissionAmount: (row['fixed_commission_amount_toman'] as num?)?.toInt(),
       specialtyNote: row['notes'] as String? ?? '',
     )).toList(growable: false);
   }
@@ -240,6 +273,8 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       'is_active': config.active,
       'custom_price_toman': config.customPrice,
       'custom_duration_minutes': config.customDurationMinutes,
+      'commission_rate_bps': config.commissionRateBps,
+      'fixed_commission_amount_toman': config.fixedCommissionAmount,
       'notes': config.specialtyNote,
     }, onConflict: 'business_id,employee_id,service_id');
   }
