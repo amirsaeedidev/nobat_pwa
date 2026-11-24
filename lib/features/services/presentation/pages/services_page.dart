@@ -234,13 +234,13 @@ class ServicesPage extends StatelessWidget {
             final confirmed = await showSensitiveOperationDialog(
               context,
               title: 'حذف دسته‌بندی خدمات',
-              description: 'دسته‌بندی حذف می‌شود. خدمات وابسته باید به دسته‌بندی دیگری منتقل شوند؛ تغییرات قابل بازگردانی هستند.',
+              description: 'دسته‌بندی در Supabase حذف می‌شود. خدمات وابسته در همان عملیات به دسته‌بندی مقصد منتقل خواهند شد.',
               recordDetails: {
                 'دسته‌بندی': category,
                 'خدمات وابسته': count.toString(),
                 'دسته‌بندی مقصد': moveTo ?? (count == 0 ? 'ندارد' : 'انتخاب نشده'),
               },
-              isReversible: true,
+              isReversible: false,
               confirmLabel: 'حذف دسته‌بندی',
             );
             if (!confirmed || !context.mounted) return;
