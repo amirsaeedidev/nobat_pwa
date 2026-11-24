@@ -43,29 +43,15 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   EmployeeStatus _status = EmployeeStatus.active;
   DateTime? _startedAt;
   List<String> _serviceIds = [];
-  List<String> _permissions = ['appointments', 'customers'];
   final Map<int, List<Shift>> _schedule = {};
   bool _saving = false;
   bool _prefilled = false;
   Employee? _existing;
 
-  static const _permissionOptions = {
-    'dashboard': 'پیشخوان',
-    'appointments': 'نوبت‌ها',
-    'customers': 'مشتریان',
-    'services': 'خدمات',
-    'employees': 'پرسنل',
-    'sms': 'پیامک',
-    'reports': 'گزارش‌ها',
-    'settings': 'تنظیمات',
-  };
 
   @override
   void initState() {
     super.initState();
-    for (var day = 0; day < 6; day++) {
-      _schedule[day] = [const Shift(start: '09:00', end: '17:00')];
-    }
   }
 
   @override
@@ -91,7 +77,6 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
         _role = employee.role;
         _status = employee.employmentStatus;
         _serviceIds = [...employee.serviceIds];
-        _permissions = [...employee.permissions];
         _schedule
           ..clear()
           ..addAll(employee.schedule.map((k, v) => MapEntry(k, [...v])));
@@ -138,9 +123,8 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
       emergencyContactPhone: _emergencyPhone.text.trim(),
       avatarAsset: _avatarAsset.text.trim(),
       serviceIds: _serviceIds,
-      permissions: _permissions,
       schedule: _schedule,
-      startedAt: _startedAt ?? _existing?.startedAt ?? DateTime.now(),
+      startedAt: _startedAt ?? _existing?.startedAt,
     );
     final saved = _existing != null ? await provider.update(employee) : await provider.create(employee);
     if (!saved) {
@@ -285,23 +269,9 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const SectionHeader(title: 'مجوزهای دسترسی'),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final entry in _permissionOptions.entries)
-                        FilterChip(
-                          label: Text(entry.value),
-                          selected: _permissions.contains(entry.key),
-                          onSelected: (selected) => setState(() {
-                            _permissions = selected
-                                ? [..._permissions, entry.key]
-                                : _permissions.where((p) => p != entry.key).toList();
-                          }),
-                        ),
-                    ],
+                  const Text(
+                    'مجوزهای ورود و مشاهده اطلاعات از بخش مدیریت دسترسی‌ها و بر اساس عضویت واقعی حساب در مجموعه کنترل می‌شود.',
+                    style: TextStyle(fontSize: 11, height: 1.7),
                   ),
                 ],
               ),
