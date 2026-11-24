@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
@@ -11,7 +12,7 @@ import '../../../../data/repositories/settings_repository.dart';
 
 /// تنظیمات ظاهری و اطلاعات مجموعه.
 class SettingsProvider extends DbBoundProvider {
-  SettingsProvider(this._repository, AppDatabase db) : super(db) {
+  SettingsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
