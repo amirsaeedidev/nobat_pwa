@@ -39,5 +39,7 @@ class SupabaseAuthRepository {
     );
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  Future<AuthResponse> refreshSession() => _client.auth.refreshSession();
+
+  Future<void> signOut() => _client.auth.signOut(scope: SignOutScope.local);
 }
