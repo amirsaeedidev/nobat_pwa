@@ -175,7 +175,9 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   }
 
   @override
-  Future<void> addCategory(String name) => _ensureCategory(name.trim());
+  Future<void> addCategory(String name) async {
+    await _ensureCategory(name.trim());
+  }
 
   @override
   Future<void> renameCategory(String oldName, String newName) async {
