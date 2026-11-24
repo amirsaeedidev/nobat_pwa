@@ -79,8 +79,7 @@ class AppointmentDetailsPage extends StatelessWidget {
     final canComplete = appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.complete');
     final canCancel = appointment.status != AppointmentStatus.completed &&
         appointment.status != AppointmentStatus.cancelled && hasPermission('appointments.cancel');
-    final canOpenActions = canConfirm || canReject || canComplete || canCancel ||
-        (appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.edit'));
+    final canOpenActions = canConfirm || canReject || canComplete || canCancel;
     final canReschedule = canEdit && appointment.rescheduleCount < 1 &&
         (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed);
 
@@ -504,7 +503,7 @@ class _StatusHero extends StatelessWidget {
                       'پرسنل': appointment.employeeName,
                       'زمان': '${appointment.jalali.long}، ${appointment.startAt.hour.toString().padLeft(2, '0')}:${appointment.startAt.minute.toString().padLeft(2, '0')}',
                     },
-                    isReversible: true,
+                    isReversible: false,
                     confirmLabel: 'رد درخواست',
                   );
                   if (!confirmed || !context.mounted) return;
