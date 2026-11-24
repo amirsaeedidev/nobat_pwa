@@ -114,7 +114,7 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
         price: row['price_toman'] as num? ?? 0,
       ));
     }
-    return ServiceHistoryPage(totalCount: response.count ?? items.length, items: items);
+    return ServiceHistoryPage(totalCount: response.count, items: items);
   }
 
   Map<String, dynamic> _servicePayload(Service service) => {
