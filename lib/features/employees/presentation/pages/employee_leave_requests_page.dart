@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/widgets/app_page.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/feedback.dart';
@@ -118,6 +119,8 @@ class _EmployeeLeaveRequestsPageState extends State<EmployeeLeaveRequestsPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
+    final auth = context.watch<SupabaseAuthStateNotifier>();
+    final canApprove = auth.role == 'owner' || auth.permissions['employees.leave.manage'] == true;
     final employee = provider.byIdSync(widget.employeeId);
     if (employee == null) {
       return PageScaffold(title: 'درخواست‌های مرخصی', showBackButton: true,
@@ -161,7 +164,7 @@ class _EmployeeLeaveRequestsPageState extends State<EmployeeLeaveRequestsPage> {
                     Text('از ${_date(leave.startAt)} تا ${_date(leave.endAt)}', style: Theme.of(context).textTheme.bodySmall),
                     if (leave.description.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(leave.description)),
                     if (leave.approvedBy != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text('شناسه بررسی‌کننده: ${leave.approvedBy}', style: Theme.of(context).textTheme.bodySmall)),
-                    if (leave.status == EmployeeLeaveStatus.pending) ...[
+                    if (canApprove && leave.status == EmployeeLeaveStatus.pending) ...[
                       const SizedBox(height: 8),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         SoftButton(label: 'تأیید', icon: Icons.check_circle_outline, color: Colors.green,
