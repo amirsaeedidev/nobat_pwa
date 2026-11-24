@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
@@ -18,8 +19,9 @@ class CalendarProvider extends DbBoundProvider {
     this._appointments,
     this._employees,
     this._services,
-    AppDatabase db,
-  ) : super(db) {
+    AppDatabase db, {
+    SupabaseAuthStateNotifier? authStateNotifier,
+  }) : super(db, authStateNotifier: authStateNotifier) {
     _today = JalaliDate.today();
     _anchor = _today;
     _selected = _today;
