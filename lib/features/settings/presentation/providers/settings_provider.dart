@@ -53,9 +53,9 @@ class SettingsProvider extends DbBoundProvider {
       _formThemeId = AppFormTheme.byId(prefs.getString('datetime_form_theme') ?? 'pastel_pink').id;
       _settings = await _repository.fetchSettings();
     } catch (error, stackTrace) {
-      debugPrint('Settings mock load failed; using seeded data: $error');
+      debugPrint('Settings remote load failed; no local/demo fallback is shown: $error');
       debugPrintStack(stackTrace: stackTrace);
-      _settings = db.settings;
+      _settings = null;
     } finally {
       _loading = false;
       notifyListeners();
