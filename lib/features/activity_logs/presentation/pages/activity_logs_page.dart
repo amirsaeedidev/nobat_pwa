@@ -120,7 +120,7 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                           final confirmed = await showSensitiveOperationDialog(
                             context,
                             title: 'تأیید بازگردانی تغییر',
-                            description: 'رکورد به آخرین وضعیت ثبت‌شده قبل از این عملیات بازمی‌گردد. اگر عملیات وابسته جدیدتری انجام شده باشد، سیستم اجازه بازگردانی ناسازگار نمی‌دهد.',
+                            description: 'رکورد با شناسه ${log.entityId} به آخرین وضعیت ثبت‌شده قبل از این عملیات بازمی‌گردد. اگر عملیات وابسته جدیدتری انجام شده باشد، سیستم اجازه بازگردانی ناسازگار نمی‌دهد.',
                             recordDetails: {
                               'عملیات': log.title,
                               'نوع عملیات': log.operationLabel,
