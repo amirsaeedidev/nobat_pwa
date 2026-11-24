@@ -214,7 +214,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                           final canOpenActions = canConfirm || canReject || canCancel ||
                               (appointment.status == AppointmentStatus.confirmed &&
                                   hasPermission('appointments.complete'));
-                          final canSwipeSecondary = canCancel || canEdit;
+                          final canEditAppointment = canEdit &&
+                              (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed);
+                          final canSwipeSecondary = canCancel || canEditAppointment;
                           final direction = canConfirm && canSwipeSecondary
                               ? DismissDirection.horizontal
                               : canConfirm
@@ -243,7 +245,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                         title: const Text('لغو نوبت'),
                                         onTap: () => Navigator.of(context, rootNavigator: true).pop('cancel'),
                                       ),
-                                    if (canEdit)
+                                    if (canEditAppointment)
                                       ListTile(
                                         leading: Icon(Icons.edit_calendar_rounded, color: pal.primaryBright),
                                         title: const Text('جابه‌جایی نوبت'),
