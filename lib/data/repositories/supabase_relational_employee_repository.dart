@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/employee.dart';
+import '../models/enums.dart';
 import '../models/employee_schedule.dart';
 import 'employee_repository.dart';
 
