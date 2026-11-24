@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/activity_log.dart';
 import '../../../../data/models/enums.dart';
@@ -7,8 +8,8 @@ import '../../../../data/repositories/operations_repository.dart';
 
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
-  ActivityProvider(this._repository, AppDatabase db)
-      : _operations = OperationsRepository(db), super(db) {
+  ActivityProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier})
+      : _operations = OperationsRepository(db), super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
