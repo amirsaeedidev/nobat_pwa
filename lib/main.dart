@@ -62,10 +62,13 @@ Future<void> main() async {
     }
   };
 
-  // Supabase is opt-in and initialized locally only. No network request is
-  // required for startup; if configuration or local session restoration fails,
-  // the app continues in its Datamonck offline mode.
-  await SupabaseService.initialize();
+  // Cloud data is mandatory. Never fall back to seeded or in-memory demo data
+  // when Supabase is not configured or cannot initialize.
+  final cloudReady = await SupabaseService.initialize();
+  if (!cloudReady) {
+    runApp(const SupabaseUnavailableApp());
+    return;
+  }
 
   if (!kIsWeb) {
     try {
@@ -79,9 +82,9 @@ Future<void> main() async {
     }
   }
 
-  // All application data is seeded locally in memory. Startup does not wait
-  // for browser storage, network access, or any remote service.
-  final database = AppDatabase();
+  // AppDatabase is retained only as a legacy UI dependency during repository
+  // migration. Production startup never seeds it with sample business records.
+  final database = AppDatabase(seed: false);
 
   final appointmentRepository = MockAppointmentRepository(database);
   final customerRepository = MockCustomerRepository(database);
@@ -136,4 +139,47 @@ Future<void> main() async {
       child: const DateTimeApp(),
     ),
   );
+}
+
+
+class SupabaseUnavailableApp extends StatelessWidget {
+  const SupabaseUnavailableApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('fa', 'IR'),
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.cloud_off_rounded, size: 52),
+                        SizedBox(height: 18),
+                        Text(
+                          'اتصال امن به Supabase در دسترس نیست',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'برای جلوگیری از نمایش اطلاعات ساختگی، برنامه بدون اتصال معتبر به پایگاه داده اجرا نمی‌شود. تنظیمات اتصال و اینترنت را بررسی کنید.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }
