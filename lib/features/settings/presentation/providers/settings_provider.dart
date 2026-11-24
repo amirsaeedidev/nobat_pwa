@@ -73,8 +73,7 @@ class SettingsProvider extends DbBoundProvider {
 
   @override
   void onDatabaseChanged() {
-    _settings = db.settings;
-    notifyListeners();
+    unawaited(load());
   }
 
   Future<void> setPalette(String id) async {
@@ -96,7 +95,7 @@ class SettingsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.saveSettings(settings, logTitle: logTitle, logDescription: logDescription);
-      _settings = db.settings;
+      _settings = await _repository.fetchSettings();
     } finally {
       _saving = false;
       notifyListeners();
