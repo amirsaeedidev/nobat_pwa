@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/service.dart';
@@ -7,7 +8,7 @@ import '../../../../data/repositories/service_repository.dart';
 
 /// مدیریت خدمات.
 class ServicesProvider extends DbBoundProvider {
-  ServicesProvider(this._repository, AppDatabase db) : super(db) {
+  ServicesProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
