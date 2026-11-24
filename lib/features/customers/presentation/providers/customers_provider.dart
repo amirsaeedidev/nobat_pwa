@@ -23,6 +23,7 @@ class CustomersProvider extends DbBoundProvider {
   bool _loading = true;
   String? _loadNotice;
   bool _busy = false;
+  bool _showArchived = false;
 
   PageResult<Customer> get page => _page;
   List<Customer> get items => _page.items;
@@ -31,6 +32,7 @@ class CustomersProvider extends DbBoundProvider {
   bool get loading => _loading;
   String? get loadNotice => _loadNotice;
   bool get busy => _busy;
+  bool get showArchived => _showArchived;
   int get total => _page.total;
 
   List<Customer> get all => _page.items;
@@ -40,7 +42,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
     try {
       _loadNotice = null;
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
+      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _page = PageResult.empty(pageSize: _pageSize);
@@ -77,7 +79,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
   }
 
-  void search(String query) {
+  void toggleArchived() {\n    _showArchived = !_showArchived;\n    _pageNumber = 1;\n    load();\n  }\n\n  void search(String query) {
     _query = query;
     _pageNumber = 1;
     load();
