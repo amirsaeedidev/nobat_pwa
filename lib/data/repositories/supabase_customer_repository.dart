@@ -25,6 +25,9 @@ class SupabaseCustomerRepository implements CustomerRepository {
   static const _customerColumns =
       'id,full_name,phone,notes,tags,is_active,created_at';
 
+  static const _customerListColumns =
+      'id,full_name,phone,notes,tags,is_active,created_at,appointments(status,starts_at)';
+
   static const _appointmentColumns =
       'id,reference,customer_id,employee_id,starts_at,ends_at,status,note,price_toman,discount_toman,reschedule_count,cancel_reason,created_at,updated_at,customers(full_name,phone),employees(full_name),appointment_services(service_id,title_snapshot,duration_minutes,price_toman,sort_order)';
 
@@ -191,7 +194,7 @@ class SupabaseCustomerRepository implements CustomerRepository {
     };
     var request = _client
         .from('customers')
-        .select(_customerColumns)
+        .select(_customerListColumns)
         .eq('business_id', tenant)
         .eq('is_active', !archivedOnly);
     request = _applySearch(request, query);
@@ -202,7 +205,7 @@ class SupabaseCustomerRepository implements CustomerRepository {
     final rows = response.data;
     return PageResult<Customer>(
       items: rows
-          .map((row) => _customer(Map<String, dynamic>.from(row)))
+          .map((row) => _customerListModel(Map<String, dynamic>.from(row)))
           .toList(growable: false),
       total: response.count ?? 0,
       page: page,
