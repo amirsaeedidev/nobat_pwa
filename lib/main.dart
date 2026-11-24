@@ -106,6 +106,7 @@ Future<void> main() async {
   final customerRepository = SupabaseCustomerRepository(
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
+    canViewFinance: () => authStateNotifier.role == 'owner' || authStateNotifier.permissions['finance.view'] == true,
   );
   // Primary business data modules use tenant-scoped Supabase repositories.
   // SMS stays explicitly unavailable until a real gateway is configured.
