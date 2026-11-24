@@ -131,7 +131,10 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
         ),
       ],
       mobileActions: [
-        if (customer.isArchived)\n          TextButton(onPressed: restoreCustomer, child: const Text('بازیابی'))\n        else\n          TextButton(onPressed: deleteCustomer, child: const Text('بایگانی')),
+        if (customer.isArchived)
+          TextButton(onPressed: restoreCustomer, child: const Text('بازیابی'))
+        else
+          TextButton(onPressed: deleteCustomer, child: const Text('بایگانی')),
         CircleIconButton(icon: Icons.edit_rounded, size: 38, onTap: () => context.push('/customers/${customer.id}/edit')),
       ],
       child: Column(
