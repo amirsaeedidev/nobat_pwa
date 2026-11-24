@@ -24,8 +24,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
       hasPermission('appointments.reject');
   final canComplete = appointment.status == AppointmentStatus.confirmed &&
       hasPermission('appointments.complete');
-  final canCancel = appointment.status != AppointmentStatus.completed &&
-      appointment.status != AppointmentStatus.cancelled &&
+  final canCancel =  (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed) &&
       hasPermission('appointments.cancel');
   final canDelete = hasPermission('appointments.cancel');
   final canNoShow = canComplete && hasPermission('appointments.edit');
