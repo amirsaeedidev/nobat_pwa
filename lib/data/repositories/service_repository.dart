@@ -62,7 +62,7 @@ abstract class ServiceRepository {
   Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig config);
 }
 
-class MockServiceRepository implements ServiceRepository {
+class MockServiceRepository extends ServiceRepository {
   MockServiceRepository(this._db);
 
   final AppDatabase _db;
