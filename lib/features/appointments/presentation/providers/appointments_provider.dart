@@ -190,6 +190,7 @@ class AppointmentsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.create(appointment);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -202,6 +203,7 @@ class AppointmentsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.update(appointment);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -211,14 +213,17 @@ class AppointmentsProvider extends DbBoundProvider {
 
   Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String? operationType}) async {
     await _repository.changeStatus(appointment, status, reason: reason, operationType: operationType);
+    await load();
   }
 
   Future<void> reschedule(Appointment appointment, DateTime newStart) async {
     await _repository.reschedule(appointment, newStart);
+    await load();
   }
 
   Future<void> delete(String id) async {
     await _repository.delete(id);
+    await load();
   }
 
   Future<List<Appointment>> forCustomer(String customerId) => _repository.fetchForCustomer(customerId);
