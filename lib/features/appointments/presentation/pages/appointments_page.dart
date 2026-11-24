@@ -12,11 +12,9 @@ import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
-import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/pagination_bar.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/appointments_provider.dart';
@@ -231,19 +229,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                 reason: 'لغو با کشیدن کارت',
                               );
                               if (context.mounted) {
-                                final operations = OperationsRepository(context.read<AppDatabase>());
-                                final undoLog = operations.latestUndoableLogFor(appointment.id);
-                                if (undoLog != null) {
-                                  showUndoableOperationSnackBarForLog(
-                                    context,
-                                    message: 'نوبت لغو شد.',
-                                    activityLogId: undoLog.id,
-                                    undo: operations.undo,
-                                    onUndoSuccess: provider.load,
-                                  );
-                                } else {
-                                  AppToast.show(context, 'نوبت لغو شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-                                }
+                                AppToast.show(context, 'نوبت لغو شد و در تاریخچه فعالیت ثبت شد.');
                               }
                             } catch (error) {
                               if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -257,19 +243,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                           try {
                             await provider.changeStatus(appointment, AppointmentStatus.confirmed);
                             if (context.mounted) {
-                              final operations = OperationsRepository(context.read<AppDatabase>());
-                              final undoLog = operations.latestUndoableLogFor(appointment.id);
-                              if (undoLog != null) {
-                                showUndoableOperationSnackBarForLog(
-                                  context,
-                                  message: 'نوبت تأیید شد.',
-                                  activityLogId: undoLog.id,
-                                  undo: operations.undo,
-                                  onUndoSuccess: provider.load,
-                                );
-                              } else {
-                                AppToast.show(context, 'نوبت تأیید شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-                              }
+                              AppToast.show(context, 'نوبت تأیید شد و در تاریخچه فعالیت ثبت شد.');
                             }
                           } catch (error) {
                             if (context.mounted) AppToast.show(context, '$error', success: false);
