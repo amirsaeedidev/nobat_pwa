@@ -110,6 +110,8 @@ class AppDatabase extends ChangeNotifier {
   List<Customer> get customers => List.unmodifiable(_customers.where((customer) =>
     !customer.isArchived && (_isGlobalAdmin || _appointments.any((item) =>
       item.employeeId == _activeEmployeeId && item.customerId == customer.id))));
+  /// Complete customer collection for the isolated mock/test adapter only.
+  List<Customer> get allCustomers => List.unmodifiable(_customers);
   List<Appointment> get appointments => List.unmodifiable(_appointments.where((item) =>
     _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   List<Service> get services => List.unmodifiable(_services.where((service) =>
