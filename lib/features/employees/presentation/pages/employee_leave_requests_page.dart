@@ -23,8 +23,8 @@ class _EmployeeLeaveRequestsPageState extends State<EmployeeLeaveRequestsPage> {
   late Future<List<EmployeeLeave>> _future;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
     _future = context.read<EmployeesProvider>().fetchLeaves(widget.employeeId);
   }
 
