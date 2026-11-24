@@ -27,7 +27,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
   final canCancel =  (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed) &&
       hasPermission('appointments.cancel');
   final canDelete = hasPermission('appointments.cancel');
-  final canNoShow = canComplete && hasPermission('appointments.edit');
+  final canNoShow = appointment.status == AppointmentStatus.confirmed && hasPermission('appointments.edit');
 
   await showAppSheet<void>(
     context,
