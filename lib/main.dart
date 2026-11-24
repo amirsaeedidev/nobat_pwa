@@ -17,6 +17,7 @@ import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
+import 'data/repositories/supabase_dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/supabase_relational_employee_repository.dart';
 import 'data/repositories/service_repository.dart';
@@ -125,7 +126,11 @@ Future<void> main() async {
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
   );
-  final dashboardRepository = MockDashboardRepository(database);
+  final dashboardRepository = SupabaseDashboardRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+    appointments: appointmentRepository,
+  );
   final activityRepository = SupabaseActivityRepository(
     records: supabaseRepository,
     businessId: () => authStateNotifier.businessId,
