@@ -5,6 +5,7 @@ import '../models/customer.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
 import 'operations_repository.dart';
+import 'appointment_repository.dart';
 
 abstract class CustomerRepository {
   Future<PageResult<Customer>> fetchCustomers({
