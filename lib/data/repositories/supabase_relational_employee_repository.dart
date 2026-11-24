@@ -137,7 +137,6 @@ class SupabaseRelationalEmployeeRepository implements EmployeeRepository {
   }
 
   List<Map<String, dynamic>> _workingHoursPayload(Employee employee) {
-    if (!employee.scheduleEnabled) return const [];
     final rows = <Map<String, dynamic>>[];
     for (final entry in employee.schedule.entries) {
       final pgWeekday = (entry.key + 6) % 7;
