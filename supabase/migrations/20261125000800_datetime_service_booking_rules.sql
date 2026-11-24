@@ -39,7 +39,7 @@ begin
     raise exception 'Could not locate local start calculation for service booking limits';
   end if;
 
-  v_old := "values(p_business_id,p_reference,p_customer_id,p_employee_id,p_starts_at,v_end_at,'pending',coalesce(p_note,''),v_price,p_idempotency_key,auth.uid())";
+  v_old := $old$values(p_business_id,p_reference,p_customer_id,p_employee_id,p_starts_at,v_end_at,'pending',coalesce(p_note,''),v_price,p_idempotency_key,auth.uid())$old$;
   v_new := $status$values(p_business_id,p_reference,p_customer_id,p_employee_id,p_starts_at,v_end_at,
     case when exists (
       select 1 from public.services s
