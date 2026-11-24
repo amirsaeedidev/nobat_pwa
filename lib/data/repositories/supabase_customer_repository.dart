@@ -207,7 +207,7 @@ class SupabaseCustomerRepository implements CustomerRepository {
       items: rows
           .map((row) => _customerListModel(Map<String, dynamic>.from(row)))
           .toList(growable: false),
-      total: response.count ?? 0,
+      total: response.count,
       page: page,
       pageSize: pageSize,
     );
