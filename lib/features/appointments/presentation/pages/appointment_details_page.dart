@@ -127,7 +127,13 @@ class AppointmentDetailsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _StatusHero(appointment: appointment),
+          _StatusHero(
+            appointment: appointment,
+            canConfirm: canConfirm,
+            canComplete: canComplete,
+            canCancel: canCancel,
+            canReject: canReject,
+          ),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -308,9 +314,19 @@ class AppointmentDetailsPage extends StatelessWidget {
 }
 
 class _StatusHero extends StatelessWidget {
-  const _StatusHero({required this.appointment});
+  const _StatusHero({
+    required this.appointment,
+    required this.canConfirm,
+    required this.canComplete,
+    required this.canCancel,
+    required this.canReject,
+  });
 
   final Appointment appointment;
+  final bool canConfirm;
+  final bool canComplete;
+  final bool canCancel;
+  final bool canReject;
 
   @override
   Widget build(BuildContext context) {
