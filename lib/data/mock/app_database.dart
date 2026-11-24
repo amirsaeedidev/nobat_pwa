@@ -124,7 +124,9 @@ class AppDatabase extends ChangeNotifier {
   List<AccessRole> get accessRoles => List.unmodifiable(_accessRoles.values);
   /// حساب‌های آزمایشی فقط برای جابه‌جایی بین دو نقش در محیط آفلاین Datamonck.
   List<AccessAccount> get accessAccounts => List.unmodifiable(_accessAccounts);
-  AccessAccount get currentAccessAccount => _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
+  AccessAccount get currentAccessAccount => _accessAccounts.isEmpty
+      ? const AccessAccount(id: 'unauthenticated', name: 'کاربر واردنشده', roleId: 'unauthenticated', isDemo: false)
+      : _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
   String get currentAccessRoleName => _accessRoles[currentAccessAccount.roleId]?.name ?? 'نقش نامشخص';
   List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   EmployeePayProfile payProfileFor(String employeeId) {
