@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -6,27 +5,27 @@ import 'package:flutter/foundation.dart';
 import '../../data/repositories/supabase_auth_repository.dart';
 import '../../data/repositories/supabase_repository.dart';
 
-/// Auth session and active business verification for cloud mode.
+/// Authentication and tenant membership state derived only from Supabase.
 class SupabaseAuthStateNotifier extends ChangeNotifier {
   SupabaseAuthStateNotifier(this._authRepository, this._dataRepository) {
-    if (_authRepository == null || _dataRepository == null) return;
+    if (_authRepository == null || _dataRepository == null) {
+      _status = SupabaseAuthStatus.unavailable;
+      return;
+    }
 
     _subscription = _authRepository.onAuthStateChange.listen(
-      (state) {
-        if (state.session == null) {
-          _clearMembership();
-        } else {
-          unawaited(verifyMembership().then<void>((_) {}));
-        }
-      },
+      _handleAuthState,
       onError: (Object error, StackTrace stackTrace) {
         debugPrint('[DateTime][SupabaseAuth] Auth stream error: $error');
         debugPrintStack(stackTrace: stackTrace);
+        _setNetworkError(error);
       },
     );
 
     if (_authRepository.currentUser != null) {
-      unawaited(verifyMembership().then<void>((_) {}));
+      unawaited(verifyMembership());
+    } else {
+      _status = SupabaseAuthStatus.signedOut;
     }
   }
 
@@ -36,30 +35,64 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
   StreamSubscription<dynamic>? _subscription;
   Future<bool>? _verification;
   String? _verificationUserId;
-  int _activeVerifications = 0;
+  int _generation = 0;
 
-  bool _isCheckingMembership = false;
-  bool _hasActiveBusiness = false;
+  SupabaseAuthStatus _status = SupabaseAuthStatus.initializing;
+  String? _userId;
   String? _businessId;
   String? _businessName;
   String? _role;
+  Map<String, dynamic> _permissions = const {};
   String? _verificationError;
 
-  bool get isCheckingMembership => _isCheckingMembership;
-  bool get hasActiveBusiness => _hasActiveBusiness;
+  SupabaseAuthStatus get status => _status;
+  bool get isCheckingMembership =>
+      _status == SupabaseAuthStatus.initializing ||
+      _status == SupabaseAuthStatus.checkingMembership;
+  bool get hasActiveBusiness => _status == SupabaseAuthStatus.authenticated;
+  bool get isSignedIn => _authRepository?.currentUser != null;
+  String? get userId => _userId;
   String? get businessId => _businessId;
   String? get businessName => _businessName;
   String? get role => _role;
+  Map<String, dynamic> get permissions => Map.unmodifiable(_permissions);
   String? get verificationError => _verificationError;
-  String get roleLabel => _role == 'owner' ? 'مدیر کل' : 'نقش محدود';
+
+  String get roleLabel => switch (_role) {
+        'owner' => 'مدیر کل',
+        'staff' || 'personnel' => 'پرسنل',
+        null => 'بدون نقش',
+        final value => value,
+      };
+
+  void _handleAuthState(dynamic state) {
+    final session = state.session;
+    final nextUserId = session?.user.id as String?;
+    if (nextUserId == null) {
+      _generation++;
+      _verification = null;
+      _verificationUserId = null;
+      _clearMembership(status: SupabaseAuthStatus.signedOut);
+      return;
+    }
+
+    // Invalidate every result started under a previous account. This also
+    // handles switching accounts without briefly retaining the old tenant.
+    if (_userId != nextUserId) {
+      _generation++;
+      _verification = null;
+      _verificationUserId = null;
+      _clearMembership(status: SupabaseAuthStatus.checkingMembership);
+    }
+    unawaited(verifyMembership());
+  }
 
   Future<bool> verifyMembership() async {
     final userId = _authRepository?.currentUser?.id;
     final data = _dataRepository;
     if (userId == null || data == null) {
-      _clearMembership();
-      _verificationError = 'ابتدا وارد حساب Supabase شوید.';
-      notifyListeners();
+      _generation++;
+      _clearMembership(status: SupabaseAuthStatus.signedOut);
       return false;
     }
 
@@ -68,9 +101,10 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
       return pending;
     }
 
-    final request = _loadMembership(userId);
-    _verification = request;
+    final generation = ++_generation;
     _verificationUserId = userId;
+    final request = _loadMembership(userId, generation);
+    _verification = request;
     try {
       return await request;
     } finally {
@@ -81,70 +115,102 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
     }
   }
 
-  Future<bool> _loadMembership(String expectedUserId) async {
+  Future<bool> _loadMembership(String expectedUserId, int generation) async {
     final data = _dataRepository;
-    if (data == null || _authRepository?.currentUser?.id != expectedUserId) {
-      return false;
-    }
+    if (data == null) return false;
 
-    _activeVerifications++;
-    _isCheckingMembership = true;
-    _hasActiveBusiness = false;
+    _userId = expectedUserId;
+    _status = SupabaseAuthStatus.checkingMembership;
     _businessId = null;
     _businessName = null;
     _role = null;
+    _permissions = const {};
     _verificationError = null;
     notifyListeners();
 
     try {
       final memberships = await data.fetchMyBusinesses();
-      // A result from a previous account must never authorize a newer session.
-      if (_authRepository?.currentUser?.id != expectedUserId) return false;
+      if (!_isCurrentRequest(expectedUserId, generation)) return false;
 
-      for (final rawMembership in memberships) {
-        final membership = Map<String, dynamic>.from(rawMembership);
-        final role = membership['role'] as String? ?? '';
-        if (role != 'owner') continue;
-
-        final rawBusiness = membership['businesses'];
-        final business = rawBusiness is Map
-            ? Map<String, dynamic>.from(rawBusiness)
-            : <String, dynamic>{};
-
-        _businessId = membership['business_id'] as String? ??
-            business['id'] as String?;
-        _businessName = business['name'] as String?;
-        _role = role;
-        _hasActiveBusiness = _businessId != null;
-        if (_hasActiveBusiness) break;
+      // Membership is authoritative. Never infer a role from email, user
+      // metadata, a local account picker, or a hard-coded user identifier.
+      if (memberships.isEmpty) {
+        _status = SupabaseAuthStatus.membershipRequired;
+        _verificationError = 'این حساب عضو فعال هیچ مجموعه‌ای نیست.';
+        return false;
       }
 
-      if (!_hasActiveBusiness) {
-        _verificationError = memberships.isEmpty
-            ? 'این حساب به هیچ مجموعه فعالی متصل نیست.'
-            : 'عضویت این حساب وجود دارد، اما نقش آن هنوز در این مرحله پشتیبانی نمی‌شود.';
+      final membership = memberships.firstWhere(
+        (row) => row['is_active'] == true,
+        orElse: () => <String, dynamic>{},
+      );
+      if (membership.isEmpty) {
+        _status = SupabaseAuthStatus.membershipRequired;
+        _verificationError = 'عضویت فعال برای این حساب پیدا نشد.';
+        return false;
       }
-      return _hasActiveBusiness;
+
+      final rawBusiness = membership['businesses'];
+      final business = rawBusiness is Map
+          ? Map<String, dynamic>.from(rawBusiness)
+          : <String, dynamic>{};
+      final businessId = membership['business_id'] as String? ??
+          business['id'] as String?;
+      final role = membership['role'] as String?;
+
+      if (businessId == null || businessId.isEmpty || role == null || role.isEmpty) {
+        _status = SupabaseAuthStatus.membershipRequired;
+        _verificationError = 'اطلاعات عضویت مجموعه ناقص است؛ دسترسی صادر نشد.';
+        return false;
+      }
+
+      _businessId = businessId;
+      _businessName = business['name'] as String?;
+      _role = role;
+      final rawPermissions = membership['permissions'];
+      _permissions = rawPermissions is Map
+          ? Map<String, dynamic>.from(rawPermissions)
+          : const {};
+      _status = SupabaseAuthStatus.authenticated;
+      _verificationError = null;
+      return true;
     } catch (error, stackTrace) {
+      if (!_isCurrentRequest(expectedUserId, generation)) return false;
       debugPrint('[DateTime][SupabaseAuth] Membership check failed: $error');
       debugPrintStack(stackTrace: stackTrace);
+      _status = SupabaseAuthStatus.networkError;
       _verificationError =
-          'ارتباط با سرور برای بررسی دسترسی برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
+          'بررسی عضویت از سرور ممکن نشد. اتصال را بررسی کنید و دوباره تلاش کنید.';
       return false;
     } finally {
-      _activeVerifications--;
-      _isCheckingMembership =
-          _activeVerifications > 0 && _authRepository?.currentUser != null;
-      notifyListeners();
+      if (_isCurrentRequest(expectedUserId, generation)) {
+        notifyListeners();
+      }
     }
   }
 
-  void _clearMembership() {
-    _isCheckingMembership = false;
-    _hasActiveBusiness = false;
+  bool _isCurrentRequest(String expectedUserId, int generation) =>
+      generation == _generation &&
+      _authRepository?.currentUser?.id == expectedUserId;
+
+  void _setNetworkError(Object error) {
+    if (_authRepository?.currentUser == null) {
+      _clearMembership(status: SupabaseAuthStatus.signedOut);
+      return;
+    }
+    _status = SupabaseAuthStatus.networkError;
+    _verificationError =
+        'ارتباط با سرویس احراز هویت برقرار نشد. پس از بررسی اینترنت دوباره تلاش کنید.';
+    notifyListeners();
+  }
+
+  void _clearMembership({required SupabaseAuthStatus status}) {
+    _status = status;
+    _userId = null;
     _businessId = null;
     _businessName = null;
     _role = null;
+    _permissions = const {};
     _verificationError = null;
     notifyListeners();
   }
@@ -157,4 +223,14 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
     }
     super.dispose();
   }
+}
+
+enum SupabaseAuthStatus {
+  initializing,
+  unavailable,
+  signedOut,
+  checkingMembership,
+  authenticated,
+  membershipRequired,
+  networkError,
 }
