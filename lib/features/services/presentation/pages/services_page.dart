@@ -42,16 +42,40 @@ class ServicesPage extends StatelessWidget {
         ),
         CircleIconButton(icon: Icons.settings_rounded, size: 38, onTap: () => context.push('/settings')),
       ],
-      mobileHeader: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      mobileHeader: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SoftButton(label: 'دسته‌بندی‌ها', icon: Icons.category_outlined,
-            dense: true, onTap: () => _manageCategories(context)),
-          SoftButton(label: 'بازآوری', icon: Icons.refresh_rounded,
-            dense: true, onTap: provider.load),
-          SolidButton(label: 'خدمت جدید', icon: Icons.add_rounded,
-            height: 40, onPressed: () => context.push('/services/new')),
+          SizedBox(
+            width: double.infinity,
+            child: SolidButton(
+              label: 'خدمت جدید',
+              icon: Icons.add_rounded,
+              height: 40,
+              onPressed: () => context.push('/services/new'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: SoftButton(
+                  label: 'دسته‌بندی‌ها',
+                  icon: Icons.category_outlined,
+                  dense: true,
+                  onTap: () => _manageCategories(context),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SoftButton(
+                  label: 'بازآوری',
+                  icon: Icons.refresh_rounded,
+                  dense: true,
+                  onTap: provider.load,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       child: provider.loading
