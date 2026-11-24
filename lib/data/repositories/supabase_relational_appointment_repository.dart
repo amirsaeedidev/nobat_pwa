@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/models/page_result.dart';
 import '../../core/utils/jalali.dart';
+import '../../core/utils/fa_num.dart';
 import '../models/appointment.dart';
 import '../models/enums.dart';
 import 'appointment_repository.dart';
@@ -117,7 +118,7 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
     final tenant = _tenant();
     final response = await _client.rpc('list_appointments', params: {
       'p_business_id': tenant,
-      'p_query': filter.query.trim(),
+      'p_query': FaNum.toLatin(filter.query.trim()),
       'p_status': filter.status == null ? null : _statusKey(filter.status!),
       'p_service_id': filter.serviceId,
       'p_employee_id': filter.employeeId,
