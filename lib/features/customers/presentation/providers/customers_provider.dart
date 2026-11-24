@@ -42,8 +42,7 @@ class CustomersProvider extends DbBoundProvider {
       _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.customers;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
     } finally {
       _loading = false;
       notifyListeners();
