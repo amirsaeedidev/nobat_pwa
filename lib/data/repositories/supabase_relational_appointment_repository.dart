@@ -30,9 +30,6 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
     return id;
   }
 
-  static const _columns =
-      'id,reference,customer_id,employee_id,starts_at,ends_at,status,note,price_toman,discount_toman,reschedule_count,cancel_reason,created_by,created_at,updated_at,deleted_at,customers(full_name,phone),employees(full_name),appointment_services(service_id,title_snapshot,category_snapshot,description_snapshot,direct_cost_toman_snapshot,duration_minutes,price_toman,list_price_toman_snapshot,discount_toman_snapshot,commission_rate_bps_snapshot,fixed_commission_amount_toman_snapshot,sort_order)';
-
   Appointment _model(Map<String, dynamic> row) {
     final customer = row['customers'] is Map
         ? Map<String, dynamic>.from(row['customers'] as Map)
