@@ -1,5 +1,6 @@
 import '../../../../core/models/page_result.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/enums.dart';
@@ -8,7 +9,7 @@ import '../../../../data/repositories/sms_repository.dart';
 
 /// مانیتورینگ پیامک، قالب‌ها و تنظیمات پنل.
 class SmsProvider extends DbBoundProvider {
-  SmsProvider(this._repository, AppDatabase db) : super(db) {
+  SmsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
