@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -14,7 +16,6 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/models/employee_service_config.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../providers/services_provider.dart';
 
@@ -44,45 +45,62 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   final _maxPerDay = TextEditingController();
   final _advanceDays = TextEditingController(text: '30');
 
-  String _category = 'مو';
+  String _category = '';
   bool _isActive = true;
   bool _requiresConfirmation = false;
   List<String> _employeeIds = [];
   final Map<String, _EmployeeServiceFields> _employeeFields = {};
   bool _saving = false;
-  bool _prefilled = false;
+
+
+
+  bool _loadingExisting = false;
+  String? _loadError;
   Service? _existing;
 
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_prefilled) return;
-    _prefilled = true;
+  void initState() {
+    super.initState();
     if (widget.serviceId != null) {
-      final service = context.read<ServicesProvider>().items.where((s) => s.id == widget.serviceId).firstOrNull;
-      if (service != null) {
-        _existing = service;
-        _title.text = service.title;
-        _description.text = service.description;
-        _price.text = service.price.toString();
-        _directCost.text = service.directCost?.toString() ?? '';
-        _imageUrl.text = service.imageUrl ?? '';
-        _discountPrice.text = service.discountPrice?.toString() ?? '';
-        _discountStartsAt.text = service.discountStartsAt?.toIso8601String().substring(0, 10) ?? '';
-        _discountEndsAt.text = service.discountEndsAt?.toIso8601String().substring(0, 10) ?? '';
-        _duration.text = service.durationMinutes.toString();
-        _prep.text = service.prepMinutes.toString();
-        _buffer.text = service.bufferMinutes.toString();
-        _maxPerDay.text = service.maxPerDay?.toString() ?? '';
-        _advanceDays.text = service.advanceDays.toString();
-        _category = service.category;
-        _isActive = service.isActive;
-        _requiresConfirmation = service.requiresConfirmation;
-        _employeeIds = [...service.employeeIds];
-      }
+      _loadingExisting = true;
+      unawaited(_loadExisting());
     }
   }
+
+  Future<void> _loadExisting() async {
+    try {
+      final provider = context.read<ServicesProvider>();
+      await provider.load();
+      final service = await provider.byId(widget.serviceId!);
+      if (!mounted) return;
+      if (service == null) throw StateError('خدمت در Supabase پیدا نشد یا دسترسی مشاهده آن وجود ندارد.');
+      _existing = service;
+      _title.text = service.title;
+      _description.text = service.description;
+      _price.text = service.price.toString();
+      _directCost.text = service.directCost?.toString() ?? '';
+      _imageUrl.text = service.imageUrl ?? '';
+      _discountPrice.text = service.discountPrice?.toString() ?? '';
+      _discountStartsAt.text = service.discountStartsAt == null ? '' : _dateOnly(service.discountStartsAt!);
+      _discountEndsAt.text = service.discountEndsAt == null ? '' : _dateOnly(service.discountEndsAt!);
+      _duration.text = service.durationMinutes.toString();
+      _prep.text = service.prepMinutes.toString();
+      _buffer.text = service.bufferMinutes.toString();
+      _maxPerDay.text = service.maxPerDay?.toString() ?? '';
+      _advanceDays.text = service.advanceDays.toString();
+      _category = service.category;
+      _isActive = service.isActive;
+      _requiresConfirmation = service.requiresConfirmation;
+      _employeeIds = [...service.employeeIds];
+      if (mounted) setState(() { _loadingExisting = false; _loadError = null; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _loadingExisting = false; _loadError = error.toString(); });
+    }
+  }
+
+  String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
   @override
   void dispose() {
@@ -156,12 +174,24 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       employeeIds: _employeeIds,
     );
     try {
-      if (_existing != null) {
-        await provider.update(service);
-      } else {
-        await provider.create(service);
+      final configs = <EmployeeServiceConfig>[];
+      for (final employeeId in _employeeIds) {
+        final fields = _fieldsFor(employeeId);
+        final rawPercent = fields.commissionPercent.text.trim();
+        final percent = rawPercent.isEmpty ? null : num.parse(FaNum.toLatin(rawPercent));
+        final previous = provider.employeeServiceConfig(employeeId, serviceId);
+        configs.add(EmployeeServiceConfig(
+          employeeId: employeeId,
+          serviceId: serviceId,
+          active: previous?.active ?? true,
+          customPrice: _optionalInteger(fields.price.text, 'قیمت اختصاصی'),
+          customDurationMinutes: _optionalInteger(fields.duration.text, 'مدت اختصاصی'),
+          commissionRateBps: percent == null ? null : (percent * 100).round(),
+          fixedCommissionAmount: _optionalInteger(fields.fixedCommission.text, 'پورسانت ثابت'),
+          specialtyNote: previous?.specialtyNote ?? '',
+        ));
       }
-      await _saveEmployeeServiceConfigs(serviceId);
+      await provider.saveCatalogItem(service, configs);
     } catch (error) {
       if (mounted) {
         setState(() => _saving = false);
@@ -183,39 +213,11 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     return _employeeFields.putIfAbsent(employeeId, () {
       final config = widget.serviceId == null
           ? null
-          : context.read<AppDatabase>().employeeServiceConfig(employeeId, widget.serviceId!);
+          : context.read<ServicesProvider>().employeeServiceConfig(employeeId, widget.serviceId!);
       return _EmployeeServiceFields(config);
     });
   }
 
-  Future<void> _saveEmployeeServiceConfigs(String serviceId) async {
-    final db = context.read<AppDatabase>();
-    for (final employeeId in _employeeIds) {
-      final fields = _fieldsFor(employeeId);
-      final customPrice = _optionalInteger(fields.price.text, 'قیمت اختصاصی');
-      final customDuration = _optionalInteger(fields.duration.text, 'مدت اختصاصی');
-      final rawPercent = fields.commissionPercent.text.trim();
-      final percent = rawPercent.isEmpty ? null : num.tryParse(FaNum.toLatin(rawPercent));
-      if (rawPercent.isNotEmpty && percent == null) {
-        throw ArgumentError('درصد پورسانت باید عددی باشد.');
-      }
-      if (percent != null && (percent < 0 || percent > 100)) {
-        throw ArgumentError('درصد پورسانت باید بین صفر تا صد باشد.');
-      }
-      final fixedCommission = _optionalInteger(fields.fixedCommission.text, 'پورسانت ثابت');
-      final previous = db.employeeServiceConfig(employeeId, serviceId);
-      db.saveEmployeeServiceConfig(EmployeeServiceConfig(
-        employeeId: employeeId,
-        serviceId: serviceId,
-        active: true,
-        customPrice: customPrice,
-        customDurationMinutes: customDuration,
-        commissionRateBps: percent == null ? null : (percent * 100).round(),
-        fixedCommissionAmount: fixedCommission,
-        specialtyNote: previous?.specialtyNote ?? '',
-      ));
-    }
-  }
 
   int? _optionalInteger(String raw, String label) {
     if (raw.trim().isEmpty) return null;
@@ -230,6 +232,18 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     final pal = context.pal;
     final employees = context.watch<EmployeesProvider>().items;
     final categories = context.watch<ServicesProvider>().categories;
+
+    if (_loadingExisting) {
+      return PageScaffold(title: 'ویرایش خدمت', showBackButton: true,
+        child: const LoadingState(kind: SkeletonKind.services));
+    }
+    if (_loadError != null) {
+      return PageScaffold(title: 'ویرایش خدمت', showBackButton: true,
+        child: ErrorStateView(description: _loadError, onRetry: () {
+          setState(() { _loadingExisting = true; _loadError = null; });
+          unawaited(_loadExisting());
+        }));
+    }
 
     return PageScaffold(
       title: widget.serviceId == null ? 'خدمت جدید' : 'ویرایش خدمت',
@@ -282,9 +296,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                           Expanded(
                             child: AppDropdown<String>(
                               label: 'دسته‌بندی',
-                              items: categories.isEmpty ? const ['عمومی'] : categories,
-                              value: categories.contains(_category) ? _category : (categories.isEmpty ? 'عمومی' : categories.first),
-                              onChanged: (v) => setState(() => _category = v ?? _category),
+                              items: categories,
+                              value: categories.contains(_category) ? _category : (categories.isEmpty ? null : categories.first),
+                              onChanged: categories.isEmpty ? null : (v) => setState(() => _category = v ?? _category),
                             ),
                           ),
                         ],
