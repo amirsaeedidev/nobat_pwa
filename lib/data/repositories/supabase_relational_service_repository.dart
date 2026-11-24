@@ -187,14 +187,12 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
 
   Future<String> _ensureCategory(String name) async {
     final tenant = _tenant();
-    final row = await _client.from('service_categories').select('id')
-        .eq('business_id', tenant).eq('name', name).maybeSingle();
-    if (row != null) return row['id'] as String;
-    final inserted = await _client.from('service_categories').insert({
+    final row = await _client.from('service_categories').upsert({
       'business_id': tenant,
       'name': name,
-    }).select('id').single();
-    return inserted['id'] as String;
+      'is_active': true,
+    }, onConflict: 'business_id,name').select('id').single();
+    return row['id'] as String;
   }
 
   @override
@@ -213,12 +211,13 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   @override
   Future<void> renameCategory(String oldName, String newName) async {
     final tenant = _tenant();
-    final target = await _client.from('service_categories').select('id')
+    final source = await _client.from('service_categories').select('id')
         .eq('business_id', tenant).eq('name', oldName).single();
-    await _client.from('service_categories').update({'name': newName.trim()})
-        .eq('business_id', tenant).eq('id', target['id']);
-    await _client.from('services').update({'category': newName.trim()})
-        .eq('business_id', tenant).eq('category', oldName);
+    await _client.rpc('rename_service_category', params: {
+      'p_business_id': tenant,
+      'p_category_id': source['id'],
+      'p_new_name': newName.trim(),
+    });
   }
 
   @override
@@ -227,22 +226,17 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
     final source = await _client.from('service_categories').select('id')
         .eq('business_id', tenant).eq('name', name).maybeSingle();
     if (source == null) return;
-    final dependents = await _client.from('services').select('id')
-        .eq('business_id', tenant).eq('category_id', source['id']);
-    if (dependents.isNotEmpty) {
-      final targetName = moveServicesTo?.trim();
-      if (targetName == null || targetName.isEmpty || targetName == name) {
-        throw StateError('برای حذف این دسته‌بندی ابتدا دسته‌بندی مقصد را مشخص کنید.');
-      }
+    String? targetId;
+    if (moveServicesTo != null && moveServicesTo.trim().isNotEmpty) {
       final target = await _client.from('service_categories').select('id')
-          .eq('business_id', tenant).eq('name', targetName).single();
-      await _client.from('services').update({
-        'category': targetName,
-        'category_id': target['id'],
-      }).eq('business_id', tenant).eq('category_id', source['id']);
+          .eq('business_id', tenant).eq('name', moveServicesTo.trim()).single();
+      targetId = target['id'] as String;
     }
-    await _client.from('service_categories').delete()
-        .eq('business_id', tenant).eq('id', source['id']);
+    await _client.rpc('delete_service_category', params: {
+      'p_business_id': tenant,
+      'p_category_id': source['id'],
+      'p_target_category_id': targetId,
+    });
   }
 
   @override
