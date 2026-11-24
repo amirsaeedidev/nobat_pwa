@@ -176,12 +176,10 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   @override
   Future<void> delete(String id) async {
     final tenant = _tenant();
-    final userId = _client.auth.currentUser!.id;
-    await _client.from('services').update({
-      'is_active': false,
-      'archived_at': DateTime.now().toUtc().toIso8601String(),
-      'archived_by': userId,
-    }).eq('business_id', tenant).eq('id', id);
+    await _client.rpc('archive_service', params: {
+      'p_business_id': tenant,
+      'p_service_id': id,
+    });
   }
 
   @override
