@@ -22,6 +22,7 @@ import 'data/repositories/supabase_relational_employee_repository.dart';
 import 'data/repositories/service_repository.dart';
 import 'data/repositories/supabase_relational_service_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/supabase_settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
 import 'data/repositories/supabase_sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
@@ -120,7 +121,10 @@ Future<void> main() async {
     businessId: () => authStateNotifier.businessId,
   );
   final smsRepository = const SupabaseSmsRepository();
-  final settingsRepository = MockSettingsRepository(database);
+  final settingsRepository = SupabaseSettingsRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
   final dashboardRepository = MockDashboardRepository(database);
   final activityRepository = SupabaseActivityRepository(
     records: supabaseRepository,
