@@ -88,17 +88,34 @@ class SupabaseDashboardRepository implements DashboardRepository {
       from: weekStart.toDateTime(),
       to: weekStart.addDays(7).toDateTime(),
     );
+    final tenant = _tenant();
+    final scheduleRows = await _client.from('employee_working_hours')
+        .select('weekday,starts_at,ends_at')
+        .eq('business_id', tenant)
+        .eq('is_active', true);
+    int toMinutes(dynamic value) {
+      final parts = (value as String).split(':');
+      return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+    }
     final weekly = <WeekdayPerformance>[];
     for (var i = 0; i < 7; i++) {
       final date = weekStart.addDays(i);
       final dayItems = all.where((item) => item.jalali.sameDay(date)).toList();
       final dayPayments = weeklyPayments.where((row) =>
         JalaliDate.fromDateTime(DateTime.parse(row['created_at'] as String).toLocal()).sameDay(date));
+      final pgWeekday = (date.weekday + 6) % 7;
+      final shifts = scheduleRows.where((row) => (row['weekday'] as num).toInt() == pgWeekday);
+      final capacityMinutes = shifts.fold<int>(0, (sum, row) =>
+        sum + toMinutes(row['ends_at']) - toMinutes(row['starts_at']));
+      final bookedMinutes = dayItems
+          .where((item) => item.status != AppointmentStatus.cancelled)
+          .fold<int>(0, (sum, item) => sum + item.durationMinutes);
+      final utilization = capacityMinutes == 0
+          ? 0
+          : (bookedMinutes * 100 / capacityMinutes).round().clamp(0, 100);
       weekly.add(WeekdayPerformance(
         label: date.short,
-        // Utilization cannot be truthfully calculated until actual working-hour
-        // capacity has been loaded; keep it unknown rather than estimate it.
-        percent: 0,
+        percent: utilization,
         count: dayItems.length,
         revenue: _netPayments(dayPayments),
         dateIso: date.iso,
@@ -116,7 +133,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
       cancelledAppointments: periodItems.where((item) => item.status == AppointmentStatus.cancelled || item.status == AppointmentStatus.noShow).length,
       totalRevenue: _netPayments(payments),
       monthRevenue: _netPayments(monthPayments),
-      totalCustomers: await _count('customers'),
+      totalCustomers: await _count('customers', column: 'is_active', value: true),
       activeEmployees: await _count('employees', column: 'is_active', value: true),
       weeklyTrend: weekly,
       weekdayPerformance: weekly,
