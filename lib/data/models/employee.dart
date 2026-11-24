@@ -69,7 +69,7 @@ class Employee {
     this.email = '',
     this.startedAt,
     this.bookedCount = 0,
-    this.rating = 4.8,
+    this.rating = 0,
     this.avatarAsset = '',
     this.specialties = const [],
     this.notes = '',
