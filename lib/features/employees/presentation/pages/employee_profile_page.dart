@@ -37,16 +37,6 @@ class _ProfileInfo extends StatelessWidget {
   );
 }
 
-class _ProfileStat extends StatelessWidget {
-  const _ProfileStat({required this.label, required this.value});
-  final String label;
-  final String value;
-  @override
-  Widget build(BuildContext context) => Column(children: [
-    Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
-    Text(label, style: TextStyle(fontSize: 9.5, color: context.pal.textMuted)),
-  ]);
-}
 
 class EmployeeProfilePage extends StatelessWidget {
   const EmployeeProfilePage({super.key, required this.employeeId});
@@ -92,7 +82,6 @@ class EmployeeProfilePage extends StatelessWidget {
       EmployeeStatus.suspended => pal.danger,
       EmployeeStatus.inactive => pal.textMuted,
     };
-    final completedCount = appointments.allAppointments.where((a) => a.employeeId == employee.id && a.status == AppointmentStatus.completed).length;
 
     return PageScaffold(
       title: 'پروفایل پرسنل',
@@ -213,16 +202,6 @@ class EmployeeProfilePage extends StatelessWidget {
               ],
             ]),
           ),
-          const SizedBox(height: 12),
-          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SectionHeader(title: 'خلاصه عملکرد'),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: _ProfileStat(label: 'کل نوبت‌ها', value: employee.bookedCount.toString())),
-              Expanded(child: _ProfileStat(label: 'تکمیل‌شده', value: completedCount.toString())),
-              Expanded(child: _ProfileStat(label: 'امتیاز', value: employee.rating.toStringAsFixed(1))),
-            ]),
-          ])),
           const SizedBox(height: 12),
           AppCard(
             child: Column(
