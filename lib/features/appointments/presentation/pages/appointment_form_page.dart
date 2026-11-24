@@ -251,7 +251,9 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
 
     // ثبت مشتری جدید در صورت نبود در فهرست.
     final customers = context.read<CustomersProvider>();
-    var customer = _customer ?? await customers.findByPhoneRemote(_phoneController.text.trim());
+    Customer? customer;
+    try {
+      customer = _customer ?? await customers.findByPhoneRemote(_phoneController.text.trim());
     if (customer == null) {
       customer = Customer(
         id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
@@ -277,8 +279,8 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     }
 
     final appointment = Appointment(
-      id: _existing?.id ?? 'apt-${DateTime.now().millisecondsSinceEpoch}',
-      reference: _existing?.reference ?? 'OT-${1510 + DateTime.now().second}',
+      id: _existing?.id ?? 'apt-${DateTime.now().microsecondsSinceEpoch}',
+      reference: _existing?.reference ?? 'DT-${DateTime.now().microsecondsSinceEpoch}',
       customerId: customer.id,
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
