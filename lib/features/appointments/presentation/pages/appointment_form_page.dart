@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -59,18 +60,41 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     _prefilled = true;
     final id = widget.appointmentId;
     if (id != null) {
-      final appointment = context.read<AppointmentsProvider>().appointmentById(id);
-      if (appointment != null) {
+      unawaited(_loadExistingAppointment(id));
+    }
+  }
+
+  Future<void> _loadExistingAppointment(String id) async {
+    try {
+      final appointment = await context.read<AppointmentsProvider>().byId(id);
+      if (!mounted) return;
+      if (appointment == null) {
+        AppToast.show(context, 'نوبت مورد نظر در Supabase پیدا نشد.', success: false);
+        return;
+      }
+      final customer = await context.read<CustomersProvider>().byId(appointment.customerId);
+      if (!mounted) return;
+      final services = context.read<ServicesProvider>().items;
+      final employees = context.read<EmployeesProvider>().items;
+      setState(() {
         _existing = appointment;
         _nameController.text = appointment.customerName;
         _phoneController.text = appointment.customerPhone;
         _noteController.text = appointment.note;
         _date = appointment.jalali;
         _time = TimeOfDayLite(appointment.startAt.hour, appointment.startAt.minute);
-        _customer = context.read<CustomersProvider>().findById(appointment.customerId);
-        final services = context.read<ServicesProvider>().items;
-        _services = services.where((s) => appointment.serviceIds.contains(s.id)).toList();
-        _employee = context.read<EmployeesProvider>().byIdSync(appointment.employeeId);
+        _customer = customer;
+        _services = services.where((service) => appointment.serviceIds.contains(service.id)).toList();
+        for (final employee in employees) {
+          if (employee.id == appointment.employeeId) {
+            _employee = employee;
+            break;
+          }
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        AppToast.show(context, 'دریافت نوبت از سرور ناموفق بود: $error', success: false);
       }
     }
   }
