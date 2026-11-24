@@ -1,4 +1,5 @@
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
@@ -11,7 +12,7 @@ import '../../../../data/repositories/dashboard_repository.dart';
 enum ReportServiceSort { revenue, bookings, profit }
 
 class ReportsProvider extends DbBoundProvider {
-  ReportsProvider(this._repository, AppDatabase db) : super(db) { load(); }
+  ReportsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) { load(); }
 
   final DashboardRepository _repository;
   ReportDateRange _range = ReportDateRange.preset(ReportPeriod.thisMonth);
