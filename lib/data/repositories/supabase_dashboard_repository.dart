@@ -185,8 +185,31 @@ class SupabaseDashboardRepository implements DashboardRepository {
         .lt('created_at', range.endExclusive.toUtc().toIso8601String());
     final expenses = expenseRows.map((row) => Map<String, dynamic>.from(row)).toList();
     final expenseTotal = expenses.fold<num>(0, (sum, row) => sum + ((row['amount_toman'] as num?) ?? 0));
+    final financeRows = await _client.from('employee_finance_entries')
+        .select('entry_type,commission_amount_toman,company_share_toman,created_at')
+        .eq('business_id', tenant)
+        .gte('created_at', range.start.toUtc().toIso8601String())
+        .lt('created_at', range.endExclusive.toUtc().toIso8601String());
+    num commissionCost = 0;
+    num companyShare = 0;
+    for (final row in financeRows) {
+      final amount = (row['commission_amount_toman'] as num?) ?? 0;
+      final share = (row['company_share_toman'] as num?) ?? 0;
+      commissionCost += row['entry_type'] == 'refund' ? -amount : amount;
+      companyShare += row['entry_type'] == 'refund' ? -share : share;
+    }
+    final walletRows = await _client.from('employee_wallet_transactions')
+        .select('transaction_type,amount_toman,direction,status,created_at')
+        .eq('business_id', tenant)
+        .eq('transaction_type', 'salary')
+        .eq('status', 'posted')
+        .gte('created_at', range.start.toUtc().toIso8601String())
+        .lt('created_at', range.endExclusive.toUtc().toIso8601String());
+    final payrollCost = walletRows.fold<num>(0, (sum, row) =>
+      sum + ((row['amount_toman'] as num?) ?? 0) * (row['direction'] == 'debit' ? -1 : 1));
     final gross = appointments.where((item) => item.status == AppointmentStatus.completed)
         .fold<num>(0, (sum, item) => sum + item.price);
+    final totalCost = expenseTotal + commissionCost + payrollCost;
     final statusCounts = <String, int>{
       for (final status in AppointmentStatus.values)
         status.label: appointments.where((item) => item.status == status).length,
@@ -210,10 +233,10 @@ class SupabaseDashboardRepository implements DashboardRepository {
       grossRevenue: gross,
       collectedRevenue: _netPayments(payments),
       receivables: (gross - _netPayments(payments)).clamp(0, double.infinity),
-      cost: expenseTotal,
+      cost: totalCost,
       operatingExpense: expenseTotal,
-      commissionCost: 0,
-      payrollCost: 0,
+      commissionCost: commissionCost,
+      payrollCost: payrollCost,
       totalAppointments: appointments.length,
       completedAppointments: appointments.where((item) => item.status == AppointmentStatus.completed).length,
       cancelledAppointments: appointments.where((item) => item.status == AppointmentStatus.cancelled).length,
@@ -230,6 +253,9 @@ class SupabaseDashboardRepository implements DashboardRepository {
       expensesByCategory: expensesByCategory,
       operationalAppointments: appointments,
       filter: filter,
+      companyShare: companyShare,
+      grossProfit: gross - totalCost,
+      profitMarginPercent: _netPayments(payments) <= 0 ? 0 : ((_netPayments(payments) - totalCost) / _netPayments(payments)) * 100,
     );
   }
 }
