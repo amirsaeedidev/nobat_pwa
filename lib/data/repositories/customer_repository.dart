@@ -38,7 +38,7 @@ class MockCustomerRepository implements CustomerRepository {
     final q = query.trim();
     List<Customer> list;
     if (q.isEmpty) {
-      list = _db.customers.where((customer) => customer.isArchived == archivedOnly).toList();
+      list = _db.allCustomers.where((customer) => customer.isArchived == archivedOnly).toList();
     } else {
       final latin = _toLatin(q);
       list = _db.customers.where((c) {
