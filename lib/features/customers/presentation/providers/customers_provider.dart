@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/services/supabase_auth_state_notifier.dart';
@@ -47,6 +48,17 @@ class CustomersProvider extends DbBoundProvider {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _page = PageResult.empty(pageSize: _pageSize);
+    _loading = false;
+    _loadNotice = null;
+    _busy = false;
   }
 
   @override
