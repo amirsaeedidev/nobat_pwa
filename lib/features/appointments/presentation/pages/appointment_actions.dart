@@ -87,7 +87,37 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               }
             },
           ),
-        if (canCancel || canReject)
+        if (canReject)
+          ListTile(
+            leading: Icon(Icons.block_rounded, color: pal.danger, size: 20),
+            title: const Text('رد درخواست نوبت'),
+            onTap: () async {
+              Navigator.of(context, rootNavigator: true).pop();
+              final confirmed = await showConfirmDialog(
+                context,
+                title: 'رد درخواست نوبت',
+                message: 'درخواست نوبت رد می‌شود و رویداد آن در تاریخچه فعالیت ثبت خواهد شد.',
+                confirmLabel: 'رد درخواست',
+                destructive: true,
+                icon: Icons.block_rounded,
+              );
+              if (!confirmed || !context.mounted) return;
+              try {
+                await provider.changeStatus(
+                  appointment,
+                  AppointmentStatus.cancelled,
+                  reason: 'رد درخواست توسط پرسنل',
+                  operationType: 'appointment_reject',
+                );
+                if (context.mounted) AppToast.show(context, 'درخواست نوبت رد و در تاریخچه ثبت شد.');
+              } catch (_) {
+                if (context.mounted) {
+                  AppToast.show(context, 'رد درخواست در سرور انجام نشد؛ دسترسی یا وضعیت نوبت را بررسی کنید.', success: false);
+                }
+              }
+            },
+          ),
+        if (canCancel)
           ListTile(
             leading: Icon(Icons.event_busy_rounded, color: pal.danger, size: 20),
             title: const Text('لغو نوبت'),
@@ -96,26 +126,22 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
               final confirmed = await showConfirmDialog(
                 context,
                 title: 'لغو نوبت',
-                message: 'آیا از لغو نوبت ${appointment.customerName} مطمئن هستید؟ این اقدام در گزارش فعالیت ثبت می‌شود.',
+                message: 'آیا از لغو نوبت ${appointment.customerName} مطمئن هستید؟ این اقدام در تاریخچه فعالیت ثبت می‌شود.',
                 confirmLabel: 'لغو نوبت',
                 destructive: true,
                 icon: Icons.event_busy_rounded,
               );
-              if (confirmed) {
-                try {
-                  await provider.changeStatus(
-                    appointment,
-                    AppointmentStatus.cancelled,
-                    reason: 'رد / لغو توسط پرسنل',
-                    operationType: appointment.status == AppointmentStatus.pending && canReject
-                        ? 'appointment_reject'
-                        : null,
-                  );
-                  if (context.mounted) AppToast.show(context, 'نوبت رد یا لغو و در تاریخچه ثبت شد.');
-                } catch (_) {
-                  if (context.mounted) {
-                    AppToast.show(context, 'لغو نوبت در سرور انجام نشد؛ دسترسی یا وضعیت نوبت را بررسی کنید.', success: false);
-                  }
+              if (!confirmed || !context.mounted) return;
+              try {
+                await provider.changeStatus(
+                  appointment,
+                  AppointmentStatus.cancelled,
+                  reason: 'لغو توسط پرسنل',
+                );
+                if (context.mounted) AppToast.show(context, 'نوبت لغو و در تاریخچه ثبت شد.');
+              } catch (_) {
+                if (context.mounted) {
+                  AppToast.show(context, 'لغو نوبت در سرور انجام نشد؛ دسترسی یا وضعیت نوبت را بررسی کنید.', success: false);
                 }
               }
             },
