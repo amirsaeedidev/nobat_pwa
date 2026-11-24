@@ -1,5 +1,6 @@
 import '../mock/app_database.dart';
 import '../models/employee.dart';
+import '../models/employee_schedule.dart';
 import 'operations_repository.dart';
 
 abstract class EmployeeRepository {
@@ -12,6 +13,30 @@ abstract class EmployeeRepository {
   Future<void> update(Employee employee);
 
   Future<void> delete(String id);
+
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions({
+    required String employeeId,
+    required DateTime from,
+    required DateTime to,
+  }) async => const [];
+
+  Future<void> saveScheduleException(EmployeeScheduleException exception) async {
+    throw UnsupportedError('ذخیره استثنای برنامه کاری پشتیبانی نمی‌شود.');
+  }
+
+  Future<void> deleteScheduleException(String employeeId, String dateKey) async {
+    throw UnsupportedError('حذف استثنای برنامه کاری پشتیبانی نمی‌شود.');
+  }
+
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId) async => const [];
+
+  Future<void> createLeave(EmployeeLeave leave) async {
+    throw UnsupportedError('ثبت مرخصی پشتیبانی نمی‌شود.');
+  }
+
+  Future<void> reviewLeave(EmployeeLeave leave) async {
+    throw UnsupportedError('بررسی مرخصی پشتیبانی نمی‌شود.');
+  }
 }
 
 class MockEmployeeRepository implements EmployeeRepository {
