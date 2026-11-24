@@ -229,6 +229,8 @@ class AppointmentsProvider extends DbBoundProvider {
   Future<Appointment?> byId(String id) => _repository.findById(id);
 
   /// یافتن همگام (برای فرم‌ها).
+  Future<Appointment?> byId(String id) => _repository.findById(id);
+
   Appointment? appointmentById(String id) {
     for (final item in _page.items) {
       if (item.id == id) return item;
