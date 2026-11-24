@@ -27,31 +27,6 @@ class SupabaseSettingsRepository implements SettingsRepository {
     return id;
   }
 
-  static const _emptySms = SmsProviderSettings(
-    providerName: '',
-    endpoint: '',
-    credit: 0,
-  );
-  static const _disabledNotifications = NotificationSettings(
-    confirmationEnabled: false,
-    reminderEnabled: false,
-    cancellationEnabled: false,
-    rescheduleEnabled: false,
-    reminderHours: [],
-    sendToStaff: false,
-  );
-  static const _unconfiguredRules = BookingRules(
-    allowCustomerCancel: false,
-    allowReschedule: false,
-    maxReschedules: 0,
-    minHoursBeforeChange: 0,
-    maxAdvanceDays: 0,
-    requireConfirmation: false,
-    preventOverlap: false,
-    slotIntervalMinutes: 0,
-    cancelPenaltyCount: 0,
-  );
-
   Map<String, dynamic> _shiftMap(Map<int, List<Shift>> value) => {
         for (final entry in value.entries)
           entry.key.toString(): entry.value.map((shift) => shift.toJson()).toList(),
