@@ -43,8 +43,8 @@ class ActivityProvider extends DbBoundProvider {
       _recent = recent;
     } catch (_) {
       if (generation != _loadGeneration) return;
-      _logs = db.activityLogs.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      _recent = _logs.take(6).toList();
+      _logs = const [];
+      _recent = const [];
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
