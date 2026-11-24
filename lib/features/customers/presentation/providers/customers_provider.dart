@@ -117,7 +117,7 @@ class CustomersProvider extends DbBoundProvider {
   }
 
   Customer? findByPhone(String phone) {
-    for (final c in db.customers) {
+    for (final c in _page.items) {
       if (c.phone == phone) return c;
     }
     return null;
