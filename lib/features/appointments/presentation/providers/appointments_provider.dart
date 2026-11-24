@@ -105,8 +105,7 @@ class AppointmentsProvider extends DbBoundProvider {
     } catch (error) {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.appointments;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
       notifyListeners();
     }
   }
