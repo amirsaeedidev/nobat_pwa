@@ -137,6 +137,13 @@ class SupabaseCustomerRepository implements CustomerRepository {
     final phone = _normalizedPhone(value);
     if (phone.isNotEmpty) {
       clauses.add('normalized_phone.ilike.%$phone%');
+      const latinDigits = '0123456789';
+      const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+      final persianPhone = phone.split('').map((digit) {
+        final index = latinDigits.indexOf(digit);
+        return index < 0 ? digit : persianDigits[index];
+      }).join();
+      clauses.add('phone.ilike.%$persianPhone%');
     }
     return request.or(clauses.join(','));
   }
@@ -147,6 +154,7 @@ class SupabaseCustomerRepository implements CustomerRepository {
     int page = 1,
     int pageSize = 8,
     String sortBy = 'createdAt',
+    bool archivedOnly = false,
   }) async {
     final tenant = _tenant();
     if (page < 1 || pageSize < 1 || pageSize > 100) {
@@ -161,7 +169,7 @@ class SupabaseCustomerRepository implements CustomerRepository {
         .from('customers')
         .select(_customerColumns)
         .eq('business_id', tenant)
-        .eq('is_active', true);
+        .eq('is_active', !archivedOnly);
     request = _applySearch(request, query);
     final response = await request
         .order(sortColumn, ascending: sortColumn == 'full_name')
@@ -248,10 +256,12 @@ class SupabaseCustomerRepository implements CustomerRepository {
         .toList()
       ..sort();
 
-    final billed = completed.fold<num>(
-      0,
-      (sum, appointment) => sum + appointment.price,
-    );
+    final billed = appointmentRows.fold<num>(0, (sum, rawRow) {
+      if (rawRow['status'] != 'completed') return sum;
+      final gross = (rawRow['price_toman'] as num?) ?? 0;
+      final discount = (rawRow['discount_toman'] as num?) ?? 0;
+      return sum + (gross - discount);
+    });
     final financeVisible = _canViewFinance();
     num? paid;
     num? outstanding;
