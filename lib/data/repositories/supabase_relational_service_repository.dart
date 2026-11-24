@@ -50,6 +50,7 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       maxPerDay: (row['max_per_day'] as num?)?.toInt(),
       advanceDays: (row['advance_days'] as num?)?.toInt() ?? 30,
       requiresConfirmation: row['requires_confirmation'] as bool? ?? false,
+      archivedAt: row['archived_at'] == null ? null : DateTime.tryParse(row['archived_at'] as String)?.toLocal(),
       isActive: row['is_active'] as bool? ?? false,
       employeeIds: links,
       category: row['category'] as String? ?? '',
@@ -58,7 +59,7 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   }
 
   static const _columns =
-      'id,title,category,description,duration_minutes,price_toman,is_active,sort_order,direct_cost_toman,image_url,discount_price_toman,discount_starts_on,discount_ends_on,prep_minutes,buffer_minutes,max_per_day,advance_days,requires_confirmation,employee_services(employee_id,is_active)';
+      'id,title,category,description,duration_minutes,price_toman,is_active,sort_order,direct_cost_toman,image_url,discount_price_toman,discount_starts_on,discount_ends_on,prep_minutes,buffer_minutes,max_per_day,advance_days,requires_confirmation,archived_at,employee_services(employee_id,is_active)';
 
   @override
   Future<List<Service>> fetchServices({bool onlyActive = false, String query = ''}) async {
@@ -174,15 +175,23 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
 
   @override
   Future<void> delete(String id) async {
-    // Keep service identity and snapshots stable for all historical appointments.
-    await toggle(id, false);
+    final tenant = _tenant();
+    final userId = _client.auth.currentUser!.id;
+    await _client.from('services').update({
+      'is_active': false,
+      'archived_at': DateTime.now().toUtc().toIso8601String(),
+      'archived_by': userId,
+    }).eq('business_id', tenant).eq('id', id);
   }
 
   @override
   Future<void> toggle(String id, bool isActive) async {
     final tenant = _tenant();
-    await _client.from('services').update({'is_active': isActive})
-        .eq('business_id', tenant).eq('id', id);
+    await _client.from('services').update({
+      'is_active': isActive,
+      if (isActive) 'archived_at': null,
+      if (isActive) 'archived_by': null,
+    }).eq('business_id', tenant).eq('id', id);
   }
 
   Future<String> _ensureCategory(String name) async {
