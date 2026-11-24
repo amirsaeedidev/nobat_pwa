@@ -122,10 +122,9 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
   }
 
   Future<void> _signOut() async {
-    final auth = context.read<SupabaseAuthRepository?>();
-    if (auth == null) return;
+    final sessionNotifier = context.read<SupabaseAuthStateNotifier>();
     try {
-      await auth.signOut();
+      await sessionNotifier.signOut();
       if (mounted) {
         setState(() {
           _message = 'از حساب خارج شدید.';
@@ -337,7 +336,7 @@ class _SupabaseLoginPageState extends State<SupabaseLoginPage> {
         ),
         const SizedBox(height: 14),
         OutlinedButton.icon(
-          onPressed: () => session.verifyMembership(),
+          onPressed: () => session.retryVerification(),
           icon: const Icon(Icons.refresh_rounded),
           label: const Text('بررسی دوباره دسترسی'),
         ),
