@@ -249,33 +249,38 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
 
     if (!mounted) return;
 
-    // ثبت مشتری جدید در صورت نبود در فهرست.
+    // ثبت مشتری جدید در صورت نبود در فهرست؛ فقط اطلاعات واقعی Supabase.
     final customers = context.read<CustomersProvider>();
     Customer? customer;
     try {
-      customer = _customer ?? await customers.findByPhoneRemote(_phoneController.text.trim());
-    if (customer == null) {
-      customer = Customer(
-        id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
-        fullName: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        createdAt: DateTime.now(),
-        tags: const ['ثبت توسط پذیرش'],
-      );
-      final created = await customers.create(customer);
-      if (!created) {
-        if (!mounted) return;
-        setState(() => _saving = false);
-        AppToast.show(context, 'ثبت مشتری انجام نشد.', success: false);
-        return;
-      }
-      customer = await customers.findByPhoneRemote(_phoneController.text.trim());
+      customer = _customer ??
+          await customers.findByPhoneRemote(_phoneController.text.trim());
       if (customer == null) {
+        final draft = Customer(
+          id: 'cus-${DateTime.now().microsecondsSinceEpoch}',
+          fullName: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          createdAt: DateTime.now(),
+          tags: const ['ثبت توسط پذیرش'],
+        );
+        final created = await customers.create(draft);
+        if (!created) {
+          throw StateError('ثبت مشتری در پایگاه داده انجام نشد.');
+        }
         if (!mounted) return;
-        setState(() => _saving = false);
-        AppToast.show(context, 'مشتری در پایگاه داده تأیید نشد؛ نوبت ثبت نشد.', success: false);
-        return;
+        customer = await customers.findByPhoneRemote(_phoneController.text.trim());
       }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _appointmentFailure(error), success: false);
+      return;
+    }
+    if (customer == null) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, 'مشتری در پایگاه داده تأیید نشد؛ نوبت ثبت نشد.', success: false);
+      return;
     }
 
     final appointment = Appointment(
