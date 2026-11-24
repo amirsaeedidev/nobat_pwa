@@ -181,6 +181,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
     final expenseRows = await _client.from('business_expenses')
         .select('amount_toman,category,created_at')
         .eq('business_id', tenant)
+        .eq('status', 'posted')
         .gte('created_at', range.start.toUtc().toIso8601String())
         .lt('created_at', range.endExclusive.toUtc().toIso8601String());
     final expenses = expenseRows.map((row) => Map<String, dynamic>.from(row)).toList();
@@ -248,7 +249,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
       services: const [],
       recentAppointments: recent.take(10).toList(growable: false),
       recentTransactions: const [],
-      costNote: 'هزینه‌های عملیاتی از اسناد واقعی ثبت‌شده محاسبه شده‌اند؛ پورسانت و حقوق تا اتصال کامل دفتر مالی نمایش داده نمی‌شوند.',
+      costNote: 'هزینه عملیاتی، پورسانت و حقوق فقط از اسناد مالی واقعی ثبت‌شده محاسبه شده‌اند.',
       paymentsByMethod: paymentsByMethod,
       expensesByCategory: expensesByCategory,
       operationalAppointments: appointments,
