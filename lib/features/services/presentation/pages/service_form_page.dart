@@ -125,7 +125,11 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_category.trim().isEmpty) {
+    final availableCategories = context.read<ServicesProvider>().categories;
+    final selectedCategory = _category.trim().isNotEmpty
+        ? _category.trim()
+        : (availableCategories.isEmpty ? '' : availableCategories.first);
+    if (selectedCategory.isEmpty) {
       AppToast.show(context, 'ابتدا یک دسته‌بندی واقعی ایجاد یا انتخاب کنید.', success: false);
       return;
     }
@@ -178,7 +182,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       bufferMinutes: int.tryParse(FaNum.toLatin(_buffer.text)) ?? 5,
       maxPerDay: int.tryParse(FaNum.toLatin(_maxPerDay.text)),
       advanceDays: int.tryParse(FaNum.toLatin(_advanceDays.text)) ?? 30,
-      category: _category,
+      category: selectedCategory,
       isActive: _isActive,
       requiresConfirmation: _requiresConfirmation,
       employeeIds: _employeeIds,
