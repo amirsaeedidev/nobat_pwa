@@ -1,6 +1,7 @@
 import '../../../../core/models/page_result.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
@@ -9,7 +10,7 @@ import '../../../../data/repositories/appointment_repository.dart';
 
 /// جست‌وجو، فیلتر، صفحه‌بندی و عملیات نوبت‌ها.
 class AppointmentsProvider extends DbBoundProvider {
-  AppointmentsProvider(this._repository, AppDatabase db) : super(db) {
+  AppointmentsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
