@@ -197,43 +197,49 @@ class CalendarProvider extends DbBoundProvider {
 
   /// خانه‌های زمانی یک روز بر اساس ساعات کاری و نوبت‌های ثبت‌شده.
   List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
-    final stepMinutes = intervalMinutes ?? db.settings.bookingRules.slotIntervalMinutes;
+    final stepMinutes = intervalMinutes ?? 15;
+    if (stepMinutes <= 0) throw ArgumentError.value(stepMinutes, 'intervalMinutes');
     final dayAppointments = appointmentsOn(date)
         .where((a) => employee == null || a.employeeId == employee)
         .toList();
-    final exception = exceptionFor(date);
-    final shifts = employee != null
-        ? db.employeeShiftsForDate(employee, date.toDateTime())
-        : exception != null
-            ? (exception.isClosed ? const <Shift>[] : exception.shifts)
-            : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
+    final selectedEmployees = _employeeList.where(
+      (item) => employee == null || item.id == employee,
+    );
+    final shifts = selectedEmployees
+        .expand((item) => item.shiftsFor(date.weekday))
+        .toList()
+      ..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
     final slots = <TimeSlot>[];
+    final seen = <int>{};
     for (final shift in shifts) {
       for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
-      final hour = minutes ~/ 60;
-      final minute = minutes % 60;
-      final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
-      final busy = dayAppointments.where((a) {
-        return !start.isBefore(a.startAt) && start.isBefore(a.endAt);
-      }).toList();
-        slots.add(TimeSlot(hour: hour, minute: minute, appointment: busy.isEmpty ? null : busy.first, isPast: date.sameDay(today) && DateTime.now().isAfter(start)));
+        if (!seen.add(minutes)) continue;
+        final hour = minutes ~/ 60;
+        final minute = minutes % 60;
+        final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
+        final busy = dayAppointments.where((a) =>
+          !start.isBefore(a.startAt) && start.isBefore(a.endAt)).toList();
+        slots.add(TimeSlot(
+          hour: hour,
+          minute: minute,
+          appointment: busy.isEmpty ? null : busy.first,
+          isPast: date.sameDay(today) && DateTime.now().isAfter(start),
+        ));
       }
     }
     return slots;
   }
 
-  /// آیا روز تعطیل است؟
-  ScheduleException? exceptionFor(JalaliDate date) {
-    final key = date.toDateTime().toIso8601String().substring(0, 10);
-    for (final exception in db.settings.scheduleExceptions) { if (exception.dateKey == key) return exception; }
-    return null;
-  }
+  /// Date-specific exceptions are loaded separately from the employee
+  /// schedule repository; until loaded, no synthetic exception is shown.
+  ScheduleException? exceptionFor(JalaliDate date) => null;
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
-    if (employeeId != null) return db.employeeShiftsForDate(employeeId, date.toDateTime()).isEmpty;
-    final exception = exceptionFor(date);
-    if (exception != null) return exception.isClosed;
-    return date.weekday == 6 || db.settings.holidays.contains(date.weekday);
+    if (employeeId != null) {
+      final employee = _employeeList.where((item) => item.id == employeeId).firstOrNull;
+      return employee == null || employee.shiftsFor(date.weekday).isEmpty;
+    }
+    return !_employeeList.any((item) => item.shiftsFor(date.weekday).isNotEmpty);
   }
 
   int get monthlyAppointmentsCount => _rangeAppointments
