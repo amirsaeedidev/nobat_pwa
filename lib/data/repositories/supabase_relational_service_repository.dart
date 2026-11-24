@@ -77,8 +77,12 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
   @override
   Future<void> create(Service service) async {
     final tenant = _tenant();
+    final categoryId = service.category.trim().isEmpty
+        ? null
+        : await _ensureCategory(service.category.trim());
     final inserted = await _client.from('services').insert({
       'business_id': tenant,
+      'category_id': categoryId,
       'title': service.title.trim(),
       'category': service.category.trim(),
       'description': service.description,
@@ -88,13 +92,16 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       'sort_order': service.order,
     }).select('id').single();
     await _syncEmployeeLinks(inserted['id'] as String, service.employeeIds);
-    if (service.category.trim().isNotEmpty) await _ensureCategory(service.category.trim());
   }
 
   @override
   Future<void> update(Service service) async {
     final tenant = _tenant();
+    final categoryId = service.category.trim().isEmpty
+        ? null
+        : await _ensureCategory(service.category.trim());
     await _client.from('services').update({
+      'category_id': categoryId,
       'title': service.title.trim(),
       'category': service.category.trim(),
       'description': service.description,
@@ -104,7 +111,6 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
       'sort_order': service.order,
     }).eq('business_id', tenant).eq('id', service.id);
     await _syncEmployeeLinks(service.id, service.employeeIds);
-    if (service.category.trim().isNotEmpty) await _ensureCategory(service.category.trim());
   }
 
   Future<void> _syncEmployeeLinks(String serviceId, List<String> employeeIds) async {
@@ -148,16 +154,16 @@ class SupabaseRelationalServiceRepository implements ServiceRepository {
         .eq('business_id', tenant).eq('id', id);
   }
 
-  Future<void> _ensureCategory(String name) async {
+  Future<String> _ensureCategory(String name) async {
     final tenant = _tenant();
     final row = await _client.from('service_categories').select('id')
         .eq('business_id', tenant).eq('name', name).maybeSingle();
-    if (row == null) {
-      await _client.from('service_categories').insert({
-        'business_id': tenant,
-        'name': name,
-      });
-    }
+    if (row != null) return row['id'] as String;
+    final inserted = await _client.from('service_categories').insert({
+      'business_id': tenant,
+      'name': name,
+    }).select('id').single();
+    return inserted['id'] as String;
   }
 
   @override
