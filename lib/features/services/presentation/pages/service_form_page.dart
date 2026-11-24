@@ -71,6 +71,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     try {
       final provider = context.read<ServicesProvider>();
       await provider.load();
+      if (provider.loadNotice != null) {
+        throw StateError('دریافت تنظیمات خدمات و پورسانت پرسنل از Supabase ناموفق بود: ${provider.loadNotice}');
+      }
       final service = await provider.byId(widget.serviceId!);
       if (!mounted) return;
       if (service == null) throw StateError('خدمت در Supabase پیدا نشد یا دسترسی مشاهده آن وجود ندارد.');
