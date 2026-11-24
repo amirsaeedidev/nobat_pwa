@@ -212,7 +212,7 @@ class Employee {
       email: json['email'] as String? ?? '',
       startedAt: json['started_at'] == null ? null : DateTime.tryParse(json['started_at'] as String),
       bookedCount: (json['booked_count'] as num?)?.toInt() ?? 0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 4.8,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0,
       avatarAsset: json['avatar_asset'] as String? ?? '',
       specialties: (json['specialties'] as List?)?.cast<String>() ?? const [],
       notes: json['notes'] as String? ?? '',
