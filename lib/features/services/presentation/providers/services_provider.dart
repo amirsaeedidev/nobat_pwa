@@ -129,17 +129,31 @@ class ServicesProvider extends DbBoundProvider {
 
   Future<bool> create(Service service) async {
     await _repository.create(service);
+    await load();
     return true;
   }
 
   Future<bool> update(Service service) async {
     await _repository.update(service);
+    await load();
     return true;
   }
 
-  Future<void> remove(String id) => _repository.delete(id);
+  Future<String> saveCatalogItem(Service service, List<EmployeeServiceConfig> configs) async {
+    final id = await _repository.saveCatalogItem(service, configs);
+    await load();
+    return id;
+  }
 
-  Future<void> toggle(String id, bool active) => _repository.toggle(id, active);
+  Future<void> remove(String id) async {
+    await _repository.delete(id);
+    await load();
+  }
+
+  Future<void> toggle(String id, bool active) async {
+    await _repository.toggle(id, active);
+    await load();
+  }
 
   Future<void> addCategory(String name) async {
     await _repository.addCategory(name);
