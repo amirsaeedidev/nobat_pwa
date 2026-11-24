@@ -41,6 +41,7 @@ abstract class DbBoundProvider extends ChangeNotifier {
       authStateNotifier?.userId,
       authStateNotifier?.businessId,
       authStateNotifier?.role,
+      authStateNotifier?.permissions.toString(),
       authStateNotifier?.status.name,
     ].join('|');
     if (_lastAuthContext == next) return;
