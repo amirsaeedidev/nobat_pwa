@@ -212,6 +212,7 @@ class SupabaseServiceRepository implements ServiceRepository {
   Future<void> deleteCategory(String name, {String? moveServicesTo}) =>
       deleteServiceCategory(name, moveServicesTo: moveServicesTo);
 
+  @override
   Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async {
     final rows = await _records.fetchRecords(
       businessId: businessId,
