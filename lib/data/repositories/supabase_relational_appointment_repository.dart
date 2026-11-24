@@ -72,7 +72,7 @@ class SupabaseRelationalAppointmentRepository implements AppointmentRepository {
       durationMinutes: end.difference(start).inMinutes,
       status: status,
       note: row['note'] as String? ?? '',
-      price: row['price_toman'] as num? ?? 0,
+      price: (row['price_toman'] as num? ?? 0) - (row['discount_toman'] as num? ?? 0),
       discount: row['discount_toman'] as num? ?? 0,
       createdAt: row['created_at'] == null
           ? null
