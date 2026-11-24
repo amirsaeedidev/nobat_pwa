@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/providers/db_bound_provider.dart';
@@ -60,6 +61,18 @@ class AppointmentsProvider extends DbBoundProvider {
         notifyListeners();
       }
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _page = PageResult.empty(pageSize: _pageSize);
+    _loading = false;
+    _loadNotice = null;
+    _busy = false;
   }
 
   @override
