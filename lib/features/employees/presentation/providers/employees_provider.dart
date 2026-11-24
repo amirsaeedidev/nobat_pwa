@@ -60,9 +60,7 @@ class EmployeesProvider extends DbBoundProvider {
 
   @override
   void onDatabaseChanged() {
-    _items = db.employees;
-    _error = null;
-    notifyListeners();
+    unawaited(load());
   }
 
   Future<List<Employee>> forService(String serviceId) => _repository.fetchEmployees(onlyActive: true, serviceId: serviceId);
