@@ -68,6 +68,11 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     try {
       final appointment = await context.read<AppointmentsProvider>().byId(id);
       if (!mounted) return;
+      await Future.wait([
+        context.read<ServicesProvider>().load(),
+        context.read<EmployeesProvider>().load(),
+      ]);
+      if (!mounted) return;
       if (appointment == null) {
         AppToast.show(context, 'نوبت مورد نظر در Supabase پیدا نشد.', success: false);
         return;
