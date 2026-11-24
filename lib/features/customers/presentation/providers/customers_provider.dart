@@ -88,7 +88,10 @@ class CustomersProvider extends DbBoundProvider {
   Future<Customer?> findByPhoneRemote(String phone) async {
     final normalized = FaNum.toLatin(phone).replaceAll(RegExp(r'[^0-9]'), '');
     if (normalized.isEmpty) return null;
-    final matches = await _repository.fetchAll(query: normalized);
+    var matches = await _repository.fetchAll(query: phone.trim());
+    if (matches.isEmpty) {
+      matches = await _repository.fetchAll(query: normalized);
+    }
     for (final customer in matches) {
       final candidate = FaNum.toLatin(customer.phone).replaceAll(RegExp(r'[^0-9]'), '');
       if (candidate == normalized) return customer;
