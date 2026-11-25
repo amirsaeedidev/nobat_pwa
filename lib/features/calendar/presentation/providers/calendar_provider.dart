@@ -357,6 +357,7 @@ class CalendarProvider extends ChangeNotifier {
       if (item != null) {
         return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
       }
+      return businessExceptionFor(date);
     }
     final businessException = businessExceptionFor(date);
     if (businessException != null) return businessException;
