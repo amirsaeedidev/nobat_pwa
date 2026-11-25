@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +18,7 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/models/appointment.dart';
+import '../../../../data/models/customer.dart';
 import '../../../../data/models/business_finance.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/employee_wallet.dart';
@@ -107,6 +110,17 @@ class ReportsPage extends StatelessWidget {
           SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(repository: financeRepository, appointmentsRepository: appointmentRepository))),
         if (_hasFinancePermission(auth, 'finance.manage'))
           SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(repository: financeRepository))),
+        if (_hasFinancePermission(auth, 'finance.view') || _hasFinancePermission(auth, 'finance.manage'))
+          SoftButton(label: 'اسناد مالی', onTap: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: context.pal.surface,
+            builder: (_) => _FinanceDocumentsSheet(
+              repository: financeRepository,
+              appointments: visibleAppointments,
+              customers: availableCustomers,
+            ),
+          )),
         if (_hasFinancePermission(auth, 'employees.view_list') || canViewOperations)
           SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
@@ -898,6 +912,281 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
     actions: [
       TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('انصراف')),
       FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'در حال ثبت…' : 'ثبت برگشت')),
+    ],
+  );
+}
+
+class _FinanceDocumentsSheet extends StatefulWidget {
+  const _FinanceDocumentsSheet({
+    required this.repository,
+    required this.appointments,
+    required this.customers,
+  });
+  final BusinessFinanceRepository repository;
+  final List<Appointment> appointments;
+  final List<Customer> customers;
+
+  @override
+  State<_FinanceDocumentsSheet> createState() => _FinanceDocumentsSheetState();
+}
+
+class _FinanceDocumentsSheetState extends State<_FinanceDocumentsSheet> {
+  List<BusinessFinanceDocument> _documents = const [];
+  List<BusinessExpense> _expenses = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final values = await Future.wait<dynamic>([
+        widget.repository.fetchDocuments(activeOnly: false),
+        widget.repository.fetchExpenses(),
+      ]);
+      if (!mounted) return;
+      _documents = values[0] as List<BusinessFinanceDocument>;
+      _expenses = values[1] as List<BusinessExpense>;
+    } catch (error) {
+      if (mounted) _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _addDocument() async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => _UploadFinanceDocumentDialog(
+        repository: widget.repository,
+        appointments: widget.appointments,
+        customers: widget.customers,
+        expenses: _expenses,
+      ),
+    );
+    if (saved == true && mounted) await _load();
+  }
+
+  Future<void> _copySignedUrl(BusinessFinanceDocument document) async {
+    final path = document.storagePath;
+    if (path == null) return;
+    try {
+      final url = await widget.repository.createDocumentDownloadUrl(path);
+      await Clipboard.setData(ClipboardData(text: url));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('پیوند موقت سند کپی شد؛ این پیوند پس از چند دقیقه منقضی می‌شود.')),
+      );
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('دریافت پیوند سند ناموفق بود: $error')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: SizedBox(
+      height: MediaQuery.sizeOf(context).height * .78,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            const Expanded(child: SectionHeader(title: 'اسناد مالی', subtitle: 'فایل‌ها به نوبت، مشتری یا هزینه واقعی متصل می‌شوند')),
+            IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+            FilledButton.icon(onPressed: _addDocument, icon: const Icon(Icons.attach_file_rounded), label: const Text('افزودن سند')),
+          ]),
+          const SizedBox(height: 10),
+          if (_loading) const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_error != null) Expanded(child: Center(child: Text(_error!, textAlign: TextAlign.center)))
+          else if (_documents.isEmpty) const Expanded(child: EmptyState(title: 'سند مالی ثبت‌شده‌ای وجود ندارد', description: 'سند جدید را به یکی از رکوردهای واقعی متصل کنید.'))
+          else Expanded(child: ListView.separated(
+            itemCount: _documents.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final document = _documents[index];
+              final source = document.expenseId != null
+                  ? 'هزینه ${document.expenseId}'
+                  : document.appointmentId != null
+                      ? 'نوبت ${document.appointmentId}'
+                      : 'مشتری ${document.customerId ?? ''}';
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(document.status == 'active' ? Icons.description_outlined : Icons.description),
+                title: Text(document.fileName ?? document.documentNumber ?? document.documentType),
+                subtitle: Text('${document.documentType} · $source · ${JalaliDate.fromDateTime(document.createdAt).short}'),
+                trailing: document.storagePath == null
+                    ? const Icon(Icons.info_outline)
+                    : IconButton(onPressed: () => _copySignedUrl(document), icon: const Icon(Icons.link_rounded)),
+              );
+            },
+          )),
+        ]),
+      ),
+    ),
+  );
+}
+
+class _UploadFinanceDocumentDialog extends StatefulWidget {
+  const _UploadFinanceDocumentDialog({
+    required this.repository,
+    required this.appointments,
+    required this.customers,
+    required this.expenses,
+  });
+  final BusinessFinanceRepository repository;
+  final List<Appointment> appointments;
+  final List<Customer> customers;
+  final List<BusinessExpense> expenses;
+
+  @override
+  State<_UploadFinanceDocumentDialog> createState() => _UploadFinanceDocumentDialogState();
+}
+
+class _UploadFinanceDocumentDialogState extends State<_UploadFinanceDocumentDialog> {
+  String _documentType = 'invoice';
+  String _sourceType = 'appointment';
+  String? _sourceId;
+  String _documentNumber = '';
+  String _notes = '';
+  String? _fileName;
+  String? _mimeType;
+  Uint8List? _bytes;
+  bool _saving = false;
+  String? _error;
+
+  List<DropdownMenuItem<String>> get _sourceItems => switch (_sourceType) {
+    'appointment' => [
+      for (final item in widget.appointments)
+        DropdownMenuItem(value: item.id, child: Text('${item.reference} · ${item.customerName} · ${item.serviceName}', overflow: TextOverflow.ellipsis)),
+    ],
+    'customer' => [
+      for (final item in widget.customers)
+        DropdownMenuItem(value: item.id, child: Text('${item.fullName} · ${item.phone}', overflow: TextOverflow.ellipsis)),
+    ],
+    _ => [
+      for (final item in widget.expenses)
+        DropdownMenuItem(value: item.id, child: Text('${item.description} · ${Fmt.compactMoney(item.amount)}', overflow: TextOverflow.ellipsis)),
+    ],
+  };
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf','jpg','jpeg','png','webp'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final bytes = file.bytes ?? await file.xFile.readAsBytes();
+      final extension = file.extension?.toLowerCase();
+      final mime = switch (extension) {
+        'pdf' => 'application/pdf',
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => null,
+      };
+      if (mime == null || bytes.isEmpty || bytes.length > 26214400) {
+        setState(() => _error = 'فقط PDF یا تصویر JPG/PNG/WEBP تا سقف ۲۵ مگابایت پذیرفته می‌شود.');
+        return;
+      }
+      setState(() { _fileName = file.name; _mimeType = mime; _bytes = bytes; _error = null; });
+    } catch (error) {
+      if (mounted) setState(() => _error = 'انتخاب فایل ناموفق بود: $error');
+    }
+  }
+
+  Future<void> _save() async {
+    if (_bytes == null || _fileName == null || _mimeType == null || _sourceId == null) {
+      setState(() => _error = 'فایل و یک مرجع واقعی از نوع نوبت، مشتری یا هزینه را انتخاب کنید.');
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      await widget.repository.uploadDocument(
+        bytes: _bytes!,
+        fileName: _fileName!,
+        mimeType: _mimeType!,
+        documentType: _documentType,
+        idempotencyKey: 'finance-doc-${DateTime.now().microsecondsSinceEpoch}',
+        documentNumber: _documentNumber.trim().isEmpty ? null : _documentNumber.trim(),
+        appointmentId: _sourceType == 'appointment' ? _sourceId : null,
+        customerId: _sourceType == 'customer' ? _sourceId : null,
+        expenseId: _sourceType == 'expense' ? _sourceId : null,
+        notes: _notes,
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('افزودن سند مالی'),
+    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      DropdownButtonFormField<String>(
+        value: _documentType,
+        decoration: const InputDecoration(labelText: 'نوع سند'),
+        items: const [
+          DropdownMenuItem(value: 'invoice', child: Text('فاکتور')),
+          DropdownMenuItem(value: 'receipt', child: Text('رسید')),
+          DropdownMenuItem(value: 'refund', child: Text('سند استرداد')),
+          DropdownMenuItem(value: 'expense_receipt', child: Text('رسید هزینه')),
+          DropdownMenuItem(value: 'discount_note', child: Text('سند تخفیف')),
+          DropdownMenuItem(value: 'payment_proof', child: Text('مدرک پرداخت')),
+          DropdownMenuItem(value: 'other', child: Text('سایر')),
+        ],
+        onChanged: (value) => setState(() => _documentType = value ?? _documentType),
+      ),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<String>(
+        value: _sourceType,
+        decoration: const InputDecoration(labelText: 'اتصال سند به'),
+        items: const [
+          DropdownMenuItem(value: 'appointment', child: Text('نوبت')),
+          DropdownMenuItem(value: 'customer', child: Text('مشتری')),
+          DropdownMenuItem(value: 'expense', child: Text('هزینه')),
+        ],
+        onChanged: (value) => setState(() { _sourceType = value ?? _sourceType; _sourceId = null; }),
+      ),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<String>(
+        value: _sourceId,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'مرجع واقعی'),
+        items: _sourceItems,
+        onChanged: (value) => setState(() => _sourceId = value),
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        decoration: const InputDecoration(labelText: 'شماره سند (اختیاری)'),
+        onChanged: (value) => _documentNumber = value,
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        decoration: const InputDecoration(labelText: 'توضیحات (اختیاری)'),
+        onChanged: (value) => _notes = value,
+      ),
+      const SizedBox(height: 10),
+      OutlinedButton.icon(
+        onPressed: _saving ? null : _pickFile,
+        icon: const Icon(Icons.attach_file_rounded),
+        label: Text(_fileName ?? 'انتخاب فایل PDF یا تصویر'),
+      ),
+      if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))),
+    ])),
+    actions: [
+      TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(false), child: const Text('انصراف')),
+      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'در حال بارگذاری…' : 'ثبت سند')),
     ],
   );
 }
