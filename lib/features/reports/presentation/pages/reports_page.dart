@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -1083,7 +1084,7 @@ class _UploadFinanceDocumentDialogState extends State<_UploadFinanceDocumentDial
       );
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
-      final bytes = file.bytes ?? await file.xFile.readAsBytes();
+      final bytes = file.bytes;
       final extension = file.extension?.toLowerCase();
       final mime = switch (extension) {
         'pdf' => 'application/pdf',
@@ -1092,7 +1093,7 @@ class _UploadFinanceDocumentDialogState extends State<_UploadFinanceDocumentDial
         'webp' => 'image/webp',
         _ => null,
       };
-      if (mime == null || bytes.isEmpty || bytes.length > 26214400) {
+      if (mime == null || bytes == null || bytes.isEmpty || bytes.length > 26214400) {
         setState(() => _error = 'فقط PDF یا تصویر JPG/PNG/WEBP تا سقف ۲۵ مگابایت پذیرفته می‌شود.');
         return;
       }
