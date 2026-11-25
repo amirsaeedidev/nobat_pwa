@@ -17,6 +17,8 @@ import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
+import 'data/repositories/business_finance_repository.dart';
+import 'data/repositories/supabase_business_finance_repository.dart';
 import 'data/repositories/supabase_dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/supabase_relational_employee_repository.dart';
@@ -132,6 +134,10 @@ Future<void> main() async {
     businessId: () => authStateNotifier.businessId,
     appointments: appointmentRepository,
   );
+  final businessFinanceRepository = SupabaseBusinessFinanceRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
   final activityRepository = SupabaseActivityRepository(
     records: supabaseRepository,
     businessId: () => authStateNotifier.businessId,
@@ -153,6 +159,7 @@ Future<void> main() async {
         Provider<SmsRepository>.value(value: smsRepository),
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
+        Provider<BusinessFinanceRepository>.value(value: businessFinanceRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
