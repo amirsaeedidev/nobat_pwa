@@ -10,27 +10,30 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() {
   const urlKey = 'DATETIME_SUPABASE_URL';
   const anonKeyName = 'DATETIME_SUPABASE_ANON_KEY';
-  const tokenName = 'DATETIME_SUPABASE_ACCESS_TOKEN';
+  const emailName = 'DATETIME_SUPABASE_TEST_EMAIL';
+  const passwordName = 'DATETIME_SUPABASE_TEST_PASSWORD';
   const businessName = 'DATETIME_SUPABASE_BUSINESS_ID';
   const employeeName = 'DATETIME_SUPABASE_TEST_EMPLOYEE_ID';
 
   final env = Platform.environment;
-  final configured = [urlKey, anonKeyName, tokenName, businessName, employeeName]
+  final configured = [urlKey, anonKeyName, emailName, passwordName, businessName, employeeName]
       .every((key) => (env[key] ?? '').trim().isNotEmpty);
 
   test('authenticated owner can submit concurrent idempotent wallet and settlement RPCs', () async {
     final client = SupabaseClient(
       env[urlKey]!,
       env[anonKeyName]!,
-      headers: {'Authorization': 'Bearer ${env[tokenName]!}'},
     );
     addTearDown(client.dispose);
 
-    final user = await client.auth.getUser(env[tokenName]!);
+    await client.auth.signInWithPassword(
+      email: env[emailName]!, password: env[passwordName]!,
+    );
+    final user = client.auth.currentUser!;
     final membership = await client.from('business_memberships')
         .select('role,is_active')
         .eq('business_id', env[businessName]!)
-        .eq('user_id', user.user!.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .single();
     expect(membership['role'], 'owner');
@@ -99,5 +102,5 @@ void main() {
     expect(walletRows, hasLength(1));
     expect(settlementRows, hasLength(1));
   }, skip: configured ? false :
-      'Set DATETIME_SUPABASE_URL, DATETIME_SUPABASE_ANON_KEY, DATETIME_SUPABASE_ACCESS_TOKEN, DATETIME_SUPABASE_BUSINESS_ID and DATETIME_SUPABASE_TEST_EMPLOYEE_ID for live integration testing.');
+      'Set DATETIME_SUPABASE_URL, DATETIME_SUPABASE_ANON_KEY, DATETIME_SUPABASE_TEST_EMAIL, DATETIME_SUPABASE_TEST_PASSWORD, DATETIME_SUPABASE_BUSINESS_ID and DATETIME_SUPABASE_TEST_EMPLOYEE_ID for live integration testing.');
 }
