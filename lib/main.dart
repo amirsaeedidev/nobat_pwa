@@ -10,6 +10,9 @@ import 'data/repositories/supabase_repository.dart';
 import 'app/app.dart';
 import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
+import 'data/repositories/operations_repository.dart';
+import 'data/repositories/supabase_activity_repository.dart';
+import 'data/repositories/supabase_operations_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
@@ -93,7 +96,13 @@ Future<void> main() async {
       ? UnavailableSettingsRepository()
       : SupabaseSettingsRepository(SupabaseService.client!);
   final dashboardRepository = MockDashboardRepository(database);
-  final activityRepository = MockActivityRepository(database);
+  final ActivityRepository activityRepository = SupabaseService.client == null
+      ? UnavailableActivityRepository()
+      : SupabaseActivityRepository(SupabaseService.client!);
+  final ActivityOperationsRepository activityOperationsRepository =
+      SupabaseService.client == null
+          ? UnavailableActivityOperationsRepository()
+          : SupabaseOperationsRepository(SupabaseService.client!);
 
   runApp(
     MultiProvider(
@@ -117,6 +126,7 @@ Future<void> main() async {
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
+        Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
@@ -128,7 +138,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database)),
         ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database)),
         ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database)),
-        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database)),
+        ChangeNotifierProvider(create: (_) => ActivityProvider.remote(activityRepository, activityOperationsRepository)),
         ChangeNotifierProvider(
           create: (_) => BookingProvider(
             appointmentRepository,
