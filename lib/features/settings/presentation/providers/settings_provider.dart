@@ -57,10 +57,17 @@ class SettingsProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _paletteId =
           AppPalette.byId(prefs.getString('datetime_palette') ?? 'pastel_pink').id;
+    } catch (error) {
+      // Local appearance preferences must not block commercial settings.
+      debugPrint('Could not load local app palette preference: $error');
+    }
+
+    try {
       _settings = await _repository.fetchSettings();
       _formThemeId = AppFormTheme.byId(
         await _repository.fetchBookingFormTheme(),
       ).id;
+      _loadError = null;
     } catch (error, stackTrace) {
       _settings = null;
       _loadError = error.toString();
