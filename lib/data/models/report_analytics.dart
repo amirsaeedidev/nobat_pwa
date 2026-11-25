@@ -210,7 +210,8 @@ class ReportAnalytics {
   final List<Appointment> recentAppointments;
   final List<EmployeeWalletTransaction> recentTransactions;
   final String costNote;
-  final num grossRevenue, collectedRevenue, receivables, operatingExpense;\n  final num? discountTotal;
+  final num grossRevenue, collectedRevenue, receivables, operatingExpense;
+  final num? discountTotal;
   final num staffPayable, staffDebt, staffPaid, advancesOutstanding, profitMarginPercent;
   final num? grossProfit;
   final num previousPeriodRevenue, previousPeriodCost;
