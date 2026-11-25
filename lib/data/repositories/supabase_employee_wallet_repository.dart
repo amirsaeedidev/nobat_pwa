@@ -222,9 +222,9 @@ class SupabaseEmployeeWalletRepository {
 
   Future<int> periodDue(String employeeId, DateTime start, DateTime end) async {
     final rows = await fetchTransactions(employeeId, from: start, to: end);
-    return rows.where((item) => item.status == EmployeeWalletTransactionStatus.posted)
-        .fold<int>(0, (sum, item) => sum + item.amount)
-        .clamp(0, 0x7fffffffffffffff);
+    final balance = rows.where((item) => item.status == EmployeeWalletTransactionStatus.posted)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    return balance > 0 ? balance : 0;
   }
 
   Future<List<Map<String, dynamic>>> fetchEmployeesLedgerSummary() async {
@@ -287,7 +287,7 @@ class SupabaseEmployeeWalletRepository {
   }
 
   EmployeeWalletTransactionType _transactionType(String? value) => switch (value) {
-    'commission' => EmployeeWalletTransactionType.commission,
+    'service_commission' || 'commission' => EmployeeWalletTransactionType.commission,
     'salary' || 'fixed_salary' => EmployeeWalletTransactionType.fixedSalary,
     'salary_payment' || 'settlement' => EmployeeWalletTransactionType.salaryPayment,
     'advance' => EmployeeWalletTransactionType.advance,
@@ -339,7 +339,7 @@ class SupabaseEmployeeWalletRepository {
   String _commissionBasisToDb(CommissionBasis value) => value.name;
 
   String _transactionTypeToDb(EmployeeWalletTransactionType value) => switch (value) {
-    EmployeeWalletTransactionType.commission => 'commission',
+    EmployeeWalletTransactionType.commission => 'service_commission',
     EmployeeWalletTransactionType.fixedSalary => 'salary',
     EmployeeWalletTransactionType.salaryPayment => 'salary_payment',
     EmployeeWalletTransactionType.advance => 'advance',
