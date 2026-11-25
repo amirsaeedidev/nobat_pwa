@@ -19,8 +19,8 @@ import '../../utils/report_phase_five.dart';
 import '../../utils/report_executive_pdf_export.dart';
 import '../../utils/saved_report_store.dart';
 
-bool _hasPermission(SupabaseAuthStateNotifier auth, String permission) =>
-    auth.hasActiveBusiness && (auth.role == 'owner' || auth.permissions[permission] == true);
+bool _hasPermission(SupabaseAuthStateNotifier? auth, String permission) =>
+    auth != null && auth.hasActiveBusiness && (auth.role == 'owner' || auth.permissions[permission] == true);
 
 class ReportsPhaseFivePanel extends StatefulWidget {
   const ReportsPhaseFivePanel({super.key, required this.provider, this.exportOnly = false});
@@ -54,7 +54,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
 
   Future<void> _loadStore() async {
     try {
-      final auth = context.read<SupabaseAuthStateNotifier>();
+      final auth = context.read<SupabaseAuthStateNotifier?>();
       final saved = await _store.loadViews();
       final history = await _store.loadHistory(
         accountId: auth.userId ?? '',
@@ -177,7 +177,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     final previous = p.comparisonAnalytics;
     final pal = context.pal;
     final alerts = previous == null ? const <ReportInsight>[] :
-      ReportInsightEngine.build(current: a, previous: previous, services: context.read<ServicesProvider>().items);
+      ReportInsightEngine.build(current: a, previous: previous, services: context.read<ServicesProvider?>()?.items ?? const []);
 
     if (widget.exportOnly) {
       return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
