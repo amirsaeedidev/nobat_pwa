@@ -8,7 +8,7 @@ import 'settings_repository.dart';
 
 /// Reads and writes the single business owned/managed by the signed-in
 /// platform administrator. Commercial settings never fall back to local data.
-class SupabaseSettingsRepository implements SettingsRepository {
+class SupabaseSettingsRepository extends SettingsRepository {
   SupabaseSettingsRepository(this._client);
 
   final SupabaseClient _client;
