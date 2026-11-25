@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,10 +12,12 @@ import '../../../../data/repositories/settings_repository.dart';
 /// Commercial settings are remote; only the application palette is local.
 class SettingsProvider extends ChangeNotifier {
   SettingsProvider(this._repository) {
+    _authSubscription = _repository.authChanges?.listen((_) => load());
     load();
   }
 
   final SettingsRepository _repository;
+  StreamSubscription<void>? _authSubscription;
 
   BusinessSettings? _settings;
   bool _loading = true;
@@ -48,6 +52,12 @@ class SettingsProvider extends ChangeNotifier {
       );
   NotificationSettings get notifications =>
       _settings?.notifications ?? const NotificationSettings();
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   Future<void> load() async {
     _loading = true;
