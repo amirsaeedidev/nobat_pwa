@@ -1,4 +1,4 @@
-/// اسناد مالی مجموعه؛ همه مبالغ به تومان صحیح هستند و در Datamonck محلی نگهداری می‌شوند.
+/// مدل‌های دفتر مالی مجموعه؛ مبالغ به تومان و رکوردهای تولیدی از Supabase خوانده می‌شوند.
 enum BusinessPaymentMethod {
   cash('نقدی'),
   pos('کارت‌خوان'),
@@ -130,7 +130,7 @@ class BusinessExpense {
   factory BusinessExpense.fromJson(Map<String, dynamic> json) => BusinessExpense(
     id: json['id'] as String,
     createdAt: DateTime.parse(json['created_at'] as String),
-    amount: (json['amount'] as num).toInt(),
+    amount: ((json['amount_toman'] ?? json['amount']) as num).toInt(),
     category: BusinessExpenseCategory.values.firstWhere((v) => v.name == json['category'], orElse: () => BusinessExpenseCategory.other),
     description: json['description'] as String? ?? '',
     sourceDocumentId: json['source_document_id'] as String?,
@@ -158,7 +158,7 @@ String _paymentMethodKey(BusinessPaymentMethod value) => switch (value) {
 BusinessPaymentMethod? _paymentMethodFromKey(String? value) => switch (value) {
   'cash' => BusinessPaymentMethod.cash,
   'pos' => BusinessPaymentMethod.pos,
-  'bank_transfer' => BusinessPaymentMethod.bankTransfer,
+  'bank_transfer' || 'bankTransfer' => BusinessPaymentMethod.bankTransfer,
   'wallet' => BusinessPaymentMethod.wallet,
   'other' => BusinessPaymentMethod.other,
   _ => null,
