@@ -47,6 +47,7 @@ class CalendarProvider extends ChangeNotifier {
   CalendarView _view = CalendarView.monthly;
   String? _employeeId;
   String? _serviceId;
+  AppointmentStatus? _statusFilter;
   bool _loading = true;
   String? _error;
   List<Appointment> _rangeAppointments = const [];
@@ -65,13 +66,14 @@ class CalendarProvider extends ChangeNotifier {
   CalendarView get view => _view;
   String? get employeeId => _employeeId;
   String? get serviceId => _serviceId;
+  AppointmentStatus? get statusFilter => _statusFilter;
   bool get loading => _loading;
   String? get error => _error;
   List<Employee> get employees => _serviceId == null
       ? _employeeList
       : _employeeList.where((employee) => employee.serviceIds.contains(_serviceId)).toList(growable: false);
   List<Service> get services => _serviceList;
-  List<Appointment> get appointments => _rangeAppointments;
+  List<Appointment> get appointments => _rangeAppointments.where(_matchesFilters).toList(growable: false);
   List<EmployeeScheduleException> get scheduleExceptions => _scheduleExceptions;
   List<EmployeeLeave> get leaves => _leaves;
   List<BusinessHoliday> get businessHolidays => _businessHolidays;
@@ -126,6 +128,12 @@ class CalendarProvider extends ChangeNotifier {
     if (_employeeId == id) return;
     _employeeId = id;
     unawaited(load());
+  }
+
+  void setStatus(AppointmentStatus? status) {
+    if (_statusFilter == status) return;
+    _statusFilter = status;
+    _safeNotify();
   }
 
   void setService(String? id) {
@@ -190,8 +198,6 @@ class CalendarProvider extends ChangeNotifier {
     do {
       final pageResult = await _appointments.fetchAppointments(
         filter: AppointmentFilter(
-          employeeId: _employeeId,
-          serviceId: _serviceId,
           fromDate: from,
           toDate: to,
         ),
@@ -368,13 +374,16 @@ class CalendarProvider extends ChangeNotifier {
     });
   }
 
+  bool _matchesFilters(Appointment appointment) {
+    if (_employeeId != null && appointment.employeeId != _employeeId) return false;
+    if (_serviceId != null && !appointment.serviceIds.contains(_serviceId)) return false;
+    if (_statusFilter != null && appointment.status != _statusFilter) return false;
+    return true;
+  }
+
   List<Appointment> appointmentsOn(JalaliDate date) {
-    return _rangeAppointments.where((appointment) {
-      if (!appointment.jalali.sameDay(date)) return false;
-      if (_employeeId != null && appointment.employeeId != _employeeId) return false;
-      if (_serviceId != null && !appointment.serviceIds.contains(_serviceId)) return false;
-      return true;
-    }).toList()
+    return _rangeAppointments.where((appointment) =>
+        appointment.jalali.sameDay(date) && _matchesFilters(appointment)).toList()
       ..sort((a, b) => a.startAt.compareTo(b.startAt));
   }
 
@@ -421,7 +430,10 @@ class CalendarProvider extends ChangeNotifier {
       }
     }
 
-    final activeAppointments = appointmentsOn(date).where((item) => item.status.isActive).toList();
+    final dayAppointments = _rangeAppointments
+        .where((item) => item.jalali.sameDay(date))
+        .toList(growable: false);
+    final activeAppointments = dayAppointments.where((item) => item.status.isActive).toList();
     final result = <TimeSlot>[];
     final minutes = workingByMinute.keys.toList()..sort();
     for (final minute in minutes) {
@@ -432,7 +444,7 @@ class CalendarProvider extends ChangeNotifier {
           .where((item) => item.startAt.isBefore(end) && start.isBefore(item.endAt))
           .map((item) => item.employeeId)
           .toSet();
-      final slotAppointments = activeAppointments.where((item) {
+      final slotAppointments = appointmentsOn(date).where((item) {
         final appointmentMinute = item.startAt.hour * 60 + item.startAt.minute;
         return appointmentMinute >= minute && appointmentMinute < minute + step;
       }).toList(growable: false);
@@ -490,7 +502,7 @@ class CalendarProvider extends ChangeNotifier {
     await load();
   }
 
-  int get monthlyAppointmentsCount => _rangeAppointments
+  int get monthlyAppointmentsCount => appointments
       .where((appointment) =>
           appointment.jalali.month == _anchor.month &&
           appointment.jalali.year == _anchor.year)
