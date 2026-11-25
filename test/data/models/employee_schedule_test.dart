@@ -14,6 +14,24 @@ void main() {
       employee = db.employees.first;
     });
 
+    test('Supabase working-hour rows honor validity dates and breaks', () {
+      final hour = EmployeeWorkingHour(
+        employeeId: employee.id,
+        weekday: 5,
+        shift: const Shift(start: '09:00', end: '17:00'),
+        validFrom: DateTime(2026, 11, 25),
+        validUntil: DateTime(2026, 12, 5),
+        breakStart: '12:00',
+        breakEnd: '13:00',
+      );
+
+      expect(hour.isEffectiveOn(DateTime(2026, 11, 25)), isTrue);
+      expect(hour.isEffectiveOn(DateTime(2026, 12, 6)), isFalse);
+      expect(hour.covers(DateTime(2026, 11, 25, 10), DateTime(2026, 11, 25, 11)), isTrue);
+      expect(hour.covers(DateTime(2026, 11, 25, 12, 15), DateTime(2026, 11, 25, 12, 45)), isFalse);
+      expect(hour.covers(DateTime(2026, 11, 25, 16, 30), DateTime(2026, 11, 25, 17, 15)), isFalse);
+    });
+
     test('weekly shifts validate and are stored for an employee only', () {
       final date = DateTime.now().add(const Duration(days: 40));
       final weekday = JalaliDate.fromDateTime(date).weekday;
