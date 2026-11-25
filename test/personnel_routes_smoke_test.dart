@@ -45,7 +45,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => SettingsProvider(settings, db)),
           ChangeNotifierProvider(create: (_) => DashboardProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointments, db)),
-          ChangeNotifierProvider(create: (_) => CalendarProvider(appointments, employees, services, db)),
+          ChangeNotifierProvider(create: (_) => CalendarProvider(appointments, employees, services)),
           ChangeNotifierProvider(create: (_) => CustomersProvider(customers, db)),
           ChangeNotifierProvider(create: (_) => ServicesProvider(services, db)),
           ChangeNotifierProvider(create: (_) => EmployeesProvider(employees, db)),
