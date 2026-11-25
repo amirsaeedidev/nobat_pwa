@@ -408,11 +408,7 @@ class ReportsPage extends StatelessWidget {
                           const SizedBox(height: 8),
                           for (final item in provider.analytics.expensesByCategory.entries.where((item) => item.value != 0))
                             InkWell(
-                              onTap: () => _showFinanceSheet(context, item.key, [
-                                for (final expense in provider.analytics.businessExpenses.where((expense) => expense.category.label == item.key)) '${expense.description} · سند ${expense.sourceDocumentId} · ${Fmt.compactMoney(expense.amount)}',
-                                if (item.key == 'کمیسیون پرسنل') 'جمع کمیسیون و برگشت کمیسیون: ${Fmt.compactMoney(item.value)}',
-                                if (item.key == 'حقوق و مزایا') 'جمع حقوق، پاداش و کسورات ثبت‌شده: ${Fmt.compactMoney(item.value)}',
-                              ]),
+                              onTap: () => _showBusinessExpensesSheet(context, financeRepository, provider, item.key),
                               child: Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [
                                 Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
                                 Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
@@ -922,6 +918,132 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
       TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('انصراف')),
       FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'در حال ثبت…' : 'ثبت برگشت')),
     ],
+  );
+}
+
+void _showBusinessExpensesSheet(
+  BuildContext context,
+  BusinessFinanceRepository repository,
+  ReportsProvider provider,
+  String categoryLabel,
+) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: context.pal.surface,
+    builder: (_) => _BusinessExpensesSheet(
+      repository: repository,
+      provider: provider,
+      categoryLabel: categoryLabel,
+    ),
+  );
+}
+
+class _BusinessExpensesSheet extends StatefulWidget {
+  const _BusinessExpensesSheet({
+    required this.repository,
+    required this.provider,
+    required this.categoryLabel,
+  });
+  final BusinessFinanceRepository repository;
+  final ReportsProvider provider;
+  final String categoryLabel;
+
+  @override
+  State<_BusinessExpensesSheet> createState() => _BusinessExpensesSheetState();
+}
+
+class _BusinessExpensesSheetState extends State<_BusinessExpensesSheet> {
+  List<BusinessExpense> _items = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final items = await widget.repository.fetchExpenses();
+      if (!mounted) return;
+      _items = items.where((item) => item.category.label == widget.categoryLabel).toList();
+    } catch (error) {
+      if (mounted) _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _reverse(BusinessExpense expense) async {
+    final reason = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ابطال سند هزینه'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('هزینه «${expense.description}» با مبلغ ${Fmt.compactMoney(expense.amount)} ابطال شود؟'),
+          TextField(controller: reason, maxLines: 2, decoration: const InputDecoration(labelText: 'علت ابطال (اجباری)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, reason.text.trim()), child: const Text('تأیید ابطال')),
+        ],
+      ),
+    );
+    reason.dispose();
+    if (value == null || value.length < 3 || !mounted) return;
+    try {
+      await widget.repository.reverseBusinessExpense(expenseId: expense.id, reason: value);
+      await widget.provider.load();
+      await _load();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ابطال سند ناموفق بود: $error')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: SizedBox(
+      height: MediaQuery.sizeOf(context).height * .72,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SectionHeader(title: 'هزینه‌های ${widget.categoryLabel}', subtitle: 'اسناد ابطال‌شده نیز برای حفظ سابقه نمایش داده می‌شوند'),
+          const SizedBox(height: 10),
+          if (_loading) const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_error != null) Expanded(child: Center(child: Text(_error!, textAlign: TextAlign.center)))
+          else if (_items.isEmpty) const Expanded(child: EmptyState(title: 'هزینه‌ای برای این دسته ثبت نشده است'))
+          else Expanded(child: ListView.separated(
+            itemCount: _items.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final expense = _items[index];
+              final canManage = _hasFinancePermission(context.read<SupabaseAuthStateNotifier>(), 'finance.manage');
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(expense.description),
+                subtitle: Text('${JalaliDate.fromDateTime(expense.expenseDate ?? expense.createdAt).short} · ${expense.paymentMethod?.label ?? 'روش ثبت‌نشده'} · ${expense.status == BusinessExpenseStatus.reversed ? 'ابطال‌شده' : 'ثبت‌شده'}'),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(Fmt.compactMoney(expense.amount), style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: expense.status == BusinessExpenseStatus.reversed ? context.pal.textMuted : context.pal.warning,
+                  )),
+                  if (canManage && expense.status == BusinessExpenseStatus.posted)
+                    IconButton(
+                      tooltip: 'ابطال سند',
+                      onPressed: () => _reverse(expense),
+                      icon: const Icon(Icons.block_rounded),
+                    ),
+                ]),
+              );
+            },
+          )),
+        ]),
+      ),
+    ),
   );
 }
 
