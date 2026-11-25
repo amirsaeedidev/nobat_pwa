@@ -10,7 +10,7 @@ import '../models/enums.dart';
 
 /// قرارداد عملیات Undo برای تاریخچه محلی و سروری.
 abstract interface class ActivityOperationsRepository {
-  bool canUndo(ActivityLog log);
+  bool canUndoActivityLog(ActivityLog log);
   Future<bool> undoActivityEvent(String activityEventId);
 }
 
@@ -493,7 +493,7 @@ class OperationsRepository implements ActivityOperationsRepository {
   bool canUndo(String activityLogId) => _db.canUndoLog(activityLogId);
 
   @override
-  bool canUndo(ActivityLog log) => _db.canUndoLog(log.id);
+  bool canUndoActivityLog(ActivityLog log) => _db.canUndoLog(log.id);
 
   @override
   Future<bool> undoActivityEvent(String activityEventId) async =>
