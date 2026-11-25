@@ -68,8 +68,8 @@ class ReportsPage extends StatelessWidget {
     final visibleAppointments = canViewOperations
       ? provider.analytics.operationalAppointments
       : <Appointment>[];
-    final availableEmployees = employeesProvider?.items ?? const <Employee>[];
-    final availableServices = servicesProvider?.items ?? const <Service>[];
+    final availableEmployees = employeesProvider?.items ?? [];
+    final availableServices = servicesProvider?.items ?? [];
     final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
     final availableCategories = <String>{
       if (canViewOperations) ...availableServices.map((service) => service.category),
@@ -77,7 +77,7 @@ class ReportsPage extends StatelessWidget {
         .map((snapshot) => snapshot['category']).whereType<String>()),
     }.toList()..sort();
     final availableCustomers = !canViewOperations || !_hasFinancePermission(auth, 'customers.view')
-      ? (customersProvider?.items ?? const <Customer>[]).where((_) => false).toList()
+      ? (customersProvider?.items ?? []).where((_) => false).toList()
       : canViewAll
         ? (customersProvider?.items ?? const <Customer>[])
         : (customersProvider?.items ?? const <Customer>[]).where((item) => visibleCustomerIds.contains(item.id)).toList();
