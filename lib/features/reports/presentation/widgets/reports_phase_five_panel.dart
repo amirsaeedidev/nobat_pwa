@@ -57,7 +57,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       final auth = context.read<SupabaseAuthStateNotifier?>();
       final saved = await _store.loadViews();
       final history = await _store.loadHistory(
-        accountId: auth.userId ?? '',
+        accountId: auth?.userId ?? '',
         canViewSalary: _hasPermission(auth, 'finance.salary.view'),
         canViewCommission: _hasPermission(auth, 'finance.commission.view'),
       );
@@ -137,9 +137,9 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       id: DateTime.now().microsecondsSinceEpoch.toString(), title: 'گزارش مدیریتی',
       range: a.range.label, createdAt: DateTime.now(), revenue: a.revenue,
       cost: a.cost, appointments: a.totalAppointments,
-      accountId: context.read<SupabaseAuthStateNotifier>().userId ?? '',
-      includesSalary: _hasPermission(context.read<SupabaseAuthStateNotifier>(), 'finance.salary.view'),
-      includesCommission: _hasPermission(context.read<SupabaseAuthStateNotifier>(), 'finance.commission.view'),
+      accountId: context.read<SupabaseAuthStateNotifier?>()?.userId ?? '',
+      includesSalary: _hasPermission(context.read<SupabaseAuthStateNotifier?>(), 'finance.salary.view'),
+      includesCommission: _hasPermission(context.read<SupabaseAuthStateNotifier?>(), 'finance.commission.view'),
     ));
     await _loadStore();
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
@@ -149,7 +149,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
-      final auth = context.read<SupabaseAuthStateNotifier>();
+      final auth = context.read<SupabaseAuthStateNotifier?>();
       if (!_hasPermission(auth, 'finance.income.view')) {
         throw StateError('مجوز مشاهده و خروجی گزارش مالی را ندارید.');
       }
