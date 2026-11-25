@@ -257,6 +257,11 @@ class CalendarProvider extends ChangeNotifier {
         employeeIds.map((id) async =>
             _employees.fetchScheduleExceptions(employeeId: id, from: from, to: to)),
       );
+      final leaveBlocks = await _employees.fetchCalendarLeaveBlocks(
+        employeeIds: employeeIds,
+        from: from,
+        to: to,
+      );
       if (generation != _loadGeneration || _disposed) return;
 
       _employeeList = employees;
@@ -270,11 +275,7 @@ class CalendarProvider extends ChangeNotifier {
       _scheduleExceptions = exceptionAndLeaveResults
           .expand((items) => items)
           .toList(growable: false);
-      _leaveBlocks = await _employees.fetchCalendarLeaveBlocks(
-        employeeIds: employeeIds,
-        from: from,
-        to: range.$2.addDays(1).toDateTime(),
-      );
+      _leaveBlocks = leaveBlocks;
       _error = null;
     } catch (error) {
       if (generation != _loadGeneration || _disposed) return;
