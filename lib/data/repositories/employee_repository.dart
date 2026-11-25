@@ -35,6 +35,12 @@ abstract class EmployeeRepository {
     throw UnsupportedError('حذف استثنای برنامه کاری پشتیبانی نمی‌شود.');
   }
 
+  Future<List<EmployeeLeaveBlock>> fetchCalendarLeaveBlocks({
+    required List<String> employeeIds,
+    required DateTime from,
+    required DateTime to,
+  }) async => const [];
+
   Future<List<EmployeeLeave>> fetchLeaves(String employeeId) async => const [];
 
   Future<void> createLeave(EmployeeLeave leave) async {
