@@ -305,6 +305,30 @@ class SupabaseRelationalEmployeeRepository extends EmployeeRepository {
   }
 
   @override
+  Future<List<EmployeeLeaveBlock>> fetchCalendarLeaveBlocks({
+    required List<String> employeeIds,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    if (employeeIds.isEmpty) return const [];
+    final tenant = _tenant();
+    final rows = await _client.rpc('list_calendar_leave_blocks', params: {
+      'p_business_id': tenant,
+      'p_employee_ids': employeeIds,
+      'p_from_date': _date(from),
+      'p_to_date': _date(to),
+    });
+    return (rows as List).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      return EmployeeLeaveBlock(
+        employeeId: row['employee_id'] as String,
+        startAt: DateTime.parse(row['starts_at'] as String),
+        endAt: DateTime.parse(row['ends_at'] as String),
+      );
+    }).toList(growable: false);
+  }
+
+  @override
   Future<List<EmployeeLeave>> fetchLeaves(String employeeId) async {
     final tenant = _tenant();
     final rows = await _client.from('employee_leaves')
