@@ -55,7 +55,7 @@ void main() {
       expect(expense.amount, 640000);
       expect(expense.category, BusinessExpenseCategory.utilities);
       expect(expense.status, BusinessExpenseStatus.reversed);
-      expect(expense.sourceDocumentId, isNull);
+      expect(expense.sourceDocumentId, isEmpty);
       expect(expense.expenseDate, DateTime(2026, 11, 24));
       expect(expense.paymentMethod, BusinessPaymentMethod.pos);
       expect(expense.reversalReason, 'ثبت اشتباه');
