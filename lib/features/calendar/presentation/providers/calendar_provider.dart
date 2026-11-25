@@ -10,6 +10,7 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
+import '../../../../data/repositories/settings_repository.dart';
 import '../../../../data/repositories/appointment_repository.dart';
 import '../../../../data/repositories/employee_repository.dart';
 import '../../../../data/repositories/service_repository.dart';
@@ -23,6 +24,7 @@ class CalendarProvider extends ChangeNotifier {
     this._appointments,
     this._employees,
     this._services, {
+    this.settingsRepository,
     this.authStateNotifier,
   }) {
     _today = JalaliDate.today();
@@ -39,6 +41,7 @@ class CalendarProvider extends ChangeNotifier {
   final AppointmentRepository _appointments;
   final EmployeeRepository _employees;
   final ServiceRepository _services;
+  final SettingsRepository? settingsRepository;
   final SupabaseAuthStateNotifier? authStateNotifier;
 
   late JalaliDate _today;
@@ -55,6 +58,7 @@ class CalendarProvider extends ChangeNotifier {
   List<Service> _serviceList = const [];
   List<EmployeeWorkingHour> _workingHours = const [];
   List<BusinessHoliday> _businessHolidays = const [];
+  List<int> _weeklyHolidays = const [];
   List<EmployeeScheduleException> _scheduleExceptions = const [];
   List<EmployeeLeave> _leaves = const [];
   int _loadGeneration = 0;
@@ -77,6 +81,7 @@ class CalendarProvider extends ChangeNotifier {
   List<EmployeeScheduleException> get scheduleExceptions => _scheduleExceptions;
   List<EmployeeLeave> get leaves => _leaves;
   List<BusinessHoliday> get businessHolidays => _businessHolidays;
+  List<int> get weeklyHolidays => _weeklyHolidays;
 
   void _safeNotify() {
     if (!_disposed) notifyListeners();
@@ -101,6 +106,7 @@ class CalendarProvider extends ChangeNotifier {
     _serviceList = const [];
     _workingHours = const [];
     _businessHolidays = const [];
+    _weeklyHolidays = const [];
     _scheduleExceptions = const [];
     _leaves = const [];
   }
@@ -238,6 +244,7 @@ class CalendarProvider extends ChangeNotifier {
         _loadAppointments(range.$1, range.$2),
         _employees.fetchWorkingHours(employeeId: _employeeId),
         _employees.fetchBusinessHolidays(from: from, to: to),
+        if (settingsRepository != null) settingsRepository!.fetchSettings(),
       ]);
       if (generation != _loadGeneration || _disposed) return;
 
@@ -262,6 +269,9 @@ class CalendarProvider extends ChangeNotifier {
       _rangeAppointments = results[2] as List<Appointment>;
       _workingHours = results[3] as List<EmployeeWorkingHour>;
       _businessHolidays = results[4] as List<BusinessHoliday>;
+      _weeklyHolidays = settingsRepository == null
+          ? const []
+          : (results[5] as dynamic).holidays as List<int>;
       _scheduleExceptions = exceptionAndLeaveResults
           .expand((result) => result.exceptions)
           .toList(growable: false);
@@ -345,7 +355,7 @@ class CalendarProvider extends ChangeNotifier {
   }
 
   List<Shift> shiftsFor(Employee employee, JalaliDate date) {
-    if (!employee.scheduleEnabled || holidayFor(date) != null) return const [];
+    if (!employee.scheduleEnabled || holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return const [];
     final exception = employeeExceptionFor(date, employee.id);
     if (exception != null) return exception.isClosed ? const [] : exception.shifts;
     return _workingHours
@@ -360,7 +370,7 @@ class CalendarProvider extends ChangeNotifier {
       _leaves.any((leave) => leave.employeeId == employeeId && leave.overlaps(start, end));
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
-    if (holidayFor(date) != null) return true;
+    if (holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return true;
     final candidates = _employeeList.where((item) => employeeId == null || item.id == employeeId);
     if (candidates.isEmpty) return true;
     return !candidates.any((employee) {
@@ -391,7 +401,7 @@ class CalendarProvider extends ChangeNotifier {
   List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
     final step = intervalMinutes ?? 15;
     if (step <= 0) throw ArgumentError.value(step, 'intervalMinutes');
-    if (holidayFor(date) != null) return const [];
+    if (holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return const [];
 
     final candidates = _employeeList.where((item) =>
         (employee == null || item.id == employee) &&
@@ -478,7 +488,9 @@ class CalendarProvider extends ChangeNotifier {
     final start = newStart;
     final end = start.add(Duration(minutes: appointment.durationMinutes));
     final jalali = JalaliDate.fromDateTime(start);
-    if (holidayFor(jalali) != null) throw StateError('این تاریخ تعطیل مجموعه است.');
+    if (holidayFor(jalali) != null || _weeklyHolidays.contains(jalali.weekday)) {
+      throw StateError('این تاریخ طبق تنظیمات واقعی مجموعه تعطیل است.');
+    }
     final exception = employeeExceptionFor(jalali, employee.id);
     final shiftCovers = exception != null
         ? (!exception.isClosed && exception.shifts.any((shift) =>
