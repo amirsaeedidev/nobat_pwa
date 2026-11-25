@@ -41,14 +41,34 @@ class SupabaseSettingsRepository implements SettingsRepository {
   @override
   Future<BusinessSettings> fetchSettings() async {
     final business = await _business();
-    final row = await _settingsRow(business['id'] as String);
+    final businessId = business['id'] as String;
+    final row = await _settingsRow(businessId);
+    final holidayRows = await _client
+        .from('business_holidays')
+        .select('holiday_date,title')
+        .eq('business_id', businessId)
+        .order('holiday_date');
     final data = _asMap(row?['settings']);
     final profile = _asMap(data['profile']);
     final location = _asMap(data['location']);
     final rules = _asMap(data['booking_rules']);
     final notifications = _asMap(data['notifications']);
     final workingHours = _decodeHours(data['working_hours']);
-    final exceptions = _decodeExceptions(data['schedule_exceptions']);
+    final exceptionByDate = <String, ScheduleException>{
+      for (final item in _decodeExceptions(data['schedule_exceptions']))
+        item.dateKey: item,
+    };
+    for (final rawHoliday in holidayRows) {
+      final holiday = Map<String, dynamic>.from(rawHoliday);
+      final dateKey = _string(holiday['holiday_date']);
+      exceptionByDate[dateKey] = ScheduleException(
+        dateKey: dateKey,
+        title: _string(holiday['title']),
+        isClosed: true,
+      );
+    }
+    final exceptions = exceptionByDate.values.toList()
+      ..sort((a, b) => a.dateKey.compareTo(b.dateKey));
 
     return BusinessSettings(
       name: business['name'] as String? ?? '',
