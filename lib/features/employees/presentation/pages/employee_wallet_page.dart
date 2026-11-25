@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_page.dart';
+import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/employee_wallet.dart';
 import '../../../../data/repositories/supabase_employee_wallet_repository.dart';
