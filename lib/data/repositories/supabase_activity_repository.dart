@@ -10,6 +10,10 @@ class SupabaseActivityRepository implements ActivityRepository {
 
   final SupabaseClient _client;
 
+  @override
+  Stream<void> get authChanges =>
+      _client.auth.onAuthStateChange.map<void>((_) {});
+
   Future<String> _businessId() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
@@ -44,7 +48,7 @@ class SupabaseActivityRepository implements ActivityRepository {
         )
         .eq('business_id', businessId)
         .order('created_at', ascending: false)
-        .limit(limit.clamp(1, 1000));
+        .limit(limit.clamp(1, 1000).toInt());
 
     return rows
         .map((row) => _fromRow(Map<String, dynamic>.from(row)))
