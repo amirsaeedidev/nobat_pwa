@@ -41,7 +41,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AppDatabase>.value(value: db),
-          ChangeNotifierProvider(create: (_) => SettingsProvider(settings, db)),
+          ChangeNotifierProvider(create: (_) => SettingsProvider(settings)),
           ChangeNotifierProvider(create: (_) => DashboardProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointments, db)),
           ChangeNotifierProvider(create: (_) => CalendarProvider(appointments, employees, services, db)),
