@@ -170,7 +170,7 @@ class ReportAnalytics {
     required this.uniqueCustomers, required this.statusCounts, required this.trend,
     required this.employees, required this.services, required this.recentAppointments,
     required this.recentTransactions, required this.costNote,
-    this.grossRevenue = 0, this.collectedRevenue = 0, this.receivables = 0,
+    this.grossRevenue = 0, this.collectedRevenue = 0, this.receivables = 0, this.discountTotal,
     this.operatingExpense = 0, this.staffPayable = 0, this.staffDebt = 0, this.staffPaid = 0,
     this.advancesOutstanding = 0, this.profitMarginPercent = 0,
     this.grossProfit, this.previousPeriodRevenue = 0, this.previousPeriodCost = 0,
@@ -210,7 +210,7 @@ class ReportAnalytics {
   final List<Appointment> recentAppointments;
   final List<EmployeeWalletTransaction> recentTransactions;
   final String costNote;
-  final num grossRevenue, collectedRevenue, receivables, operatingExpense;
+  final num grossRevenue, collectedRevenue, receivables, operatingExpense;\n  final num? discountTotal;
   final num staffPayable, staffDebt, staffPaid, advancesOutstanding, profitMarginPercent;
   final num? grossProfit;
   final num previousPeriodRevenue, previousPeriodCost;
@@ -240,7 +240,7 @@ class ReportAnalytics {
   final Map<String, num> revenueByCategory;
   num get netProfit => revenue - cost;
   num get netRevenue => revenue;
-  num get discounts => grossRevenue - revenue;
+  num get discounts => discountTotal ?? (grossRevenue - revenue);
   num get capacityUtilizationPercent => capacityMinutes <= 0 ? 0 : bookedCapacityMinutes * 100 / capacityMinutes;
   int get emptyCapacityMinutes => (capacityMinutes - bookedCapacityMinutes).clamp(0, capacityMinutes);
 
