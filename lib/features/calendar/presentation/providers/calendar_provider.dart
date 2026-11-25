@@ -333,8 +333,9 @@ class CalendarProvider extends ChangeNotifier {
       if (item == null) return null;
       return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
     }
-    final item = _scheduleExceptions.where((value) => value.dateKey == key).firstOrNull;
-    if (item == null) return null;
+    final matches = _scheduleExceptions.where((value) => value.dateKey == key).toList();
+    if (matches.isEmpty) return null;
+    final item = matches.first;
     return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
   }
 
@@ -362,7 +363,9 @@ class CalendarProvider extends ChangeNotifier {
       if (shifts.isEmpty) return false;
       final dayStart = date.toDateTime();
       final dayEnd = dayStart.add(const Duration(days: 1));
-      return !_onApprovedLeave(employee.id, dayStart, dayEnd);
+      return !_leaves.any((leave) => leave.employeeId == employee.id &&
+          leave.status == EmployeeLeaveStatus.approved &&
+          !leave.startAt.isAfter(dayStart) && !leave.endAt.isBefore(dayEnd));
     });
   }
 
@@ -454,8 +457,9 @@ class CalendarProvider extends ChangeNotifier {
 
   /// جابه‌جایی تقویمی؛ کنترل محلی برای UX و کنترل نهایی با RPC دیتابیس.
   Future<void> rescheduleAppointment(Appointment appointment, DateTime newStart) async {
-    final employee = _employeeList.where((item) => item.id == appointment.employeeId).firstOrNull;
-    if (employee == null) throw StateError('پرسنل نوبت در اطلاعات واقعی تقویم پیدا نشد.');
+    final employees = _employeeList.where((item) => item.id == appointment.employeeId).toList();
+    if (employees.isEmpty) throw StateError('پرسنل نوبت در اطلاعات واقعی تقویم پیدا نشد.');
+    final employee = employees.first;
     final start = newStart;
     final end = start.add(Duration(minutes: appointment.durationMinutes));
     final jalali = JalaliDate.fromDateTime(start);
