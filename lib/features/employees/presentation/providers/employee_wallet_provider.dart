@@ -28,7 +28,7 @@ class EmployeeWalletProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final result = await Future.wait<Object>([
+      final result = await Future.wait<Object?>([
         repository.fetchWallet(employeeId),
         repository.fetchTransactions(employeeId),
         repository.fetchSettlements(employeeId),
