@@ -76,7 +76,7 @@ class AppointmentPayment {
   );
 }
 
-/// هزینه عمومی مجموعه؛ سند منبع و ثبت‌کننده برای ردیابی اجباری است.
+/// هزینه عمومی مجموعه؛ سند منبع اختیاری است و اسناد پیوست به رکورد هزینه لینک می‌شوند.
 class BusinessExpense {
   const BusinessExpense({
     required this.id,
