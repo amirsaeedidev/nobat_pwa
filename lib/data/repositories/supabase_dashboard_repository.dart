@@ -232,12 +232,14 @@ class SupabaseDashboardRepository implements DashboardRepository {
     final completedForRange = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
     final gross = completedForRange.fold<num>(0, (sum, item) =>
       sum + (item.serviceSnapshots.isEmpty
-        ? item.price
+        ? item.price + item.discount
         : item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
             serviceSum + ((snapshot['list_price'] as num?) ?? (snapshot['price'] as num?) ?? 0))));
     final discountTotal = completedForRange.fold<num>(0, (sum, item) =>
-      sum + item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
-        serviceSum + ((snapshot['discount'] as num?) ?? 0)));
+      sum + (item.serviceSnapshots.isEmpty
+        ? item.discount
+        : item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
+            serviceSum + ((snapshot['discount'] as num?) ?? 0))));
     final allPaymentRows = completedForRange.isEmpty
       ? <Map<String, dynamic>>[]
       : (await _client.from('appointment_payments')
