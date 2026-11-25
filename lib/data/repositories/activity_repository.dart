@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import '../mock/app_database.dart';
 import '../models/activity_log.dart';
 import '../models/enums.dart';
 
 abstract class ActivityRepository {
+  Stream<void>? get authChanges => null;
+
   Future<List<ActivityLog>> fetchLogs({ActivityType? type, String query = '', int? limit});
 
   Future<List<ActivityLog>> fetchRecent({int limit = 6});
