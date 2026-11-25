@@ -67,7 +67,7 @@ class ActivityProvider extends ChangeNotifier {
     load();
   }
 
-  bool canUndo(ActivityLog log) => _operations.canUndo(log);
+  bool canUndo(ActivityLog log) => _operations.canUndoActivityLog(log);
 
   Future<bool> undo(ActivityLog log) async {
     try {
