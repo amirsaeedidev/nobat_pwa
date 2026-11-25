@@ -150,7 +150,7 @@ class _WalletBody extends StatelessWidget {
           TextField(controller: note, decoration: const InputDecoration(labelText: 'شرح')),
         ]),
         actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('انصراف')),
-          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('ثبت'))]));
+          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('ثبت'))])));
     if (accepted != true || !context.mounted) { amount.dispose(); note.dispose(); return; }
     final value = int.tryParse(amount.text.replaceAll(RegExp(r'[^0-9]'), ''));
     if (value == null || value <= 0 || note.text.trim().isEmpty) {
