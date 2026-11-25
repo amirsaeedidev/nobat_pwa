@@ -9,7 +9,8 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_chart.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/jalali_picker.dart';
-import '../../../../data/mock/app_database.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
+import '../../../services/presentation/providers/services_provider.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/employee_wallet.dart';
 import '../providers/reports_provider.dart';
@@ -17,9 +18,11 @@ import '../../utils/report_phase_five.dart';
 import '../../utils/report_executive_pdf_export.dart';
 import '../../utils/saved_report_store.dart';
 
+bool _hasPermission(SupabaseAuthStateNotifier auth, String permission) =>
+    auth.hasActiveBusiness && (auth.role == 'owner' || auth.permissions[permission] == true);
+
 class ReportsPhaseFivePanel extends StatefulWidget {
-  const ReportsPhaseFivePanel({super.key, required this.database, required this.provider, this.exportOnly = false});
-  final AppDatabase database;
+  const ReportsPhaseFivePanel({super.key, required this.provider, this.exportOnly = false});
   final ReportsProvider provider;
   final bool exportOnly;
 
@@ -51,13 +54,11 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
   Future<void> _loadStore() async {
     try {
       final saved = await _store.loadViews();
-      final db = widget.database;
-      final allSalary = db.hasPermission('finance.salary.view');
-      final allCommission = db.hasPermission('finance.commission.view');
+      final auth = context.read<SupabaseAuthStateNotifier>();
       final history = await _store.loadHistory(
-        accountId: db.currentAccessAccount.id,
-        canViewSalary: allSalary,
-        canViewCommission: allCommission,
+        accountId: auth.userId ?? '',
+        canViewSalary: _hasPermission(auth, 'finance.salary.view'),
+        canViewCommission: _hasPermission(auth, 'finance.commission.view'),
       );
       if (!mounted) return;
       setState(() { _saved = saved; _history = history; _loadingStore = false; });
@@ -135,9 +136,9 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
       id: DateTime.now().microsecondsSinceEpoch.toString(), title: 'گزارش مدیریتی',
       range: a.range.label, createdAt: DateTime.now(), revenue: a.revenue,
       cost: a.cost, appointments: a.totalAppointments,
-      accountId: widget.database.currentAccessAccount.id,
-      includesSalary: widget.database.hasPermission('finance.salary.view'),
-      includesCommission: widget.database.hasPermission('finance.commission.view'),
+      accountId: context.read<SupabaseAuthStateNotifier>().userId ?? '',
+      includesSalary: _hasPermission(context.read<SupabaseAuthStateNotifier>(), 'finance.salary.view'),
+      includesCommission: _hasPermission(context.read<SupabaseAuthStateNotifier>(), 'finance.commission.view'),
     ));
     await _loadStore();
     if (mounted) AppToast.show(context, 'نسخه گزارش در تاریخچه ثبت شد.');
@@ -147,7 +148,10 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
-      widget.database.requirePermission('finance.income.view');
+      final auth = context.read<SupabaseAuthStateNotifier>();
+      if (!_hasPermission(auth, 'finance.income.view')) {
+        throw StateError('مجوز مشاهده و خروجی گزارش مالی را ندارید.');
+      }
       final analytics = widget.provider.analytics;
       final comparison = widget.provider.comparisonAnalytics ?? analytics;
       final columns = _allColumns.where(_columns.contains).toList();
@@ -172,7 +176,7 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
     final previous = p.comparisonAnalytics;
     final pal = context.pal;
     final alerts = previous == null ? const <ReportInsight>[] :
-      ReportInsightEngine.build(current: a, previous: previous, services: widget.database.services);
+      ReportInsightEngine.build(current: a, previous: previous, services: context.read<ServicesProvider>().items);
 
     if (widget.exportOnly) {
       return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
