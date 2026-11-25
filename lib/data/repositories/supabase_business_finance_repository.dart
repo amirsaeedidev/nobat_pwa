@@ -231,8 +231,8 @@ class SupabaseBusinessFinanceRepository implements BusinessFinanceRepository {
     String? fileName,
     String? mimeType,
     int? fileSizeBytes,
+    required String idempotencyKey,
     String notes = '',
-    String? idempotencyKey,
   }) async {
     final result = await _client.rpc('create_business_finance_document', params: {
       'p_business_id': _tenant(),
