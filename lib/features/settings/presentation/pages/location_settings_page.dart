@@ -33,7 +33,7 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    final settings = context.read<SettingsProvider>().settings;
+    final settings = Provider.of<SettingsProvider>(context).settings;
     if (settings == null) return;
     _prefilled = true;
     _lat = settings.latitude;
@@ -50,7 +50,7 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
   }
 
   Future<void> _save() async {
-    final provider = context.read<SettingsProvider>();
+    final provider = Provider.of<SettingsProvider>(context);
     final current = provider.settings;
     if (current == null) {
       AppToast.show(context, 'تنظیمات واقعی مجموعه از سرور بارگذاری نشده است.');
