@@ -84,7 +84,7 @@ class BusinessExpense {
     required this.amount,
     required this.category,
     required this.description,
-    this.sourceDocumentId,
+    required this.sourceDocumentId,
     required this.createdBy,
     this.status = BusinessExpenseStatus.posted,
     this.expenseDate,
@@ -102,7 +102,7 @@ class BusinessExpense {
   final int amount;
   final BusinessExpenseCategory category;
   final String description;
-  final String? sourceDocumentId;
+  final String sourceDocumentId;
   final String createdBy;
   final BusinessExpenseStatus status;
   final DateTime? expenseDate;
@@ -133,7 +133,7 @@ class BusinessExpense {
     amount: ((json['amount_toman'] ?? json['amount']) as num).toInt(),
     category: BusinessExpenseCategory.values.firstWhere((v) => v.name == json['category'], orElse: () => BusinessExpenseCategory.other),
     description: json['description'] as String? ?? '',
-    sourceDocumentId: json['source_document_id'] as String?,
+    sourceDocumentId: json['source_document_id'] as String? ?? '',
     createdBy: json['created_by'] as String? ?? '',
     status: BusinessExpenseStatus.values.firstWhere((v) => v.name == json['status'], orElse: () => BusinessExpenseStatus.posted),
     expenseDate: json['expense_date'] == null ? null : DateTime.parse(json['expense_date'] as String),
