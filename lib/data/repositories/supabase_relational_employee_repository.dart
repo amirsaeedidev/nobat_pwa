@@ -7,7 +7,7 @@ import 'employee_repository.dart';
 
 /// Tenant-scoped employee repository. All reads and writes use the active
 /// Supabase session; RLS remains the final authorization boundary.
-class SupabaseRelationalEmployeeRepository implements EmployeeRepository {
+class SupabaseRelationalEmployeeRepository extends EmployeeRepository {
   SupabaseRelationalEmployeeRepository({
     required SupabaseClient client,
     required String? Function() businessId,
@@ -200,6 +200,50 @@ class SupabaseRelationalEmployeeRepository implements EmployeeRepository {
       'terminated_on': now,
     }).eq('business_id', tenant).eq('id', id).select('id');
     if (result.isEmpty) throw StateError('پرسنل پیدا نشد یا مجوز بایگانی ندارید.');
+  }
+
+  @override
+  Future<List<EmployeeWorkingHour>> fetchWorkingHours({String? employeeId}) async {
+    final tenant = _tenant();
+    var query = _client.from('employee_working_hours')
+        .select('employee_id,weekday,starts_at,ends_at,break_starts_at,break_ends_at,valid_from,valid_until')
+        .eq('business_id', tenant).eq('is_active', true);
+    if (employeeId != null) query = query.eq('employee_id', employeeId);
+    final rows = await query.order('weekday').order('starts_at');
+    return rows.map((raw) {
+      final row = Map<String, dynamic>.from(raw);
+      final pgWeekday = (row['weekday'] as num).toInt();
+      return EmployeeWorkingHour(
+        employeeId: row['employee_id'] as String,
+        weekday: (pgWeekday + 1) % 7,
+        shift: Shift(
+          start: (row['starts_at'] as String).substring(0, 5),
+          end: (row['ends_at'] as String).substring(0, 5),
+        ),
+        breakStart: row['break_starts_at'] == null ? null : (row['break_starts_at'] as String).substring(0, 5),
+        breakEnd: row['break_ends_at'] == null ? null : (row['break_ends_at'] as String).substring(0, 5),
+        validFrom: row['valid_from'] == null ? null : DateTime.parse(row['valid_from'] as String),
+        validUntil: row['valid_until'] == null ? null : DateTime.parse(row['valid_until'] as String),
+      );
+    }).toList(growable: false);
+  }
+
+  @override
+  Future<List<BusinessHoliday>> fetchBusinessHolidays({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final tenant = _tenant();
+    final rows = await _client.from('business_holidays')
+        .select('holiday_date,title')
+        .eq('business_id', tenant)
+        .gte('holiday_date', _date(from))
+        .lte('holiday_date', _date(to))
+        .order('holiday_date');
+    return rows.map((raw) {
+      final row = Map<String, dynamic>.from(raw);
+      return BusinessHoliday(dateKey: row['holiday_date'] as String, title: row['title'] as String);
+    }).toList(growable: false);
   }
 
   @override
