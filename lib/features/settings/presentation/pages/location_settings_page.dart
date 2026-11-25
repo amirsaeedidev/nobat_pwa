@@ -21,8 +21,8 @@ class LocationSettingsPage extends StatefulWidget {
 }
 
 class _LocationSettingsPageState extends State<LocationSettingsPage> {
-  double _lat = 35.7448;
-  double _lng = 51.4099;
+  double _lat = 0;
+  double _lng = 0;
   final _address = TextEditingController();
   final _postal = TextEditingController();
   bool _prefilled = false;
