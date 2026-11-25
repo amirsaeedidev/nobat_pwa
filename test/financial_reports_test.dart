@@ -10,6 +10,58 @@ import 'package:datetime/data/models/employee_service_config.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
 
 void main() {
+  group('Supabase business finance model mapping', () {
+    test('maps a refund receipt using database field names and signed amount', () {
+      final payment = AppointmentPayment.fromJson({
+        'id': 'payment-1',
+        'appointment_id': 'appointment-1',
+        'customer_id': 'customer-1',
+        'amount_toman': 125000,
+        'method': 'bank_transfer',
+        'payment_type': 'refund',
+        'description': 'برگشت وجه',
+        'reverses_payment_id': 'payment-original',
+        'idempotency_key': 'refund-idempotency-1',
+        'created_at': '2026-11-25T09:30:00Z',
+      });
+
+      expect(payment.amount, 125000);
+      expect(payment.method, BusinessPaymentMethod.bankTransfer);
+      expect(payment.type, BusinessPaymentType.refund);
+      expect(payment.signedAmount, -125000);
+      expect(payment.reversesPaymentId, 'payment-original');
+    });
+
+    test('maps posted and reversed expenses from Supabase columns', () {
+      final expense = BusinessExpense.fromJson({
+        'id': 'expense-1',
+        'amount_toman': 640000,
+        'category': 'utilities',
+        'description': 'قبض مجموعه',
+        'source_document_id': null,
+        'status': 'reversed',
+        'created_by': 'actor-1',
+        'created_at': '2026-11-25T08:00:00Z',
+        'expense_date': '2026-11-24',
+        'payment_method': 'pos',
+        'idempotency_key': 'expense-idempotency-1',
+        'related_appointment_id': null,
+        'related_customer_id': null,
+        'reversed_at': '2026-11-25T09:00:00Z',
+        'reversed_by': 'actor-1',
+        'reversal_reason': 'ثبت اشتباه',
+      });
+
+      expect(expense.amount, 640000);
+      expect(expense.category, BusinessExpenseCategory.utilities);
+      expect(expense.status, BusinessExpenseStatus.reversed);
+      expect(expense.sourceDocumentId, isNull);
+      expect(expense.expenseDate, DateTime(2026, 11, 24));
+      expect(expense.paymentMethod, BusinessPaymentMethod.pos);
+      expect(expense.reversalReason, 'ثبت اشتباه');
+    });
+  });
+
   ReportDateRange allTime() => ReportDateRange.custom(
     JalaliDate.fromDateTime(DateTime(2000, 1, 1)),
     JalaliDate.fromDateTime(DateTime(2100, 1, 1)),
