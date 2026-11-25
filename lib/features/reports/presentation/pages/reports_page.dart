@@ -119,6 +119,7 @@ class ReportsPage extends StatelessWidget {
               repository: financeRepository,
               appointments: visibleAppointments,
               customers: availableCustomers,
+              canManage: _hasFinancePermission(auth, 'finance.manage'),
             ),
           )),
         if (_hasFinancePermission(auth, 'employees.view_list') || canViewOperations)
@@ -1052,10 +1053,12 @@ class _FinanceDocumentsSheet extends StatefulWidget {
     required this.repository,
     required this.appointments,
     required this.customers,
+    required this.canManage,
   });
   final BusinessFinanceRepository repository;
   final List<Appointment> appointments;
   final List<Customer> customers;
+  final bool canManage;
 
   @override
   State<_FinanceDocumentsSheet> createState() => _FinanceDocumentsSheetState();
@@ -1101,6 +1104,32 @@ class _FinanceDocumentsSheetState extends State<_FinanceDocumentsSheet> {
       ),
     );
     if (saved == true && mounted) await _load();
+  }
+
+  Future<void> _voidDocument(BusinessFinanceDocument document) async {
+    final reason = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ابطال سند مالی'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('سند «${document.fileName ?? document.documentType}» باطل شود؟ فایل حذف فیزیکی نمی‌شود.'),
+          TextField(controller: reason, maxLines: 2, decoration: const InputDecoration(labelText: 'علت ابطال (اجباری)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, reason.text.trim()), child: const Text('تأیید ابطال')),
+        ],
+      ),
+    );
+    reason.dispose();
+    if (value == null || value.length < 3 || !mounted) return;
+    try {
+      await widget.repository.voidDocument(documentId: document.id, reason: value);
+      await _load();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ابطال سند ناموفق بود: $error')));
+    }
   }
 
   Future<void> _copySignedUrl(BusinessFinanceDocument document) async {
@@ -1150,9 +1179,12 @@ class _FinanceDocumentsSheetState extends State<_FinanceDocumentsSheet> {
                 leading: Icon(document.status == 'active' ? Icons.description_outlined : Icons.description),
                 title: Text(document.fileName ?? document.documentNumber ?? document.documentType),
                 subtitle: Text('${document.documentType} · $source · ${JalaliDate.fromDateTime(document.createdAt).short}'),
-                trailing: document.storagePath == null
-                    ? const Icon(Icons.info_outline)
-                    : IconButton(onPressed: () => _copySignedUrl(document), icon: const Icon(Icons.link_rounded)),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (document.storagePath != null)
+                    IconButton(onPressed: () => _copySignedUrl(document), icon: const Icon(Icons.link_rounded)),
+                  if (widget.canManage && document.status == 'active')
+                    IconButton(onPressed: () => _voidDocument(document), icon: const Icon(Icons.block_rounded), tooltip: 'ابطال سند'),
+                ]),
               );
             },
           )),
