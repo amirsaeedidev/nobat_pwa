@@ -36,8 +36,9 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    _prefilled = true;
     final settings = context.read<SettingsProvider>();
+    if (settings.settings == null) return;
+    _prefilled = true;
     for (var day = 0; day < 7; day++) {
       _schedules[day] = settings.workingHours[day] ?? const [];
     }
@@ -48,14 +49,18 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   Future<void> _save() async {
     final settingsProvider = context.read<SettingsProvider>();
     setState(() => _saving = true);
-    await settingsProvider.updateWorkingHours(
-          Map<int, List<Shift>>.from(_schedules.map((k, v) => MapEntry(k, [...v]))),
-          holidays: _holidays,
-        );
-    await settingsProvider.updateScheduleExceptions(_exceptions);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, 'تغییرات با موفقیت ذخیره شد');
+    try {
+      await settingsProvider.updateWorkingHours(
+        Map<int, List<Shift>>.from(_schedules.map((k, v) => MapEntry(k, [...v]))),
+        holidays: _holidays,
+      );
+      await settingsProvider.updateScheduleExceptions(_exceptions);
+      if (mounted) AppToast.show(context, 'ساعات کاری و تعطیلات در سرور ذخیره شد');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره برنامه کاری ناموفق بود: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
