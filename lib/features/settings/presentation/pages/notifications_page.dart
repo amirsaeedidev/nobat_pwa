@@ -10,7 +10,6 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/business_settings.dart';
 import '../providers/settings_provider.dart';
-import '../../../sms/presentation/providers/sms_provider.dart';
 
 /// تنظیمات اطلاع‌رسانی پیامکی و زمان یادآوری.
 class NotificationsPage extends StatelessWidget {
@@ -18,7 +17,6 @@ class NotificationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sms = context.watch<SmsProvider>();
     final settingsProvider = context.watch<SettingsProvider>();
     final settings = settingsProvider.notifications;
 
@@ -135,31 +133,7 @@ class NotificationsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader(title: 'وضعیت پنل پیامک'),
-                const SizedBox(height: 10),
-                InfoRow(
-                  label: 'ارائه‌دهنده',
-                  value: sms.provider.providerName,
-                  icon: Icons.dns_outlined,
-                ),
-                InfoRow(
-                  label: 'وضعیت',
-                  value: sms.provider.status.label,
-                  icon: Icons.wifi_tethering_rounded,
-                  valueColor: sms.provider.status.name == 'connected' ? pal.success : pal.warning,
-                ),
-                InfoRow(
-                  label: 'اعتبار',
-                  value: '${FaNum.ofInt(sms.stats?.credit ?? 0)} پیامک',
-                  icon: Icons.account_balance_wallet_outlined,
-                ),
-              ],
-            ),
-          ),
+
         ],
       ),
     );
