@@ -176,3 +176,20 @@ class BusinessHoliday {
   final String dateKey;
   final String title;
 }
+
+
+/// حداقل اطلاعات مرخصی تأییدشده برای محاسبه ظرفیت تقویم؛ بدون شرح یا علت مرخصی.
+class EmployeeLeaveBlock {
+  const EmployeeLeaveBlock({
+    required this.employeeId,
+    required this.startAt,
+    required this.endAt,
+  });
+
+  final String employeeId;
+  final DateTime startAt;
+  final DateTime endAt;
+
+  bool overlaps(DateTime start, DateTime end) =>
+      startAt.isBefore(end) && start.isBefore(endAt);
+}
