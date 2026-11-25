@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/business_finance.dart';
@@ -200,6 +202,74 @@ class SupabaseBusinessFinanceRepository implements BusinessFinanceRepository {
       'p_document_id': documentId,
       'p_reason': reason.trim(),
     });
+  }
+
+  @override
+  Future<String> uploadDocument({
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+    required String documentType,
+    required String idempotencyKey,
+    String? documentNumber,
+    String? appointmentId,
+    String? customerId,
+    String? expenseId,
+    String? paymentId,
+    int? amount,
+    String notes = '',
+  }) async {
+    final tenant = _tenant();
+    const allowedMimeTypes = {'application/pdf','image/jpeg','image/png','image/webp'};
+    if (bytes.isEmpty || bytes.length > 26214400) {
+      throw ArgumentError('حجم فایل باید بین ۱ بایت تا ۲۵ مگابایت باشد.');
+    }
+    if (!allowedMimeTypes.contains(mimeType)) {
+      throw ArgumentError('نوع فایل سند مالی پشتیبانی نمی‌شود.');
+    }
+    final safeKey = idempotencyKey.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    final safeName = fileName.split('/').last.split(r'\\').last
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    if (safeKey.length < 8 || safeName.isEmpty) {
+      throw ArgumentError('شناسه یکتا و نام فایل معتبر نیست.');
+    }
+    final path = '$tenant/$safeKey/$safeName';
+    final documentId = await createDocument(
+      documentType: documentType,
+      documentNumber: documentNumber,
+      appointmentId: appointmentId,
+      customerId: customerId,
+      expenseId: expenseId,
+      paymentId: paymentId,
+      amount: amount,
+      storagePath: path,
+      fileName: safeName,
+      mimeType: mimeType,
+      fileSizeBytes: bytes.length,
+      notes: notes,
+      idempotencyKey: idempotencyKey,
+    );
+    try {
+      await _client.storage.from(_bucket).uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: mimeType, upsert: false),
+      );
+    } catch (error) {
+      // An already-uploaded object on an idempotent retry is a successful prior result.
+      try {
+        await _client.storage.from(_bucket).createSignedUrl(path, 60);
+      } catch (_) {
+        try {
+          await voidDocument(
+            documentId: documentId,
+            reason: 'بارگذاری فایل سند ناموفق بود: $error',
+          );
+        } catch (_) {}
+        rethrow;
+      }
+    }
+    return documentId;
   }
 
   @override
