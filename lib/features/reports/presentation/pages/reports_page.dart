@@ -1340,7 +1340,7 @@ class _FinanceDocumentsSheetState extends State<_FinanceDocumentsSheet> {
                 title: Text(document.fileName ?? document.documentNumber ?? document.documentType),
                 subtitle: Text('${document.documentType} · $source · ${JalaliDate.fromDateTime(document.createdAt).short}'),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (document.storagePath != null)
+                  if (document.storagePath != null && (document.status == 'active' || widget.canManage))
                     IconButton(onPressed: () => _copySignedUrl(document), icon: const Icon(Icons.link_rounded)),
                   if (widget.canManage && document.status == 'active')
                     IconButton(onPressed: () => _voidDocument(document), icon: const Icon(Icons.block_rounded), tooltip: 'ابطال سند'),
