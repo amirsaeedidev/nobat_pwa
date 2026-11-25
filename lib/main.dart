@@ -158,7 +158,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(
-          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database, authStateNotifier: authStateNotifier),
+          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, authStateNotifier: authStateNotifier),
         ),
         ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database, authStateNotifier: authStateNotifier)),
