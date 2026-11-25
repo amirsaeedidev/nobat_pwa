@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/business_finance.dart';
 
 abstract class BusinessFinanceRepository {
@@ -67,6 +69,21 @@ abstract class BusinessFinanceRepository {
   Future<void> voidDocument({
     required String documentId,
     required String reason,
+  });
+
+  Future<String> uploadDocument({
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+    required String documentType,
+    required String idempotencyKey,
+    String? documentNumber,
+    String? appointmentId,
+    String? customerId,
+    String? expenseId,
+    String? paymentId,
+    int? amount,
+    String notes = '',
   });
 
   Future<String> createDocumentDownloadUrl(String storagePath, {Duration expiresIn = const Duration(minutes: 5)});
