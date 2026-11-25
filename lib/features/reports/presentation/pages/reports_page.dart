@@ -65,8 +65,6 @@ class ReportsPage extends StatelessWidget {
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
     final canViewAll = _hasFinancePermission(auth, 'appointments.view_all');
     final canViewOperations = canViewAll || _hasFinancePermission(auth, 'appointments.view_self');
-    final canViewAllFinancial = _hasFinancePermission(auth, 'finance.view') &&
-      (_hasFinancePermission(auth, 'employees.view_list') || canViewAll);
     final visibleAppointments = canViewOperations
       ? provider.analytics.operationalAppointments
       : <Appointment>[];
