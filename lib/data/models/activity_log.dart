@@ -16,6 +16,8 @@ class ActivityLog {
     this.operationType,
     this.isReversible = false,
     this.idempotencyKey,
+    this.operationId,
+    this.isUndone = false,
   });
 
   final String id;
@@ -34,6 +36,10 @@ class ActivityLog {
   final bool isReversible;
   /// کلید جلوگیری از اجرای دوباره عملیات.
   final String? idempotencyKey;
+  /// UUID یکتای رویداد ثبت‌شده در سرور.
+  final String? operationId;
+  /// رویداد قبلاً بازگردانی شده یا خودش رویداد بازگردانی است.
+  final bool isUndone;
 
   String get operationLabel => switch (operationType) {
     'customer_create' => 'ثبت مشتری',
@@ -75,6 +81,23 @@ class ActivityLog {
     'employee_service_config_update' => 'تغییر تخصص پرسنل',
     'employee_service_config_remove' => 'حذف تخصص پرسنل',
     'undo' => 'بازگردانی عملیات',
+    'customer_insert' => 'ثبت مشتری',
+    'employee_insert' => 'افزودن پرسنل',
+    'service_insert' => 'افزودن خدمت',
+    'service_category_insert' => 'افزودن دسته‌بندی خدمت',
+    'service_category_update' => 'ویرایش دسته‌بندی خدمت',
+    'service_category_delete' => 'حذف دسته‌بندی خدمت',
+    'business_holiday_insert' => 'ثبت تعطیلی',
+    'business_holiday_update' => 'ویرایش تعطیلی',
+    'business_holiday_delete' => 'حذف تعطیلی',
+    'settings_update' => 'تغییر تنظیمات مجموعه',
+    'financial_commission_entry' => 'ثبت سند پورسانت',
+    'financial_expense_insert' => 'ثبت هزینه مجموعه',
+    'financial_expense_update' => 'ویرایش هزینه مجموعه',
+    'financial_expense_delete' => 'حذف هزینه مجموعه',
+    'employee_schedule_update' => 'تغییر ساعات کاری',
+    'employee_schedule_exception' => 'تغییر استثنای برنامه کاری',
+    'employee_leave_update' => 'تغییر مرخصی پرسنل',
     _ => operationType ?? type.label,
   };
 
@@ -92,6 +115,8 @@ class ActivityLog {
         'operation_type': operationType,
         'is_reversible': isReversible,
         'idempotency_key': idempotencyKey,
+        'operation_id': operationId,
+        'is_undone': isUndone,
       };
 
   factory ActivityLog.fromJson(Map<String, dynamic> json) => ActivityLog(
@@ -108,5 +133,7 @@ class ActivityLog {
         operationType: json['operation_type'] as String?,
         isReversible: json['is_reversible'] as bool? ?? (json['undo_action'] != null && json['undo_data'] != null),
         idempotencyKey: json['idempotency_key'] as String?,
+        operationId: json['operation_id'] as String?,
+        isUndone: json['is_undone'] as bool? ?? json['undone_by_event_id'] != null || json['undo_of_event_id'] != null,
       );
 }
