@@ -26,13 +26,10 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     if (client == null) throw StateError('Supabase تنظیم نشده است؛ داده آزمایشی نمایش داده نمی‌شود.');
     final user = client.auth.currentUser;
     if (user == null) throw StateError('برای مشاهده کیف پول وارد حساب شوید.');
-    final membership = await client.from('business_memberships').select('business_id')
-      .eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle();
-    if (membership == null) throw StateError('مجموعه فعالی برای حساب پیدا نشد.');
-    final businessId = membership['business_id'] as String;
-    final employee = await client.from('employees').select('full_name')
-      .eq('business_id', businessId).eq('id', widget.employeeId).maybeSingle();
-    if (employee == null) throw StateError('پرسنل در مجموعه فعلی پیدا نشد.');
+    final employee = await client.from('employees').select('business_id,full_name')
+      .eq('id', widget.employeeId).maybeSingle();
+    if (employee == null) throw StateError('پرسنل در مجموعه‌های قابل دسترس مدیر پیدا نشد.');
+    final businessId = employee['business_id'] as String;
     return _WalletContext(employee['full_name'] as String? ?? 'پرسنل',
       SupabaseEmployeeWalletRepository(client: client, businessId: businessId));
   }
