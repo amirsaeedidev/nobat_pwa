@@ -21,7 +21,7 @@ abstract class SettingsRepository {
 }
 
 /// Local implementation retained for isolated widget/unit tests only.
-class MockSettingsRepository implements SettingsRepository {
+class MockSettingsRepository extends SettingsRepository {
   MockSettingsRepository(this._db);
 
   final AppDatabase _db;
@@ -54,7 +54,7 @@ class MockSettingsRepository implements SettingsRepository {
 
 /// Explicit failure when the remote client is not configured. Production
 /// settings must never silently switch to seeded/local business information.
-class UnavailableSettingsRepository implements SettingsRepository {
+class UnavailableSettingsRepository extends SettingsRepository {
   StateError _unavailable() => StateError(
         'اتصال امن به Supabase برای تنظیمات مجموعه در دسترس نیست. '
         'پس از ورود مدیر کل و برقراری اتصال دوباره تلاش کنید.',
