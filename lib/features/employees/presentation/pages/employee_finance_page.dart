@@ -27,14 +27,13 @@ class _EmployeeFinancePageState extends State<EmployeeFinancePage> {
     final client = context.read<SupabaseClient?>();
     if (client == null) throw StateError('اتصال Supabase برقرار نیست؛ داده محلی یا آزمایشی نمایش داده نمی‌شود.');
     if (client.auth.currentUser == null) throw StateError('برای مشاهده قرارداد مالی وارد حساب شوید.');
-    final membership = await client.from('business_memberships').select('business_id,role')
-        .eq('user_id', client.auth.currentUser!.id).eq('is_active', true)
-        .limit(1).maybeSingle();
-    if (membership == null) throw StateError('عضویت فعال مجموعه پیدا نشد.');
+    final employee = await client.from('employees').select('business_id,full_name')
+        .eq('id', widget.employeeId).maybeSingle();
+    if (employee == null) throw StateError('پرسنل در مجموعه‌های قابل دسترس مدیر پیدا نشد.');
     final repository = SupabaseEmployeeWalletRepository(
-      client: client, businessId: membership['business_id'] as String);
+      client: client, businessId: employee['business_id'] as String);
     final results = await Future.wait<Object?>([
-      repository.fetchEmployeeName(widget.employeeId),
+      Future<String>.value(employee['full_name'] as String? ?? 'پرسنل'),
       repository.fetchPayProfile(widget.employeeId),
       repository.fetchServices(),
       repository.fetchFinanceEntries(widget.employeeId),
