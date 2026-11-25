@@ -61,7 +61,7 @@ class CalendarProvider extends ChangeNotifier {
   List<int> _weeklyHolidays = const [];
   List<ScheduleException> _businessScheduleExceptions = const [];
   List<EmployeeScheduleException> _scheduleExceptions = const [];
-  List<EmployeeLeave> _leaves = const [];
+  List<EmployeeLeaveBlock> _leaveBlocks = const [];
   int _loadGeneration = 0;
   bool _disposed = false;
 
@@ -80,7 +80,7 @@ class CalendarProvider extends ChangeNotifier {
   List<Service> get services => _serviceList;
   List<Appointment> get appointments => _rangeAppointments.where(_matchesFilters).toList(growable: false);
   List<EmployeeScheduleException> get scheduleExceptions => _scheduleExceptions;
-  List<EmployeeLeave> get leaves => _leaves;
+  List<EmployeeLeaveBlock> get leaveBlocks => _leaveBlocks;
   List<BusinessHoliday> get businessHolidays => _businessHolidays;
   List<int> get weeklyHolidays => _weeklyHolidays;
   List<ScheduleException> get businessScheduleExceptions => _businessScheduleExceptions;
@@ -111,7 +111,7 @@ class CalendarProvider extends ChangeNotifier {
     _weeklyHolidays = const [];
     _businessScheduleExceptions = const [];
     _scheduleExceptions = const [];
-    _leaves = const [];
+    _leaveBlocks = const [];
   }
 
   void setView(CalendarView view) {
@@ -254,16 +254,8 @@ class CalendarProvider extends ChangeNotifier {
       final employees = results[0] as List<Employee>;
       final employeeIds = employees.map((employee) => employee.id).toList(growable: false);
       final exceptionAndLeaveResults = await Future.wait(
-        employeeIds.map((id) async {
-          final values = await Future.wait<dynamic>([
-            _employees.fetchScheduleExceptions(employeeId: id, from: from, to: to),
-            _employees.fetchLeaves(id),
-          ]);
-          return (
-            exceptions: values[0] as List<EmployeeScheduleException>,
-            leaves: values[1] as List<EmployeeLeave>,
-          );
-        }),
+        employeeIds.map((id) async =>
+            _employees.fetchScheduleExceptions(employeeId: id, from: from, to: to)),
       );
       if (generation != _loadGeneration || _disposed) return;
 
@@ -276,11 +268,13 @@ class CalendarProvider extends ChangeNotifier {
       _weeklyHolidays = businessSettings?.holidays ?? const [];
       _businessScheduleExceptions = businessSettings?.scheduleExceptions ?? const [];
       _scheduleExceptions = exceptionAndLeaveResults
-          .expand((result) => result.exceptions)
+          .expand((items) => items)
           .toList(growable: false);
-      _leaves = exceptionAndLeaveResults
-          .expand((result) => result.leaves)
-          .toList(growable: false);
+      _leaveBlocks = await _employees.fetchCalendarLeaveBlocks(
+        employeeIds: employeeIds,
+        from: from,
+        to: range.$2.addDays(1).toDateTime(),
+      );
       _error = null;
     } catch (error) {
       if (generation != _loadGeneration || _disposed) return;
@@ -419,7 +413,7 @@ class CalendarProvider extends ChangeNotifier {
   }
 
   bool _onApprovedLeave(String employeeId, DateTime start, DateTime end) =>
-      _leaves.any((leave) => leave.employeeId == employeeId && leave.overlaps(start, end));
+      _leaveBlocks.any((leave) => leave.employeeId == employeeId && leave.overlaps(start, end));
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
     if (holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return true;
@@ -430,8 +424,7 @@ class CalendarProvider extends ChangeNotifier {
       if (shifts.isEmpty) return false;
       final dayStart = date.toDateTime();
       final dayEnd = dayStart.add(const Duration(days: 1));
-      return !_leaves.any((leave) => leave.employeeId == employee.id &&
-          leave.status == EmployeeLeaveStatus.approved &&
+      return !_leaveBlocks.any((leave) => leave.employeeId == employee.id &&
           !leave.startAt.isAfter(dayStart) && !leave.endAt.isBefore(dayEnd));
     });
   }
