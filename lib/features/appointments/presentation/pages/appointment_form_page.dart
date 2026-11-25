@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +19,6 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../customers/presentation/providers/customers_provider.dart';
@@ -29,9 +29,16 @@ import '../providers/appointments_provider.dart';
 
 /// فرم ثبت/ویرایش نوبت — بازسازی صفحه «ثبت نوبت جدید» تصویر مرجع.
 class AppointmentFormPage extends StatefulWidget {
-  const AppointmentFormPage({super.key, this.appointmentId});
+  const AppointmentFormPage({
+    super.key,
+    this.appointmentId,
+    this.initialDate,
+    this.initialTime,
+  });
 
   final String? appointmentId;
+  final String? initialDate;
+  final String? initialTime;
 
   @override
   State<AppointmentFormPage> createState() => _AppointmentFormPageState();
@@ -60,18 +67,69 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     _prefilled = true;
     final id = widget.appointmentId;
     if (id != null) {
-      final appointment = context.read<AppointmentsProvider>().appointmentById(id);
-      if (appointment != null) {
+      unawaited(_loadExistingAppointment(id));
+    } else {
+      final dateValue = widget.initialDate;
+      if (dateValue != null) {
+        final parsedDate = DateTime.tryParse(dateValue);
+        if (parsedDate != null) _date = JalaliDate.fromDateTime(parsedDate);
+      }
+      final timeValue = widget.initialTime;
+      if (timeValue != null) {
+        final parts = timeValue.split(':');
+        if (parts.length == 2) {
+          final hour = int.tryParse(parts[0]);
+          final minute = int.tryParse(parts[1]);
+          if (hour != null && minute != null && hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+            _time = TimeOfDayLite(hour, minute);
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _loadExistingAppointment(String id) async {
+    try {
+      final appointment = await context.read<AppointmentsProvider>().byId(id);
+      if (!mounted) return;
+      final servicesProvider = context.read<ServicesProvider>();
+      final employeesProvider = context.read<EmployeesProvider>();
+      await Future.wait([
+        servicesProvider.load(),
+        employeesProvider.load(),
+      ]);
+      if (!mounted) return;
+      if (servicesProvider.loadNotice != null || employeesProvider.loadNotice != null) {
+        AppToast.show(context, 'اطلاعات واقعی خدمت یا پرسنل از Supabase دریافت نشد؛ ویرایش متوقف شد.', success: false);
+        return;
+      }
+      if (appointment == null) {
+        AppToast.show(context, 'نوبت مورد نظر در Supabase پیدا نشد.', success: false);
+        return;
+      }
+      final customer = await context.read<CustomersProvider>().byId(appointment.customerId);
+      if (!mounted) return;
+      final services = context.read<ServicesProvider>().items;
+      final employees = context.read<EmployeesProvider>().items;
+      setState(() {
         _existing = appointment;
         _nameController.text = appointment.customerName;
         _phoneController.text = appointment.customerPhone;
         _noteController.text = appointment.note;
         _date = appointment.jalali;
         _time = TimeOfDayLite(appointment.startAt.hour, appointment.startAt.minute);
-        _customer = context.read<CustomersProvider>().findById(appointment.customerId);
-        final services = context.read<ServicesProvider>().items;
-        _services = services.where((s) => appointment.serviceIds.contains(s.id)).toList();
-        _employee = context.read<EmployeesProvider>().byIdSync(appointment.employeeId);
+        _customer = customer;
+        _services = services.where((service) => appointment.serviceIds.contains(service.id)).toList();
+        for (final employee in employees) {
+          if (employee.id == appointment.employeeId) {
+            _employee = employee;
+            break;
+          }
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        AppToast.show(context, 'دریافت نوبت از سرور ناموفق بود: $error', success: false);
       }
     }
   }
@@ -84,63 +142,51 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     super.dispose();
   }
 
-  AppDatabase get _db => context.read<AppDatabase>();
   Employee? get _pricingEmployee {
-    if (_employee != null && _services.every((service) => _db.employeeOffersService(_employee!.id, service.id))) return _employee;
+    final employees = context.read<EmployeesProvider>().items;
+    if (_employee != null && _services.every((service) => _employee!.serviceIds.contains(service.id))) return _employee;
     if (_services.isEmpty) return null;
-    for (final employee in _db.eligibleEmployeesForService(_services.first.id)) {
-      if (_services.every((service) => _db.employeeOffersService(employee.id, service.id))) return employee;
+    for (final employee in employees) {
+      if (_services.every((service) => employee.serviceIds.contains(service.id))) return employee;
     }
     return null;
   }
+
   num get _totalPrice => _services.fold<num>(0, (sum, service) {
     final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
     final savedPrice = previous?['price'] as num?;
-    final config = _pricingEmployee == null ? null : _db.employeeServiceConfig(_pricingEmployee!.id, service.id);
-    final currentPrice = config?.customPrice ?? service.priceAt(_date.toDateTime());
-    return sum + (savedPrice ?? currentPrice);
+    final config = _pricingEmployee == null
+        ? null
+        : context.read<ServicesProvider>().employeeServiceConfig(_pricingEmployee!.id, service.id);
+    return sum + (savedPrice ?? config?.customPrice ?? service.priceAt(_date.toDateTime()));
   });
+
   int get _totalDuration => _services.fold<int>(0, (sum, service) {
     final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
     final savedDuration = (previous?['duration_minutes'] as num?)?.toInt();
-    final currentDuration = _pricingEmployee == null ? service.totalMinutes : _db.effectiveServiceDuration(_pricingEmployee!.id, service.id);
-    return sum + (savedDuration ?? currentDuration);
+    final config = _pricingEmployee == null
+        ? null
+        : context.read<ServicesProvider>().employeeServiceConfig(_pricingEmployee!.id, service.id);
+    return sum + (savedDuration ?? config?.customDurationMinutes ?? service.totalMinutes);
   });
 
   List<Map<String, dynamic>> _buildServiceSnapshots(Employee employee) {
-    final payProfile = _db.payProfileFor(employee.id);
+    final configs = context.read<ServicesProvider>();
     return _services.map((service) {
       final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
-      final config = _db.employeeServiceConfig(employee.id, service.id);
-      final rule = payProfile.ruleFor(serviceId: service.id, category: service.category, date: _date.toDateTime());
-      final hasServiceCommissionOverride =
-          config?.commissionRateBps != null || config?.fixedCommissionAmount != null;
-      final effectiveRate = hasServiceCommissionOverride
-          ? (config?.commissionRateBps ?? 0)
-          : (rule?.rateBps ?? payProfile.generalRateBps);
-      final effectiveFixed = hasServiceCommissionOverride
-          ? (config?.fixedCommissionAmount ?? 0)
-          : (rule?.fixedAmount ?? 0);
+      final config = configs.employeeServiceConfig(employee.id, service.id);
       return <String, dynamic>{
         'service_id': service.id,
         'title': previous?['title'] as String? ?? service.title,
         'category': previous?['category'] as String? ?? service.category,
         'price': previous?['price'] as num? ?? config?.customPrice ?? service.priceAt(_date.toDateTime()),
-        // هزینه مستقیم و قیمت نوبت قبلی با تغییر بعدی کاتالوگ خدمات بازنویسی نمی‌شوند.
-        'direct_cost': previous == null ? service.directCost : previous['direct_cost'],
-        'duration_minutes': previous?['duration_minutes'] as num? ?? _db.effectiveServiceDuration(employee.id, service.id),
-        'commission_rate_bps': previous?['commission_rate_bps'] as num? ?? effectiveRate,
-        'fixed_commission_amount': previous?['fixed_commission_amount'] as num? ?? effectiveFixed,
-        'service_commission_override': previous == null
-            ? hasServiceCommissionOverride
-            : previous['service_commission_override'] == true,
-        'commission_basis': previous?['commission_basis'] as String? ?? payProfile.basis.name,
+        'duration_minutes': previous?['duration_minutes'] as num? ?? config?.customDurationMinutes ?? service.totalMinutes,
       };
-    }).toList();
+    }).toList(growable: false);
   }
 
   Future<void> _pickCustomer() async {
-    final customers = context.read<CustomersProvider>().all;
+    final customers = await context.read<CustomersProvider>().fetchAll();
     final selected = await showAppSheet<Customer>(
       context,
       title: 'انتخاب از مشتریان',
@@ -165,7 +211,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     if (selected != null) {
       setState(() {
         _services = selected;
-        if (_employee != null && !selected.every((service) => _db.employeeOffersService(_employee!.id, service.id))) {
+        if (_employee != null && !selected.every((service) => _employee!.serviceIds.contains(service.id))) {
           _employee = null;
         }
       });
@@ -198,7 +244,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       return;
     }
     final employees = context.read<EmployeesProvider>().items;
-    final eligibleEmployees = employees.where((person) => _services.every((service) => _db.employeeOffersService(person.id, service.id))).toList();
+    final eligibleEmployees = employees.where((person) => _services.every((service) => person.serviceIds.contains(service.id))).toList();
     final employee = _employee != null && eligibleEmployees.any((person) => person.id == _employee!.id)
         ? _employee
         : (eligibleEmployees.isEmpty ? null : eligibleEmployees.first);
@@ -211,59 +257,47 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final provider = context.read<AppointmentsProvider>();
     final start = _date.toDateTime().add(Duration(hours: _time!.hour, minutes: _time!.minute));
 
-    final conflict = await provider.checkConflict(
-      employeeId: employee.id,
-      startAt: start,
-      durationMinutes: _totalDuration,
-      ignoreId: _existing?.id,
-    );
-    if (!_db.isEmployeeAvailableAt(
-      employeeId: employee.id,
-      startAt: start,
-      durationMinutes: _totalDuration,
-      ignoreAppointmentId: _existing?.id,
-    )) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      AppToast.show(context, 'این زمان خارج از شیفت کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.', success: false);
-      return;
-    }
-
-    if (conflict != null) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      await showConfirmDialog(
-        context,
-        title: 'تداخل زمانی',
-        message:
-            'برای ${employee.fullName} در این بازه نوبت دیگری ثبت شده است (${Fmt.time(conflict.startAt.hour, conflict.startAt.minute)} - ${conflict.customerName}). لطفاً زمان دیگری انتخاب کنید.',
-        confirmLabel: 'متوجه شدم',
-        cancelLabel: 'بستن',
-        destructive: true,
-        icon: Icons.warning_amber_rounded,
-      );
-      return;
-    }
+    // زمان، ظرفیت، مرخصی و ساعات کاری به‌صورت اتمیک در RPC دیتابیس بررسی می‌شوند.
 
     if (!mounted) return;
 
-    // ثبت مشتری جدید در صورت نبود در فهرست.
+    // ثبت مشتری جدید در صورت نبود در فهرست؛ فقط اطلاعات واقعی Supabase.
     final customers = context.read<CustomersProvider>();
-    var customer = _customer ?? customers.findByPhone(_phoneController.text.trim());
+    Customer? customer;
+    try {
+      customer = _customer ??
+          await customers.findByPhoneRemote(_phoneController.text.trim());
+      if (customer == null) {
+        final draft = Customer(
+          id: 'cus-${DateTime.now().microsecondsSinceEpoch}',
+          fullName: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          createdAt: DateTime.now(),
+          tags: const ['ثبت توسط پذیرش'],
+        );
+        final created = await customers.create(draft);
+        if (!created) {
+          throw StateError('ثبت مشتری در پایگاه داده انجام نشد.');
+        }
+        if (!mounted) return;
+        customer = await customers.findByPhoneRemote(_phoneController.text.trim());
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _appointmentFailure(error), success: false);
+      return;
+    }
     if (customer == null) {
-      customer = Customer(
-        id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
-        fullName: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        createdAt: DateTime.now(),
-        tags: const ['ثبت توسط پذیرش'],
-      );
-      await customers.create(customer);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, 'مشتری در پایگاه داده تأیید نشد؛ نوبت ثبت نشد.', success: false);
+      return;
     }
 
     final appointment = Appointment(
-      id: _existing?.id ?? 'apt-${DateTime.now().millisecondsSinceEpoch}',
-      reference: _existing?.reference ?? 'OT-${1510 + DateTime.now().second}',
+      id: _existing?.id ?? 'apt-${DateTime.now().microsecondsSinceEpoch}',
+      reference: _existing?.reference ?? 'DT-${DateTime.now().microsecondsSinceEpoch}',
       customerId: customer.id,
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
@@ -282,10 +316,17 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       createdBy: 'پذیرش',
     );
 
-    if (_existing != null) {
-      await provider.update(appointment);
-    } else {
-      await provider.create(appointment);
+    try {
+      if (_existing != null) {
+        await provider.update(appointment);
+      } else {
+        await provider.create(appointment);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _appointmentFailure(error), success: false);
+      return;
     }
 
     if (!mounted) return;
@@ -310,6 +351,29 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     }
   }
 
+
+  String _appointmentFailure(Object error) {
+    final value = error.toString();
+    const messages = <String, String>{
+      'CUSTOMER_NOT_ACTIVE_OR_NOT_FOUND': 'مشتری فعال و معتبر در پایگاه داده پیدا نشد.',
+      'EMPLOYEE_SCHEDULE_DISABLED_OR_NOT_FOUND': 'پرسنل انتخاب‌شده فعال نیست یا برنامه کاری او غیرفعال است.',
+      'SERVICE_NOT_ACTIVE_OR_NOT_ASSIGNED_TO_EMPLOYEE': 'یکی از خدمات فعال نیست یا برای این پرسنل تعریف نشده است.',
+      'EMPLOYEE_ON_APPROVED_LEAVE': 'پرسنل در این بازه مرخصی تأییدشده دارد.',
+      'EMPLOYEE_NOT_AVAILABLE_ON_DATE': 'پرسنل در این تاریخ در دسترس نیست.',
+      'OUTSIDE_EXCEPTION_WORKING_HOURS': 'زمان انتخاب‌شده خارج از ساعات کاری استثنایی پرسنل است.',
+      'OUTSIDE_EMPLOYEE_WORKING_HOURS': 'زمان انتخاب‌شده خارج از ساعات کاری پرسنل است.',
+      'APPOINTMENT_TIME_CONFLICT': 'این بازه با نوبت دیگری یا فاصله استراحت پرسنل تداخل دارد.',
+      'APPOINTMENT_RESCHEDULE_LIMIT_REACHED': 'این نوبت قبلاً یک‌بار جابه‌جا شده و امکان تغییر زمان دوباره وجود ندارد.',
+      'SERVICE_DAILY_CAPACITY_REACHED': 'ظرفیت روزانه یکی از خدمات تکمیل شده است.',
+      'SERVICE_ADVANCE_BOOKING_LIMIT': 'تاریخ انتخاب‌شده خارج از بازه مجاز رزرو خدمت است.',
+      'INVALID_APPOINTMENT_STATUS_TRANSITION': 'تغییر وضعیت انتخاب‌شده مجاز نیست.',
+    };
+    for (final entry in messages.entries) {
+      if (value.contains(entry.key)) return entry.value;
+    }
+    return 'ذخیره نوبت در Supabase ناموفق بود. اتصال و دسترسی‌ها را بررسی و دوباره تلاش کنید.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
@@ -317,7 +381,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final employees = context.watch<EmployeesProvider>().items.where((e) => e.isAvailableForBooking).toList();
     final eligible = _services.isEmpty
         ? employees
-        : employees.where((employee) => _services.every((service) => _db.employeeOffersService(employee.id, service.id))).toList();
+        : employees.where((employee) => _services.every((service) => employee.serviceIds.contains(service.id))).toList();
 
     final form = Form(
       key: _formKey,

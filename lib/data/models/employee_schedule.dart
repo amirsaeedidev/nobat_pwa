@@ -14,7 +14,8 @@ enum EmployeeLeaveType {
 enum EmployeeLeaveStatus {
   pending('در انتظار تأیید'),
   approved('تأیید شده'),
-  rejected('رد شده');
+  rejected('رد شده'),
+  cancelled('لغو شده');
 
   const EmployeeLeaveStatus(this.label);
   final String label;
@@ -119,4 +120,76 @@ class EmployeeScheduleRules {
 
   static String dateKey(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+
+/// یک بازه هفتگی معتبر از برنامه کاری ذخیره‌شده در Supabase.
+class EmployeeWorkingHour {
+  const EmployeeWorkingHour({
+    required this.employeeId,
+    required this.weekday,
+    required this.shift,
+    this.validFrom,
+    this.validUntil,
+    this.breakStart,
+    this.breakEnd,
+  });
+
+  final String employeeId;
+  /// روز هفته با قرارداد تقویم برنامه: شنبه صفر تا جمعه شش.
+  final int weekday;
+  final Shift shift;
+  final DateTime? validFrom;
+  final DateTime? validUntil;
+  final String? breakStart;
+  final String? breakEnd;
+
+  bool isEffectiveOn(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    if (validFrom != null && day.isBefore(DateTime(validFrom!.year, validFrom!.month, validFrom!.day))) return false;
+    if (validUntil != null && day.isAfter(DateTime(validUntil!.year, validUntil!.month, validUntil!.day))) return false;
+    return true;
+  }
+
+  bool covers(DateTime start, DateTime end) {
+    final from = start.hour * 60 + start.minute;
+    final to = end.hour * 60 + end.minute;
+    if (from < shift.startMinutes || to > shift.endMinutes) return false;
+    if (breakStart != null && breakEnd != null) {
+      final breakFrom = _minutes(breakStart!);
+      final breakTo = _minutes(breakEnd!);
+      if (breakFrom < to && breakTo > from) return false;
+    }
+    return true;
+  }
+
+  static int _minutes(String value) {
+    final parts = value.split(':');
+    if (parts.length != 2) return 0;
+    return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+  }
+}
+
+/// تعطیلی رسمی/اختصاصی کل مجموعه.
+class BusinessHoliday {
+  const BusinessHoliday({required this.dateKey, required this.title});
+  final String dateKey;
+  final String title;
+}
+
+
+/// حداقل اطلاعات مرخصی تأییدشده برای محاسبه ظرفیت تقویم؛ بدون شرح یا علت مرخصی.
+class EmployeeLeaveBlock {
+  const EmployeeLeaveBlock({
+    required this.employeeId,
+    required this.startAt,
+    required this.endAt,
+  });
+
+  final String employeeId;
+  final DateTime startAt;
+  final DateTime endAt;
+
+  bool overlaps(DateTime start, DateTime end) =>
+      startAt.isBefore(end) && start.isBefore(endAt);
 }

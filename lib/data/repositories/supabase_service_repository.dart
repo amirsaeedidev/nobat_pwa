@@ -6,7 +6,7 @@ import 'supabase_repository.dart';
 /// Remote implementation of the service catalog backed by tenant-scoped
 /// app_records. The default application mode remains MockServiceRepository,
 /// so the UI continues to work fully offline.
-class SupabaseServiceRepository implements ServiceRepository {
+class SupabaseServiceRepository extends ServiceRepository {
   SupabaseServiceRepository({
     required SupabaseRepository records,
     required this.businessId,
@@ -212,6 +212,7 @@ class SupabaseServiceRepository implements ServiceRepository {
   Future<void> deleteCategory(String name, {String? moveServicesTo}) =>
       deleteServiceCategory(name, moveServicesTo: moveServicesTo);
 
+  @override
   Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async {
     final rows = await _records.fetchRecords(
       businessId: businessId,

@@ -27,6 +27,7 @@ const List<NavDestination> appDestinations = [
   NavDestination(label: 'خدمات', icon: Icons.content_cut_rounded, activeIcon: Icons.content_cut_rounded, route: '/services'),
   NavDestination(label: 'پرسنل', icon: Icons.badge_outlined, activeIcon: Icons.badge_rounded, route: '/employees'),
   NavDestination(label: 'کیف پول من', icon: Icons.account_balance_wallet_outlined, activeIcon: Icons.account_balance_wallet_rounded, route: '/my-wallet'),
+  NavDestination(label: 'درخواست مرخصی', icon: Icons.event_busy_outlined, activeIcon: Icons.event_available_rounded, route: '/my-leaves'),
   NavDestination(label: 'پیامک', icon: Icons.sms_outlined, activeIcon: Icons.sms_rounded, route: '/sms'),
   NavDestination(label: 'گزارش‌ها', icon: Icons.insights_outlined, activeIcon: Icons.insights_rounded, route: '/reports'),
   NavDestination(label: 'فعالیت‌ها', icon: Icons.history_rounded, activeIcon: Icons.history_toggle_off_rounded, route: '/activity'),

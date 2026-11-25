@@ -3,15 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
-import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../data/models/appointment.dart';
+import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
-import '../../../sms/presentation/providers/sms_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/calendar_widgets.dart';
 
@@ -22,35 +22,17 @@ class CalendarPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CalendarProvider>();
-    final sms = context.watch<SmsProvider>();
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
-
-    final smsPill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: pal.surfaceAlt,
-        borderRadius: AppRadius.brPill,
-        border: Border.all(color: pal.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.sms_outlined, size: 13, color: pal.textMuted),
-          const SizedBox(width: 4),
-          Text(
-            'موجودی: ${FaNum.ofInt(sms.stats?.credit ?? 0)} پیامک',
-            style: TextStyle(fontSize: 10.5, color: pal.textSecondary, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
 
     final controls = AppCard(
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (provider.loading) const LoadingState(kind: SkeletonKind.generic, compact: true),
+          if (provider.error != null)
+            ErrorStateView(description: provider.error, onRetry: provider.load),
           CalendarHeader(
             title: switch (provider.view) {
               CalendarView.monthly => '${provider.anchor.monthName} ${FaNum.ofInt(provider.anchor.year)}',
@@ -73,7 +55,6 @@ class CalendarPage extends StatelessWidget {
                 onChanged: (i) => provider.setView(CalendarView.values[i]),
                 dense: true,
               ),
-              if (!isDesktop) smsPill,
             ],
           ),
           const SizedBox(height: 10),
@@ -88,6 +69,29 @@ class CalendarPage extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<AppointmentStatus?>(
+              value: provider.statusFilter,
+              isExpanded: true,
+              isDense: true,
+              dropdownColor: pal.surfaceAlt,
+              style: TextStyle(fontSize: 11.5, color: pal.textPrimary),
+              icon: Icon(Icons.filter_alt_outlined, size: 16, color: pal.textMuted),
+              items: [
+                const DropdownMenuItem<AppointmentStatus?>(
+                  value: null,
+                  child: Text('فیلتر وضعیت: همه وضعیت‌ها'),
+                ),
+                for (final status in AppointmentStatus.values)
+                  DropdownMenuItem<AppointmentStatus?>(
+                    value: status,
+                    child: Text(status.label),
+                  ),
+              ],
+              onChanged: provider.setStatus,
+            ),
+          ),
           DropdownButtonHideUnderline(
             child: DropdownButton<String?>(
               value: provider.employeeId,
@@ -113,7 +117,6 @@ class CalendarPage extends StatelessWidget {
       subtitle: 'نمای روزانه، هفتگی و ماهانه',
       icon: Icons.calendar_month_rounded,
       actions: [
-        if (isDesktop) smsPill,
         SoftButton(label: 'بازآوری', icon: Icons.refresh_rounded, onTap: provider.load),
         SolidButton(
           label: 'نوبت جدید',
@@ -165,10 +168,10 @@ class CalendarPage extends StatelessWidget {
               ],
             ),
           const SizedBox(height: 12),
-          const PublicBookingHint(),
           const SizedBox(height: 6),
           Text(
-            'تعطیلات هفتگی: ${context.watch<CalendarProvider>().isHoliday(JalaliDate.today()) ? 'امروز تعطیل است' : 'بر اساس تنظیمات مجموعه'}',
+            provider.holidayFor(provider.selected)?.title ??
+                (provider.isHoliday(provider.selected) ? 'این روز طبق برنامه واقعی تعطیل است' : 'برنامه کاری بر اساس اطلاعات ثبت‌شده مجموعه است'),
             style: TextStyle(fontSize: 10, color: pal.textMuted),
           ),
         ],
@@ -183,10 +186,49 @@ class _MonthOrDayView extends StatelessWidget {
 
   final CalendarProvider provider;
 
+  Future<void> _reschedule(
+    BuildContext context,
+    Appointment appointment,
+    DateTime newStart,
+  ) async {
+    final date = JalaliDate.fromDateTime(newStart);
+    final time = '${newStart.hour.toString().padLeft(2, '0')}:${newStart.minute.toString().padLeft(2, '0')}';
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'تأیید جابه‌جایی نوبت',
+      message: 'نوبت ${appointment.customerName} به ${date.long} ساعت ${FaNum.convert(time)} منتقل شود؟',
+      confirmLabel: 'تغییر زمان',
+      icon: Icons.event_repeat_rounded,
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      await provider.rescheduleAppointment(appointment, newStart);
+      if (context.mounted) AppToast.show(context, 'زمان نوبت با موفقیت تغییر کرد.');
+    } catch (error) {
+      if (context.mounted) AppToast.show(context, error.toString(), success: false);
+    }
+  }
+
+  Widget _timeline(BuildContext context, JalaliDate date) {
+    final slots = provider.slotsFor(date, employee: provider.employeeId);
+    return DayTimeline(
+      slots: slots,
+      onSlotTap: (slot) {
+        if (slot.appointment != null) {
+          context.push('/appointments/${slot.appointment!.id}');
+        } else {
+          final date = slot.date.toDateTime().toIso8601String().substring(0, 10);
+          context.push('/appointments/new?date=$date&time=${slot.label}');
+        }
+      },
+      onReschedule: (appointment, newStart) =>
+          _reschedule(context, appointment, newStart),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (provider.view == CalendarView.daily) {
-      final slots = provider.slotsFor(provider.selected, employee: provider.employeeId);
       return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,14 +238,35 @@ class _MonthOrDayView extends StatelessWidget {
               subtitle: provider.selected.long,
             ),
             const SizedBox(height: 12),
-            DayTimeline(
-              slots: slots,
-              onSlotTap: (slot) => context.push('/appointments/new'),
-            ),
+            _timeline(context, provider.selected),
           ],
         ),
       );
     }
+
+    if (provider.view == CalendarView.weekly) {
+      return Column(
+        children: [
+          for (final date in provider.weekDays) ...[
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SectionHeader(
+                    title: date.weekdayName,
+                    subtitle: date.long,
+                  ),
+                  const SizedBox(height: 10),
+                  _timeline(context, date),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      );
+    }
+
     return AppCard(
       child: JalaliMonthGrid(
         provider: provider,

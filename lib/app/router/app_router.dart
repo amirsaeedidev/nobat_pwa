@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../data/mock/app_database.dart';
+import '../../core/services/supabase_auth_state_notifier.dart';
+import '../../data/repositories/supabase_auth_repository.dart';
+import '../../features/auth/presentation/pages/supabase_login_page.dart';
 import '../../core/responsive/app_shell.dart';
 import '../../core/widgets/app_buttons.dart';
 import '../../core/widgets/badges.dart';
@@ -10,8 +13,6 @@ import '../../features/activity_logs/presentation/pages/activity_logs_page.dart'
 import '../../features/appointments/presentation/pages/appointment_details_page.dart';
 import '../../features/appointments/presentation/pages/appointment_form_page.dart';
 import '../../features/appointments/presentation/pages/appointments_page.dart';
-import '../../features/booking/presentation/pages/booking_flow_page.dart';
-import '../../features/booking/presentation/pages/booking_manage_page.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/customers/presentation/pages/customer_form_page.dart';
 import '../../features/customers/presentation/pages/customer_profile_page.dart';
@@ -40,7 +41,6 @@ import '../../features/settings/presentation/pages/business_settings_page.dart';
 import '../../features/settings/presentation/pages/location_settings_page.dart';
 import '../../features/settings/presentation/pages/notifications_page.dart';
 import '../../features/settings/presentation/pages/permissions_page.dart';
-import '../../features/settings/presentation/pages/public_link_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/sms/presentation/pages/sms_monitor_page.dart';
 import '../../features/sms/presentation/pages/sms_settings_page.dart';
@@ -49,13 +49,46 @@ import '../../features/sms/presentation/pages/sms_templates_page.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// مسیرهای برنامه؛ ناوبری مستقل از منطق کسب‌وکار.
-GoRouter buildRouter(AppDatabase database) {
+GoRouter buildRouter(
+  AppDatabase database, {
+  SupabaseAuthRepository? authRepository,
+  SupabaseAuthStateNotifier? authStateNotifier,
+}) {
+  final refreshListenable = authStateNotifier == null
+      ? database
+      : Listenable.merge([database, authStateNotifier]);
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
-    refreshListenable: database,
-    redirect: (context, state) => database.canOpenRoute(state.uri.path) ? null : '/access-denied',
+    refreshListenable: refreshListenable,
+    redirect: (context, state) {
+      if (authRepository != null) {
+        final isLoginPage = state.uri.path == '/login';
+        if (authRepository.currentUser == null) {
+          return isLoginPage ? null : '/login';
+        }
+        // Do not redirect on a transient loading frame before the stored
+        // Supabase session has finished checking its active membership.
+        if (authStateNotifier == null ||
+            authStateNotifier.isCheckingMembership ||
+            !authStateNotifier.hasActiveBusiness) {
+          return isLoginPage ? null : '/login';
+        }
+        if (isLoginPage) return '/dashboard';
+        // Cloud authorization is enforced by Supabase RLS/RPC. Do not apply
+        // the local demo-account permission model to an authenticated user.
+        return null;
+      }
+      if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
+        return '/appointments';
+      }
+      return database.canOpenRoute(state.uri.path) ? null : '/access-denied';
+    },
     routes: [
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) => const NoTransitionPage(child: SupabaseLoginPage()),
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
         routes: [
@@ -83,7 +116,13 @@ GoRouter buildRouter(AppDatabase database) {
             path: '/appointments',
             pageBuilder: (context, state) => const NoTransitionPage(child: AppointmentsPage()),
             routes: [
-              GoRoute(path: 'new', builder: (context, state) => const AppointmentFormPage()),
+              GoRoute(
+                path: 'new',
+                builder: (context, state) => AppointmentFormPage(
+                  initialDate: state.uri.queryParameters['date'],
+                  initialTime: state.uri.queryParameters['time'],
+                ),
+              ),
               GoRoute(
                 path: ':id',
                 builder: (context, state) => AppointmentDetailsPage(appointmentId: state.pathParameters['id']!),
@@ -173,7 +212,6 @@ GoRouter buildRouter(AppDatabase database) {
               GoRoute(path: 'appearance', builder: (context, state) => const AppearanceSettingsPage()),
               GoRoute(path: 'permissions', builder: (context, state) => const PermissionsPage()),
               GoRoute(path: 'notifications', builder: (context, state) => const NotificationsPage()),
-              GoRoute(path: 'link', builder: (context, state) => const PublicLinkPage()),
             ],
           ),
         ],
@@ -209,8 +247,6 @@ GoRouter buildRouter(AppDatabase database) {
         ),
       ),
       // تجربه مشتری (بدون پوسته مدیریتی)
-      GoRoute(path: '/book', builder: (context, state) => const BookingFlowPage()),
-      GoRoute(path: '/book/manage', builder: (context, state) => const BookingManagePage()),
     ],
     errorBuilder: (context, state) => Scaffold(
       backgroundColor: context.pal.background,

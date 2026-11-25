@@ -1,4 +1,6 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
@@ -10,7 +12,7 @@ import '../../../../data/repositories/appointment_repository.dart';
 
 /// وضعیت صفحه پیشخوان.
 class DashboardProvider extends DbBoundProvider {
-  DashboardProvider(this._repository, AppDatabase db, {AppointmentRepository? appointmentRepository, this.isAdminView = true}) : _appointmentRepository = appointmentRepository, super(db) {
+  DashboardProvider(this._repository, AppDatabase db, {AppointmentRepository? appointmentRepository, this.isAdminView = true, SupabaseAuthStateNotifier? authStateNotifier}) : _appointmentRepository = appointmentRepository, super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
@@ -117,6 +119,22 @@ class DashboardProvider extends DbBoundProvider {
     _stats = await _repository.fetchStats(period: period);
     await _loadAnalytics();
     notifyListeners();
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _stats = null;
+    _upcoming = const [];
+    _dayAppointments = const [];
+    _revenueSeries = const [];
+    _analytics = null;
+    _error = false;
+    _failure = null;
+    _loading = false;
   }
 
   @override

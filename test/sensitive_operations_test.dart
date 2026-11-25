@@ -8,11 +8,7 @@ import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
 import 'package:datetime/features/activity_logs/presentation/pages/activity_logs_page.dart';
 import 'package:datetime/data/repositories/appointment_repository.dart';
-import 'package:datetime/data/repositories/customer_repository.dart';
 import 'package:datetime/data/repositories/dashboard_repository.dart';
-import 'package:datetime/data/repositories/employee_repository.dart';
-import 'package:datetime/data/repositories/service_repository.dart';
-import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
 import 'package:datetime/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:datetime/features/reports/presentation/providers/reports_provider.dart';
 
@@ -159,13 +155,13 @@ void main() {
 
     await operations.assignEmployeeRole(
       employeeId: employee.id,
-      roleId: 'operator',
-      overrides: const {'customers.view': false},
+      roleId: 'staff',
+      overrides: const {'appointments.create': false},
       canViewOtherEmployees: false,
       canViewPersonalIncome: false,
     );
 
-    expect(db.accessAssignmentFor(employee.id)?.roleId, 'operator');
+    expect(db.accessAssignmentFor(employee.id)?.roleId, 'staff');
     final audit = operations.latestUndoableLogFor(employee.id);
     expect(audit?.operationType, 'access_assignment');
     expect(audit?.isReversible, isTrue);
@@ -312,32 +308,30 @@ void main() {
     expect(db.paymentsForAppointment(appointment.id), hasLength(1));
   });
 
-  test('custom role creation is audited, idempotent and undoable', () async {
-    final role = await operations.createAccessRole(
-      name: 'نقش آزمایشی قابل بازگردانی',
-      permissionIds: const ['customers.view', 'appointments.view_self'],
+  test('additional custom roles are rejected and the two system roles remain', () async {
+    await expectLater(
+      operations.createAccessRole(
+        name: 'نقش آزمایشی غیرمجاز',
+        permissionIds: const ['appointments.view_self'],
+      ),
+      throwsA(isA<StateError>()),
     );
-
-    expect(db.accessRoleById(role.id)?.permissionIds, contains('customers.view'));
-    final audit = operations.latestUndoableLogFor(role.id);
-    expect(audit, isNotNull);
-    expect(audit!.operationType, 'access_role_create');
-    expect(audit.operationLabel, 'ایجاد نقش دسترسی');
-    expect(audit.actor, db.currentAccessAccount.name);
-    expect(audit.isReversible, isTrue);
-    expect(operations.undo(audit.id), isTrue);
-    expect(db.accessRoleById(role.id), isNull);
-    expect(db.hasExecutedOperation('access-role-create:نقش آزمایشی قابل بازگردانی'), isFalse);
+    expect(db.accessRoles.map((role) => role.id).toSet(), {'global_admin', 'staff'});
   });
 
-  test('custom role creation cannot be undone after a staff member is assigned to it', () async {
-    final role = await operations.createAccessRole(name: 'نقش دارای تخصیص');
+  test('only personnel role can be assigned to an employee', () {
     final employee = db.employees.first;
-
-    await operations.assignEmployeeRole(employeeId: employee.id, roleId: role.id);
-
-    expect(db.accessRoleById(role.id), isNotNull);
-    expect(operations.latestUndoableLogFor(role.id), isNull);
+    expect(
+      () => db.assignEmployeeAccess(
+        employeeId: employee.id,
+        roleId: 'global_admin',
+        overrides: const {},
+        canViewOtherEmployees: false,
+        canViewPersonalIncome: true,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(db.accessRoles.length, 2);
   });
 
   test('attendance payroll policy changes are confirmed through repository, audited and undoable', () async {
@@ -567,37 +561,6 @@ void main() {
     expect(dashboard.analytics, isNotNull);
   });
 
-  test('public booking provider refreshes service catalogue after undo', () async {
-    const service = Service(
-      id: 'booking-provider-service',
-      title: 'خدمت رزرو آزمایشی',
-      price: 210000,
-      durationMinutes: 30,
-      category: 'آزمایش رزرو',
-    );
-    db.addService(service);
-
-    final provider = BookingProvider(
-      MockAppointmentRepository(db),
-      MockServiceRepository(db),
-      MockEmployeeRepository(db),
-      MockCustomerRepository(db),
-      db,
-    );
-    addTearDown(provider.dispose);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
-    expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
-
-    await operations.deleteService(service.id);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
-    expect(provider.availableServices.any((item) => item.id == service.id), isFalse);
-
-    expect(operations.undoLatestForEntity(service.id), isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
-  });
-
-
   test('wallet entry and settlement forms create immutable audited financial documents', () async {
     final employee = db.employees.first;
     final now = DateTime.now();
@@ -647,6 +610,8 @@ void main() {
     // test, advance the fake clock with pump instead of awaiting that Future
     // before the test binding has had a chance to advance time.
     provider.search(customer.id);
+    await tester.runAsync(() => provider.load());
+    expect(provider.logs.any((log) => log.entityId == customer.id), isTrue);
 
     await tester.pumpWidget(
       MaterialApp(

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
@@ -11,7 +13,7 @@ import '../../../../data/repositories/settings_repository.dart';
 
 /// تنظیمات ظاهری و اطلاعات مجموعه.
 class SettingsProvider extends DbBoundProvider {
-  SettingsProvider(this._repository, AppDatabase db) : super(db) {
+  SettingsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
@@ -31,9 +33,9 @@ class SettingsProvider extends DbBoundProvider {
   Color get formAccentColor => formTheme.accent;
   String get formThemeId => _formThemeId;
   String get paletteId => _paletteId;
-  String get ownerName => 'فاطمه رضایی';
-  String get ownerRole => 'مدیر مجموعه';
-  int get totalUnread => 3;
+  String get ownerName => authStateNotifier?.userEmail ?? 'کاربر';
+  String get ownerRole => authStateNotifier?.roleLabel ?? 'بدون نقش';
+  int get totalUnread => 0;
 
   BookingRules get rules => _settings?.bookingRules ?? const BookingRules();
   Map<int, List<Shift>> get workingHours => _settings?.workingHours ?? const {};
@@ -51,9 +53,9 @@ class SettingsProvider extends DbBoundProvider {
       _formThemeId = AppFormTheme.byId(prefs.getString('datetime_form_theme') ?? 'pastel_pink').id;
       _settings = await _repository.fetchSettings();
     } catch (error, stackTrace) {
-      debugPrint('Settings mock load failed; using seeded data: $error');
+      debugPrint('Settings remote load failed; no local/demo fallback is shown: $error');
       debugPrintStack(stackTrace: stackTrace);
-      _settings = db.settings;
+      _settings = null;
     } finally {
       _loading = false;
       notifyListeners();
@@ -61,9 +63,17 @@ class SettingsProvider extends DbBoundProvider {
   }
 
   @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _settings = null;
+    _loading = false;
+  }
+
+  @override
   void onDatabaseChanged() {
-    _settings = db.settings;
-    notifyListeners();
+    unawaited(load());
   }
 
   Future<void> setPalette(String id) async {
@@ -85,7 +95,7 @@ class SettingsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.saveSettings(settings, logTitle: logTitle, logDescription: logDescription);
-      _settings = db.settings;
+      _settings = await _repository.fetchSettings();
     } finally {
       _saving = false;
       notifyListeners();
@@ -100,7 +110,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر قواعد رزرو',
       logDescription: 'قواعد لغو و جابه‌جایی نوبت به‌روزرسانی شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -112,7 +122,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر تنظیمات اطلاع‌رسانی',
       logDescription: 'تنظیمات پیامک‌های خودکار به‌روزرسانی شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -124,7 +134,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: 'تغییر ساعت کاری',
       logDescription: 'شیفت‌های کاری و روزهای تعطیل به‌روزرسانی شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -132,7 +142,7 @@ class SettingsProvider extends DbBoundProvider {
     final current = _settings;
     if (current == null) return;
     await _repository.saveSettings(current.copyWith(scheduleExceptions: List.unmodifiable(exceptions)), logTitle: 'تغییر محدودیت‌های تقویم', logDescription: 'تعطیلات و ساعات ویژه تاریخ‌دار به‌روزرسانی شد.');
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 
@@ -144,7 +154,7 @@ class SettingsProvider extends DbBoundProvider {
       logTitle: logTitle ?? 'به‌روزرسانی پنل پیامک',
       logDescription: logDescription ?? 'تنظیمات پنل پیامک ذخیره شد.',
     );
-    _settings = db.settings;
+    _settings = await _repository.fetchSettings();
     notifyListeners();
   }
 }

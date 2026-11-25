@@ -1,4 +1,6 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/activity_log.dart';
 import '../../../../data/models/enums.dart';
@@ -7,8 +9,8 @@ import '../../../../data/repositories/operations_repository.dart';
 
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
-  ActivityProvider(this._repository, AppDatabase db)
-      : _operations = OperationsRepository(db), super(db) {
+  ActivityProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier})
+      : _operations = OperationsRepository(db), super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
@@ -41,14 +43,26 @@ class ActivityProvider extends DbBoundProvider {
       _recent = recent;
     } catch (_) {
       if (generation != _loadGeneration) return;
-      _logs = db.activityLogs.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      _recent = _logs.take(6).toList();
+      _logs = const [];
+      _recent = const [];
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
         notifyListeners();
       }
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _logs = const [];
+    _recent = const [];
+    _loading = false;
+    _undoing = false;
   }
 
   @override

@@ -1,4 +1,6 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/service.dart';
@@ -7,7 +9,7 @@ import '../../../../data/repositories/service_repository.dart';
 
 /// مدیریت خدمات.
 class ServicesProvider extends DbBoundProvider {
-  ServicesProvider(this._repository, AppDatabase db) : super(db) {
+  ServicesProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
@@ -34,6 +36,8 @@ class ServicesProvider extends DbBoundProvider {
   List<String> get categories => _categories;
   EmployeeServiceConfig? employeeServiceConfig(String employeeId, String serviceId) =>
       _employeeConfigs['$employeeId::$serviceId'];
+  List<EmployeeServiceConfig> employeeServiceConfigsForService(String serviceId) =>
+      _employeeConfigs.values.where((config) => config.serviceId == serviceId).toList(growable: false);
   String? get categoryFilter => _categoryFilter;
   num? get minimumPrice => _minimumPrice;
   num? get maximumPrice => _maximumPrice;
@@ -59,13 +63,9 @@ class ServicesProvider extends DbBoundProvider {
         ));
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      _items = db.services;
-      _categories = db.serviceCategories;
-      _employeeConfigs
-        ..clear()
-        ..addEntries(db.employees
-            .expand((employee) => db.employeeServiceConfigsFor(employee.id))
-            .map((config) => MapEntry('${config.employeeId}::${config.serviceId}', config)));
+      _items = const [];
+      _categories = const [];
+      _employeeConfigs.clear();
     } finally {
       _loading = false;
       notifyListeners();
@@ -73,15 +73,20 @@ class ServicesProvider extends DbBoundProvider {
   }
 
   @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _items = const [];
+    _categories = const [];
+    _employeeConfigs.clear();
+    _loading = false;
+    _loadNotice = null;
+  }
+
+  @override
   void onDatabaseChanged() {
-    _items = db.services;
-    _categories = db.serviceCategories;
-    _employeeConfigs
-      ..clear()
-      ..addEntries(db.employees
-          .expand((employee) => db.employeeServiceConfigsFor(employee.id))
-          .map((config) => MapEntry('${config.employeeId}::${config.serviceId}', config)));
-    notifyListeners();
+    unawaited(load());
   }
 
   void search(String query) {
@@ -124,19 +129,36 @@ class ServicesProvider extends DbBoundProvider {
 
   Future<Service?> byId(String id) => _repository.findById(id);
 
+  Future<ServiceHistoryPage> fetchServiceHistory(String id, {int limit = 8}) =>
+      _repository.fetchServiceHistory(id, limit: limit);
+
   Future<bool> create(Service service) async {
     await _repository.create(service);
+    await load();
     return true;
   }
 
   Future<bool> update(Service service) async {
     await _repository.update(service);
+    await load();
     return true;
   }
 
-  Future<void> remove(String id) => _repository.delete(id);
+  Future<String> saveCatalogItem(Service service, List<EmployeeServiceConfig> configs) async {
+    final id = await _repository.saveCatalogItem(service, configs);
+    await load();
+    return id;
+  }
 
-  Future<void> toggle(String id, bool active) => _repository.toggle(id, active);
+  Future<void> remove(String id) async {
+    await _repository.delete(id);
+    await load();
+  }
+
+  Future<void> toggle(String id, bool active) async {
+    await _repository.toggle(id, active);
+    await load();
+  }
 
   Future<void> addCategory(String name) async {
     await _repository.addCategory(name);

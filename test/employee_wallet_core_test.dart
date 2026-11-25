@@ -125,9 +125,9 @@ void main() {
 
     test('staff wallet access is employee-scoped and hides salary-only documents', () {
       final db = AppDatabase();
+      final otherEmployeeId = db.employees.firstWhere((item) => item.id != 'emp-zahra').id;
       db.switchMockAccount('demo-staff');
       final ownEmployeeId = db.currentAccessAccount.employeeId!;
-      final otherEmployeeId = db.employees.firstWhere((item) => item.id != ownEmployeeId).id;
 
       final ownEntries = db.walletTransactionsFor(ownEmployeeId);
       expect(ownEntries.every((item) =>

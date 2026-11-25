@@ -20,6 +20,7 @@ class Service {
     this.maxPerDay,
     this.advanceDays = 30,
     this.requiresConfirmation = false,
+    this.archivedAt,
     this.order = 0,
   });
 
@@ -45,6 +46,7 @@ class Service {
   final int? maxPerDay;
   final int advanceDays;
   final bool requiresConfirmation;
+  final DateTime? archivedAt;
   final int order;
 
   int get totalMinutes => prepMinutes + durationMinutes + bufferMinutes;
@@ -84,6 +86,8 @@ class Service {
     int? maxPerDay,
     int? advanceDays,
     bool? requiresConfirmation,
+    DateTime? archivedAt,
+    bool clearArchivedAt = false,
     int? order,
   }) {
     return Service(
@@ -106,6 +110,7 @@ class Service {
       maxPerDay: maxPerDay ?? this.maxPerDay,
       advanceDays: advanceDays ?? this.advanceDays,
       requiresConfirmation: requiresConfirmation ?? this.requiresConfirmation,
+      archivedAt: clearArchivedAt ? null : (archivedAt ?? this.archivedAt),
       order: order ?? this.order,
     );
   }
@@ -130,6 +135,7 @@ class Service {
         'max_per_day': maxPerDay,
         'advance_days': advanceDays,
         'requires_confirmation': requiresConfirmation,
+        'archived_at': archivedAt?.toUtc().toIso8601String(),
         'order': order,
       };
 
@@ -153,6 +159,7 @@ class Service {
         maxPerDay: (json['max_per_day'] as num?)?.toInt(),
         advanceDays: (json['advance_days'] as num?)?.toInt() ?? 30,
         requiresConfirmation: json['requires_confirmation'] as bool? ?? false,
+        archivedAt: json['archived_at'] == null ? null : DateTime.tryParse(json['archived_at'] as String)?.toLocal(),
         order: (json['order'] as num?)?.toInt() ?? 0,
       );
 }
