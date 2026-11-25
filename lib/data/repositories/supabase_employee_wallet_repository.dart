@@ -139,32 +139,31 @@ class SupabaseEmployeeWalletRepository {
 
   Future<EmployeePayProfile?> fetchPayProfile(String employeeId) async {
     _userId();
-    final row = await _client
-        .from('employee_pay_profiles')
-        .select('*,employee_commission_rules(*)')
-        .eq('business_id', businessId)
-        .eq('employee_id', employeeId)
-        .eq('is_active', true)
-        .order('effective_from', ascending: false)
-        .limit(1)
-        .maybeSingle();
+    final row = await _client.from('employee_pay_profiles').select('*')
+        .eq('business_id', businessId).eq('employee_id', employeeId)
+        .eq('is_active', true).order('effective_from', ascending: false)
+        .limit(1).maybeSingle();
     if (row == null) return null;
+
+    // Commission rules reference the employee, not the pay-profile row;
+    // query them independently instead of relying on a nonexistent FK relation.
+    final ruleRows = await _client.from('employee_commission_rules').select('*')
+        .eq('business_id', businessId).eq('employee_id', employeeId)
+        .eq('is_active', true).order('effective_from', ascending: false);
     final value = Map<String, dynamic>.from(row);
-    final rules = (value['employee_commission_rules'] as List? ?? const [])
-        .map((item) {
-          final rule = Map<String, dynamic>.from(item as Map);
-          return EmployeeCommissionRule(
-            id: rule['id'] as String,
-            serviceId: rule['service_id'] as String?,
-            category: rule['category'] as String?,
-            rateBps: (rule['rate_bps'] as num?)?.toInt() ?? 0,
-            fixedAmount: (rule['fixed_amount_toman'] as num?)?.toInt() ?? 0,
-            effectiveFrom: rule['effective_from'] == null
-                ? null
-                : DateTime.parse(rule['effective_from'] as String),
-            active: rule['is_active'] as bool? ?? true,
-          );
-        }).toList();
+    final rules = ruleRows.map((item) {
+      final rule = Map<String, dynamic>.from(item);
+      return EmployeeCommissionRule(
+        id: rule['id'] as String,
+        serviceId: rule['service_id'] as String?,
+        category: rule['category'] as String?,
+        rateBps: (rule['rate_bps'] as num?)?.toInt() ?? 0,
+        fixedAmount: (rule['fixed_amount_toman'] as num?)?.toInt() ?? 0,
+        effectiveFrom: rule['effective_from'] == null ? null : DateTime.parse(rule['effective_from'] as String),
+        active: rule['is_active'] as bool? ?? true,
+      );
+    }).toList();
+
     return EmployeePayProfile(
       employeeId: employeeId,
       method: _payMethod(value['payment_method'] as String?),
