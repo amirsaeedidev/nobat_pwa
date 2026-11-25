@@ -314,7 +314,7 @@ class AppDatabase extends ChangeNotifier {
       throw StateError('شناسه هزینه یا سند منبع تکراری است.');
     }
     _businessExpenses.add(expense);
-    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label}${expense.sourceDocumentId == null ? '' : ' با مرجع ${expense.sourceDocumentId}'} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
+    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
     _commit();
   }
 
