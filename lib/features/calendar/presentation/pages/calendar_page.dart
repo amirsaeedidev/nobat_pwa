@@ -51,6 +51,9 @@ class CalendarPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (provider.loading) const LoadingState(kind: SkeletonKind.generic, compact: true),
+          if (provider.error != null)
+            ErrorStateView(description: provider.error, onRetry: provider.load),
           CalendarHeader(
             title: switch (provider.view) {
               CalendarView.monthly => '${provider.anchor.monthName} ${FaNum.ofInt(provider.anchor.year)}',
@@ -167,7 +170,8 @@ class CalendarPage extends StatelessWidget {
           const SizedBox(height: 12),
           const SizedBox(height: 6),
           Text(
-            'تعطیلات هفتگی: ${context.watch<CalendarProvider>().isHoliday(JalaliDate.today()) ? 'امروز تعطیل است' : 'بر اساس تنظیمات مجموعه'}',
+            provider.holidayFor(provider.selected)?.title ??
+                (provider.isHoliday(provider.selected) ? 'این روز طبق برنامه واقعی تعطیل است' : 'برنامه کاری بر اساس اطلاعات ثبت‌شده مجموعه است'),
             style: TextStyle(fontSize: 10, color: pal.textMuted),
           ),
         ],
@@ -197,7 +201,21 @@ class _MonthOrDayView extends StatelessWidget {
             const SizedBox(height: 12),
             DayTimeline(
               slots: slots,
-              onSlotTap: (slot) => context.push('/appointments/new'),
+              onSlotTap: (slot) {
+                if (slot.appointment != null) {
+                  context.push('/appointments/${slot.appointment!.id}');
+                } else {
+                  context.push('/appointments/new');
+                }
+              },
+              onReschedule: (appointment, newStart) async {
+                try {
+                  await provider.rescheduleAppointment(appointment, newStart);
+                  if (context.mounted) AppToast.show(context, 'زمان نوبت با موفقیت تغییر کرد.');
+                } catch (error) {
+                  if (context.mounted) AppToast.show(context, error.toString(), success: false);
+                }
+              },
             ),
           ],
         ),
