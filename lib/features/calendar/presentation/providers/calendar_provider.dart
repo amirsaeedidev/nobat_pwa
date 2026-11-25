@@ -440,10 +440,13 @@ class CalendarProvider extends ChangeNotifier {
       final start = date.toDateTime().add(Duration(minutes: minute));
       final end = start.add(Duration(minutes: step));
       final working = workingByMinute[minute]!;
-      final busyEmployees = activeAppointments
-          .where((item) => item.startAt.isBefore(end) && start.isBefore(item.endAt))
-          .map((item) => item.employeeId)
-          .toSet();
+      final busyEmployees = activeAppointments.where((item) {
+        final employee = _employeeList.where((person) => person.id == item.employeeId).toList();
+        final buffer = employee.isEmpty ? 0 : employee.first.bufferMinutes;
+        final bufferedEnd = Duration(minutes: buffer);
+        return item.startAt.isBefore(end.add(bufferedEnd)) &&
+            start.isBefore(item.endAt.add(bufferedEnd));
+      }).map((item) => item.employeeId).toSet();
       final slotAppointments = appointmentsOn(date).where((item) {
         final appointmentMinute = item.startAt.hour * 60 + item.startAt.minute;
         return appointmentMinute >= minute && appointmentMinute < minute + step;
@@ -491,12 +494,13 @@ class CalendarProvider extends ChangeNotifier {
     if (_onApprovedLeave(employee.id, start, end)) {
       throw StateError('پرسنل در زمان انتخاب‌شده مرخصی تأییدشده دارد.');
     }
+    final buffer = Duration(minutes: employee.bufferMinutes);
     final conflict = _rangeAppointments.any((other) =>
         other.id != appointment.id &&
         other.employeeId == employee.id &&
         other.status.isActive &&
-        other.startAt.isBefore(end) &&
-        start.isBefore(other.endAt));
+        other.startAt.isBefore(end.add(buffer)) &&
+        start.isBefore(other.endAt.add(buffer)));
     if (conflict) throw StateError('این بازه با نوبت دیگری تداخل دارد.');
     await _appointments.reschedule(appointment, newStart);
     await load();
