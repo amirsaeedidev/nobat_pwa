@@ -357,7 +357,7 @@ class ReportsPage extends StatelessWidget {
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
                           for (final item in provider.analytics.services) '${item.name} · ${item.count} نوبت · ${Fmt.compactMoney(item.revenue)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
-                        GestureDetector(onTap: () => _showPaymentSheet(context, provider, auth!), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
+                        GestureDetector(onTap: () => _showPaymentSheet(context, provider, auth!, financeRepository!), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
                           for (final item in provider.analytics.partialPayments) 'پرداخت ناقص: ${item.description} · ${Fmt.compactMoney(item.signedAmount)}',
@@ -392,14 +392,14 @@ class ReportsPage extends StatelessWidget {
                             final legend = Column(children: [
                               for (final item in methodEntries)
                                 InkWell(
-                                  onTap: () => _showPaymentSheet(context, provider, auth!, method: item.key),
+                                  onTap: () => _showPaymentSheet(context, provider, auth!, financeRepository!, method: item.key),
                                   child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
                                     Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
                                     Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
                                   ])),
                                 ),
                             ]);
-                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, provider, auth!, method: method));
+                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, provider, auth!, financeRepository!, method: method));
                             if (inner.maxWidth < 340) return Column(children: [Center(child: donut), const SizedBox(height: 8), legend]);
                             return Row(children: [donut, const SizedBox(width: 12), Expanded(child: legend)]);
                           }),
@@ -777,10 +777,9 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
   );
 }
 
-void _showPaymentSheet(BuildContext context, ReportsProvider provider, SupabaseAuthStateNotifier auth, {String? method}) {
+void _showPaymentSheet(BuildContext context, ReportsProvider provider, SupabaseAuthStateNotifier auth, BusinessFinanceRepository financeRepository, {String? method}) {
   final payments = provider.analytics.paymentTransactions.where((item) => method == null || item.method.label == method).toList();
   final appointments = provider.analytics.operationalAppointments;
-  final financeRepository = context.read<BusinessFinanceRepository>();
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
