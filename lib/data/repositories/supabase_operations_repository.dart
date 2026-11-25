@@ -30,7 +30,7 @@ class SupabaseOperationsRepository implements ActivityOperationsRepository {
 class UnavailableActivityOperationsRepository
     implements ActivityOperationsRepository {
   @override
-  bool canUndo(ActivityLog log) => false;
+  bool canUndoActivityLog(ActivityLog log) => false;
 
   @override
   Future<bool> undoActivityEvent(String activityEventId) =>
