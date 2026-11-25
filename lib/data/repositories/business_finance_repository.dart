@@ -59,6 +59,20 @@ abstract class BusinessFinanceRepository {
     String? relatedCustomerId,
   });
 
+  Future<String> replaceBusinessExpense({
+    required String expenseId,
+    required int amount,
+    required BusinessExpenseCategory category,
+    required String description,
+    required DateTime expenseDate,
+    required String idempotencyKey,
+    required String reason,
+    BusinessPaymentMethod? paymentMethod,
+    String? sourceDocumentId,
+    String? relatedAppointmentId,
+    String? relatedCustomerId,
+  });
+
   Future<void> reverseBusinessExpense({
     required String expenseId,
     required String reason,
