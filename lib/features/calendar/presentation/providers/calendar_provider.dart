@@ -440,13 +440,14 @@ class CalendarProvider extends ChangeNotifier {
       final start = date.toDateTime().add(Duration(minutes: minute));
       final end = start.add(Duration(minutes: step));
       final working = workingByMinute[minute]!;
-      final busyEmployees = activeAppointments.where((item) {
-        final employee = _employeeList.where((person) => person.id == item.employeeId).toList();
-        final buffer = employee.isEmpty ? 0 : employee.first.bufferMinutes;
-        final bufferedEnd = Duration(minutes: buffer);
-        return item.startAt.isBefore(end.add(bufferedEnd)) &&
-            start.isBefore(item.endAt.add(bufferedEnd));
-      }).map((item) => item.employeeId).toSet();
+      final availableCount = working.where((employeeId) {
+        final employee = _employeeList.where((person) => person.id == employeeId).toList();
+        final buffer = Duration(minutes: employee.isEmpty ? 0 : employee.first.bufferMinutes);
+        return !activeAppointments.any((item) =>
+            item.employeeId == employeeId &&
+            item.startAt.isBefore(end.add(buffer)) &&
+            start.isBefore(item.endAt.add(buffer)));
+      }).length;
       final slotAppointments = appointmentsOn(date).where((item) {
         final appointmentMinute = item.startAt.hour * 60 + item.startAt.minute;
         return appointmentMinute >= minute && appointmentMinute < minute + step;
@@ -457,7 +458,7 @@ class CalendarProvider extends ChangeNotifier {
         minute: minute % 60,
         appointments: slotAppointments,
         capacity: working.length,
-        availableCapacity: working.where((id) => !busyEmployees.contains(id)).length,
+        availableCapacity: availableCount,
         isPast: date.sameDay(today) && DateTime.now().isAfter(start),
       ));
     }
