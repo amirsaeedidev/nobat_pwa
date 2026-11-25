@@ -2,6 +2,9 @@ import '../mock/app_database.dart';
 import '../models/business_settings.dart';
 
 abstract class SettingsRepository {
+  /// Emits after Supabase authentication changes; local test adapters may omit it.
+  Stream<void>? get authChanges => null;
+
   Future<BusinessSettings> fetchSettings();
 
   Future<void> saveSettings(
