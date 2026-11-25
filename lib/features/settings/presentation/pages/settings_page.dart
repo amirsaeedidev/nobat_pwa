@@ -84,7 +84,7 @@ class SettingsPage extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(child: Text(
                             settings.loadError == null ? 'تنظیمات مجموعه از سرور دریافت شد' : 'اتصال به تنظیمات سرور برقرار نیست',
-                            style: TextStyle(fontSize: 10, color: pal.success),
+                            style: TextStyle(fontSize: 10, color: settings.loadError == null ? pal.success : pal.danger),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           )),
