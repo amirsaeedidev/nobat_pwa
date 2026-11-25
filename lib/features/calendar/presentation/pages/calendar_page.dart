@@ -232,7 +232,8 @@ class _MonthOrDayView extends StatelessWidget {
         if (slot.appointment != null) {
           context.push('/appointments/${slot.appointment!.id}');
         } else {
-          context.push('/appointments/new');
+          final date = slot.date.toDateTime().toIso8601String().substring(0, 10);
+          context.push('/appointments/new?date=$date&time=${slot.label}');
         }
       },
       onReschedule: (appointment, newStart) =>
