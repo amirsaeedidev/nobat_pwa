@@ -33,9 +33,9 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    _prefilled = true;
     final settings = context.read<SettingsProvider>().settings;
     if (settings == null) return;
+    _prefilled = true;
     _lat = settings.latitude;
     _lng = settings.longitude;
     _address.text = settings.address;
@@ -50,19 +50,25 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
   }
 
   Future<void> _save() async {
-    setState(() => _saving = true);
     final provider = context.read<SettingsProvider>();
     final current = provider.settings;
-    if (current != null) {
+    if (current == null) {
+      AppToast.show(context, 'تنظیمات واقعی مجموعه از سرور بارگذاری نشده است.');
+      return;
+    }
+    setState(() => _saving = true);
+    try {
       await provider.saveBusiness(
         current.copyWith(latitude: _lat, longitude: _lng, address: _address.text.trim(), postalCode: _postal.text.trim()),
         logTitle: 'تغییر موقعیت مکانی',
         logDescription: 'مختصات و نشانی مجموعه به‌روزرسانی شد.',
       );
+      if (mounted) AppToast.show(context, 'موقعیت مکانی در سرور ذخیره شد');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره موقعیت ناموفق بود: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, 'موقعیت مکانی ذخیره شد');
   }
 
   @override
