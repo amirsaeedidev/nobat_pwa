@@ -11,7 +11,7 @@ class SupabaseOperationsRepository implements ActivityOperationsRepository {
   final SupabaseClient _client;
 
   @override
-  bool canUndo(ActivityLog log) => log.isReversible && !log.isUndone;
+  bool canUndoActivityLog(ActivityLog log) => log.isReversible && !log.isUndone;
 
   @override
   Future<bool> undoActivityEvent(String activityEventId) async {
