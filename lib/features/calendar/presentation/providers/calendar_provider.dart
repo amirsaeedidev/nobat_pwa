@@ -368,7 +368,7 @@ class CalendarProvider extends ChangeNotifier {
   }
 
   bool _businessClosed(JalaliDate date) {
-    if (_businessClosed(date)) return true;
+    if (holidayFor(date) != null) return true;
     final exception = businessExceptionFor(date);
     if (exception?.isClosed == true) return true;
     return _weeklyHolidays.contains(date.weekday) && exception == null;
@@ -417,7 +417,7 @@ class CalendarProvider extends ChangeNotifier {
       _leaveBlocks.any((leave) => leave.employeeId == employeeId && leave.overlaps(start, end));
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
-    if (holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return true;
+    if (_businessClosed(date)) return true;
     final candidates = _employeeList.where((item) => employeeId == null || item.id == employeeId);
     if (candidates.isEmpty) return true;
     return !candidates.any((employee) {
