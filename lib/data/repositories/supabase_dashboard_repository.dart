@@ -279,7 +279,15 @@ class SupabaseDashboardRepository implements DashboardRepository {
     }
     final expensesByCategory = <String, num>{};
     for (final row in expenses) {
-      final category = row['category'] as String? ?? '';
+      final category = switch (row['category'] as String? ?? 'other') {
+        'operating' => 'هزینه عملیاتی',
+        'rent' => 'اجاره',
+        'supplies' => 'مواد مصرفی',
+        'utilities' => 'قبوض و خدمات',
+        'marketing' => 'تبلیغات',
+        'maintenance' => 'تعمیر و نگهداری',
+        _ => 'سایر',
+      };
       expensesByCategory.update(category, (value) => value + ((row['amount_toman'] as num?) ?? 0), ifAbsent: () => (row['amount_toman'] as num?) ?? 0);
     }
     final uniqueCustomers = appointments.map((item) => item.customerId).toSet().length;
