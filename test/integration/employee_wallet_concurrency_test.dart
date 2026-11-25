@@ -26,7 +26,7 @@ void main() {
     );
     addTearDown(client.dispose);
 
-    final user = await client.auth.getUser();
+    final user = await client.auth.getUser(env[tokenName]!);
     final membership = await client.from('business_memberships')
         .select('role,is_active')
         .eq('business_id', env[businessName]!)
