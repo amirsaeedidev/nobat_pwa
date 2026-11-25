@@ -90,8 +90,8 @@ abstract class BusinessFinanceRepository {
     String? fileName,
     String? mimeType,
     int? fileSizeBytes,
+    required String idempotencyKey,
     String notes = '',
-    String? idempotencyKey,
   });
 
   Future<void> voidDocument({
