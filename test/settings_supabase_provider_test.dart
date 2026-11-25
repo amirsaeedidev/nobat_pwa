@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:nobat_pwa/data/mock/app_database.dart';
-import 'package:nobat_pwa/data/repositories/settings_repository.dart';
-import 'package:nobat_pwa/features/settings/presentation/providers/settings_provider.dart';
+import 'package:datetime/data/mock/app_database.dart';
+import 'package:datetime/data/repositories/settings_repository.dart';
+import 'package:datetime/features/settings/presentation/providers/settings_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
