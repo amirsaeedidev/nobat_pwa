@@ -59,6 +59,7 @@ class CalendarProvider extends ChangeNotifier {
   List<EmployeeWorkingHour> _workingHours = const [];
   List<BusinessHoliday> _businessHolidays = const [];
   List<int> _weeklyHolidays = const [];
+  List<ScheduleException> _businessScheduleExceptions = const [];
   List<EmployeeScheduleException> _scheduleExceptions = const [];
   List<EmployeeLeave> _leaves = const [];
   int _loadGeneration = 0;
@@ -82,6 +83,7 @@ class CalendarProvider extends ChangeNotifier {
   List<EmployeeLeave> get leaves => _leaves;
   List<BusinessHoliday> get businessHolidays => _businessHolidays;
   List<int> get weeklyHolidays => _weeklyHolidays;
+  List<ScheduleException> get businessScheduleExceptions => _businessScheduleExceptions;
 
   void _safeNotify() {
     if (!_disposed) notifyListeners();
@@ -107,6 +109,7 @@ class CalendarProvider extends ChangeNotifier {
     _workingHours = const [];
     _businessHolidays = const [];
     _weeklyHolidays = const [];
+    _businessScheduleExceptions = const [];
     _scheduleExceptions = const [];
     _leaves = const [];
   }
@@ -269,9 +272,9 @@ class CalendarProvider extends ChangeNotifier {
       _rangeAppointments = results[2] as List<Appointment>;
       _workingHours = results[3] as List<EmployeeWorkingHour>;
       _businessHolidays = results[4] as List<BusinessHoliday>;
-      _weeklyHolidays = settingsRepository == null
-          ? const []
-          : (results[5] as BusinessSettings).holidays;
+      final businessSettings = settingsRepository == null ? null : results[5] as BusinessSettings;
+      _weeklyHolidays = businessSettings?.holidays ?? const [];
+      _businessScheduleExceptions = businessSettings?.scheduleExceptions ?? const [];
       _scheduleExceptions = exceptionAndLeaveResults
           .expand((result) => result.exceptions)
           .toList(growable: false);
@@ -341,29 +344,75 @@ class CalendarProvider extends ChangeNotifier {
     return null;
   }
 
+  ScheduleException? businessExceptionFor(JalaliDate date) {
+    final key = _dateKey(date.toDateTime());
+    final matches = _businessScheduleExceptions.where((item) => item.dateKey == key).toList();
+    return matches.isEmpty ? null : matches.first;
+  }
+
   ScheduleException? exceptionFor(JalaliDate date, {String? employeeId}) {
     final key = _dateKey(date.toDateTime());
     if (employeeId != null) {
       final item = employeeExceptionFor(date, employeeId);
-      if (item == null) return null;
-      return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
+      if (item != null) {
+        return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
+      }
     }
-    final matches = _scheduleExceptions.where((value) => value.dateKey == key).toList();
-    if (matches.isEmpty) return null;
-    final item = matches.first;
-    return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
+    return businessExceptionFor(date) ??
+        (_scheduleExceptions.where((value) => value.dateKey == key).toList().isEmpty
+            ? null
+            : ScheduleException(
+                dateKey: key,
+                title: _scheduleExceptions.firstWhere((value) => value.dateKey == key).title,
+                isClosed: _scheduleExceptions.firstWhere((value) => value.dateKey == key).isClosed,
+                shifts: _scheduleExceptions.firstWhere((value) => value.dateKey == key).shifts,
+              ));
+  }
+
+  bool _businessClosed(JalaliDate date) {
+    if (_businessClosed(date)) return true;
+    final exception = businessExceptionFor(date);
+    if (exception?.isClosed == true) return true;
+    return _weeklyHolidays.contains(date.weekday) && exception == null;
+  }
+
+  List<Shift> _intersectShifts(List<Shift> employeeShifts, List<Shift> businessShifts) {
+    final result = <Shift>[];
+    for (final employeeShift in employeeShifts) {
+      for (final businessShift in businessShifts) {
+        final start = employeeShift.startMinutes > businessShift.startMinutes
+            ? employeeShift.startMinutes
+            : businessShift.startMinutes;
+        final end = employeeShift.endMinutes < businessShift.endMinutes
+            ? employeeShift.endMinutes
+            : businessShift.endMinutes;
+        if (start < end) {
+          result.add(Shift(
+            start: '${(start ~/ 60).toString().padLeft(2, '0')}:${(start % 60).toString().padLeft(2, '0')}',
+            end: '${(end ~/ 60).toString().padLeft(2, '0')}:${(end % 60).toString().padLeft(2, '0')}',
+          ));
+        }
+      }
+    }
+    return result;
   }
 
   List<Shift> shiftsFor(Employee employee, JalaliDate date) {
-    if (!employee.scheduleEnabled || holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return const [];
-    final exception = employeeExceptionFor(date, employee.id);
-    if (exception != null) return exception.isClosed ? const [] : exception.shifts;
-    return _workingHours
-        .where((hour) => hour.employeeId == employee.id &&
-            hour.weekday == date.weekday &&
-            hour.isEffectiveOn(date.toDateTime()))
-        .map((hour) => hour.shift)
-        .toList(growable: false);
+    if (!employee.scheduleEnabled || _businessClosed(date)) return const [];
+    final employeeException = employeeExceptionFor(date, employee.id);
+    var employeeShifts = employeeException != null
+        ? (employeeException.isClosed ? const <Shift>[] : employeeException.shifts)
+        : _workingHours
+            .where((hour) => hour.employeeId == employee.id &&
+                hour.weekday == date.weekday &&
+                hour.isEffectiveOn(date.toDateTime()))
+            .map((hour) => hour.shift)
+            .toList(growable: false);
+    final businessException = businessExceptionFor(date);
+    if (businessException != null && !businessException.isClosed) {
+      employeeShifts = _intersectShifts(employeeShifts, businessException.shifts);
+    }
+    return employeeShifts;
   }
 
   bool _onApprovedLeave(String employeeId, DateTime start, DateTime end) =>
@@ -401,7 +450,7 @@ class CalendarProvider extends ChangeNotifier {
   List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
     final step = intervalMinutes ?? 15;
     if (step <= 0) throw ArgumentError.value(step, 'intervalMinutes');
-    if (holidayFor(date) != null || _weeklyHolidays.contains(date.weekday)) return const [];
+    if (_businessClosed(date)) return const [];
 
     final candidates = _employeeList.where((item) =>
         (employee == null || item.id == employee) &&
@@ -488,7 +537,7 @@ class CalendarProvider extends ChangeNotifier {
     final start = newStart;
     final end = start.add(Duration(minutes: appointment.durationMinutes));
     final jalali = JalaliDate.fromDateTime(start);
-    if (holidayFor(jalali) != null || _weeklyHolidays.contains(jalali.weekday)) {
+    if (_businessClosed(jalali)) {
       throw StateError('این تاریخ طبق تنظیمات واقعی مجموعه تعطیل است.');
     }
     final exception = employeeExceptionFor(jalali, employee.id);
