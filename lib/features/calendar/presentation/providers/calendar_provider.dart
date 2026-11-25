@@ -271,7 +271,7 @@ class CalendarProvider extends ChangeNotifier {
       _businessHolidays = results[4] as List<BusinessHoliday>;
       _weeklyHolidays = settingsRepository == null
           ? const []
-          : (results[5] as dynamic).holidays as List<int>;
+          : (results[5] as BusinessSettings).holidays;
       _scheduleExceptions = exceptionAndLeaveResults
           .expand((result) => result.exceptions)
           .toList(growable: false);
