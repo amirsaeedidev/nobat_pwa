@@ -15,15 +15,18 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/jalali_picker.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/business_finance.dart';
 import '../../../../data/models/dashboard_stats.dart';
 import '../../../../data/models/employee_wallet.dart';
-import '../../../../data/models/employee_finance.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/report_analytics.dart';
-import '../../../../data/repositories/operations_repository.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
+import '../../../../data/repositories/business_finance_repository.dart';
+import '../../../../data/repositories/appointment_repository.dart';
+import '../../../employees/presentation/providers/employees_provider.dart';
+import '../../../services/presentation/providers/services_provider.dart';
+import '../../../customers/presentation/providers/customers_provider.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/revenue_chart.dart';
 import '../widgets/operational_reports_sections.dart';
@@ -44,60 +47,51 @@ class ReportsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<ReportsProvider>();
     final pal = context.pal;
-    final db = context.watch<AppDatabase>();
+    final auth = context.watch<SupabaseAuthStateNotifier>();
+    final employeesProvider = context.watch<EmployeesProvider>();
+    final servicesProvider = context.watch<ServicesProvider>();
+    final customersProvider = context.watch<CustomersProvider>();
+    final financeRepository = context.read<BusinessFinanceRepository>();
+    final appointmentRepository = context.read<AppointmentRepository>();
     final dayIso = GoRouterState.of(context).uri.queryParameters['date'];
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
-    final canViewAll = db.hasPermission('appointments.view_all');
-    final canViewOperations = canViewAll || (db.hasPermission('appointments.view_self') && db.currentAccessAccount.employeeId != null);
-    final canViewAllFinancial = db.hasPermission('finance.income.view') &&
-      (db.hasPermission('employees.view_list') || canViewAll);
+    final canViewAll = _hasFinancePermission(auth, 'appointments.view_all');
+    final canViewOperations = canViewAll || _hasFinancePermission(auth, 'appointments.view_self');
+    final canViewAllFinancial = _hasFinancePermission(auth, 'finance.view') &&
+      (_hasFinancePermission(auth, 'employees.view_list') || canViewAll);
     final visibleAppointments = canViewOperations
-      ? db.appointments.where((item) =>
-          canViewAll || item.employeeId == db.currentAccessAccount.employeeId).toList()
+      ? provider.analytics.operationalAppointments
       : <Appointment>[];
-    final availableEmployees = db.employees.where((item) => db.canViewEmployee(item.id)).toList();
+    final availableEmployees = employeesProvider.items;
+    final availableServices = servicesProvider.items;
+    final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
     final availableCategories = <String>{
-      if (canViewOperations) ...db.services.map((service) => service.category),
-      if (canViewOperations) ...db.appointments.expand((appointment) => appointment.serviceSnapshots
+      if (canViewOperations) ...availableServices.map((service) => service.category),
+      if (canViewOperations) ...visibleAppointments.expand((appointment) => appointment.serviceSnapshots
         .map((snapshot) => snapshot['category']).whereType<String>()),
     }.toList()..sort();
-    final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
-    final availableCustomers = !canViewOperations || !db.hasPermission('customers.view')
-      ? db.customers.where((_) => false).toList()
+    final availableCustomers = !canViewOperations || !_hasFinancePermission(auth, 'customers.view')
+      ? customersProvider.items.where((_) => false).toList()
       : canViewAll
-        ? db.customers
-        : db.customers.where((item) => visibleCustomerIds.contains(item.id)).toList();
+        ? customersProvider.items
+        : customersProvider.items.where((item) => visibleCustomerIds.contains(item.id)).toList();
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
       visibleAppointments.where((item) => item.jalali.sameDay(selectedDay) && provider.filter.matches(item)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
-    final dayFinanceEntries = db.employeeFinanceEntries.where((entry) =>
-      selectedDay != null && JalaliDate.fromDateTime(entry.createdAt).sameDay(selectedDay) &&
-      (canViewAllFinancial || entry.employeeId == db.currentAccessAccount.employeeId) &&
-      db.hasPermission('finance.income.view', employeeId: entry.employeeId) &&
-      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
-    final dayRevenue = dayFinanceEntries.fold<num>(0, (sum, item) => sum + item.receivedAmount);
-    final dayCommission = dayFinanceEntries.where((item) =>
-      db.hasPermission('finance.commission.view', employeeId: item.employeeId)).fold<num>(0, (sum, item) =>
-      sum + (item.type == FinanceEntryType.refund ? -item.commissionAmount.abs() : item.commissionAmount));
-    final dayOperatingExpense = db.businessExpenses.where((item) =>
-      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
-      item.status == BusinessExpenseStatus.posted).fold<num>(0, (sum, item) => sum + item.amount);
-    final dayWalletEntries = db.hasPermission('finance.salary.view') ? db.employeeWalletTransactions.where((item) =>
-      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay) &&
-      item.status == EmployeeWalletTransactionStatus.posted &&
-      (canViewAllFinancial || item.employeeId == db.currentAccessAccount.employeeId) &&
-      db.hasPermission('finance.salary.view', employeeId: item.employeeId)).toList() : <EmployeeWalletTransaction>[];
-    final dayPayrollExpense = dayWalletEntries.where((item) => {
-      EmployeeWalletTransactionType.fixedSalary, EmployeeWalletTransactionType.bonus,
-      EmployeeWalletTransactionType.penalty, EmployeeWalletTransactionType.deduction,
-      EmployeeWalletTransactionType.adjustment,
-    }.contains(item.type)).fold<num>(0, (sum, item) => sum + item.amount);
-    final dayTotalExpense = dayOperatingExpense + dayCommission + dayPayrollExpense;
+    final dayPayments = provider.analytics.paymentTransactions.where((item) =>
+      selectedDay != null && JalaliDate.fromDateTime(item.createdAt).sameDay(selectedDay)).toList();
+    final dayRevenue = dayPayments.fold<num>(0, (sum, item) => sum + item.signedAmount);
+    final dayOperatingExpenses = provider.analytics.businessExpenses.where((item) =>
+      selectedDay != null &&
+      JalaliDate.fromDateTime(item.expenseDate ?? item.createdAt).sameDay(selectedDay) &&
+      item.status == BusinessExpenseStatus.posted).toList();
+    final dayOperatingExpense = dayOperatingExpenses.fold<num>(0, (sum, item) => sum + item.amount);
+    final dayTotalExpense = dayOperatingExpense;
     final dayEmployeeTotals = <String, ({int count, num revenue})>{};
-    for (final item in dayCompleted.where((item) => db.canViewEmployee(item.employeeId))) {
+    for (final item in dayCompleted.where((item) => availableEmployees.any((employee) => employee.id == item.employeeId))) {
       final current = dayEmployeeTotals[item.employeeName];
-      final revenue = dayFinanceEntries.where((entry) => entry.appointmentId == item.id)
-        .fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
+      final revenue = dayPayments.where((payment) => payment.appointmentId == item.id)
+        .fold<int>(0, (sum, payment) => sum + payment.signedAmount);
       dayEmployeeTotals[item.employeeName] = (count: (current?.count ?? 0) + 1, revenue: (current?.revenue ?? 0) + revenue);
     }
 
