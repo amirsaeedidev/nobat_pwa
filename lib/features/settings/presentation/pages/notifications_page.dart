@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../data/models/business_settings.dart';
 import '../providers/settings_provider.dart';
 import '../../../sms/presentation/providers/sms_provider.dart';
 
