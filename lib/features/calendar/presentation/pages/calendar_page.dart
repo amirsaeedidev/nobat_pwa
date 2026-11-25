@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../data/models/appointment.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../../../sms/presentation/providers/sms_provider.dart';
 import '../providers/calendar_provider.dart';
