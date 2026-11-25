@@ -16,6 +16,7 @@ import 'data/repositories/dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/service_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/supabase_settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
 import 'features/appointments/presentation/providers/appointments_provider.dart';
@@ -88,7 +89,9 @@ Future<void> main() async {
   final serviceRepository = MockServiceRepository(database);
   final employeeRepository = MockEmployeeRepository(database);
   final smsRepository = MockSmsRepository(database);
-  final settingsRepository = MockSettingsRepository(database);
+  final SettingsRepository settingsRepository = SupabaseService.client == null
+      ? UnavailableSettingsRepository()
+      : SupabaseSettingsRepository(SupabaseService.client!);
   final dashboardRepository = MockDashboardRepository(database);
   final activityRepository = MockActivityRepository(database);
 
@@ -114,7 +117,7 @@ Future<void> main() async {
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
         ChangeNotifierProvider(
