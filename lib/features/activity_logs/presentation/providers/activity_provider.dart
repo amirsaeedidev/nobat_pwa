@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../data/mock/app_database.dart';
@@ -11,10 +13,12 @@ import '../../../../data/repositories/operations_repository.dart';
 class ActivityProvider extends ChangeNotifier {
   ActivityProvider(this._repository, AppDatabase db)
       : _operations = OperationsRepository(db) {
+    _listenForAuthChanges();
     load();
   }
 
   ActivityProvider.remote(this._repository, this._operations) {
+    _listenForAuthChanges();
     load();
   }
 
@@ -28,6 +32,17 @@ class ActivityProvider extends ChangeNotifier {
   bool _loading = true;
   int _loadGeneration = 0;
   String? _error;
+  StreamSubscription<void>? _authSubscription;
+
+  void _listenForAuthChanges() {
+    _authSubscription = _repository.authChanges?.listen((_) => load());
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   List<ActivityLog> get logs => _logs;
   List<ActivityLog> get recent => _recent;
