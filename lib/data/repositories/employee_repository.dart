@@ -14,6 +14,13 @@ abstract class EmployeeRepository {
 
   Future<void> delete(String id);
 
+  Future<List<EmployeeWorkingHour>> fetchWorkingHours({String? employeeId}) async => const [];
+
+  Future<List<BusinessHoliday>> fetchBusinessHolidays({
+    required DateTime from,
+    required DateTime to,
+  }) async => const [];
+
   Future<List<EmployeeScheduleException>> fetchScheduleExceptions({
     required String employeeId,
     required DateTime from,
