@@ -13,7 +13,6 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
-import '../../../sms/presentation/providers/sms_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/calendar_widgets.dart';
 
@@ -24,29 +23,8 @@ class CalendarPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CalendarProvider>();
-    final sms = context.watch<SmsProvider>();
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
-
-    final smsPill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: pal.surfaceAlt,
-        borderRadius: AppRadius.brPill,
-        border: Border.all(color: pal.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.sms_outlined, size: 13, color: pal.textMuted),
-          const SizedBox(width: 4),
-          Text(
-            'موجودی: ${FaNum.ofInt(sms.stats?.credit ?? 0)} پیامک',
-            style: TextStyle(fontSize: 10.5, color: pal.textSecondary, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
 
     final controls = AppCard(
       padding: const EdgeInsets.all(12),
@@ -78,7 +56,6 @@ class CalendarPage extends StatelessWidget {
                 onChanged: (i) => provider.setView(CalendarView.values[i]),
                 dense: true,
               ),
-              if (!isDesktop) smsPill,
             ],
           ),
           const SizedBox(height: 10),
@@ -141,7 +118,6 @@ class CalendarPage extends StatelessWidget {
       subtitle: 'نمای روزانه، هفتگی و ماهانه',
       icon: Icons.calendar_month_rounded,
       actions: [
-        if (isDesktop) smsPill,
         SoftButton(label: 'بازآوری', icon: Icons.refresh_rounded, onTap: provider.load),
         SolidButton(
           label: 'نوبت جدید',
