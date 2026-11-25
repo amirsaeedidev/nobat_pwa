@@ -29,9 +29,16 @@ import '../providers/appointments_provider.dart';
 
 /// فرم ثبت/ویرایش نوبت — بازسازی صفحه «ثبت نوبت جدید» تصویر مرجع.
 class AppointmentFormPage extends StatefulWidget {
-  const AppointmentFormPage({super.key, this.appointmentId});
+  const AppointmentFormPage({
+    super.key,
+    this.appointmentId,
+    this.initialDate,
+    this.initialTime,
+  });
 
   final String? appointmentId;
+  final String? initialDate;
+  final String? initialTime;
 
   @override
   State<AppointmentFormPage> createState() => _AppointmentFormPageState();
@@ -61,6 +68,23 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final id = widget.appointmentId;
     if (id != null) {
       unawaited(_loadExistingAppointment(id));
+    } else {
+      final dateValue = widget.initialDate;
+      if (dateValue != null) {
+        final parsedDate = DateTime.tryParse(dateValue);
+        if (parsedDate != null) _date = JalaliDate.fromDateTime(parsedDate);
+      }
+      final timeValue = widget.initialTime;
+      if (timeValue != null) {
+        final parts = timeValue.split(':');
+        if (parts.length == 2) {
+          final hour = int.tryParse(parts[0]);
+          final minute = int.tryParse(parts[1]);
+          if (hour != null && minute != null && hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+            _time = TimeOfDayLite(hour, minute);
+          }
+        }
+      }
     }
   }
 
