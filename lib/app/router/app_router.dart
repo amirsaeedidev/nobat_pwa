@@ -116,7 +116,13 @@ GoRouter buildRouter(
             path: '/appointments',
             pageBuilder: (context, state) => const NoTransitionPage(child: AppointmentsPage()),
             routes: [
-              GoRoute(path: 'new', builder: (context, state) => const AppointmentFormPage()),
+              GoRoute(
+                path: 'new',
+                builder: (context, state) => AppointmentFormPage(
+                  initialDate: state.uri.queryParameters['date'],
+                  initialTime: state.uri.queryParameters['time'],
+                ),
+              ),
               GoRoute(
                 path: ':id',
                 builder: (context, state) => AppointmentDetailsPage(appointmentId: state.pathParameters['id']!),
