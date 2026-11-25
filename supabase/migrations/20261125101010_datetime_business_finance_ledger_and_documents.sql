@@ -232,7 +232,117 @@ create or replace function public.reverse_business_expense(p_business_id uuid,p_
 returns uuid language sql security invoker set search_path=''
 as $function$ select private.reverse_business_expense_impl(p_business_id,p_expense_id,p_reason); $function$;
 
--- The detailed document RPC implementations are maintained in the following additive migrations.
+
+create or replace function private.create_business_finance_document_impl(
+ p_business_id uuid,p_document_type text,p_document_number text,p_appointment_id uuid,p_customer_id uuid,
+ p_expense_id uuid,p_payment_id uuid,p_amount_toman bigint,p_storage_path text,p_file_name text,p_mime_type text,
+ p_file_size_bytes bigint,p_notes text,p_idempotency_key text
+) returns uuid language plpgsql security definer set search_path=''
+as $function$
+declare
+ v_actor uuid:=(select auth.uid()); v_payment public.appointment_payments%rowtype; v_expense public.business_expenses%rowtype;
+ v_appointment_id uuid:=p_appointment_id; v_customer_id uuid:=p_customer_id;
+ v_existing public.business_finance_documents%rowtype; v_id uuid;
+begin
+ if v_actor is null then raise exception 'AUTH_REQUIRED' using errcode='42501'; end if;
+ if not private.has_business_permission(p_business_id,'finance.manage') then raise exception 'FINANCE_MANAGE_FORBIDDEN' using errcode='42501'; end if;
+ if p_document_type not in ('receipt','refund','expense_receipt','invoice','discount_note','payment_proof','other') then raise exception 'FINANCE_DOCUMENT_TYPE_INVALID' using errcode='22023'; end if;
+ if p_appointment_id is null and p_customer_id is null and p_expense_id is null and p_payment_id is null then raise exception 'FINANCE_DOCUMENT_REQUIRES_SOURCE' using errcode='22023'; end if;
+ if p_idempotency_key is not null then
+  select * into v_existing from public.business_finance_documents where business_id=p_business_id and idempotency_key=p_idempotency_key;
+  if found then return v_existing.id; end if;
+ end if;
+ if p_payment_id is not null then
+  select * into v_payment from public.appointment_payments where business_id=p_business_id and id=p_payment_id;
+  if not found then raise exception 'FINANCE_PAYMENT_NOT_FOUND' using errcode='23503'; end if;
+  if v_appointment_id is not null and v_appointment_id<>v_payment.appointment_id then raise exception 'FINANCE_DOCUMENT_APPOINTMENT_MISMATCH' using errcode='23503'; end if;
+  if v_customer_id is not null and v_customer_id<>v_payment.customer_id then raise exception 'FINANCE_DOCUMENT_CUSTOMER_MISMATCH' using errcode='23503'; end if;
+  v_appointment_id:=v_payment.appointment_id; v_customer_id:=v_payment.customer_id;
+ end if;
+ if p_expense_id is not null then
+  select * into v_expense from public.business_expenses where business_id=p_business_id and id=p_expense_id;
+  if not found then raise exception 'FINANCE_EXPENSE_NOT_FOUND' using errcode='23503'; end if;
+  if v_appointment_id is null then v_appointment_id:=v_expense.related_appointment_id; end if;
+  if v_customer_id is null then v_customer_id:=v_expense.related_customer_id; end if;
+ end if;
+ if v_appointment_id is null and v_customer_id is null and p_expense_id is null then raise exception 'FINANCE_DOCUMENT_REQUIRES_SOURCE' using errcode='22023'; end if;
+ if p_storage_path is not null and p_storage_path not like p_business_id::text || '/%' then raise exception 'FINANCE_DOCUMENT_STORAGE_PATH_INVALID' using errcode='22023'; end if;
+ insert into public.business_finance_documents(
+  business_id,document_type,document_number,appointment_id,customer_id,expense_id,payment_id,amount_toman,
+  storage_path,file_name,mime_type,file_size_bytes,notes,idempotency_key,created_by
+ ) values (
+  p_business_id,p_document_type,nullif(trim(coalesce(p_document_number,'')),''),
+  v_appointment_id,v_customer_id,p_expense_id,p_payment_id,p_amount_toman,p_storage_path,p_file_name,p_mime_type,
+  p_file_size_bytes,coalesce(p_notes,''),p_idempotency_key,v_actor
+ ) returning id into v_id;
+ perform private.write_business_finance_audit(p_business_id,'document',v_id,'documented',null,
+  to_jsonb((select d from public.business_finance_documents d where d.id=v_id)),null);
+ return v_id;
+exception when unique_violation then
+ if p_idempotency_key is not null then
+  select id into v_id from public.business_finance_documents where business_id=p_business_id and idempotency_key=p_idempotency_key;
+  if found then return v_id; end if;
+ end if;
+ raise;
+end;
+$function$;
+
+create or replace function public.create_business_finance_document(
+ p_business_id uuid,p_document_type text,p_document_number text default null,p_appointment_id uuid default null,
+ p_customer_id uuid default null,p_expense_id uuid default null,p_payment_id uuid default null,p_amount_toman bigint default null,
+ p_storage_path text default null,p_file_name text default null,p_mime_type text default null,p_file_size_bytes bigint default null,
+ p_notes text default '',p_idempotency_key text default null
+) returns uuid language sql security invoker set search_path=''
+as $function$
+ select private.create_business_finance_document_impl(p_business_id,p_document_type,p_document_number,p_appointment_id,
+  p_customer_id,p_expense_id,p_payment_id,p_amount_toman,p_storage_path,p_file_name,p_mime_type,p_file_size_bytes,p_notes,p_idempotency_key);
+$function$;
+
+create or replace function private.void_business_finance_document_impl(p_business_id uuid,p_document_id uuid,p_reason text)
+returns uuid language plpgsql security definer set search_path=''
+as $function$
+declare v_actor uuid:=(select auth.uid()); v_before public.business_finance_documents%rowtype; v_after public.business_finance_documents%rowtype;
+begin
+ if v_actor is null then raise exception 'AUTH_REQUIRED' using errcode='42501'; end if;
+ if not private.has_business_permission(p_business_id,'finance.manage') then raise exception 'FINANCE_MANAGE_FORBIDDEN' using errcode='42501'; end if;
+ if length(trim(coalesce(p_reason,'')))<3 then raise exception 'FINANCE_VOID_REASON_REQUIRED' using errcode='22023'; end if;
+ select * into v_before from public.business_finance_documents where business_id=p_business_id and id=p_document_id for update;
+ if not found then raise exception 'FINANCE_DOCUMENT_NOT_FOUND' using errcode='P0002'; end if;
+ if v_before.status='void' then return v_before.id; end if;
+ update public.business_finance_documents set status='void',voided_at=now(),voided_by=v_actor
+  where business_id=p_business_id and id=p_document_id returning * into v_after;
+ perform private.write_business_finance_audit(p_business_id,'document',p_document_id,'voided',to_jsonb(v_before),to_jsonb(v_after),trim(p_reason));
+ return p_document_id;
+end;
+$function$;
+
+create or replace function public.void_business_finance_document(p_business_id uuid,p_document_id uuid,p_reason text)
+returns uuid language sql security invoker set search_path=''
+as $function$ select private.void_business_finance_document_impl(p_business_id,p_document_id,p_reason); $function$;
+
+revoke all on function private.write_business_finance_audit(uuid,text,uuid,text,jsonb,jsonb,text) from public,anon,authenticated;
+revoke all on function private.record_appointment_payment_impl(uuid,uuid,bigint,text,text,text,text,uuid) from public,anon,authenticated;
+revoke all on function private.record_business_expense_impl(uuid,bigint,text,text,date,text,text,uuid,uuid,text) from public,anon,authenticated;
+revoke all on function private.reverse_business_expense_impl(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function private.create_business_finance_document_impl(uuid,text,text,uuid,uuid,uuid,uuid,bigint,text,text,text,bigint,text,text) from public,anon,authenticated;
+revoke all on function private.void_business_finance_document_impl(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function private.record_appointment_payment_impl(uuid,uuid,bigint,text,text,text,text,uuid) to authenticated;
+grant execute on function private.record_business_expense_impl(uuid,bigint,text,text,date,text,text,uuid,uuid,text) to authenticated;
+grant execute on function private.reverse_business_expense_impl(uuid,uuid,text) to authenticated;
+grant execute on function private.create_business_finance_document_impl(uuid,text,text,uuid,uuid,uuid,uuid,bigint,text,text,text,bigint,text,text) to authenticated;
+grant execute on function private.void_business_finance_document_impl(uuid,uuid,text) to authenticated;
+
+revoke all on function public.record_appointment_payment(uuid,uuid,bigint,text,text,text,text,uuid) from public,anon;
+revoke all on function public.record_business_expense(uuid,bigint,text,text,date,text,text,uuid,uuid,text) from public,anon;
+revoke all on function public.reverse_business_expense(uuid,uuid,text) from public,anon;
+revoke all on function public.create_business_finance_document(uuid,text,text,uuid,uuid,uuid,uuid,bigint,text,text,text,bigint,text,text) from public,anon;
+revoke all on function public.void_business_finance_document(uuid,uuid,text) from public,anon;
+grant execute on function public.record_appointment_payment(uuid,uuid,bigint,text,text,text,text,uuid) to authenticated;
+grant execute on function public.record_business_expense(uuid,bigint,text,text,date,text,text,uuid,uuid,text) to authenticated;
+grant execute on function public.reverse_business_expense(uuid,uuid,text) to authenticated;
+grant execute on function public.create_business_finance_document(uuid,text,text,uuid,uuid,uuid,uuid,bigint,text,text,text,bigint,text,text) to authenticated;
+grant execute on function public.void_business_finance_document(uuid,uuid,text) to authenticated;
+\n-- Later migrations harden expense and document idempotency/link validation.
 create or replace view public.business_finance_ledger with (security_invoker=true) as
  select p.id as entry_id,p.business_id,p.created_at as occurred_at,
   case when p.payment_type='refund' then 'refund' else 'receipt' end as entry_type,
