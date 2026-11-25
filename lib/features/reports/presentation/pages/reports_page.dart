@@ -977,6 +977,20 @@ class _BusinessExpensesSheetState extends State<_BusinessExpensesSheet> {
     }
   }
 
+  Future<void> _edit(BusinessExpense expense) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => _EditBusinessExpenseDialog(
+        repository: widget.repository,
+        expense: expense,
+      ),
+    );
+    if (saved == true && mounted) {
+      await widget.provider.load();
+      await _load();
+    }
+  }
+
   Future<void> _reverse(BusinessExpense expense) async {
     final reason = TextEditingController();
     final value = await showDialog<String>(
@@ -1031,12 +1045,18 @@ class _BusinessExpensesSheetState extends State<_BusinessExpensesSheet> {
                     fontWeight: FontWeight.w700,
                     color: expense.status == BusinessExpenseStatus.reversed ? context.pal.textMuted : context.pal.warning,
                   )),
-                  if (canManage && expense.status == BusinessExpenseStatus.posted)
+                  if (canManage && expense.status == BusinessExpenseStatus.posted) ...[
+                    IconButton(
+                      tooltip: 'اصلاح سند',
+                      onPressed: () => _edit(expense),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
                     IconButton(
                       tooltip: 'ابطال سند',
                       onPressed: () => _reverse(expense),
                       icon: const Icon(Icons.block_rounded),
                     ),
+                  ],
                 ]),
               );
             },
@@ -1044,6 +1064,147 @@ class _BusinessExpensesSheetState extends State<_BusinessExpensesSheet> {
         ]),
       ),
     ),
+  );
+}
+
+class _EditBusinessExpenseDialog extends StatefulWidget {
+  const _EditBusinessExpenseDialog({
+    required this.repository,
+    required this.expense,
+  });
+
+  final BusinessFinanceRepository repository;
+  final BusinessExpense expense;
+
+  @override
+  State<_EditBusinessExpenseDialog> createState() => _EditBusinessExpenseDialogState();
+}
+
+class _EditBusinessExpenseDialogState extends State<_EditBusinessExpenseDialog> {
+  late final TextEditingController _amount =
+      TextEditingController(text: widget.expense.amount.toString());
+  late final TextEditingController _description =
+      TextEditingController(text: widget.expense.description);
+  final _reason = TextEditingController();
+  late BusinessExpenseCategory _category = widget.expense.category;
+  late BusinessPaymentMethod? _method = widget.expense.paymentMethod;
+  late final String _idempotencyKey =
+      'expense-replace-${widget.expense.id}-${DateTime.now().microsecondsSinceEpoch}';
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _description.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final amount = int.tryParse(
+      FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''),
+    );
+    if (amount == null || amount <= 0 ||
+        _description.text.trim().isEmpty || _reason.text.trim().length < 3) {
+      setState(() => _error = 'مبلغ، شرح و علت اصلاح را کامل و معتبر وارد کنید.');
+      return;
+    }
+
+    final approved = await showSensitiveOperationDialog(
+      context,
+      title: 'تأیید اصلاح هزینه',
+      description: 'سند قبلی حذف یا بازنویسی نمی‌شود؛ در یک تراکنش دیتابیس ابطال و سند جایگزین ثبت خواهد شد.',
+      recordDetails: {
+        'شناسه سند قبلی': widget.expense.id,
+        'مبلغ قبلی': '${FaNum.ofInt(widget.expense.amount)} تومان',
+        'مبلغ جدید': '${FaNum.ofInt(amount)} تومان',
+        'دسته‌بندی جدید': _category.label,
+        'علت اصلاح': _reason.text.trim(),
+      },
+      isReversible: false,
+      warning: 'ابطال سند قبلی و ثبت سند جدید به‌صورت اتمیک انجام می‌شود.',
+      confirmLabel: 'ثبت اصلاحیه',
+    );
+    if (!approved || !mounted) return;
+
+    setState(() { _saving = true; _error = null; });
+    try {
+      await widget.repository.replaceBusinessExpense(
+        expenseId: widget.expense.id,
+        amount: amount,
+        category: _category,
+        description: _description.text.trim(),
+        expenseDate: widget.expense.expenseDate ?? widget.expense.createdAt,
+        paymentMethod: _method,
+        sourceDocumentId: widget.expense.sourceDocumentId.isEmpty
+            ? null : widget.expense.sourceDocumentId,
+        relatedAppointmentId: widget.expense.relatedAppointmentId,
+        relatedCustomerId: widget.expense.relatedCustomerId,
+        idempotencyKey: _idempotencyKey,
+        reason: _reason.text.trim(),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('اصلاح هزینه مجموعه'),
+    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextField(
+        controller: _amount,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: 'مبلغ جدید (تومان)'),
+      ),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<BusinessExpenseCategory>(
+        value: _category,
+        decoration: const InputDecoration(labelText: 'دسته هزینه'),
+        items: [for (final item in BusinessExpenseCategory.values)
+          DropdownMenuItem(value: item, child: Text(item.label))],
+        onChanged: (value) => setState(() => _category = value ?? _category),
+      ),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<BusinessPaymentMethod?>(
+        value: _method,
+        decoration: const InputDecoration(labelText: 'روش پرداخت'),
+        items: [
+          const DropdownMenuItem<BusinessPaymentMethod?>(value: null, child: Text('ثبت‌نشده')),
+          for (final item in BusinessPaymentMethod.values)
+            DropdownMenuItem(value: item, child: Text(item.label)),
+        ],
+        onChanged: (value) => setState(() => _method = value),
+      ),
+      const SizedBox(height: 8),
+      TextField(controller: _description, decoration: const InputDecoration(labelText: 'شرح جدید')),
+      const SizedBox(height: 8),
+      TextField(
+        controller: _reason,
+        maxLines: 2,
+        decoration: const InputDecoration(labelText: 'علت اصلاح (اجباری)'),
+      ),
+      if (_error != null) Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(_error!, style: TextStyle(
+          color: Theme.of(context).colorScheme.error, fontSize: 11,
+        )),
+      ),
+    ])),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+        child: const Text('انصراف'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'در حال ثبت…' : 'ثبت اصلاحیه'),
+      ),
+    ],
   );
 }
 
