@@ -176,10 +176,9 @@ class CalendarProvider extends ChangeNotifier {
         final days = weekDays;
         return (days.first, days.last);
       case CalendarView.monthly:
-        return (
-          JalaliDate(_anchor.year, _anchor.month, 1),
-          JalaliDate(_anchor.year, _anchor.month, _anchor.monthLength),
-        );
+        final first = JalaliDate(_anchor.year, _anchor.month, 1);
+        final gridStart = first.addDays(-first.weekday);
+        return (gridStart, gridStart.addDays(41));
     }
   }
 
@@ -395,18 +394,18 @@ class CalendarProvider extends ChangeNotifier {
         for (var minute = shift.startMinutes; minute < shift.endMinutes; minute += step) {
           final start = date.toDateTime().add(Duration(minutes: minute));
           final end = start.add(Duration(minutes: step));
+          final exception = employeeExceptionFor(date, person.id);
           final effectiveHours = _workingHours.where((hour) =>
               hour.employeeId == person.id &&
               hour.weekday == date.weekday &&
               hour.isEffectiveOn(date.toDateTime()) &&
               hour.shift.startMinutes <= minute &&
               hour.shift.endMinutes >= minute + step);
-          final exception = employeeExceptionFor(date, person.id);
           final isExceptionSlot = exception != null &&
               !exception.isClosed &&
               exception.shifts.any((item) => item.startMinutes <= minute && item.endMinutes >= minute + step);
-          final isWeeklySlot = effectiveHours.isNotEmpty;
-          final hasBreak = _workingHours.any((hour) =>
+          final isWeeklySlot = exception == null && effectiveHours.isNotEmpty;
+          final hasBreak = exception == null && _workingHours.any((hour) =>
               hour.employeeId == person.id &&
               hour.weekday == date.weekday &&
               hour.isEffectiveOn(date.toDateTime()) &&
