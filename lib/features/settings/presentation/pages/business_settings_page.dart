@@ -34,13 +34,13 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   final _website = TextEditingController();
   final _slug = TextEditingController();
 
-  String _province = 'تهران';
-  String _city = 'تهران';
+  String _province = 'انتخاب نشده';
+  String _city = 'انتخاب نشده';
   bool _saving = false;
   bool _prefilled = false;
 
-  static const _provinces = ['تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
-  static const _cities = ['تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
+  static const _provinces = ['انتخاب نشده', 'تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
+  static const _cities = ['انتخاب نشده', 'تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
 
   @override
   void didChangeDependencies() {
@@ -62,8 +62,8 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
     _whatsapp.text = settings.whatsapp;
     _website.text = settings.website;
     _slug.text = settings.publicSlug;
-    _province = settings.province;
-    _city = settings.city;
+    _province = settings.province.isEmpty ? 'انتخاب نشده' : settings.province;
+    _city = settings.city.isEmpty ? 'انتخاب نشده' : settings.city;
   }
 
   @override
@@ -96,8 +96,8 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
           email: _email.text.trim(),
           address: _address.text.trim(),
           postalCode: _postal.text.trim(),
-          province: _province,
-          city: _city,
+          province: _province == 'انتخاب نشده' ? '' : _province,
+          city: _city == 'انتخاب نشده' ? '' : _city,
           instagram: _instagram.text.trim(),
           telegram: _telegram.text.trim(),
           whatsapp: _whatsapp.text.trim(),
