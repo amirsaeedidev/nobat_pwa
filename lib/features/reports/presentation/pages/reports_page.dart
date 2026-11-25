@@ -512,8 +512,12 @@ class ReportsPage extends StatelessWidget {
 
 
 class _AddAppointmentPaymentDialog extends StatefulWidget {
-  const _AddAppointmentPaymentDialog({required this.database});
-  final AppDatabase database;
+  const _AddAppointmentPaymentDialog({
+    required this.repository,
+    required this.appointmentsRepository,
+  });
+  final BusinessFinanceRepository repository;
+  final AppointmentRepository appointmentsRepository;
 
   @override
   State<_AddAppointmentPaymentDialog> createState() => _AddAppointmentPaymentDialogState();
@@ -523,28 +527,43 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
   late final String _operationKey = 'receipt-${DateTime.now().microsecondsSinceEpoch}';
   final _amount = TextEditingController();
   final _description = TextEditingController(text: 'دریافت وجه نوبت');
-  late List<Appointment> _appointments;
+  List<Appointment> _appointments = const [];
+  List<AppointmentPayment> _payments = const [];
   Appointment? _selected;
   BusinessPaymentMethod _method = BusinessPaymentMethod.pos;
+  bool _loading = true;
+  bool _saving = false;
   String? _error;
 
   int _outstanding(Appointment appointment) {
-    final revenueDocuments = widget.database.employeeFinanceEntries.where((entry) =>
-      entry.appointmentId == appointment.id &&
-      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund)).toList();
-    final recognized = revenueDocuments.fold<int>(0, (sum, entry) => sum + entry.receivedAmount);
-    final due = revenueDocuments.isNotEmpty ? recognized : appointment.price.round();
-    final paid = widget.database.appointmentPayments.where((payment) =>
-      payment.appointmentId == appointment.id).fold<int>(0, (sum, payment) => sum + payment.signedAmount);
-    return due - paid;
+    final paid = _payments.where((payment) => payment.appointmentId == appointment.id)
+        .fold<int>(0, (sum, payment) => sum + payment.signedAmount);
+    return (appointment.price.round() - paid).clamp(0, 1 << 62);
   }
 
   @override
   void initState() {
     super.initState();
-    _appointments = widget.database.appointments.where((item) =>
-      item.status == AppointmentStatus.completed && _outstanding(item) > 0).toList();
-    if (_appointments.isNotEmpty) _selected = _appointments.first;
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final values = await Future.wait<dynamic>([
+        widget.appointmentsRepository.fetchAll(),
+        widget.repository.fetchPayments(),
+      ]);
+      if (!mounted) return;
+      _payments = values[1] as List<AppointmentPayment>;
+      _appointments = (values[0] as List<Appointment>)
+          .where((item) => item.status == AppointmentStatus.completed && _outstanding(item) > 0)
+          .toList(growable: false);
+      _selected = _appointments.isEmpty ? null : _appointments.first;
+    } catch (error) {
+      if (mounted) _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -556,15 +575,16 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
 
   Future<void> _save() async {
     final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
-    if (_selected == null || amount == null || amount <= 0 || _description.text.trim().isEmpty) {
-      setState(() => _error = 'نوبت، مبلغ و شرح پرداخت را کامل کنید.');
+    if (_selected == null || amount == null || amount <= 0 ||
+        amount > _outstanding(_selected!) || _description.text.trim().isEmpty) {
+      setState(() => _error = 'نوبت، مبلغ معتبر در محدوده مانده و شرح پرداخت را کامل کنید.');
       return;
     }
     final appointment = _selected!;
     final approved = await showSensitiveOperationDialog(
       context,
       title: 'تأیید ثبت دریافت مشتری',
-      description: 'رسید دریافت به دفتر مالی اضافه می‌شود و به‌صورت مستقیم حذف یا Undo نخواهد شد.',
+      description: 'رسید دریافت به دفتر مالی Supabase افزوده می‌شود و رسید قبلی حذف یا بازنویسی نخواهد شد.',
       recordDetails: {
         'کد نوبت': appointment.reference,
         'مشتری': appointment.customerName,
@@ -573,12 +593,13 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
         'شرح': _description.text.trim(),
       },
       isReversible: false,
-      warning: 'برای اصلاح دریافت باید برگشت وجه و سند مالی معکوس ثبت شود.',
+      warning: 'اصلاح دریافت فقط از طریق ثبت برگشت وجه مرتبط با رسید اصلی انجام می‌شود.',
       confirmLabel: 'ثبت رسید دریافت',
     );
     if (!approved || !mounted) return;
+    setState(() { _saving = true; _error = null; });
     try {
-      await OperationsRepository(widget.database).recordAppointmentPayment(
+      await widget.repository.recordAppointmentPayment(
         appointmentId: appointment.id,
         amount: amount,
         method: _method,
@@ -588,6 +609,8 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -595,8 +618,12 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('ثبت دریافت مشتری'),
     content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      if (_appointments.isEmpty)
-        const Text('نوبت تکمیل‌شده با مانده قابل دریافت وجود ندارد.')
+      if (_loading)
+        const Padding(padding: EdgeInsets.all(18), child: CircularProgressIndicator())
+      else if (_error != null && _appointments.isEmpty)
+        Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))
+      else if (_appointments.isEmpty)
+        const Text('نوبت تکمیل‌شده با مانده قابل دریافت در داده‌های واقعی وجود ندارد.')
       else
         DropdownButtonFormField<Appointment>(
           value: _selected,
@@ -619,29 +646,31 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
       ),
       const SizedBox(height: 8),
       TextField(controller: _description, decoration: const InputDecoration(labelText: 'شرح')),
-      if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))),
+      if (_error != null && _appointments.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))),
     ])),
     actions: [
-      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('انصراف')),
-      FilledButton(onPressed: _appointments.isEmpty ? null : _save, child: const Text('ثبت دریافت')),
+      TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('انصراف')),
+      FilledButton(onPressed: _loading || _saving || _appointments.isEmpty ? null : _save, child: Text(_saving ? 'در حال ثبت…' : 'ثبت دریافت')),
     ],
   );
 }
 
 class _AddBusinessExpenseDialog extends StatefulWidget {
-  const _AddBusinessExpenseDialog({required this.database});
-  final AppDatabase database;
+  const _AddBusinessExpenseDialog({required this.repository});
+  final BusinessFinanceRepository repository;
 
   @override
   State<_AddBusinessExpenseDialog> createState() => _AddBusinessExpenseDialogState();
 }
 
 class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
-  late final String _expenseId = widget.database.nextId('expense');
+  late final String _idempotencyKey = 'expense-${DateTime.now().microsecondsSinceEpoch}';
   final _amount = TextEditingController();
   final _description = TextEditingController();
   final _source = TextEditingController();
   BusinessExpenseCategory _category = BusinessExpenseCategory.operating;
+  BusinessPaymentMethod? _method = BusinessPaymentMethod.bankTransfer;
+  bool _saving = false;
   String? _error;
 
   @override
@@ -654,40 +683,42 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
 
   Future<void> _save() async {
     final amount = int.tryParse(FaNum.toLatin(_amount.text).replaceAll(RegExp(r'[^0-9]'), ''));
-    if (amount == null || amount <= 0 || _description.text.trim().isEmpty || _source.text.trim().isEmpty) {
-      setState(() => _error = 'مبلغ، شرح و شناسه سند منبع را کامل و معتبر وارد کنید.');
+    if (amount == null || amount <= 0 || _description.text.trim().isEmpty) {
+      setState(() => _error = 'مبلغ و شرح هزینه را کامل و معتبر وارد کنید.');
       return;
     }
-    final expense = BusinessExpense(
-      id: _expenseId,
-      createdAt: DateTime.now(),
-      amount: amount,
-      category: _category,
-      description: _description.text.trim(),
-      sourceDocumentId: _source.text.trim(),
-      createdBy: widget.database.currentAccessAccount.name,
-    );
     final approved = await showSensitiveOperationDialog(
       context,
       title: 'تأیید ثبت هزینه مجموعه',
-      description: 'هزینه به دفتر مالی ثبت می‌شود و سند اصلی حذف یا Undo نمی‌شود.',
+      description: 'هزینه در دفتر مالی واقعی مجموعه ثبت می‌شود و سابقه آن قابل حذف فیزیکی نیست.',
       recordDetails: {
         'دسته‌بندی': _category.label,
         'مبلغ': '${FaNum.ofInt(amount)} تومان',
-        'شرح': expense.description,
-        'سند منبع': expense.sourceDocumentId,
-        'ثبت‌کننده': expense.createdBy,
+        'روش پرداخت': _method?.label ?? 'ثبت‌نشده',
+        'شرح': _description.text.trim(),
+        if (_source.text.trim().isNotEmpty) 'شناسه مرجع': _source.text.trim(),
       },
       isReversible: false,
-      warning: 'سند هزینه پس از ثبت تغییرناپذیر است؛ اصلاح آن باید با سند مالی جداگانه انجام شود.',
+      warning: 'اصلاح هزینه با ابطال مستند و ثبت رویداد حسابرسی انجام می‌شود.',
       confirmLabel: 'ثبت هزینه',
     );
     if (!approved || !mounted) return;
+    setState(() { _saving = true; _error = null; });
     try {
-      await OperationsRepository(widget.database).addBusinessExpense(expense);
+      await widget.repository.recordBusinessExpense(
+        amount: amount,
+        category: _category,
+        description: _description.text.trim(),
+        expenseDate: DateTime.now(),
+        paymentMethod: _method,
+        sourceDocumentId: _source.text.trim().isEmpty ? null : _source.text.trim(),
+        idempotencyKey: _idempotencyKey,
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -704,22 +735,32 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
         onChanged: (value) => setState(() => _category = value ?? _category),
       ),
       const SizedBox(height: 8),
+      DropdownButtonFormField<BusinessPaymentMethod?>(
+        value: _method,
+        decoration: const InputDecoration(labelText: 'روش پرداخت'),
+        items: [
+          const DropdownMenuItem<BusinessPaymentMethod?>(value: null, child: Text('ثبت‌نشده')),
+          for (final item in BusinessPaymentMethod.values) DropdownMenuItem(value: item, child: Text(item.label)),
+        ],
+        onChanged: (value) => setState(() => _method = value),
+      ),
+      const SizedBox(height: 8),
       TextField(controller: _description, decoration: const InputDecoration(labelText: 'شرح هزینه')),
       const SizedBox(height: 8),
-      TextField(controller: _source, decoration: const InputDecoration(labelText: 'شناسه سند منبع')),
+      TextField(controller: _source, decoration: const InputDecoration(labelText: 'شماره مرجع (اختیاری)')),
       if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11))),
     ])),
     actions: [
-      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('انصراف')),
-      FilledButton(onPressed: _save, child: const Text('ثبت هزینه')),
+      TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('انصراف')),
+      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'در حال ثبت…' : 'ثبت هزینه')),
     ],
   );
 }
 
-
-
-void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvider provider, {String? method}) {
+void _showPaymentSheet(BuildContext context, ReportsProvider provider, SupabaseAuthStateNotifier auth, {String? method}) {
   final payments = provider.analytics.paymentTransactions.where((item) => method == null || item.method.label == method).toList();
+  final appointments = provider.analytics.operationalAppointments;
+  final financeRepository = context.read<BusinessFinanceRepository>();
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -729,7 +770,7 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SectionHeader(title: method == null ? 'رسیدها و برگشت وجه' : 'پرداخت‌های $method', subtitle: 'رسیدهای این بازه؛ امکان ثبت برگشت وجه برای هر دریافت'),
+          SectionHeader(title: method == null ? 'رسیدها و برگشت وجه' : 'پرداخت‌های $method', subtitle: 'رسیدهای واقعی این بازه؛ استرداد به رسید اصلی متصل می‌شود'),
           const SizedBox(height: 8),
           Expanded(child: payments.isEmpty
             ? const EmptyState(title: 'پرداختی در این بازه وجود ندارد', compact: true)
@@ -738,7 +779,7 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final payment = payments[index];
-                  final appointment = database.appointmentById(payment.appointmentId);
+                  final appointment = appointments.where((item) => item.id == payment.appointmentId).firstOrNull;
                   return Material(color: Colors.transparent, child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     onTap: () => showDialog<void>(
@@ -751,7 +792,7 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
                           Text('نوع: ${payment.type == BusinessPaymentType.refund ? 'برگشت وجه' : 'دریافت'}'),
                           Text('روش: ${payment.method.label}'),
                           Text('مبلغ: ${Fmt.compactMoney(payment.signedAmount)}'),
-                          if (database.hasPermission('customers.view') && appointment != null)
+                          if (_hasFinancePermission(auth, 'customers.view') && appointment != null)
                             Text('مشتری: ${appointment.customerName}'),
                           Text('شرح: ${payment.description}'),
                         ]),
@@ -763,10 +804,10 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       Text(Fmt.compactMoney(payment.signedAmount), style: TextStyle(
                         color: payment.signedAmount < 0 ? context.pal.danger : context.pal.success, fontSize: 11)),
-                      if (payment.type == BusinessPaymentType.receipt)
+                      if (payment.type == BusinessPaymentType.receipt && _hasFinancePermission(auth, 'finance.manage'))
                         TextButton(onPressed: () => showDialog<void>(
                           context: context,
-                          builder: (_) => _RefundPaymentDialog(database: database, payment: payment),
+                          builder: (_) => _RefundPaymentDialog(repository: financeRepository, payment: payment),
                         ), child: const Text('برگشت وجه')),
                     ]),
                   ));
@@ -779,8 +820,8 @@ void _showPaymentSheet(BuildContext context, AppDatabase database, ReportsProvid
 }
 
 class _RefundPaymentDialog extends StatefulWidget {
-  const _RefundPaymentDialog({required this.database, required this.payment});
-  final AppDatabase database;
+  const _RefundPaymentDialog({required this.repository, required this.payment});
+  final BusinessFinanceRepository repository;
   final AppointmentPayment payment;
 
   @override
@@ -791,6 +832,7 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
   late final String _operationKey = 'refund-${widget.payment.id}-${DateTime.now().microsecondsSinceEpoch}';
   final _amount = TextEditingController();
   final _description = TextEditingController(text: 'برگشت وجه مشتری');
+  bool _saving = false;
   String? _error;
 
   @override
@@ -809,7 +851,7 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
     final approved = await showSensitiveOperationDialog(
       context,
       title: 'تأیید برگشت وجه',
-      description: 'سند برگشت وجه به‌عنوان رکورد مالی جدید ثبت می‌شود و رسید اصلی دست‌نخورده باقی می‌ماند.',
+      description: 'سند استرداد جدید به رسید اصلی متصل می‌شود و رسید اولیه تغییر نمی‌کند.',
       recordDetails: {
         'شناسه رسید': widget.payment.id,
         'مبلغ برگشتی': '${FaNum.ofInt(amount)} تومان',
@@ -817,20 +859,26 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
         'شرح': _description.text.trim(),
       },
       isReversible: false,
-      warning: 'برگشت وجه یک سند مالی قطعی است و Undo ندارد.',
+      warning: 'مجموع استردادها در دیتابیس کنترل می‌شود و از مبلغ رسید اصلی بیشتر نخواهد شد.',
       confirmLabel: 'ثبت برگشت وجه',
     );
     if (!approved || !mounted) return;
+    setState(() { _saving = true; _error = null; });
     try {
-      await OperationsRepository(widget.database).refundAppointmentPayment(
-        paymentId: widget.payment.id,
+      await widget.repository.recordAppointmentPayment(
+        appointmentId: widget.payment.appointmentId,
         amount: amount,
+        method: widget.payment.method,
         description: _description.text.trim(),
         idempotencyKey: _operationKey,
+        type: BusinessPaymentType.refund,
+        reversesPaymentId: widget.payment.id,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -844,8 +892,8 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
       if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11)),
     ]),
     actions: [
-      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('انصراف')),
-      FilledButton(onPressed: _save, child: const Text('ثبت برگشت')),
+      TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('انصراف')),
+      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'در حال ثبت…' : 'ثبت برگشت')),
     ],
   );
 }
