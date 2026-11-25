@@ -11,6 +11,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/appointment.dart';
+import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../../../sms/presentation/providers/sms_provider.dart';
 import '../providers/calendar_provider.dart';
@@ -92,6 +93,29 @@ class CalendarPage extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<AppointmentStatus?>(
+              value: provider.statusFilter,
+              isExpanded: true,
+              isDense: true,
+              dropdownColor: pal.surfaceAlt,
+              style: TextStyle(fontSize: 11.5, color: pal.textPrimary),
+              icon: Icon(Icons.filter_alt_outlined, size: 16, color: pal.textMuted),
+              items: [
+                const DropdownMenuItem<AppointmentStatus?>(
+                  value: null,
+                  child: Text('فیلتر وضعیت: همه وضعیت‌ها'),
+                ),
+                for (final status in AppointmentStatus.values)
+                  DropdownMenuItem<AppointmentStatus?>(
+                    value: status,
+                    child: Text(status.label),
+                  ),
+              ],
+              onChanged: provider.setStatus,
+            ),
+          ),
           DropdownButtonHideUnderline(
             child: DropdownButton<String?>(
               value: provider.employeeId,
