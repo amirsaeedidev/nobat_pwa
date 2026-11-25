@@ -93,6 +93,12 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
           const SizedBox(height: 12),
           if (provider.loading)
             const LoadingState()
+          else if (provider.error != null)
+            ErrorStateView(
+              title: 'تاریخچه سرور در دسترس نیست',
+              description: provider.error!,
+              onRetry: provider.load,
+            )
           else if (provider.logs.isEmpty)
             const EmptyState(
               title: 'رویدادی یافت نشد',
