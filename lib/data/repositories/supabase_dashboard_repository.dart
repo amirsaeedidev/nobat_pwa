@@ -5,6 +5,7 @@ import '../models/appointment.dart';
 import '../models/dashboard_stats.dart';
 import '../models/enums.dart';
 import '../models/report_analytics.dart';
+import '../models/business_finance.dart';
 import 'appointment_repository.dart';
 import 'dashboard_repository.dart';
 
@@ -38,7 +39,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
   Future<List<Map<String, dynamic>>> _payments({DateTime? from, DateTime? to}) async {
     final tenant = _tenant();
     var request = _client.from('appointment_payments')
-        .select('amount_toman,payment_type,method,created_at')
+        .select('id,appointment_id,customer_id,amount_toman,payment_type,method,description,reverses_payment_id,idempotency_key,created_by,created_at')
         .eq('business_id', tenant);
     if (from != null) request = request.gte('created_at', from.toUtc().toIso8601String());
     if (to != null) request = request.lt('created_at', to.toUtc().toIso8601String());
@@ -196,7 +197,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
     final payments = await _payments(from: range.start, to: range.endExclusive);
     final tenant = _tenant();
     final expenseRows = await _client.from('business_expenses')
-        .select('amount_toman,category,created_at')
+        .select('id,amount_toman,category,description,source_document_id,status,created_by,created_at,expense_date,payment_method,idempotency_key,related_appointment_id,related_customer_id,reversed_at,reversed_by,reversal_reason')
         .eq('business_id', tenant)
         .eq('status', 'posted')
         .gte('created_at', range.start.toUtc().toIso8601String())
@@ -225,8 +226,35 @@ class SupabaseDashboardRepository implements DashboardRepository {
         .lt('created_at', range.endExclusive.toUtc().toIso8601String());
     final payrollCost = walletRows.fold<num>(0, (sum, row) =>
       sum + ((row['amount_toman'] as num?) ?? 0) * (row['direction'] == 'debit' ? -1 : 1));
-    final gross = appointments.where((item) => item.status == AppointmentStatus.completed)
-        .fold<num>(0, (sum, item) => sum + item.price);
+    final completedForRange = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
+    final gross = completedForRange.fold<num>(0, (sum, item) =>
+      sum + item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
+        serviceSum + ((snapshot['list_price'] as num?) ?? (snapshot['price'] as num?) ?? 0)));
+    final discountTotal = completedForRange.fold<num>(0, (sum, item) =>
+      sum + item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
+        serviceSum + ((snapshot['discount'] as num?) ?? 0)));
+    final allPaymentRows = completedForRange.isEmpty
+      ? <Map<String, dynamic>>[]
+      : (await _client.from('appointment_payments')
+          .select('appointment_id,amount_toman,payment_type')
+          .eq('business_id', tenant)
+          .inFilter('appointment_id', completedForRange.map((item) => item.id).toList()))
+          .map((row) => Map<String, dynamic>.from(row)).toList();
+    final paidByAppointment = <String, num>{};
+    for (final row in allPaymentRows) {
+      final amount = (row['amount_toman'] as num?) ?? 0;
+      paidByAppointment.update(
+        row['appointment_id'] as String,
+        (value) => value + (row['payment_type'] == 'refund' ? -amount : amount),
+        ifAbsent: () => row['payment_type'] == 'refund' ? -amount : amount,
+      );
+    }
+    final receivables = completedForRange.fold<num>(0, (sum, item) =>
+      sum + (item.price - (paidByAppointment[item.id] ?? 0)).clamp(0, double.infinity));
+    final paymentModels = payments.map((row) =>
+      AppointmentPayment.fromJson(Map<String, dynamic>.from(row))).toList(growable: false);
+    final expenseModels = expenses.map((row) =>
+      BusinessExpense.fromJson(Map<String, dynamic>.from(row))).toList(growable: false);
     final totalCost = expenseTotal + commissionCost + payrollCost;
     final statusCounts = <String, int>{
       for (final status in AppointmentStatus.values)
@@ -249,8 +277,9 @@ class SupabaseDashboardRepository implements DashboardRepository {
       range: range,
       revenue: _netPayments(payments),
       grossRevenue: gross,
+      discountTotal: discountTotal,
       collectedRevenue: _netPayments(payments),
-      receivables: (gross - _netPayments(payments)).clamp(0, double.infinity),
+      receivables: receivables,
       cost: totalCost,
       operatingExpense: expenseTotal,
       commissionCost: commissionCost,
@@ -269,6 +298,8 @@ class SupabaseDashboardRepository implements DashboardRepository {
       costNote: 'هزینه عملیاتی، پورسانت و حقوق فقط از اسناد مالی واقعی ثبت‌شده محاسبه شده‌اند.',
       paymentsByMethod: paymentsByMethod,
       expensesByCategory: expensesByCategory,
+      paymentTransactions: paymentModels,
+      businessExpenses: expenseModels,
       operationalAppointments: appointments,
       filter: filter,
       companyShare: companyShare,
