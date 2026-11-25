@@ -36,7 +36,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    final settings = context.read<SettingsProvider>();
+    final settings = Provider.of<SettingsProvider>(context);
     if (settings.settings == null) return;
     _prefilled = true;
     for (var day = 0; day < 7; day++) {
@@ -47,7 +47,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   }
 
   Future<void> _save() async {
-    final settingsProvider = context.read<SettingsProvider>();
+    final settingsProvider = Provider.of<SettingsProvider>(context);
     setState(() => _saving = true);
     try {
       final current = settingsProvider.settings;
