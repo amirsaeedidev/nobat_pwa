@@ -50,11 +50,23 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
     final settingsProvider = context.read<SettingsProvider>();
     setState(() => _saving = true);
     try {
-      await settingsProvider.updateWorkingHours(
-        Map<int, List<Shift>>.from(_schedules.map((k, v) => MapEntry(k, [...v]))),
-        holidays: _holidays,
+      final current = settingsProvider.settings;
+      if (current == null) {
+        throw StateError(settingsProvider.loadError ?? 'تنظیمات مجموعه بارگذاری نشده است.');
+      }
+      final hours = Map<int, List<Shift>>.from(
+        _schedules.map((day, shifts) => MapEntry(day, [...shifts])),
       );
-      await settingsProvider.updateScheduleExceptions(_exceptions);
+      await settingsProvider.saveBusiness(
+        current.copyWith(
+          workingHours: hours,
+          workSchedules: hours,
+          holidays: _holidays,
+          scheduleExceptions: List.unmodifiable(_exceptions),
+        ),
+        logTitle: 'تغییر ساعات کاری و تعطیلات',
+        logDescription: 'برنامه هفتگی و محدودیت‌های تاریخ‌دار به‌روزرسانی شد.',
+      );
       if (mounted) AppToast.show(context, 'ساعات کاری و تعطیلات در سرور ذخیره شد');
     } catch (error) {
       if (mounted) AppToast.show(context, 'ذخیره برنامه کاری ناموفق بود: $error');
