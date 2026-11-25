@@ -54,7 +54,6 @@ class ActivityLog {
     'service_update' => 'ویرایش خدمت',
     'service_delete' => 'حذف خدمت',
     'service_archive' => 'بایگانی خدمت',
-    'service_category_delete' => 'حذف دسته‌بندی خدمت',
     'appointment_create' => 'ثبت نوبت',
     'appointment_update' => 'ویرایش نوبت',
     'appointment_cancel' => 'لغو نوبت',
