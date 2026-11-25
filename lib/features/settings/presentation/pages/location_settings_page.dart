@@ -50,7 +50,7 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
   }
 
   Future<void> _save() async {
-    final provider = Provider.of<SettingsProvider>(context);
+    final provider = context.read<SettingsProvider>();
     final current = provider.settings;
     if (current == null) {
       AppToast.show(context, 'تنظیمات واقعی مجموعه از سرور بارگذاری نشده است.');
