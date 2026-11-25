@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
-import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
