@@ -66,20 +66,6 @@ class MockEmployeeRepository extends EmployeeRepository {
   }
 
   @override
-  Future<List<EmployeeWorkingHour>> fetchWorkingHours({String? employeeId}) async {
-    final employees = await fetchEmployees();
-    return employees
-        .where((employee) => employeeId == null || employee.id == employeeId)
-        .expand((employee) => employee.schedule.entries.expand((entry) =>
-            entry.value.map((shift) => EmployeeWorkingHour(
-                  employeeId: employee.id,
-                  weekday: entry.key,
-                  shift: shift,
-                ))))
-        .toList(growable: false);
-  }
-
-  @override
   Future<Employee?> findById(String id) async {
     if (!_db.canViewEmployee(id) || (!_db.hasPermission('employees.view_list') && !_db.hasPermission('employees.view_profile'))) return null;
     return _db.employeeById(id);
