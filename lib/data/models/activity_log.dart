@@ -98,6 +98,12 @@ class ActivityLog {
     'employee_schedule_update' => 'تغییر ساعات کاری',
     'employee_schedule_exception' => 'تغییر استثنای برنامه کاری',
     'employee_leave_update' => 'تغییر مرخصی پرسنل',
+    'business_insert' => 'ایجاد مجموعه',
+    'business_update' => 'تغییر مشخصات مجموعه',
+    'business_delete' => 'حذف مجموعه',
+    'financial_document_insert' => 'ثبت سند مالی',
+    'financial_document_update' => 'ویرایش سند مالی',
+    'financial_document_delete' => 'حذف سند مالی',
     _ => operationType ?? type.label,
   };
 
