@@ -32,7 +32,7 @@ class _BookingRulesPageState extends State<BookingRulesPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    final provider = context.read<SettingsProvider>();
+    final provider = Provider.of<SettingsProvider>(context);
     if (provider.settings == null) return;
     _prefilled = true;
     _rules = provider.rules;
