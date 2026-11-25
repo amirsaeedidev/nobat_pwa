@@ -307,10 +307,10 @@ class AppDatabase extends ChangeNotifier {
   void addBusinessExpense(BusinessExpense expense) {
     requirePermission('finance.payment.create');
     if (expense.amount <= 0 || expense.description.trim().isEmpty ||
-        expense.sourceDocumentId?.trim().isEmpty == true || expense.createdBy.trim().isEmpty) {
+        expense.sourceDocumentId.trim().isEmpty || expense.createdBy.trim().isEmpty) {
       throw ArgumentError('مبلغ، شرح، سند منبع و ثبت‌کننده هزینه الزامی است.');
     }
-    if (_businessExpenses.any((item) => item.id == expense.id || (expense.sourceDocumentId != null && item.sourceDocumentId == expense.sourceDocumentId))) {
+    if (_businessExpenses.any((item) => item.id == expense.id || item.sourceDocumentId == expense.sourceDocumentId)) {
       throw StateError('شناسه هزینه یا سند منبع تکراری است.');
     }
     _businessExpenses.add(expense);
