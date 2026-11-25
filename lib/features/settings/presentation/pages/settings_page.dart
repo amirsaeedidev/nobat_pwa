@@ -47,6 +47,14 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (settings.loading) const LinearProgressIndicator(),
+          if (settings.loadError != null)
+            AppCard(
+              child: Text(
+                'تنظیمات تجاری از Supabase دریافت نشد. هیچ داده محلی جایگزین نشده است.\n${settings.loadError}',
+                style: TextStyle(fontSize: 11, color: pal.danger, height: 1.7),
+              ),
+            ),
           AppCard(
             gradient: LinearGradient(
               colors: [pal.primary.withValues(alpha: 0.22), pal.surface],
