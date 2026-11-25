@@ -186,10 +186,38 @@ class _MonthOrDayView extends StatelessWidget {
 
   final CalendarProvider provider;
 
+  Future<void> _reschedule(
+    BuildContext context,
+    Appointment appointment,
+    DateTime newStart,
+  ) async {
+    try {
+      await provider.rescheduleAppointment(appointment, newStart);
+      if (context.mounted) AppToast.show(context, 'زمان نوبت با موفقیت تغییر کرد.');
+    } catch (error) {
+      if (context.mounted) AppToast.show(context, error.toString(), success: false);
+    }
+  }
+
+  Widget _timeline(BuildContext context, JalaliDate date) {
+    final slots = provider.slotsFor(date, employee: provider.employeeId);
+    return DayTimeline(
+      slots: slots,
+      onSlotTap: (slot) {
+        if (slot.appointment != null) {
+          context.push('/appointments/${slot.appointment!.id}');
+        } else {
+          context.push('/appointments/new');
+        }
+      },
+      onReschedule: (appointment, newStart) =>
+          _reschedule(context, appointment, newStart),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (provider.view == CalendarView.daily) {
-      final slots = provider.slotsFor(provider.selected, employee: provider.employeeId);
       return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,28 +227,35 @@ class _MonthOrDayView extends StatelessWidget {
               subtitle: provider.selected.long,
             ),
             const SizedBox(height: 12),
-            DayTimeline(
-              slots: slots,
-              onSlotTap: (slot) {
-                if (slot.appointment != null) {
-                  context.push('/appointments/${slot.appointment!.id}');
-                } else {
-                  context.push('/appointments/new');
-                }
-              },
-              onReschedule: (appointment, newStart) async {
-                try {
-                  await provider.rescheduleAppointment(appointment, newStart);
-                  if (context.mounted) AppToast.show(context, 'زمان نوبت با موفقیت تغییر کرد.');
-                } catch (error) {
-                  if (context.mounted) AppToast.show(context, error.toString(), success: false);
-                }
-              },
-            ),
+            _timeline(context, provider.selected),
           ],
         ),
       );
     }
+
+    if (provider.view == CalendarView.weekly) {
+      return Column(
+        children: [
+          for (final date in provider.weekDays) ...[
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SectionHeader(
+                    title: date.weekdayName,
+                    subtitle: date.long,
+                  ),
+                  const SizedBox(height: 10),
+                  _timeline(context, date),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      );
+    }
+
     return AppCard(
       child: JalaliMonthGrid(
         provider: provider,
