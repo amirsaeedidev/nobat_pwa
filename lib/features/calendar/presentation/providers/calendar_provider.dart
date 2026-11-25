@@ -1,11 +1,14 @@
 import 'dart:async';
-import '../../../../core/providers/db_bound_provider.dart';
+
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/utils/jalali.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
+import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/repositories/appointment_repository.dart';
 import '../../../../data/repositories/employee_repository.dart';
@@ -14,24 +17,29 @@ import '../../../../data/repositories/service_repository.dart';
 /// حالت نمایش تقویم.
 enum CalendarView { daily, weekly, monthly }
 
-/// مدیریت تقویم شمسی (روز/هفته/ماه)، فیلترها و خانه‌های زمانی.
-class CalendarProvider extends DbBoundProvider {
+/// تقویم کاملاً متصل به Repositoryهای Supabase؛ هیچ وابستگی به AppDatabase ندارد.
+class CalendarProvider extends ChangeNotifier {
   CalendarProvider(
     this._appointments,
     this._employees,
-    this._services,
-    AppDatabase db, {
-    SupabaseAuthStateNotifier? authStateNotifier,
-  }) : super(db, authStateNotifier: authStateNotifier) {
+    this._services, {
+    this.authStateNotifier,
+  }) {
     _today = JalaliDate.today();
     _anchor = _today;
     _selected = _today;
-    load();
+    authStateNotifier?.addListener(_handleAuthChange);
+    if (authStateNotifier == null || authStateNotifier!.hasActiveBusiness) {
+      unawaited(load());
+    } else {
+      _loading = false;
+    }
   }
 
   final AppointmentRepository _appointments;
   final EmployeeRepository _employees;
   final ServiceRepository _services;
+  final SupabaseAuthStateNotifier? authStateNotifier;
 
   late JalaliDate _today;
   late JalaliDate _anchor;
@@ -40,10 +48,16 @@ class CalendarProvider extends DbBoundProvider {
   String? _employeeId;
   String? _serviceId;
   bool _loading = true;
+  String? _error;
   List<Appointment> _rangeAppointments = const [];
   List<Employee> _employeeList = const [];
   List<Service> _serviceList = const [];
+  List<EmployeeWorkingHour> _workingHours = const [];
+  List<BusinessHoliday> _businessHolidays = const [];
+  List<EmployeeScheduleException> _scheduleExceptions = const [];
+  List<EmployeeLeave> _leaves = const [];
   int _loadGeneration = 0;
+  bool _disposed = false;
 
   JalaliDate get today => _today;
   JalaliDate get anchor => _anchor;
@@ -52,36 +66,76 @@ class CalendarProvider extends DbBoundProvider {
   String? get employeeId => _employeeId;
   String? get serviceId => _serviceId;
   bool get loading => _loading;
-  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => employee.serviceIds.contains(_serviceId)).toList();
+  String? get error => _error;
+  List<Employee> get employees => _serviceId == null
+      ? _employeeList
+      : _employeeList.where((employee) => employee.serviceIds.contains(_serviceId)).toList(growable: false);
   List<Service> get services => _serviceList;
   List<Appointment> get appointments => _rangeAppointments;
+  List<EmployeeScheduleException> get scheduleExceptions => _scheduleExceptions;
+  List<EmployeeLeave> get leaves => _leaves;
+  List<BusinessHoliday> get businessHolidays => _businessHolidays;
+
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _handleAuthChange() {
+    if (_disposed) return;
+    if (authStateNotifier?.hasActiveBusiness == true) {
+      unawaited(load());
+    } else {
+      _loadGeneration++;
+      _clearData();
+      _loading = false;
+      _error = 'عضویت فعال مجموعه تأیید نشده است.';
+      _safeNotify();
+    }
+  }
+
+  void _clearData() {
+    _rangeAppointments = const [];
+    _employeeList = const [];
+    _serviceList = const [];
+    _workingHours = const [];
+    _businessHolidays = const [];
+    _scheduleExceptions = const [];
+    _leaves = const [];
+  }
 
   void setView(CalendarView view) {
+    if (_view == view) return;
     _view = view;
-    notifyListeners();
+    unawaited(load());
   }
 
   void setSelected(JalaliDate date) {
     _selected = date;
     _anchor = date;
-    notifyListeners();
+    unawaited(load());
   }
 
   void selectToday() {
     _today = JalaliDate.today();
     _selected = _today;
     _anchor = _today;
-    notifyListeners();
+    unawaited(load());
   }
 
   void setEmployee(String? id) {
+    if (_employeeId == id) return;
     _employeeId = id;
-    load();
+    unawaited(load());
   }
 
   void setService(String? id) {
+    if (_serviceId == id) return;
     _serviceId = id;
-    load();
+    if (_employeeId != null && !_employeeList.any((employee) =>
+        employee.id == _employeeId && (id == null || employee.serviceIds.contains(id)))) {
+      _employeeId = null;
+    }
+    unawaited(load());
   }
 
   void next() {
@@ -91,10 +145,12 @@ class CalendarProvider extends DbBoundProvider {
         _selected = _anchor;
       case CalendarView.weekly:
         _anchor = _anchor.addDays(7);
+        _selected = _anchor;
       case CalendarView.monthly:
         _anchor = _anchor.addMonths(1);
+        _selected = JalaliDate(_anchor.year, _anchor.month, 1);
     }
-    notifyListeners();
+    unawaited(load());
   }
 
   void previous() {
@@ -104,63 +160,120 @@ class CalendarProvider extends DbBoundProvider {
         _selected = _anchor;
       case CalendarView.weekly:
         _anchor = _anchor.addDays(-7);
+        _selected = _anchor;
       case CalendarView.monthly:
         _anchor = _anchor.addMonths(-1);
+        _selected = JalaliDate(_anchor.year, _anchor.month, 1);
     }
-    notifyListeners();
+    unawaited(load());
+  }
+
+  (JalaliDate, JalaliDate) get _visibleRange {
+    switch (_view) {
+      case CalendarView.daily:
+        return (_selected, _selected);
+      case CalendarView.weekly:
+        final days = weekDays;
+        return (days.first, days.last);
+      case CalendarView.monthly:
+        return (
+          JalaliDate(_anchor.year, _anchor.month, 1),
+          JalaliDate(_anchor.year, _anchor.month, _anchor.monthLength),
+        );
+    }
+  }
+
+  Future<List<Appointment>> _loadAppointments(JalaliDate from, JalaliDate to) async {
+    final result = <Appointment>[];
+    var page = 1;
+    const pageSize = 100;
+    var total = 0;
+    do {
+      final pageResult = await _appointments.fetchAppointments(
+        filter: AppointmentFilter(
+          employeeId: _employeeId,
+          serviceId: _serviceId,
+          fromDate: from,
+          toDate: to,
+        ),
+        page: page,
+        pageSize: pageSize,
+        ascending: true,
+      );
+      result.addAll(pageResult.items);
+      total = pageResult.total;
+      if (pageResult.items.isEmpty) break;
+      page++;
+    } while (result.length < total);
+    return result;
   }
 
   Future<void> load() async {
     final generation = ++_loadGeneration;
+    final auth = authStateNotifier;
+    if (auth != null && !auth.hasActiveBusiness) {
+      _clearData();
+      _loading = false;
+      _error = 'برای مشاهده تقویم، اتصال و عضویت فعال مجموعه لازم است.';
+      _safeNotify();
+      return;
+    }
+
+    final range = _visibleRange;
+    final from = range.$1.toDateTime();
+    final to = range.$2.toDateTime();
     _loading = true;
-    notifyListeners();
+    _error = null;
+    _safeNotify();
+
     try {
-      final employees = await _employees.fetchEmployees();
-      final services = await _services.fetchServices();
-      final appointments = await _appointments.fetchAll();
-      if (generation != _loadGeneration) return;
+      final results = await Future.wait<dynamic>([
+        _employees.fetchEmployees(onlyActive: true, serviceId: _serviceId),
+        _services.fetchServices(onlyActive: true),
+        _loadAppointments(range.$1, range.$2),
+        _employees.fetchWorkingHours(employeeId: _employeeId),
+        _employees.fetchBusinessHolidays(from: from, to: to),
+      ]);
+      if (generation != _loadGeneration || _disposed) return;
+
+      final employees = results[0] as List<Employee>;
+      final employeeIds = employees.map((employee) => employee.id).toList(growable: false);
+      final exceptionAndLeaveResults = await Future.wait(
+        employeeIds.map((id) async {
+          final values = await Future.wait<dynamic>([
+            _employees.fetchScheduleExceptions(employeeId: id, from: from, to: to),
+            _employees.fetchLeaves(id),
+          ]);
+          return (
+            exceptions: values[0] as List<EmployeeScheduleException>,
+            leaves: values[1] as List<EmployeeLeave>,
+          );
+        }),
+      );
+      if (generation != _loadGeneration || _disposed) return;
+
       _employeeList = employees;
-      _serviceList = services;
-      _rangeAppointments = appointments;
-    } catch (_) {
-      if (generation != _loadGeneration) return;
-      _employeeList = const [];
-      _serviceList = const [];
-      _rangeAppointments = const [];
+      _serviceList = results[1] as List<Service>;
+      _rangeAppointments = results[2] as List<Appointment>;
+      _workingHours = results[3] as List<EmployeeWorkingHour>;
+      _businessHolidays = results[4] as List<BusinessHoliday>;
+      _scheduleExceptions = exceptionAndLeaveResults
+          .expand((result) => result.exceptions)
+          .toList(growable: false);
+      _leaves = exceptionAndLeaveResults
+          .expand((result) => result.leaves)
+          .toList(growable: false);
+      _error = null;
+    } catch (error) {
+      if (generation != _loadGeneration || _disposed) return;
+      _clearData();
+      _error = 'دریافت اطلاعات تقویم از سرور ناموفق بود: $error';
     } finally {
-      if (generation == _loadGeneration) {
+      if (generation == _loadGeneration && !_disposed) {
         _loading = false;
-        notifyListeners();
+        _safeNotify();
       }
     }
-  }
-
-  @override
-  void onAuthenticatedTenantChanged() => unawaited(load());
-
-  @override
-  void onTenantContextCleared() {
-    _loadGeneration++;
-    _rangeAppointments = const [];
-    _employeeList = const [];
-    _serviceList = const [];
-    _loading = false;
-  }
-
-  @override
-  void onDatabaseChanged() {
-    unawaited(load());
-  }
-
-  /// همه نوبت‌های یک روز (با اعمال فیلترها).
-  List<Appointment> appointmentsOn(JalaliDate date) {
-    return _rangeAppointments.where((a) {
-      if (!a.jalali.sameDay(date)) return false;
-      if (_employeeId != null && a.employeeId != _employeeId) return false;
-      if (_serviceId != null && !a.serviceIds.contains(_serviceId)) return false;
-      return true;
-    }).toList()
-      ..sort((a, b) => a.startAt.compareTo(b.startAt));
   }
 
   /// روزهای هفته جاری (شنبه تا جمعه) برای نمای هفتگی.
@@ -169,7 +282,7 @@ class CalendarProvider extends DbBoundProvider {
     return [for (var i = 0; i < 7; i++) start.addDays(i)];
   }
 
-  /// جدول ماه شمسی: ۴۲ خانه (۶ هفته) با خانه‌های ماه قبل/بعد.
+  /// جدول ماه شمسی: ۴۲ خانه با خانه‌های ماه قبل/بعد.
   List<CalendarCell> monthGrid(JalaliDate month) {
     final first = JalaliDate(month.year, month.month, 1);
     final leading = first.weekday;
@@ -183,94 +296,241 @@ class CalendarProvider extends DbBoundProvider {
         isCurrentMonth: false,
       ));
     }
-    for (var d = 1; d <= daysInMonth; d++) {
-      cells.add(CalendarCell(date: JalaliDate(first.year, first.month, d), isCurrentMonth: true));
+    for (var day = 1; day <= daysInMonth; day++) {
+      cells.add(CalendarCell(date: JalaliDate(first.year, first.month, day), isCurrentMonth: true));
     }
-    var next = JalaliDate(month.year, month.month, 1).addMonths(1);
-    var i = 1;
+    final next = JalaliDate(month.year, month.month, 1).addMonths(1);
+    var day = 1;
     while (cells.length < 42) {
-      cells.add(CalendarCell(date: JalaliDate(next.year, next.month, i), isCurrentMonth: false));
-      i++;
+      cells.add(CalendarCell(date: JalaliDate(next.year, next.month, day), isCurrentMonth: false));
+      day++;
     }
     return cells;
   }
 
-  /// خانه‌های زمانی یک روز بر اساس ساعات کاری و نوبت‌های ثبت‌شده.
-  List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
-    final stepMinutes = intervalMinutes ?? 15;
-    if (stepMinutes <= 0) throw ArgumentError.value(stepMinutes, 'intervalMinutes');
-    final dayAppointments = appointmentsOn(date)
-        .where((a) => employee == null || a.employeeId == employee)
-        .toList();
-    final selectedEmployees = _employeeList.where(
-      (item) => employee == null || item.id == employee,
-    );
-    final shifts = selectedEmployees
-        .expand((item) => item.shiftsFor(date.weekday))
-        .toList()
-      ..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
-    final slots = <TimeSlot>[];
-    final seen = <int>{};
-    for (final shift in shifts) {
-      for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
-        if (!seen.add(minutes)) continue;
-        final hour = minutes ~/ 60;
-        final minute = minutes % 60;
-        final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
-        final busy = dayAppointments.where((a) =>
-          !start.isBefore(a.startAt) && start.isBefore(a.endAt)).toList();
-        slots.add(TimeSlot(
-          hour: hour,
-          minute: minute,
-          appointment: busy.isEmpty ? null : busy.first,
-          isPast: date.sameDay(today) && DateTime.now().isAfter(start),
-        ));
-      }
+  String _dateKey(DateTime date) => EmployeeScheduleRules.dateKey(date);
+
+  BusinessHoliday? holidayFor(JalaliDate date) {
+    final key = _dateKey(date.toDateTime());
+    for (final holiday in _businessHolidays) {
+      if (holiday.dateKey == key) return holiday;
     }
-    return slots;
+    return null;
   }
 
-  /// Date-specific exceptions are loaded separately from the employee
-  /// schedule repository; until loaded, no synthetic exception is shown.
-  ScheduleException? exceptionFor(JalaliDate date) => null;
+  EmployeeScheduleException? employeeExceptionFor(JalaliDate date, String employeeId) {
+    final key = _dateKey(date.toDateTime());
+    for (final exception in _scheduleExceptions) {
+      if (exception.employeeId == employeeId && exception.dateKey == key) return exception;
+    }
+    return null;
+  }
+
+  ScheduleException? exceptionFor(JalaliDate date, {String? employeeId}) {
+    final key = _dateKey(date.toDateTime());
+    if (employeeId != null) {
+      final item = employeeExceptionFor(date, employeeId);
+      if (item == null) return null;
+      return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
+    }
+    final item = _scheduleExceptions.where((value) => value.dateKey == key).firstOrNull;
+    if (item == null) return null;
+    return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
+  }
+
+  List<Shift> shiftsFor(Employee employee, JalaliDate date) {
+    if (!employee.scheduleEnabled || holidayFor(date) != null) return const [];
+    final exception = employeeExceptionFor(date, employee.id);
+    if (exception != null) return exception.isClosed ? const [] : exception.shifts;
+    return _workingHours
+        .where((hour) => hour.employeeId == employee.id &&
+            hour.weekday == date.weekday &&
+            hour.isEffectiveOn(date.toDateTime()))
+        .map((hour) => hour.shift)
+        .toList(growable: false);
+  }
+
+  bool _onApprovedLeave(String employeeId, DateTime start, DateTime end) =>
+      _leaves.any((leave) => leave.employeeId == employeeId && leave.overlaps(start, end));
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
-    if (employeeId != null) {
-      for (final employee in _employeeList) {
-        if (employee.id == employeeId) return employee.shiftsFor(date.weekday).isEmpty;
-      }
+    if (holidayFor(date) != null) return true;
+    final candidates = _employeeList.where((item) => employeeId == null || item.id == employeeId);
+    if (candidates.isEmpty) return true;
+    return !candidates.any((employee) {
+      final shifts = shiftsFor(employee, date);
+      if (shifts.isEmpty) return false;
+      final dayStart = date.toDateTime();
+      final dayEnd = dayStart.add(const Duration(days: 1));
+      return !_onApprovedLeave(employee.id, dayStart, dayEnd);
+    });
+  }
+
+  List<Appointment> appointmentsOn(JalaliDate date) {
+    return _rangeAppointments.where((appointment) {
+      if (!appointment.jalali.sameDay(date)) return false;
+      if (_employeeId != null && appointment.employeeId != _employeeId) return false;
+      if (_serviceId != null && !appointment.serviceIds.contains(_serviceId)) return false;
       return true;
+    }).toList()
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
+  }
+
+  /// خانه‌های زمانی با ظرفیت واقعی پرسنل، شیفت‌های معتبر، مرخصی و نوبت‌های فعال.
+  List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
+    final step = intervalMinutes ?? 15;
+    if (step <= 0) throw ArgumentError.value(step, 'intervalMinutes');
+    if (holidayFor(date) != null) return const [];
+
+    final candidates = _employeeList.where((item) =>
+        (employee == null || item.id == employee) &&
+        (_employeeId == null || item.id == _employeeId) &&
+        (_serviceId == null || item.serviceIds.contains(_serviceId)));
+    final workingByMinute = <int, Set<String>>{};
+    for (final person in candidates) {
+      for (final shift in shiftsFor(person, date)) {
+        for (var minute = shift.startMinutes; minute < shift.endMinutes; minute += step) {
+          final start = date.toDateTime().add(Duration(minutes: minute));
+          final end = start.add(Duration(minutes: step));
+          final effectiveHours = _workingHours.where((hour) =>
+              hour.employeeId == person.id &&
+              hour.weekday == date.weekday &&
+              hour.isEffectiveOn(date.toDateTime()) &&
+              hour.shift.startMinutes <= minute &&
+              hour.shift.endMinutes >= minute + step);
+          final exception = employeeExceptionFor(date, person.id);
+          final isExceptionSlot = exception != null &&
+              !exception.isClosed &&
+              exception.shifts.any((item) => item.startMinutes <= minute && item.endMinutes >= minute + step);
+          final isWeeklySlot = effectiveHours.isNotEmpty;
+          final hasBreak = _workingHours.any((hour) =>
+              hour.employeeId == person.id &&
+              hour.weekday == date.weekday &&
+              hour.isEffectiveOn(date.toDateTime()) &&
+              hour.breakStart != null &&
+              hour.breakEnd != null &&
+              _timeMinutes(hour.breakStart!) < minute + step &&
+              _timeMinutes(hour.breakEnd!) > minute);
+          if ((!isExceptionSlot && !isWeeklySlot) || hasBreak || _onApprovedLeave(person.id, start, end)) {
+            continue;
+          }
+          workingByMinute.putIfAbsent(minute, () => <String>{}).add(person.id);
+        }
+      }
     }
-    return !_employeeList.any((item) => item.shiftsFor(date.weekday).isNotEmpty);
+
+    final activeAppointments = appointmentsOn(date).where((item) => item.status.isActive).toList();
+    final result = <TimeSlot>[];
+    final minutes = workingByMinute.keys.toList()..sort();
+    for (final minute in minutes) {
+      final start = date.toDateTime().add(Duration(minutes: minute));
+      final end = start.add(Duration(minutes: step));
+      final working = workingByMinute[minute]!;
+      final busyEmployees = activeAppointments
+          .where((item) => item.startAt.isBefore(end) && start.isBefore(item.endAt))
+          .map((item) => item.employeeId)
+          .toSet();
+      final slotAppointments = activeAppointments.where((item) {
+        final appointmentMinute = item.startAt.hour * 60 + item.startAt.minute;
+        return appointmentMinute >= minute && appointmentMinute < minute + step;
+      }).toList(growable: false);
+      result.add(TimeSlot(
+        date: date,
+        hour: minute ~/ 60,
+        minute: minute % 60,
+        appointments: slotAppointments,
+        capacity: working.length,
+        availableCapacity: working.where((id) => !busyEmployees.contains(id)).length,
+        isPast: date.sameDay(today) && DateTime.now().isAfter(start),
+      ));
+    }
+    return result;
+  }
+
+  static int _timeMinutes(String value) {
+    final parts = value.split(':');
+    return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+  }
+
+  /// جابه‌جایی تقویمی؛ کنترل محلی برای UX و کنترل نهایی با RPC دیتابیس.
+  Future<void> rescheduleAppointment(Appointment appointment, DateTime newStart) async {
+    final employee = _employeeList.where((item) => item.id == appointment.employeeId).firstOrNull;
+    if (employee == null) throw StateError('پرسنل نوبت در اطلاعات واقعی تقویم پیدا نشد.');
+    final start = newStart;
+    final end = start.add(Duration(minutes: appointment.durationMinutes));
+    final jalali = JalaliDate.fromDateTime(start);
+    if (holidayFor(jalali) != null) throw StateError('این تاریخ تعطیل مجموعه است.');
+    final exception = employeeExceptionFor(jalali, employee.id);
+    final shiftCovers = exception != null
+        ? (!exception.isClosed && exception.shifts.any((shift) =>
+            shift.startMinutes <= start.hour * 60 + start.minute &&
+            shift.endMinutes >= end.hour * 60 + end.minute))
+        : _workingHours.any((hour) =>
+            hour.employeeId == employee.id &&
+            hour.weekday == jalali.weekday &&
+            hour.isEffectiveOn(start) &&
+            hour.covers(start, end));
+    if (!employee.scheduleEnabled || !shiftCovers) {
+      throw StateError('زمان انتخاب‌شده خارج از ساعات کاری واقعی پرسنل است.');
+    }
+    if (_onApprovedLeave(employee.id, start, end)) {
+      throw StateError('پرسنل در زمان انتخاب‌شده مرخصی تأییدشده دارد.');
+    }
+    final conflict = _rangeAppointments.any((other) =>
+        other.id != appointment.id &&
+        other.employeeId == employee.id &&
+        other.status.isActive &&
+        other.startAt.isBefore(end) &&
+        start.isBefore(other.endAt));
+    if (conflict) throw StateError('این بازه با نوبت دیگری تداخل دارد.');
+    await _appointments.reschedule(appointment, newStart);
+    await load();
   }
 
   int get monthlyAppointmentsCount => _rangeAppointments
-      .where((a) => a.jalali.month == _anchor.month && a.jalali.year == _anchor.year)
+      .where((appointment) =>
+          appointment.jalali.month == _anchor.month &&
+          appointment.jalali.year == _anchor.year)
       .length;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    authStateNotifier?.removeListener(_handleAuthChange);
+    _loadGeneration++;
+    super.dispose();
+  }
 }
 
 /// یک خانه از جدول ماه.
 class CalendarCell {
   const CalendarCell({required this.date, required this.isCurrentMonth});
-
   final JalaliDate date;
   final bool isCurrentMonth;
 }
 
-/// یک خانه زمانی در نمای روزانه.
+/// یک خانه زمانی تقویم با ظرفیت و فهرست نوبت‌های واقعی.
 class TimeSlot {
   const TimeSlot({
+    required this.date,
     required this.hour,
     required this.minute,
-    this.appointment,
+    this.appointments = const [],
+    this.capacity = 0,
+    this.availableCapacity = 0,
     this.isPast = false,
   });
 
+  final JalaliDate date;
   final int hour;
   final int minute;
-  final Appointment? appointment;
+  final List<Appointment> appointments;
+  final int capacity;
+  final int availableCapacity;
   final bool isPast;
 
-  bool get isBooked => appointment != null;
+  Appointment? get appointment => appointments.isEmpty ? null : appointments.first;
+  bool get isBooked => appointments.isNotEmpty;
   String get label => '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  DateTime get startAt => date.toDateTime().add(Duration(hours: hour, minutes: minute));
 }
