@@ -307,14 +307,14 @@ class AppDatabase extends ChangeNotifier {
   void addBusinessExpense(BusinessExpense expense) {
     requirePermission('finance.payment.create');
     if (expense.amount <= 0 || expense.description.trim().isEmpty ||
-        expense.sourceDocumentId.trim().isEmpty || expense.createdBy.trim().isEmpty) {
+        expense.sourceDocumentId?.trim().isEmpty == true || expense.createdBy.trim().isEmpty) {
       throw ArgumentError('مبلغ، شرح، سند منبع و ثبت‌کننده هزینه الزامی است.');
     }
-    if (_businessExpenses.any((item) => item.id == expense.id || item.sourceDocumentId == expense.sourceDocumentId)) {
+    if (_businessExpenses.any((item) => item.id == expense.id || (expense.sourceDocumentId != null && item.sourceDocumentId == expense.sourceDocumentId))) {
       throw StateError('شناسه هزینه یا سند منبع تکراری است.');
     }
     _businessExpenses.add(expense);
-    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} با سند ${expense.sourceDocumentId} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
+    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label}${expense.sourceDocumentId == null ? '' : ' با مرجع ${expense.sourceDocumentId}'} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
     _commit();
   }
 
