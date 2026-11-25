@@ -46,7 +46,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    final settings = context.read<SettingsProvider>().settings;
+    final settings = Provider.of<SettingsProvider>(context).settings;
     if (settings == null) return;
     _prefilled = true;
     _name.text = settings.name;
