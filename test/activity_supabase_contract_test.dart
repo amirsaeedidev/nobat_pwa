@@ -8,6 +8,9 @@ import 'package:datetime/features/activity_logs/presentation/providers/activity_
 
 class _FailingActivityRepository implements ActivityRepository {
   @override
+  Stream<void>? get authChanges => null;
+
+  @override
   Future<List<ActivityLog>> fetchLogs({
     ActivityType? type,
     String query = '',
