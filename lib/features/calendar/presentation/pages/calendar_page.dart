@@ -216,6 +216,16 @@ class _MonthOrDayView extends StatelessWidget {
     Appointment appointment,
     DateTime newStart,
   ) async {
+    final date = JalaliDate.fromDateTime(newStart);
+    final time = '${newStart.hour.toString().padLeft(2, '0')}:${newStart.minute.toString().padLeft(2, '0')}';
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'تأیید جابه‌جایی نوبت',
+      message: 'نوبت ${appointment.customerName} به ${date.long} ساعت ${FaNum.convert(time)} منتقل شود؟',
+      confirmLabel: 'تغییر زمان',
+      icon: Icons.event_repeat_rounded,
+    );
+    if (!confirmed || !context.mounted) return;
     try {
       await provider.rescheduleAppointment(appointment, newStart);
       if (context.mounted) AppToast.show(context, 'زمان نوبت با موفقیت تغییر کرد.');
