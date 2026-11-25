@@ -53,8 +53,8 @@ class _ReportsPhaseFivePanelState extends State<ReportsPhaseFivePanel> {
 
   Future<void> _loadStore() async {
     try {
-      final saved = await _store.loadViews();
       final auth = context.read<SupabaseAuthStateNotifier>();
+      final saved = await _store.loadViews();
       final history = await _store.loadHistory(
         accountId: auth.userId ?? '',
         canViewSalary: _hasPermission(auth, 'finance.salary.view'),
