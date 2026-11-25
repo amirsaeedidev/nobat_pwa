@@ -85,6 +85,58 @@ class SupabaseEmployeeWalletRepository {
     }).toList();
   }
 
+  Future<String> fetchEmployeeName(String employeeId) async {
+    _userId();
+    final row = await _client.from('employees').select('full_name')
+        .eq('business_id', businessId).eq('id', employeeId).maybeSingle();
+    if (row == null) throw StateError('پرسنل در مجموعه فعلی پیدا نشد.');
+    return row['full_name'] as String? ?? 'پرسنل';
+  }
+
+  Future<List<Map<String, dynamic>>> fetchServices() async {
+    _userId();
+    final rows = await _client.from('services').select('id,title,category')
+        .eq('business_id', businessId).eq('is_active', true)
+        .order('sort_order', ascending: true);
+    return rows.map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  Future<List<EmployeeFinanceEntry>> fetchFinanceEntries(String employeeId, {DateTime? from, DateTime? to}) async {
+    _userId();
+    var query = _client.from('employee_finance_entries').select('*')
+        .eq('business_id', businessId).eq('employee_id', employeeId);
+    if (from != null) query = query.gte('created_at', from.toUtc().toIso8601String());
+    if (to != null) query = query.lte('created_at', to.toUtc().toIso8601String());
+    final rows = await query.order('created_at', ascending: false);
+    return rows.map((raw) {
+      final row = Map<String, dynamic>.from(raw);
+      return EmployeeFinanceEntry(
+        id: row['id'] as String,
+        employeeId: row['employee_id'] as String,
+        appointmentId: row['appointment_id'] as String? ?? '',
+        serviceId: row['service_id'] as String? ?? '',
+        createdAt: DateTime.parse(row['created_at'] as String),
+        type: switch (row['entry_type']) {
+          'refund' => FinanceEntryType.refund,
+          'correction' => FinanceEntryType.correction,
+          'salary' => FinanceEntryType.salary,
+          _ => FinanceEntryType.commission,
+        },
+        methodSnapshot: row['method_snapshot'] as String? ?? '',
+        basisSnapshot: row['basis_snapshot'] as String? ?? '',
+        grossAmount: (row['gross_amount_toman'] as num?)?.toInt() ?? 0,
+        discountAmount: (row['discount_amount_toman'] as num?)?.toInt() ?? 0,
+        receivedAmount: (row['received_amount_toman'] as num?)?.toInt() ?? 0,
+        calculationBase: (row['calculation_base_toman'] as num?)?.toInt() ?? 0,
+        rateBps: (row['rate_bps'] as num?)?.toInt() ?? 0,
+        fixedAmount: (row['fixed_amount_toman'] as num?)?.toInt() ?? 0,
+        commissionAmount: (row['commission_amount_toman'] as num?)?.toInt() ?? 0,
+        companyShare: (row['company_share_toman'] as num?)?.toInt() ?? 0,
+        reversesEntryId: row['reverses_entry_id'] as String?,
+      );
+    }).toList();
+  }
+
   Future<EmployeePayProfile?> fetchPayProfile(String employeeId) async {
     _userId();
     final row = await _client
