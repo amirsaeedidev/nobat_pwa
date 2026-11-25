@@ -37,8 +37,8 @@ import '../widgets/revenue_chart.dart';
 import '../widgets/operational_reports_sections.dart';
 import '../widgets/reports_phase_five_panel.dart';
 
-bool _hasFinancePermission(SupabaseAuthStateNotifier auth, String permission) =>
-    auth.hasActiveBusiness && (auth.role == 'owner' || auth.permissions[permission] == true);
+bool _hasFinancePermission(SupabaseAuthStateNotifier? auth, String permission) =>
+    auth != null && auth.hasActiveBusiness && (auth.role == 'owner' || auth.permissions[permission] == true);
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -55,12 +55,12 @@ class ReportsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<ReportsProvider>();
     final pal = context.pal;
-    final auth = context.watch<SupabaseAuthStateNotifier>();
-    final employeesProvider = context.watch<EmployeesProvider>();
-    final servicesProvider = context.watch<ServicesProvider>();
-    final customersProvider = context.watch<CustomersProvider>();
-    final financeRepository = context.read<BusinessFinanceRepository>();
-    final appointmentRepository = context.read<AppointmentRepository>();
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    final employeesProvider = context.watch<EmployeesProvider?>();
+    final servicesProvider = context.watch<ServicesProvider?>();
+    final customersProvider = context.watch<CustomersProvider?>();
+    final financeRepository = context.read<BusinessFinanceRepository?>();
+    final appointmentRepository = context.read<AppointmentRepository?>();
     final dayIso = GoRouterState.of(context).uri.queryParameters['date'];
     final selectedDay = dayIso == null ? null : JalaliDate.parseIso(dayIso);
     final canViewAll = _hasFinancePermission(auth, 'appointments.view_all');
@@ -68,8 +68,8 @@ class ReportsPage extends StatelessWidget {
     final visibleAppointments = canViewOperations
       ? provider.analytics.operationalAppointments
       : <Appointment>[];
-    final availableEmployees = employeesProvider.items;
-    final availableServices = servicesProvider.items;
+    final availableEmployees = employeesProvider?.items ?? const <Employee>[];
+    final availableServices = servicesProvider?.items ?? const <Service>[];
     final visibleCustomerIds = visibleAppointments.map((item) => item.customerId).toSet();
     final availableCategories = <String>{
       if (canViewOperations) ...availableServices.map((service) => service.category),
@@ -77,10 +77,10 @@ class ReportsPage extends StatelessWidget {
         .map((snapshot) => snapshot['category']).whereType<String>()),
     }.toList()..sort();
     final availableCustomers = !canViewOperations || !_hasFinancePermission(auth, 'customers.view')
-      ? customersProvider.items.where((_) => false).toList()
+      ? (customersProvider?.items ?? const <Customer>[]).where((_) => false).toList()
       : canViewAll
-        ? customersProvider.items
-        : customersProvider.items.where((item) => visibleCustomerIds.contains(item.id)).toList();
+        ? (customersProvider?.items ?? const <Customer>[])
+        : (customersProvider?.items ?? const <Customer>[]).where((item) => visibleCustomerIds.contains(item.id)).toList();
     final dayAppointments = selectedDay == null ? const <Appointment>[] :
       visibleAppointments.where((item) => item.jalali.sameDay(selectedDay) && provider.filter.matches(item)).toList();
     final dayCompleted = dayAppointments.where((item) => item.status == AppointmentStatus.completed);
@@ -106,17 +106,17 @@ class ReportsPage extends StatelessWidget {
       subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
       leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
-        if (_hasFinancePermission(auth, 'finance.manage') && canViewOperations && _hasFinancePermission(auth, 'customers.view'))
-          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(repository: financeRepository, appointmentsRepository: appointmentRepository))),
-        if (_hasFinancePermission(auth, 'finance.manage'))
-          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(repository: financeRepository))),
-        if (_hasFinancePermission(auth, 'finance.view') || _hasFinancePermission(auth, 'finance.manage'))
+        if (financeRepository != null && appointmentRepository != null && _hasFinancePermission(auth, 'finance.manage') && canViewOperations && _hasFinancePermission(auth, 'customers.view'))
+          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(repository: financeRepository!, appointmentsRepository: appointmentRepository!))),
+        if (financeRepository != null && _hasFinancePermission(auth, 'finance.manage'))
+          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(repository: financeRepository!))),
+        if (financeRepository != null && (_hasFinancePermission(auth, 'finance.view') || _hasFinancePermission(auth, 'finance.manage')))
           SoftButton(label: 'اسناد مالی', onTap: () => showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
             backgroundColor: context.pal.surface,
             builder: (_) => _FinanceDocumentsSheet(
-              repository: financeRepository,
+              repository: financeRepository!,
               appointments: visibleAppointments,
               customers: availableCustomers,
               canManage: _hasFinancePermission(auth, 'finance.manage'),
@@ -357,7 +357,7 @@ class ReportsPage extends StatelessWidget {
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
                           for (final item in provider.analytics.services) '${item.name} · ${item.count} نوبت · ${Fmt.compactMoney(item.revenue)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
-                        GestureDetector(onTap: () => _showPaymentSheet(context, provider, auth), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
+                        GestureDetector(onTap: () => _showPaymentSheet(context, provider, auth!), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
                           for (final item in provider.analytics.partialPayments) 'پرداخت ناقص: ${item.description} · ${Fmt.compactMoney(item.signedAmount)}',
@@ -392,14 +392,14 @@ class ReportsPage extends StatelessWidget {
                             final legend = Column(children: [
                               for (final item in methodEntries)
                                 InkWell(
-                                  onTap: () => _showPaymentSheet(context, provider, auth, method: item.key),
+                                  onTap: () => _showPaymentSheet(context, provider, auth!, method: item.key),
                                   child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
                                     Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
                                     Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
                                   ])),
                                 ),
                             ]);
-                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, provider, auth, method: method));
+                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, provider, auth!, method: method));
                             if (inner.maxWidth < 340) return Column(children: [Center(child: donut), const SizedBox(height: 8), legend]);
                             return Row(children: [donut, const SizedBox(width: 12), Expanded(child: legend)]);
                           }),
@@ -409,7 +409,7 @@ class ReportsPage extends StatelessWidget {
                           const SizedBox(height: 8),
                           for (final item in provider.analytics.expensesByCategory.entries.where((item) => item.value != 0))
                             InkWell(
-                              onTap: () => _showBusinessExpensesSheet(context, financeRepository, provider, item.key),
+                              onTap: () => _showBusinessExpensesSheet(context, financeRepository!, provider, item.key),
                               child: Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [
                                 Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
                                 Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
@@ -1022,7 +1022,7 @@ class _BusinessExpensesSheetState extends State<_BusinessExpensesSheet> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final expense = _items[index];
-              final canManage = _hasFinancePermission(context.read<SupabaseAuthStateNotifier>(), 'finance.manage');
+              final canManage = _hasFinancePermission(context.read<SupabaseAuthStateNotifier?>(), 'finance.manage');
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(expense.description),
@@ -1551,7 +1551,7 @@ class _RecentTransactions extends StatelessWidget {
                 if (item.settlementId != null) Text('شناسه تسویه: ${item.settlementId}'),
                 if (item.sourceFinanceEntryId != null) Text('سند مالی منبع: ${item.sourceFinanceEntryId}'),
                 if (item.paymentId != null) Text('شناسه رسید: ${item.paymentId}'),
-                if (_hasFinancePermission(context.read<SupabaseAuthStateNotifier>(), 'customers.view') && appointment != null)
+                if (_hasFinancePermission(context.read<SupabaseAuthStateNotifier?>(), 'customers.view') && appointment != null)
                   Text('مشتری: ${appointment.customerName}'),
               ])),
               actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
