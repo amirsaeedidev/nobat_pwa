@@ -107,16 +107,16 @@ class ReportsPage extends StatelessWidget {
       leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
         if (financeRepository != null && appointmentRepository != null && _hasFinancePermission(auth, 'finance.manage') && canViewOperations && _hasFinancePermission(auth, 'customers.view'))
-          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(repository: financeRepository!, appointmentsRepository: appointmentRepository!))),
+          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(repository: financeRepository, appointmentsRepository: appointmentRepository))),
         if (financeRepository != null && _hasFinancePermission(auth, 'finance.manage'))
-          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(repository: financeRepository!))),
+          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(repository: financeRepository))),
         if (financeRepository != null && (_hasFinancePermission(auth, 'finance.view') || _hasFinancePermission(auth, 'finance.manage')))
           SoftButton(label: 'اسناد مالی', onTap: () => showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
             backgroundColor: context.pal.surface,
             builder: (_) => _FinanceDocumentsSheet(
-              repository: financeRepository!,
+              repository: financeRepository,
               appointments: visibleAppointments,
               customers: availableCustomers,
               canManage: _hasFinancePermission(auth, 'finance.manage'),
