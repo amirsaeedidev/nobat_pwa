@@ -20,7 +20,7 @@ class BookingRulesPage extends StatefulWidget {
 }
 
 class _BookingRulesPageState extends State<BookingRulesPage> {
-  late BookingRules _rules;
+  BookingRules _rules = const BookingRules();
   final _maxReschedules = TextEditingController();
   final _minHours = TextEditingController();
   final _advanceDays = TextEditingController();
