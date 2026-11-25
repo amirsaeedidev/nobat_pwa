@@ -100,11 +100,11 @@ class ReportsPage extends StatelessWidget {
       subtitle: 'نمای یکپارچه عملکرد مالی و عملیاتی مجموعه',
       leading: const HugeIcon(icon: HugeIcons.strokeRoundedChartLineData01, size: 22),
       actions: [
-        if (db.hasPermission('finance.payment.create') && canViewOperations && db.hasPermission('customers.view'))
-          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(database: db))),
-        if (db.hasPermission('finance.payment.create'))
-          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(database: db))),
-        if (db.hasPermission('employees.view_list') || canViewOperations)
+        if (_hasFinancePermission(auth, 'finance.manage') && canViewOperations && _hasFinancePermission(auth, 'customers.view'))
+          SoftButton(label: 'ثبت دریافت', onTap: () => showDialog<void>(context: context, builder: (_) => _AddAppointmentPaymentDialog(repository: financeRepository, appointmentsRepository: appointmentRepository))),
+        if (_hasFinancePermission(auth, 'finance.manage'))
+          SoftButton(label: 'ثبت هزینه', onTap: () => showDialog<void>(context: context, builder: (_) => _AddBusinessExpenseDialog(repository: financeRepository))),
+        if (_hasFinancePermission(auth, 'employees.view_list') || canViewOperations)
           SoftButton(label: 'تحلیل پرسنل', onTap: () => context.push('/reports/personnel')),
       ],
       child: provider.loading
@@ -140,16 +140,8 @@ class ReportsPage extends StatelessWidget {
                               trailing: StatusBadge.appointment(item.status, dense: true),
                             )),
                         const Divider(height: 18),
-                        Text('ترکیب هزینه روز: کمیسیون ${Fmt.compactMoney(dayCommission)} · حقوق و مزایا ${Fmt.compactMoney(dayPayrollExpense)}',
+                        Text('هزینه‌های عملیاتی از اسناد ثبت‌شده مجموعه محاسبه شده‌اند.',
                           style: TextStyle(fontSize: 10, color: pal.textMuted)),
-                        if (!db.employees.every((item) => db.hasPermission('finance.income.view', employeeId: item.id)) ||
-                            !db.employees.every((item) => db.hasPermission('finance.commission.view', employeeId: item.id)) ||
-                            !db.employees.every((item) => db.hasPermission('finance.salary.view', employeeId: item.id)))
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('به‌دلیل محدودیت مجوز، بخشی از درآمد یا هزینه‌های پرسنلی در جمع روز لحاظ نشده است.',
-                              style: TextStyle(fontSize: 9, color: pal.warning)),
-                          ),
                         const SizedBox(height: 8),
                         const SectionHeader(title: 'عملکرد پرسنل در این روز'),
                         if (dayEmployeeTotals.isEmpty)
@@ -202,12 +194,12 @@ class ReportsPage extends StatelessWidget {
                             decoration: const InputDecoration(labelText: 'خدمت'),
                             items: [
                               const DropdownMenuItem<String?>(value: null, child: Text('همه خدمات')),
-                              for (final item in db.services)
+                              for (final item in availableServices)
                                 DropdownMenuItem<String?>(value: item.id, child: Text(item.title, overflow: TextOverflow.ellipsis)),
                             ],
                             onChanged: (value) => provider.setFilters(serviceId: value, clearService: value == null),
                           )),
-                          if (db.hasPermission('employees.view_list') || db.hasPermission('finance.income.view')) SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                          if (_hasFinancePermission(auth, 'employees.view_list') || _hasFinancePermission(auth, 'finance.view')) SizedBox(width: width, child: DropdownButtonFormField<String?>(
                             value: provider.filter.employeeId,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'پرسنل'),
@@ -218,7 +210,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(employeeId: value, clearEmployee: value == null),
                           )),
-                          if (canViewOperations && db.hasPermission('customers.view')) SizedBox(width: width, child: DropdownButtonFormField<String?>(
+                          if (canViewOperations && _hasFinancePermission(auth, 'customers.view')) SizedBox(width: width, child: DropdownButtonFormField<String?>(
                             value: provider.filter.customerId,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'مشتری'),
@@ -262,7 +254,7 @@ class ReportsPage extends StatelessWidget {
                             ],
                             onChanged: (value) => provider.setFilters(paymentMethod: value, clearPaymentMethod: value == null),
                           )),
-                          if (db.hasPermission('finance.settlement.view')) SizedBox(width: width, child: DropdownButtonFormField<EmployeeWalletSettlementStatus?>(
+                          if (_hasFinancePermission(auth, 'finance.settlement.view')) SizedBox(width: width, child: DropdownButtonFormField<EmployeeWalletSettlementStatus?>(
                             value: provider.filter.settlementStatus,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'وضعیت تسویه پرسنل'),
@@ -347,7 +339,7 @@ class ReportsPage extends StatelessWidget {
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'جزئیات درآمد خالص', [
                           for (final item in provider.analytics.services) '${item.name} · ${item.count} نوبت · ${Fmt.compactMoney(item.revenue)}',
                         ]), child: _MetricCard(label: 'درآمد خالص', value: provider.analytics.netRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success)),
-                        GestureDetector(onTap: () => _showPaymentSheet(context, db, provider), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
+                        GestureDetector(onTap: () => _showPaymentSheet(context, provider, auth), child: _MetricCard(label: 'وصول‌شده', value: provider.analytics.collectedRevenue, money: true, icon: HugeIcons.strokeRoundedWallet01, color: pal.info)),
                         GestureDetector(onTap: () => _showFinanceSheet(context, 'مطالبات مشتریان', [
                           for (final item in provider.analytics.customerDebts) '${item.customerName} · ${item.appointmentCount} نوبت · ${Fmt.compactMoney(item.amount)}',
                           for (final item in provider.analytics.partialPayments) 'پرداخت ناقص: ${item.description} · ${Fmt.compactMoney(item.signedAmount)}',
@@ -382,14 +374,14 @@ class ReportsPage extends StatelessWidget {
                             final legend = Column(children: [
                               for (final item in methodEntries)
                                 InkWell(
-                                  onTap: () => _showPaymentSheet(context, db, provider, method: item.key),
+                                  onTap: () => _showPaymentSheet(context, provider, auth, method: item.key),
                                   child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(children: [
                                     Expanded(child: Text(item.key, style: TextStyle(fontSize: 10.5, color: pal.textSecondary))),
                                     Text(Fmt.compactMoney(item.value), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: pal.textPrimary)),
                                   ])),
                                 ),
                             ]);
-                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, db, provider, method: method));
+                            final donut = StatusDonut(counts: {for (final item in methodEntries) item.key: item.value.round()}, centerLabel: 'وصول', size: 118, onSegmentTap: (method) => _showPaymentSheet(context, provider, auth, method: method));
                             if (inner.maxWidth < 340) return Column(children: [Center(child: donut), const SizedBox(height: 8), legend]);
                             return Row(children: [donut, const SizedBox(width: 12), Expanded(child: legend)]);
                           }),
@@ -508,8 +500,8 @@ class ReportsPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     if (canViewOperations)
                       _BusyHoursCard(items: provider.analytics.operationalAppointments),
-                    if (canViewOperations || db.hasPermission('finance.salary.view'))
-                      _RecentTransactions(items: provider.analytics.recentTransactions),
+                    if (canViewOperations || _hasFinancePermission(auth, 'finance.salary.view'))
+                      _RecentTransactions(items: provider.analytics.recentTransactions, appointments: provider.analytics.operationalAppointments),
                   ],
                 ),
     );
