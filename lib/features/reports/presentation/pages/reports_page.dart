@@ -32,6 +32,9 @@ import '../widgets/revenue_chart.dart';
 import '../widgets/operational_reports_sections.dart';
 import '../widgets/reports_phase_five_panel.dart';
 
+bool _hasFinancePermission(SupabaseAuthStateNotifier auth, String permission) =>
+    auth.hasActiveBusiness && (auth.role == 'owner' || auth.permissions[permission] == true);
+
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
 
@@ -779,7 +782,8 @@ void _showPaymentSheet(BuildContext context, ReportsProvider provider, SupabaseA
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final payment = payments[index];
-                  final appointment = appointments.where((item) => item.id == payment.appointmentId).firstOrNull;
+                  final matches = appointments.where((item) => item.id == payment.appointmentId).toList();
+                  final appointment = matches.isEmpty ? null : matches.first;
                   return Material(color: Colors.transparent, child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     onTap: () => showDialog<void>(
@@ -1068,8 +1072,9 @@ class _BusyHoursCard extends StatelessWidget {
 }
 
 class _RecentTransactions extends StatelessWidget {
-  const _RecentTransactions({required this.items});
+  const _RecentTransactions({required this.items, required this.appointments});
   final List<EmployeeWalletTransaction> items;
+  final List<Appointment> appointments;
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
@@ -1081,7 +1086,8 @@ class _RecentTransactions extends StatelessWidget {
         Material(color: Colors.transparent, child: ListTile(
           dense: true, contentPadding: EdgeInsets.zero,
           onTap: () {
-            final appointment = item.appointmentId == null ? null : context.read<AppDatabase>().appointmentById(item.appointmentId!);
+            final matches = item.appointmentId == null ? <Appointment>[] : appointments.where((value) => value.id == item.appointmentId).toList();
+            final appointment = matches.isEmpty ? null : matches.first;
             showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
               title: const Text('جزئیات تراکنش کیف پول'),
               content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1093,7 +1099,7 @@ class _RecentTransactions extends StatelessWidget {
                 if (item.settlementId != null) Text('شناسه تسویه: ${item.settlementId}'),
                 if (item.sourceFinanceEntryId != null) Text('سند مالی منبع: ${item.sourceFinanceEntryId}'),
                 if (item.paymentId != null) Text('شناسه رسید: ${item.paymentId}'),
-                if (context.read<AppDatabase>().hasPermission('customers.view') && appointment != null)
+                if (_hasFinancePermission(context.read<SupabaseAuthStateNotifier>(), 'customers.view') && appointment != null)
                   Text('مشتری: ${appointment.customerName}'),
               ])),
               actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن'))],
