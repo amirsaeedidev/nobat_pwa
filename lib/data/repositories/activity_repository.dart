@@ -18,6 +18,9 @@ class MockActivityRepository implements ActivityRepository {
   final AppDatabase _db;
 
   @override
+  Stream<void>? get authChanges => null;
+
+  @override
   Future<List<ActivityLog>> fetchLogs({ActivityType? type, String query = '', int? limit}) async {
     await _db.delay(140);
     final q = query.trim();
@@ -43,6 +46,9 @@ class MockActivityRepository implements ActivityRepository {
 
 /// مسیر بدون نشست سرور؛ عمداً هیچ داده محلی یا ساختگی برنمی‌گرداند.
 class UnavailableActivityRepository implements ActivityRepository {
+  @override
+  Stream<void>? get authChanges => null;
+
   @override
   Future<List<ActivityLog>> fetchLogs({ActivityType? type, String query = '', int? limit}) =>
       Future.error(StateError('برای مشاهده تاریخچه فعالیت‌ها باید به حساب سرور وارد شوید.'));
