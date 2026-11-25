@@ -267,7 +267,13 @@ class SupabaseDashboardRepository implements DashboardRepository {
     };
     final paymentsByMethod = <String, num>{};
     for (final row in payments) {
-      final method = row['method'] as String? ?? 'other';
+      final method = switch (row['method'] as String? ?? 'other') {
+        'cash' => 'نقدی',
+        'pos' => 'کارت‌خوان',
+        'bank_transfer' => 'انتقال بانکی',
+        'wallet' => 'کیف پول',
+        _ => 'سایر',
+      };
       final amount = row['amount_toman'] as num? ?? 0;
       paymentsByMethod.update(method, (value) => value + (row['payment_type'] == 'refund' ? -amount : amount), ifAbsent: () => row['payment_type'] == 'refund' ? -amount : amount);
     }
