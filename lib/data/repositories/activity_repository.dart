@@ -36,3 +36,14 @@ class MockActivityRepository implements ActivityRepository {
     return logs.take(limit).toList();
   }
 }
+
+/// مسیر بدون نشست سرور؛ عمداً هیچ داده محلی یا ساختگی برنمی‌گرداند.
+class UnavailableActivityRepository implements ActivityRepository {
+  @override
+  Future<List<ActivityLog>> fetchLogs({ActivityType? type, String query = '', int? limit}) =>
+      Future.error(StateError('برای مشاهده تاریخچه فعالیت‌ها باید به حساب سرور وارد شوید.'));
+
+  @override
+  Future<List<ActivityLog>> fetchRecent({int limit = 6}) =>
+      Future.error(StateError('برای مشاهده تاریخچه فعالیت‌ها باید به حساب سرور وارد شوید.'));
+}
