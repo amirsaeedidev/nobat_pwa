@@ -46,9 +46,9 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    _prefilled = true;
     final settings = context.read<SettingsProvider>().settings;
     if (settings == null) return;
+    _prefilled = true;
     _name.text = settings.name;
     _slogan.text = settings.slogan;
     _description.text = settings.description;
@@ -79,35 +79,41 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final current = context.read<SettingsProvider>().settings;
+    if (current == null) {
+      AppToast.show(context, 'تنظیمات واقعی مجموعه از سرور بارگذاری نشده است.');
+      return;
+    }
     setState(() => _saving = true);
-    final provider = context.read<SettingsProvider>();
-    final current = provider.settings;
-    if (current == null) return;
-    await provider.saveBusiness(
-      current.copyWith(
-        name: _name.text.trim(),
-        slogan: _slogan.text.trim(),
-        description: _description.text.trim(),
-        phone: _phone.text.trim(),
-        mobile: _mobile.text.trim(),
-        email: _email.text.trim(),
-        address: _address.text.trim(),
-        postalCode: _postal.text.trim(),
-        province: _province,
-        city: _city,
-        instagram: _instagram.text.trim(),
-        telegram: _telegram.text.trim(),
-        whatsapp: _whatsapp.text.trim(),
-        website: _website.text.trim(),
-        publicSlug: _slug.text.trim(),
-        logoText: _name.text.trim().isEmpty ? 'OT' : _name.text.trim().substring(0, 2),
-      ),
-      logTitle: 'ویرایش اطلاعات مجموعه',
-      logDescription: 'اطلاعات پایه مجموعه به‌روزرسانی شد.',
-    );
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, 'اطلاعات مجموعه ذخیره شد');
+    try {
+      await context.read<SettingsProvider>().saveBusiness(
+        current.copyWith(
+          name: _name.text.trim(),
+          slogan: _slogan.text.trim(),
+          description: _description.text.trim(),
+          phone: _phone.text.trim(),
+          mobile: _mobile.text.trim(),
+          email: _email.text.trim(),
+          address: _address.text.trim(),
+          postalCode: _postal.text.trim(),
+          province: _province,
+          city: _city,
+          instagram: _instagram.text.trim(),
+          telegram: _telegram.text.trim(),
+          whatsapp: _whatsapp.text.trim(),
+          website: _website.text.trim(),
+          publicSlug: _slug.text.trim(),
+          logoText: _name.text.trim().isEmpty ? '' : _name.text.trim().substring(0, 2),
+        ),
+        logTitle: 'ویرایش اطلاعات مجموعه',
+        logDescription: 'اطلاعات پایه مجموعه به‌روزرسانی شد.',
+      );
+      if (mounted) AppToast.show(context, 'اطلاعات مجموعه در سرور ذخیره شد');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره اطلاعات ناموفق بود: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
