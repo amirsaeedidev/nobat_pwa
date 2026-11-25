@@ -624,7 +624,10 @@ class _AddAppointmentPaymentDialogState extends State<_AddAppointmentPaymentDial
         description: _description.text.trim(),
         idempotencyKey: _operationKey,
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        context.read<ReportsProvider>().load();
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -732,7 +735,10 @@ class _AddBusinessExpenseDialogState extends State<_AddBusinessExpenseDialog> {
         sourceDocumentId: _source.text.trim().isEmpty ? null : _source.text.trim(),
         idempotencyKey: _idempotencyKey,
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        context.read<ReportsProvider>().load();
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -893,7 +899,10 @@ class _RefundPaymentDialogState extends State<_RefundPaymentDialog> {
         type: BusinessPaymentType.refund,
         reversesPaymentId: widget.payment.id,
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        context.read<ReportsProvider>().load();
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
