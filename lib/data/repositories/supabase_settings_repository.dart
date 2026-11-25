@@ -11,6 +11,9 @@ class SupabaseSettingsRepository implements SettingsRepository {
 
   final SupabaseClient _client;
 
+  @override
+  Stream<void> get authChanges => _client.auth.onAuthStateChange.map<void>((_) {});
+
   Future<Map<String, dynamic>> _business() async {
     if (_client.auth.currentUser == null) {
       throw StateError('برای دریافت تنظیمات مجموعه ابتدا وارد حساب مدیر کل شوید.');
