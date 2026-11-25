@@ -52,6 +52,9 @@ class SupabaseDashboardRepository implements DashboardRepository {
     return sum + (row['payment_type'] == 'refund' ? -amount : amount);
   });
 
+  String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
   Future<int> _count(String table, {String? column, bool? value}) async {
     final tenant = _tenant();
     var request = _client.from(table).select('id').eq('business_id', tenant);
@@ -200,8 +203,8 @@ class SupabaseDashboardRepository implements DashboardRepository {
         .select('id,amount_toman,category,description,source_document_id,status,created_by,created_at,expense_date,payment_method,idempotency_key,related_appointment_id,related_customer_id,reversed_at,reversed_by,reversal_reason')
         .eq('business_id', tenant)
         .eq('status', 'posted')
-        .gte('created_at', range.start.toUtc().toIso8601String())
-        .lt('created_at', range.endExclusive.toUtc().toIso8601String());
+        .gte('expense_date', _dateOnly(range.start))
+        .lt('expense_date', _dateOnly(range.endExclusive));
     final expenses = expenseRows.map((row) => Map<String, dynamic>.from(row)).toList();
     final expenseTotal = expenses.fold<num>(0, (sum, row) => sum + ((row['amount_toman'] as num?) ?? 0));
     final financeRows = await _client.from('employee_finance_entries')
@@ -228,8 +231,10 @@ class SupabaseDashboardRepository implements DashboardRepository {
       sum + ((row['amount_toman'] as num?) ?? 0) * (row['direction'] == 'debit' ? -1 : 1));
     final completedForRange = appointments.where((item) => item.status == AppointmentStatus.completed).toList();
     final gross = completedForRange.fold<num>(0, (sum, item) =>
-      sum + item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
-        serviceSum + ((snapshot['list_price'] as num?) ?? (snapshot['price'] as num?) ?? 0)));
+      sum + (item.serviceSnapshots.isEmpty
+        ? item.price
+        : item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
+            serviceSum + ((snapshot['list_price'] as num?) ?? (snapshot['price'] as num?) ?? 0))));
     final discountTotal = completedForRange.fold<num>(0, (sum, item) =>
       sum + item.serviceSnapshots.fold<num>(0, (serviceSum, snapshot) =>
         serviceSum + ((snapshot['discount'] as num?) ?? 0)));
