@@ -176,37 +176,6 @@ class SupabaseBusinessFinanceRepository implements BusinessFinanceRepository {
   }
 
   @override
-  Future<String> replaceBusinessExpense({
-    required String expenseId,
-    required int amount,
-    required BusinessExpenseCategory category,
-    required String description,
-    required DateTime expenseDate,
-    required String idempotencyKey,
-    required String reason,
-    BusinessPaymentMethod? paymentMethod,
-    String? sourceDocumentId,
-    String? relatedAppointmentId,
-    String? relatedCustomerId,
-  }) async {
-    final result = await _client.rpc('replace_business_expense', params: {
-      'p_business_id': _tenant(),
-      'p_expense_id': expenseId,
-      'p_amount_toman': amount,
-      'p_category': category.name,
-      'p_description': description.trim(),
-      'p_expense_date': _dateOnly(expenseDate),
-      'p_payment_method': paymentMethod == null ? null : _methodKey(paymentMethod),
-      'p_source_document_id': sourceDocumentId,
-      'p_related_appointment_id': relatedAppointmentId,
-      'p_related_customer_id': relatedCustomerId,
-      'p_idempotency_key': idempotencyKey,
-      'p_reason': reason.trim(),
-    });
-    return result as String;
-  }
-
-  @override
   Future<void> reverseBusinessExpense({
     required String expenseId,
     required String reason,
