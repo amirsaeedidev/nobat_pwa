@@ -303,7 +303,7 @@ class ReportsPage extends StatelessWidget {
                           ),
                           body: Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                              ReportsPhaseFivePanel(database: db, provider: provider),
+                              ReportsPhaseFivePanel(provider: provider),
                     const SizedBox(height: 12),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _MetricCard(label: 'درآمد خالص', value: provider.totalRevenue, money: true, icon: HugeIcons.strokeRoundedCash02, color: pal.success),
@@ -507,7 +507,7 @@ class ReportsPage extends StatelessWidget {
                             subtitle: Text('ذخیره گزارش در قالب PDF'),
                           ),
                           body: Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                            child: ReportsPhaseFivePanel(database: db, provider: provider, exportOnly: true)),
+                            child: ReportsPhaseFivePanel(provider: provider, exportOnly: true)),
                         ),
                       ],
                     ),
