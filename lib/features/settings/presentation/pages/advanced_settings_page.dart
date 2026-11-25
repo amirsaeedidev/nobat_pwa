@@ -47,7 +47,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   }
 
   Future<void> _save() async {
-    final settingsProvider = Provider.of<SettingsProvider>(context);
+    final settingsProvider = context.read<SettingsProvider>();
     setState(() => _saving = true);
     try {
       final current = settingsProvider.settings;
