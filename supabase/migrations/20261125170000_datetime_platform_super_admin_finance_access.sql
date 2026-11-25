@@ -12,15 +12,8 @@ create table if not exists private.platform_admins (
 
 revoke all on table private.platform_admins from public, anon, authenticated;
 
-insert into private.platform_admins(user_id, role, is_active, created_by)
-values (
-  '130dfb9e-f974-40c1-8998-ae3e1bdc1527',
-  'super_admin',
-  true,
-  '130dfb9e-f974-40c1-8998-ae3e1bdc1527'
-)
-on conflict (user_id) do update
-set role = 'super_admin', is_active = true;
+-- The platform-admin membership is provisioned per Supabase environment;
+-- do not commit a user identifier or email into the repository.
 
 create or replace function private.has_business_permission(
   p_business_id uuid,
