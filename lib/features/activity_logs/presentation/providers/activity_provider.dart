@@ -89,9 +89,8 @@ class ActivityProvider extends ChangeNotifier {
       final result = await _operations.undoActivityEvent(log.id);
       if (result) await load();
       return result;
-    } catch (error) {
-      _error = error.toString();
-      notifyListeners();
+    } catch (_) {
+      // A rejected/stale undo must not hide an otherwise healthy history feed.
       return false;
     }
   }
