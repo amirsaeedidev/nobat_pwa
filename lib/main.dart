@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/services/supabase_service.dart';
 import 'data/repositories/supabase_auth_repository.dart';
@@ -95,6 +96,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
+        Provider<SupabaseClient?>.value(value: SupabaseService.client),
         Provider<SupabaseRepository?>.value(
           value: SupabaseService.client == null
               ? null
