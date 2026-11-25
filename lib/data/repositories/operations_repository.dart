@@ -453,7 +453,7 @@ class OperationsRepository {
       operationType: 'financial_expense_create',
       entityName: 'هزینه مجموعه',
       entityId: expense.id,
-      description: 'ثبت هزینه ${expense.amount}.',
+      description: 'ثبت هزینه ${expense.amount} با مرجع ${expense.sourceDocumentId}.',
       reversible: false,
       action: () => _db.addBusinessExpense(expense),
     );
