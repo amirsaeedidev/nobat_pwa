@@ -97,7 +97,7 @@ class EmployeeWalletProvider extends ChangeNotifier {
     ));
   }
 
-  Future<void> _run(Future<Object?> Function() action) async {
+  Future<void> _run(Future<dynamic> Function() action) async {
     if (saving) return;
     saving = true;
     error = null;
