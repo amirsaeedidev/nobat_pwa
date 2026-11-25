@@ -358,15 +358,17 @@ class CalendarProvider extends ChangeNotifier {
         return ScheduleException(dateKey: key, title: item.title, isClosed: item.isClosed, shifts: item.shifts);
       }
     }
-    return businessExceptionFor(date) ??
-        (_scheduleExceptions.where((value) => value.dateKey == key).toList().isEmpty
-            ? null
-            : ScheduleException(
-                dateKey: key,
-                title: _scheduleExceptions.firstWhere((value) => value.dateKey == key).title,
-                isClosed: _scheduleExceptions.firstWhere((value) => value.dateKey == key).isClosed,
-                shifts: _scheduleExceptions.firstWhere((value) => value.dateKey == key).shifts,
-              ));
+    final businessException = businessExceptionFor(date);
+    if (businessException != null) return businessException;
+    final matches = _scheduleExceptions.where((value) => value.dateKey == key).toList();
+    if (matches.isEmpty) return null;
+    final item = matches.first;
+    return ScheduleException(
+      dateKey: key,
+      title: item.title,
+      isClosed: item.isClosed,
+      shifts: item.shifts,
+    );
   }
 
   bool _businessClosed(JalaliDate date) {
@@ -541,17 +543,19 @@ class CalendarProvider extends ChangeNotifier {
       throw StateError('این تاریخ طبق تنظیمات واقعی مجموعه تعطیل است.');
     }
     final exception = employeeExceptionFor(jalali, employee.id);
-    final shiftCovers = exception != null
-        ? (!exception.isClosed && exception.shifts.any((shift) =>
-            shift.startMinutes <= start.hour * 60 + start.minute &&
-            shift.endMinutes >= end.hour * 60 + end.minute))
-        : _workingHours.any((hour) =>
-            hour.employeeId == employee.id &&
-            hour.weekday == jalali.weekday &&
-            hour.isEffectiveOn(start) &&
-            hour.covers(start, end));
-    if (!employee.scheduleEnabled || !shiftCovers) {
-      throw StateError('زمان انتخاب‌شده خارج از ساعات کاری واقعی پرسنل است.');
+    final startMinute = start.hour * 60 + start.minute;
+    final endMinute = end.hour * 60 + end.minute;
+    final shiftCovers = shiftsFor(employee, jalali).any((shift) =>
+        shift.startMinutes <= startMinute && shift.endMinutes >= endMinute);
+    final breakConflict = exception == null && _workingHours.any((hour) =>
+        hour.employeeId == employee.id &&
+        hour.weekday == jalali.weekday &&
+        hour.isEffectiveOn(start) &&
+        hour.shift.startMinutes <= startMinute &&
+        hour.shift.endMinutes >= endMinute &&
+        !hour.covers(start, end));
+    if (!employee.scheduleEnabled || !shiftCovers || breakConflict) {
+      throw StateError('زمان انتخاب‌شده خارج از ساعات کاری یا در زمان استراحت پرسنل است.');
     }
     if (_onApprovedLeave(employee.id, start, end)) {
       throw StateError('پرسنل در زمان انتخاب‌شده مرخصی تأییدشده دارد.');
