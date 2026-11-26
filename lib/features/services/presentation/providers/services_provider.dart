@@ -9,7 +9,7 @@ import '../../../../data/repositories/service_repository.dart';
 
 /// مدیریت خدمات.
 class ServicesProvider extends DbBoundProvider {
-  ServicesProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
+  ServicesProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
