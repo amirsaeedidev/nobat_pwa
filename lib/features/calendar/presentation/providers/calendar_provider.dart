@@ -198,9 +198,10 @@ class CalendarProvider extends ChangeNotifier {
     final stepMinutes = intervalMinutes ?? 30;
     final dateKey = EmployeeScheduleRules.dateKey(date.toDateTime());
     if (_businessHolidayKeys.contains(dateKey)) return const [];
-    final candidates = employee == null
+    final selectedEmployeeId = employee ?? _employeeId;
+    final candidates = selectedEmployeeId == null
         ? employees.where((item) => item.isActive).toList()
-        : _employeeList.where((item) => item.id == employee && item.isActive).toList();
+        : _employeeList.where((item) => item.id == selectedEmployeeId && item.isActive).toList();
     final dayAppointments = appointmentsOn(date);
     final slotsByMinute = <int, TimeSlot>{};
     for (final person in candidates) {
