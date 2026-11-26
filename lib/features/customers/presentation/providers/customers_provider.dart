@@ -76,6 +76,7 @@ class CustomersProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await _repository.create(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -88,6 +89,7 @@ class CustomersProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await _repository.update(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -95,7 +97,7 @@ class CustomersProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> delete(String id) => _repository.delete(id);
+  Future<void> delete(String id) async { await _repository.delete(id); await load(); }
 
   Future<Customer?> findByPhone(String phone) async {
     final rows = await _repository.fetchAll(query: phone);
