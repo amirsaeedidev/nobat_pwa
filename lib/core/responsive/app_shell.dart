@@ -66,7 +66,8 @@ bool _canOpenSupabaseDestination(SupabaseAuthStateNotifier auth, String route) {
     case '/employees':
       return _hasSupabasePermission(auth, 'employees.view_list');
     case '/my-wallet':
-      return _hasSupabasePermission(auth, 'finance.wallet.view');
+      return _hasSupabasePermission(auth, 'finance.wallet.view') ||
+          _hasSupabasePermission(auth, 'finance.wallet.view_self');
     case '/my-leaves':
       return _hasSupabasePermission(auth, 'employees.leave.request');
     case '/sms':

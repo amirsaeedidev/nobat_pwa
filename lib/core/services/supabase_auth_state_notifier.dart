@@ -125,6 +125,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
     _userId = expectedUserId;
     _status = SupabaseAuthStatus.checkingMembership;
     _businessId = null;
+    _employeeId = null;
     _businessName = null;
     _employeeId = null;
     _role = null;
