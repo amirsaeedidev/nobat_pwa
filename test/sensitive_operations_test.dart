@@ -582,7 +582,6 @@ void main() {
       MockServiceRepository(db),
       MockEmployeeRepository(db),
       MockCustomerRepository(db),
-      db,
     );
     addTearDown(provider.dispose);
     await Future<void>.delayed(const Duration(milliseconds: 180));
