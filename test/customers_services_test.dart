@@ -57,7 +57,7 @@ void main() {
 
     setUp(() async {
       db = AppDatabase();
-      provider = ServicesProvider(MockServiceRepository(db), db);
+      provider = ServicesProvider(MockServiceRepository(db));
       await Future<void>.delayed(const Duration(milliseconds: 60));
     });
 
