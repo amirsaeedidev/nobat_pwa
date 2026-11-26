@@ -9,13 +9,13 @@ import '../../../../data/repositories/operations_repository.dart';
 
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
-  ActivityProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier})
-      : _operations = OperationsRepository(db), super(db, authStateNotifier: authStateNotifier) {
+  ActivityProvider(this._repository, AppDatabase db, {ActivityOperationsRepository? operationsRepository, SupabaseAuthStateNotifier? authStateNotifier})
+      : _operations = operationsRepository ?? OperationsRepository(db), super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
   final ActivityRepository _repository;
-  final OperationsRepository _operations;
+  final ActivityOperationsRepository _operations;
 
   List<ActivityLog> _logs = const [];
   List<ActivityLog> _recent = const [];
@@ -24,25 +24,29 @@ class ActivityProvider extends DbBoundProvider {
   bool _loading = true;
   int _loadGeneration = 0;
   bool _undoing = false;
+  String? _error;
 
   List<ActivityLog> get logs => _logs;
   List<ActivityLog> get recent => _recent;
   ActivityType? get type => _type;
   String get query => _query;
   bool get loading => _loading;
+  String? get error => _error;
 
   Future<void> load() async {
     final generation = ++_loadGeneration;
     _loading = true;
     notifyListeners();
     try {
+      _error = null;
       final logs = await _repository.fetchLogs(type: _type, query: _query);
       final recent = await _repository.fetchRecent(limit: 6);
       if (generation != _loadGeneration) return;
       _logs = logs;
       _recent = recent;
-    } catch (_) {
+    } catch (error) {
       if (generation != _loadGeneration) return;
+      _error = error.toString();
       _logs = const [];
       _recent = const [];
     } finally {
@@ -80,11 +84,11 @@ class ActivityProvider extends DbBoundProvider {
     load();
   }
 
-  bool canUndo(ActivityLog log) => _operations.canUndo(log.id);
+  bool canUndo(ActivityLog log) => _operations.canUndoActivityLog(log);
   Future<bool> undo(ActivityLog log) async {
     _undoing = true;
     try {
-      final result = _operations.undo(log.id);
+      final result = await _operations.undoActivityEvent(log.id);
       if (result) await load();
       return result;
     } finally {
