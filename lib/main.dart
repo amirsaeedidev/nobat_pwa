@@ -165,9 +165,9 @@ Future<void> main() async {
         Provider<BusinessFinanceRepository>.value(value: businessFinanceRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
         Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, db: database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, db: database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(
           create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, settingsRepository: settingsRepository, authStateNotifier: authStateNotifier),
         ),

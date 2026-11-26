@@ -88,7 +88,7 @@ class ActivityProvider extends DbBoundProvider {
   Future<bool> undo(ActivityLog log) async {
     _undoing = true;
     try {
-      final result = await _operations.undoActivityEvent(log.id);
+      final result = await _operations.undoActivityEvent(log.operationId ?? log.id);
       if (result) await load();
       return result;
     } finally {

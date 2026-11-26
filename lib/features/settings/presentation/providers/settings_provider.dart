@@ -13,7 +13,7 @@ import '../../../../data/repositories/settings_repository.dart';
 
 /// تنظیمات ظاهری و اطلاعات مجموعه.
 class SettingsProvider extends DbBoundProvider {
-  SettingsProvider(this._repository, [AppDatabase? db], {SupabaseAuthStateNotifier? authStateNotifier}) : super(db ?? AppDatabase(seed: false), authStateNotifier: authStateNotifier) {
+  SettingsProvider(this._repository, {AppDatabase? db, SupabaseAuthStateNotifier? authStateNotifier}) : super(db ?? AppDatabase(seed: false), authStateNotifier: authStateNotifier) {
     load();
   }
 
