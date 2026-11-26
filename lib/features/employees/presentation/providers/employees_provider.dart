@@ -36,7 +36,7 @@ class EmployeesProvider extends DbBoundProvider {
       _items = await _repository.fetchEmployees();
       _loadNotice = null;
     } catch (error) {
-      _items = db.employees;
+      _items = const [];
       _error = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _loadNotice = _error;
     } finally {
@@ -46,11 +46,7 @@ class EmployeesProvider extends DbBoundProvider {
   }
 
   @override
-  void onDatabaseChanged() {
-    _items = db.employees;
-    _error = null;
-    notifyListeners();
-  }
+  void onDatabaseChanged() { load(); }
 
   Future<List<Employee>> forService(String serviceId) => _repository.fetchEmployees(onlyActive: true, serviceId: serviceId);
   Future<Employee?> byId(String id) => _repository.findById(id);
