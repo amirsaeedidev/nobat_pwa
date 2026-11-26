@@ -269,21 +269,24 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       createdBy: 'پذیرش',
     );
 
+    Appointment savedAppointment = appointment;
     if (_existing != null) {
       await provider.update(appointment);
+      savedAppointment = await provider.byId(appointment.id) ?? appointment;
     } else {
       await provider.create(appointment);
+      savedAppointment = await provider.byReference(appointment.reference) ?? appointment;
     }
 
     if (!mounted) return;
     final smsProvider = context.read<SmsProvider>();
     if (_sendSms) {
       await smsProvider.sendConfirmation(
-            recipient: appointment.customerName,
-            phone: appointment.customerPhone,
+            recipient: savedAppointment.customerName,
+            phone: savedAppointment.customerPhone,
             content:
-                '${appointment.customerName} عزیز، نوبت شما برای ${appointment.serviceName} در ${appointment.jalali.long} ساعت ${Fmt.time(start.hour, start.minute)} ثبت شد. کد پیگیری: ${appointment.reference}',
-            appointmentId: appointment.id,
+                '${savedAppointment.customerName} عزیز، نوبت شما برای ${savedAppointment.serviceName} در ${savedAppointment.jalali.long} ساعت ${Fmt.time(start.hour, start.minute)} ثبت شد. کد پیگیری: ${savedAppointment.reference}',
+            appointmentId: savedAppointment.id,
           );
     }
 
