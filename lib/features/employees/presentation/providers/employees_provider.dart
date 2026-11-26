@@ -5,7 +5,7 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
-/// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
+/// مدیریت پرسنل و برنامه کاری با داده‌های سرور.
 class EmployeesProvider extends ChangeNotifier {
   EmployeesProvider(this._repository) {
     load();
