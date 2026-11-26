@@ -9,8 +9,8 @@ import '../../../../data/repositories/operations_repository.dart';
 
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
-  ActivityProvider(this._repository, AppDatabase db, {ActivityOperationsRepository? operationsRepository, SupabaseAuthStateNotifier? authStateNotifier})
-      : _operations = operationsRepository ?? OperationsRepository(db), super(db, authStateNotifier: authStateNotifier) {
+  ActivityProvider(this._repository, AppDatabase? db, {ActivityOperationsRepository? operationsRepository, SupabaseAuthStateNotifier? authStateNotifier})
+      : _operations = operationsRepository ?? (db == null ? UnavailableActivityOperationsRepository() : OperationsRepository(db)), super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
