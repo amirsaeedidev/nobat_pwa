@@ -421,7 +421,7 @@ void main() {
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
     addTearDown(provider.dispose);
-    await provider.load();
+    await provider.loadServices();
 
     final deletion = provider.logs.firstWhere((log) => log.operationType == 'customer_delete');
     expect(deletion.entityId, customer.id);
