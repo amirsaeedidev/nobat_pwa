@@ -47,34 +47,6 @@ class CustomersProvider extends ChangeNotifier {
   }
 
 
-  Future<void> _refresh() async {
-    try {
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-      _loadNotice = null;
-    } catch (error) {
-      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      _page = PageResult.empty(pageSize: _pageSize);
-    }
-    notifyListeners();
-  }
-
-  void search(String query) {
-    _query = query;
-    _pageNumber = 1;
-    load();
-  }
-
-  void goToPage(int page) {
-    _pageNumber = page.clamp(1, _page.totalPages == 0 ? 1 : _page.totalPages);
-    load();
-  }
-
-  Future<Customer?> byId(String id) => _repository.findById(id);
-
-  Customer? findById(String id) {
-    for (final customer in _page.items) { if (customer.id == id) return customer; }
-    return null;
-  }
 
   Future<bool> create(Customer customer) async {
     _busy = true;
