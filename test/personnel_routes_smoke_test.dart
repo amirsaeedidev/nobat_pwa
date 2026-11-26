@@ -46,6 +46,7 @@ void main() {
           Provider<CustomerRepository>.value(value: customers),
           Provider<EmployeeRepository>.value(value: employees),
           Provider<ServiceRepository>.value(value: services),
+          Provider<AppointmentRepository>.value(value: appointments),
           ChangeNotifierProvider(create: (_) => SettingsProvider(settings)),
           ChangeNotifierProvider(create: (_) => DashboardProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointments)),
