@@ -215,7 +215,10 @@ class AppointmentsProvider extends ChangeNotifier {
   Future<Appointment?> byId(String id) => _repository.findById(id);
 
   /// یافتن همگام (برای فرم‌ها).
-  Future<Appointment?> appointmentById(String id) => _repository.findById(id);
+  Appointment? appointmentById(String id) {
+    for (final item in _page.items) { if (item.id == id) return item; }
+    return null;
+  }
 
-  Future<List<Appointment>> get allAppointments => _repository.fetchAll();
+  List<Appointment> get allAppointments => _page.items;
 }
