@@ -89,6 +89,19 @@ class CustomersProvider extends ChangeNotifier {
     }
   }
 
+  Future<Customer> createAndReturn(Customer customer) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      final saved = await _repository.createAndReturn(customer);
+      await load();
+      return saved;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> update(Customer customer) async {
     _busy = true;
     notifyListeners();
