@@ -1,13 +1,12 @@
+import 'package:flutter/foundation.dart';
 import '../../../../core/models/page_result.dart';
-import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/models/app_failure.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/repositories/customer_repository.dart';
 
 /// مدیریت فهرست مشتریان، جست‌وجو و CRUD.
-class CustomersProvider extends DbBoundProvider {
-  CustomersProvider(this._repository, AppDatabase db) : super(db) {
+class CustomersProvider extends ChangeNotifier {
+  CustomersProvider(this._repository) {
     load();
   }
 
@@ -47,10 +46,6 @@ class CustomersProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _refresh();
-  }
 
   Future<void> _refresh() async {
     try {
