@@ -31,6 +31,24 @@ class CustomersProvider extends ChangeNotifier {
 
   List<Customer> get all => _page.items;
 
+  void search(String value) {
+    _query = value;
+    _pageNumber = 1;
+    load();
+  }
+
+  void goToPage(int page) {
+    _pageNumber = page.clamp(1, 999);
+    load();
+  }
+
+  Customer? findById(String id) {
+    for (final customer in _page.items) { if (customer.id == id) return customer; }
+    return null;
+  }
+
+  Future<Customer?> byId(String id) => _repository.findById(id);
+
   Future<void> load() async {
     _loading = true;
     notifyListeners();
