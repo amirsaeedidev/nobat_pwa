@@ -10,12 +10,12 @@ abstract class DbBoundProvider extends ChangeNotifier {
     this.db, {
     this.authStateNotifier,
   }) {
-    db.addListener(_handleDbChange);
+    db?.addListener(_handleDbChange);
     authStateNotifier?.addListener(_handleAuthContextChange);
   }
 
   @protected
-  final AppDatabase db;
+  final AppDatabase? db;
 
   final SupabaseAuthStateNotifier? authStateNotifier;
 
@@ -82,7 +82,7 @@ abstract class DbBoundProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    db.removeListener(_handleDbChange);
+    db?.removeListener(_handleDbChange);
     authStateNotifier?.removeListener(_handleAuthContextChange);
     super.dispose();
   }
