@@ -43,6 +43,7 @@ class CalendarProvider extends ChangeNotifier {
   List<Service> _serviceList = const [];
   Map<String,List<EmployeeScheduleException>> _scheduleExceptions = const {};
   Map<String,List<EmployeeLeave>> _employeeLeaves = const {};
+  Set<String> _businessHolidayKeys = const {};
   int _loadGeneration = 0;
 
   JalaliDate get today => _today;
@@ -118,6 +119,7 @@ class CalendarProvider extends ChangeNotifier {
       final employees = await _employees.fetchEmployees();
       final services = await _services.fetchServices();
       final appointments = await _appointments.fetchAll();
+      final holidays = await _employees.fetchBusinessHolidays();
       final availability = await Future.wait(employees.map((employee) async => [
         await _employees.fetchScheduleExceptions(employee.id),
         await _employees.fetchLeaves(employee.id),
@@ -128,6 +130,7 @@ class CalendarProvider extends ChangeNotifier {
       _rangeAppointments = appointments;
       _scheduleExceptions = {for (var i=0;i<employees.length;i++) employees[i].id: availability[i][0] as List<EmployeeScheduleException>};
       _employeeLeaves = {for (var i=0;i<employees.length;i++) employees[i].id: availability[i][1] as List<EmployeeLeave>};
+      _businessHolidayKeys = holidays.map(EmployeeScheduleRules.dateKey).toSet();
       _loadError = null;
     } catch (error) {
       if (generation != _loadGeneration) return;
@@ -136,6 +139,7 @@ class CalendarProvider extends ChangeNotifier {
       _rangeAppointments = const [];
       _scheduleExceptions = const {};
       _employeeLeaves = const {};
+      _businessHolidayKeys = const {};
       _loadError = error.toString();
     } finally {
       if (generation == _loadGeneration) {
@@ -197,6 +201,7 @@ class CalendarProvider extends ChangeNotifier {
         .toList();
     final selectedEmployee = employee == null ? null : _employeeList.where((e) => e.id == employee).firstOrNull;
     final dateKey = EmployeeScheduleRules.dateKey(date.toDateTime());
+    if (_businessHolidayKeys.contains(dateKey)) return const [];
     final exception = selectedEmployee == null ? null : (_scheduleExceptions[selectedEmployee.id] ?? const <EmployeeScheduleException>[]).where((item) => item.dateKey == dateKey).firstOrNull;
     final shifts = selectedEmployee == null ? const <Shift>[] : exception == null ? selectedEmployee.shiftsFor(date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
     final leaves = selectedEmployee == null ? const <EmployeeLeave>[] : (_employeeLeaves[selectedEmployee.id] ?? const <EmployeeLeave>[]);
@@ -222,6 +227,7 @@ class CalendarProvider extends ChangeNotifier {
   ScheduleException? exceptionFor(JalaliDate date) => null;
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
+    if (_businessHolidayKeys.contains(EmployeeScheduleRules.dateKey(date.toDateTime()))) return true;
     if (employeeId != null) {
       final employee = _employeeList.where((e) => e.id == employeeId).firstOrNull;
       if (employee == null) return true;
