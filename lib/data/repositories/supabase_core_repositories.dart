@@ -33,7 +33,8 @@ class SupabaseCustomerRepository implements CustomerRepository {
   Future<List<Customer>> fetchAll({String query = ''}) async { final b=await scope.businessId; var q=client.from('customers').select().eq('business_id',b).eq('is_active',true); if(query.trim().isNotEmpty){ final term=query.trim().replaceAll('%',r'\%').replaceAll('_',r'\_'); q=q.or('full_name.ilike.%'+term+'%,phone.ilike.%'+term+'%,normalized_phone.ilike.%'+term+'%'); } final rows=await q.order('created_at',ascending:false); return rows.map((r)=>map(Map<String,dynamic>.from(r))).toList(); }
   Future<PageResult<Customer>> fetchCustomers({String query='',int page=1,int pageSize=8,String sortBy='createdAt'}) async { final all=await fetchAll(query:query); final start=((page-1)*pageSize).clamp(0,all.length); final end=(start+pageSize).clamp(start,all.length); return PageResult(items:all.sublist(start,end),total:all.length,page:page,pageSize:pageSize); }
   Future<Customer?> findById(String id) async { final b=await scope.businessId; final r=await client.from('customers').select().eq('business_id',b).eq('id',id).maybeSingle(); return r==null?null:map(Map<String,dynamic>.from(r)); }
-  Future<void> create(Customer c) async { final b=await scope.businessId; await client.from('customers').insert({'business_id':b,'full_name':c.fullName.trim(),'phone':c.phone.trim(),'notes':c.notes,'tags':c.tags,'is_active':!c.isArchived}); }
+  Future<Customer> createAndReturn(Customer c) async { final b=await scope.businessId; final row=await client.from('customers').insert({'business_id':b,'full_name':c.fullName.trim(),'phone':c.phone.trim(),'notes':c.notes,'tags':c.tags,'is_active':!c.isArchived}).select().single(); return map(Map<String,dynamic>.from(row)); }
+  Future<void> create(Customer c) async { await createAndReturn(c); }
   Future<void> update(Customer c) async { final b=await scope.businessId; await client.from('customers').update({'full_name':c.fullName.trim(),'phone':c.phone.trim(),'notes':c.notes,'tags':c.tags,'is_active':!c.isArchived}).eq('business_id',b).eq('id',c.id); }
   Future<void> delete(String id) async { final b=await scope.businessId; await client.from('customers').update({'is_active':false}).eq('business_id',b).eq('id',id); }
 }
@@ -44,7 +45,8 @@ class SupabaseServiceRepository implements ServiceRepository {
   Future<List<Service>> fetchServices({bool onlyActive=false,String query=''}) async { final b=await scope.businessId; var q=client.from('services').select('*,employee_services(employee_id,is_active)').eq('business_id',b).isFilter('archived_at',null); if(onlyActive) q=q.eq('is_active',true); if(query.trim().isNotEmpty) q=q.ilike('title','%'+query.trim()+'%'); final rows=await q.order('sort_order'); return rows.map((raw){final r=Map<String,dynamic>.from(raw); final ids=(r['employee_services'] as List? ?? const []).where((x)=>(x as Map)['is_active']==true).map((x)=>(x as Map)['employee_id'].toString()).toList(); return map(r,ids);}).toList(); }
   Future<Service?> findById(String id) async { for(final s in await fetchServices()){if(s.id==id)return s;} return null; }
   Map<String,dynamic> payload(Service s)=>{'title':s.title,'category':s.category,'description':s.description,'duration_minutes':s.durationMinutes,'price_toman':s.price,'direct_cost_toman':s.directCost,'buffer_minutes':s.bufferMinutes,'prep_minutes':s.prepMinutes,'image_url':s.imageUrl,'discount_price_toman':s.discountPrice,'discount_starts_on':s.discountStartsAt?.toIso8601String().substring(0,10),'discount_ends_on':s.discountEndsAt?.toIso8601String().substring(0,10),'is_active':s.isActive,'max_per_day':s.maxPerDay,'advance_days':s.advanceDays,'requires_confirmation':s.requiresConfirmation,'sort_order':s.order};
-  Future<void> create(Service s) async {final b=await scope.businessId; await client.from('services').insert({'business_id':b,...payload(s)});}
+  Future<String> createAndReturn(Service s) async {final b=await scope.businessId; final row=await client.from('services').insert({'business_id':b,...payload(s)}).select('id').single(); return row['id'].toString();}
+  Future<void> create(Service s) async {await createAndReturn(s);}
   Future<void> update(Service s) async {final b=await scope.businessId; await client.from('services').update(payload(s)).eq('business_id',b).eq('id',s.id);}
   Future<void> delete(String id) async {final b=await scope.businessId; await client.from('services').update({'is_active':false,'archived_at':DateTime.now().toUtc().toIso8601String()}).eq('business_id',b).eq('id',id);}
   Future<void> toggle(String id,bool active) async {final b=await scope.businessId; await client.from('services').update({'is_active':active}).eq('business_id',b).eq('id',id);}
@@ -86,12 +88,12 @@ class UnavailableCustomerRepository implements CustomerRepository {
   Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
   Future<PageResult<Customer>> fetchCustomers({String query='',int page=1,int pageSize=8,String sortBy='createdAt'}) async=>fail();
   Future<List<Customer>> fetchAll({String query=''}) async=>fail(); Future<Customer?> findById(String id) async=>fail();
-  Future<void> create(Customer c) async=>fail(); Future<void> update(Customer c) async=>fail(); Future<void> delete(String id) async=>fail();
+  Future<void> create(Customer c) async=>fail(); Future<Customer> createAndReturn(Customer c) async=>fail(); Future<void> update(Customer c) async=>fail(); Future<void> delete(String id) async=>fail();
 }
 class UnavailableServiceRepository implements ServiceRepository {
   Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
   Future<List<Service>> fetchServices({bool onlyActive=false,String query=''}) async=>fail(); Future<Service?> findById(String id) async=>fail();
-  Future<void> create(Service s) async=>fail(); Future<void> update(Service s) async=>fail(); Future<void> delete(String id) async=>fail(); Future<void> toggle(String id,bool active) async=>fail();
+  Future<void> create(Service s) async=>fail(); Future<String> createAndReturn(Service s) async=>fail(); Future<void> update(Service s) async=>fail(); Future<void> delete(String id) async=>fail(); Future<void> toggle(String id,bool active) async=>fail();
   Future<List<String>> fetchCategories() async=>fail(); Future<void> addCategory(String name) async=>fail(); Future<void> renameCategory(String oldName,String newName) async=>fail(); Future<void> deleteCategory(String name,{String? moveServicesTo}) async=>fail();
   Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async=>fail(); Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig c) async=>fail();
 }
