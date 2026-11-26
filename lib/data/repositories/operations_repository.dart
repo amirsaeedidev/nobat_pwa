@@ -25,8 +25,14 @@ class SensitiveOperationPreview {
   final String? warning;
 }
 
+/// قرارداد قابل تزریق برای عملیات Undo؛ پیاده‌سازی تولیدی از RPC سرور استفاده می‌کند.
+abstract class ActivityOperationsRepository {
+  bool canUndoActivityLog(ActivityLog log);
+  Future<bool> undoActivityEvent(String activityLogId);
+}
+
 /// نقطه ورود واحد عملیات حساس؛ تمام تغییرات از مسیر AppDatabase و Audit Log می‌گذرند.
-class OperationsRepository {
+class OperationsRepository implements ActivityOperationsRepository {
   OperationsRepository(this._db);
 
   final AppDatabase _db;
@@ -487,6 +493,12 @@ class OperationsRepository {
   bool canUndo(String activityLogId) => _db.canUndoLog(activityLogId);
 
   bool undo(String activityLogId) => _db.undoLog(activityLogId);
+
+  @override
+  bool canUndoActivityLog(ActivityLog log) => canUndo(log.id);
+
+  @override
+  Future<bool> undoActivityEvent(String activityLogId) async => undo(activityLogId);
 
   bool undoLatestForEntity(String entityId) {
     final entry = latestUndoableLogFor(entityId);
