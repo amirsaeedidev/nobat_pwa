@@ -21,6 +21,7 @@ abstract class EmployeeRepository {
   Future<void> createLeave(EmployeeLeave leave);
   Future<void> updateLeave(EmployeeLeave leave);
   Future<void> deleteLeave(String id);
+  Future<List<DateTime>> fetchBusinessHolidays();
 }
 
 class MockEmployeeRepository implements EmployeeRepository {
@@ -80,6 +81,9 @@ class MockEmployeeRepository implements EmployeeRepository {
 
   @override
   Future<void> deleteLeave(String id) async => _db.deleteEmployeeLeave(id);
+
+  @override
+  Future<List<DateTime>> fetchBusinessHolidays() async => const [];
 
   @override
   Future<void> delete(String id) async {
