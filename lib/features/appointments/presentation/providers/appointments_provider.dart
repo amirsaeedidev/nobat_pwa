@@ -217,6 +217,12 @@ class AppointmentsProvider extends ChangeNotifier {
 
   Future<Appointment?> byId(String id) => _repository.findById(id);
 
+  Future<Appointment?> byReference(String reference) async {
+    final result = await _repository.fetchAppointments(filter: AppointmentFilter(query: reference), page: 1, pageSize: 10);
+    for (final item in result.items) { if (item.reference == reference) return item; }
+    return null;
+  }
+
   /// یافتن همگام (برای فرم‌ها).
   Appointment? appointmentById(String id) {
     for (final item in _page.items) { if (item.id == id) return item; }
