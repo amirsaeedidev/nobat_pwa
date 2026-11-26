@@ -25,6 +25,10 @@ Future<bool> showSensitiveOperationDialog(
         constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            if (recordDetails['شناسه رکورد'] != null) ...[
+              Text(recordDetails['شناسه رکورد']!, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+              const SizedBox(height: 8),
+            ],
             Text(description, style: TextStyle(color: pal.textSecondary, height: 1.7)),
             if (recordDetails.isNotEmpty) ...[
               const SizedBox(height: 14),
