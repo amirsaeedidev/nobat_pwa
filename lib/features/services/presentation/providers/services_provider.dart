@@ -1,13 +1,12 @@
-import '../../../../core/providers/db_bound_provider.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/models/app_failure.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/models/employee_service_config.dart';
 import '../../../../data/repositories/service_repository.dart';
 
 /// مدیریت خدمات.
-class ServicesProvider extends DbBoundProvider {
-  ServicesProvider(this._repository, AppDatabase db) : super(db) {
+class ServicesProvider extends ChangeNotifier {
+  ServicesProvider(this._repository) {
     load();
   }
 
@@ -68,8 +67,6 @@ class ServicesProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() { load(); }
 
   void search(String query) {
     _query = query;
