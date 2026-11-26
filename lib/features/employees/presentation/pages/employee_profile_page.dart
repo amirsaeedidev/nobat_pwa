@@ -47,10 +47,10 @@ class EmployeeProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
     final appointments = context.watch<AppointmentsProvider>();
-    final auth = context.watch<SupabaseAuthStateNotifier>();
-    final canViewIncome = auth.role == 'owner' ||
-        auth.permissions['finance.payroll.view'] == true ||
-        auth.permissions['finance.wallet.view_all'] == true;
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    final canViewIncome = auth?.role == 'owner' ||
+        auth?.permissions['finance.payroll.view'] == true ||
+        auth?.permissions['finance.wallet.view_all'] == true;
     final pal = context.pal;
     final employee = provider.byIdSync(employeeId);
 
