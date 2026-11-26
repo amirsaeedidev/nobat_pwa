@@ -33,6 +33,7 @@ class ServicesProvider extends ChangeNotifier {
   List<String> get categories => _categories;
   EmployeeServiceConfig? employeeServiceConfig(String employeeId, String serviceId) =>
       _employeeConfigs['$employeeId::$serviceId'];
+  List<EmployeeServiceConfig> get allEmployeeConfigs => _employeeConfigs.values.toList(growable: false);
   String? get categoryFilter => _categoryFilter;
   num? get minimumPrice => _minimumPrice;
   num? get maximumPrice => _maximumPrice;
