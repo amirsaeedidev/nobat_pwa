@@ -186,7 +186,11 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
     final existing = await _appointments.fetchForDay(_date.toDateTime(), employeeId: employee.id);
     if (generation != _slotGeneration) return;
-    final shifts = employee.scheduleEnabled ? employee.shiftsFor(_date.weekday) : const <Shift>[];
+    final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
+    final dateKey = EmployeeScheduleRules.dateKey(_date.toDateTime());
+    final exception = exceptionRows.where((item) => item.dateKey == dateKey).firstOrNull;
+    final shifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+    final leaves = await _employees.fetchLeaves(employee.id);
     final interval = 30;
     final slots = <BookingSlot>[];
     for (final shift in shifts) {
@@ -202,12 +206,13 @@ class BookingProvider extends ChangeNotifier {
           return a.startAt.isBefore(end) && start.isBefore(a.endAt);
         });
         final scheduleAvailable = shifts.any((shift) => minutes >= shift.startMinutes && minutes + service.totalMinutes <= shift.endMinutes);
-        final available = !conflict && scheduleAvailable;
+        final leaveConflict = leaves.any((leave) => leave.overlaps(start, end));
+        final available = !conflict && scheduleAvailable && !leaveConflict;
         slots.add(
           BookingSlot(
             start: start,
             isAvailable: available,
-            reason: conflict ? 'رزرو شده' : (scheduleAvailable ? null : 'مرخصی یا فاصله بین نوبت‌ها'),
+            reason: conflict ? 'رزرو شده' : leaveConflict ? 'مرخصی پرسنل' : (scheduleAvailable ? null : 'خارج از برنامه کاری'),
           ),
         );
       }
@@ -258,9 +263,16 @@ class BookingProvider extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-      final inShift = employee.scheduleEnabled && employee.shiftsFor(_date.weekday).any((shift) => slot.start.hour * 60 + slot.start.minute >= shift.startMinutes && slot.start.hour * 60 + slot.start.minute + service.totalMinutes <= shift.endMinutes);
-      if (!inShift) {
-        _error = 'این زمان خارج از برنامه کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.';
+      final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
+      final dateKey = EmployeeScheduleRules.dateKey(slot.start);
+      final exception = exceptionRows.where((item) => item.dateKey == dateKey).firstOrNull;
+      final availableShifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+      final startMinute = slot.start.hour * 60 + slot.start.minute;
+      final inShift = availableShifts.any((shift) => startMinute >= shift.startMinutes && startMinute + service.totalMinutes <= shift.endMinutes);
+      final leaves = await _employees.fetchLeaves(employee.id);
+      final onLeave = leaves.any((leave) => leave.overlaps(slot.start, slot.start.add(Duration(minutes: service.totalMinutes))));
+      if (!inShift || onLeave) {
+        _error = onLeave ? 'این زمان با مرخصی پرسنل تداخل دارد.' : 'این زمان خارج از برنامه کاری پرسنل است.';
         _submitting = false;
         notifyListeners();
         return false;
