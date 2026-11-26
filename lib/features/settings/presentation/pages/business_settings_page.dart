@@ -134,6 +134,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         width: 58,
@@ -161,10 +162,19 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                               'در این فاز حروف اول نام به‌عنوان لوگو نمایش داده می‌شود (آماده Supabase Storage).',
                               style: TextStyle(fontSize: 10, color: pal.textMuted, height: 1.6),
                             ),
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: SoftButton(
+                                label: 'تغییر',
+                                icon: Icons.upload_rounded,
+                                dense: true,
+                                onTap: () => AppToast.show(context, 'بارگذاری تصویر در فاز بعدی'),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      SoftButton(label: 'تغییر', icon: Icons.upload_rounded, dense: true, onTap: () => AppToast.show(context, 'بارگذاری تصویر در فاز بعدی')),
                     ],
                   ),
                   const SizedBox(height: 16),
