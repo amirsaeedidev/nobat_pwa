@@ -64,17 +64,20 @@ class EmployeesProvider extends ChangeNotifier {
   Future<bool> create(Employee employee) async {
     if (phoneExists(employee.phone)) return false;
     await _repository.create(employee);
+    await load();
     return true;
   }
 
   Future<bool> update(Employee employee) async {
     if (phoneExists(employee.phone, excludingId: employee.id)) return false;
     await _repository.update(employee);
+    await load();
     return true;
   }
 
   Future<bool> remove(String id) async {
     await _repository.delete(id);
+    await load();
     return true;
   }
 
