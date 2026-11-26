@@ -44,7 +44,7 @@ class SupabaseCustomerRepository extends CustomerRepository {
     final cancelled=appointments.where((a)=>a['status']=='cancelled'||a['status']=='rejected').length;
     final noShow=appointments.where((a)=>a['status']=='no_show').length;
     final visits=completed.map((a)=>DateTime.tryParse(a['starts_at']?.toString() ?? '')).whereType<DateTime>().toList()..sort();
-    final spent=completed.fold<num>(0,(sum,a)=>sum+(a['price_toman'] as num? ?? 0));
+    const spent=0;
     return Customer(id:r['id'].toString(),fullName:r['full_name'] as String? ?? '',phone:r['phone'] as String? ?? '',notes:r['notes'] as String? ?? '',tags:(r['tags'] as List? ?? const []).map((e)=>e.toString()).toList(),createdAt:DateTime.tryParse(r['created_at']?.toString() ?? ''),visitCount:completed.length,totalSpent:spent,cancelCount:cancelled,noShowCount:noShow,lastVisitAt:visits.isEmpty?null:visits.last,isArchived:r['is_active']==false);
   }
   Future<List<Customer>> fetchAll({String query = '', bool archivedOnly = false}) async {
@@ -54,7 +54,7 @@ class SupabaseCustomerRepository extends CustomerRepository {
     final rows=await q.order('created_at',ascending:false);
     if(rows.isEmpty)return const [];
     final ids=rows.map((row)=>row['id'].toString()).toList();
-    final appointmentRows=await client.from('appointments').select('customer_id,starts_at,status,price_toman').eq('business_id',b).inFilter('customer_id',ids).isFilter('deleted_at',null);
+    final appointmentRows=await client.from('appointments').select('customer_id,starts_at,status').eq('business_id',b).inFilter('customer_id',ids).isFilter('deleted_at',null);
     final grouped=<String,List<Map<String,dynamic>>>{};
     for(final raw in appointmentRows){final item=Map<String,dynamic>.from(raw);grouped.putIfAbsent(item['customer_id'].toString(),()=>[]).add(item);}
     return rows.map((row){final value=Map<String,dynamic>.from(row);return map(value,appointments:grouped[value['id'].toString()]??const []);}).toList();
