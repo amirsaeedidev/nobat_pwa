@@ -118,6 +118,6 @@ class ActivityLog {
         isReversible: json['is_reversible'] as bool? ?? (json['undo_action'] != null && json['undo_data'] != null),
         idempotencyKey: json['idempotency_key'] as String?,
         operationId: json['operation_id'] as String?,
-        isUndone: json['is_undone'] as bool? ?? false,
+        isUndone: json['is_undone'] as bool? ?? json['undone_by_event_id'] != null,
       );
 }
