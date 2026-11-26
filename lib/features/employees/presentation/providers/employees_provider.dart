@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
 /// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
@@ -80,6 +81,14 @@ class EmployeesProvider extends ChangeNotifier {
     await load();
     return true;
   }
+
+  Future<List<EmployeeScheduleException>> scheduleExceptions(String employeeId) => _repository.fetchScheduleExceptions(employeeId);
+  Future<void> saveScheduleException(EmployeeScheduleException value) async { await _repository.saveScheduleException(value); notifyListeners(); }
+  Future<void> deleteScheduleException(String employeeId,String dateKey) async { await _repository.deleteScheduleException(employeeId,dateKey); notifyListeners(); }
+  Future<List<EmployeeLeave>> leaves(String employeeId) => _repository.fetchLeaves(employeeId);
+  Future<void> createLeave(EmployeeLeave value) async { await _repository.createLeave(value); notifyListeners(); }
+  Future<void> updateLeave(EmployeeLeave value) async { await _repository.updateLeave(value); notifyListeners(); }
+  Future<void> deleteLeave(String id) async { await _repository.deleteLeave(id); notifyListeners(); }
 
   String nextId() => 'emp-${DateTime.now().millisecondsSinceEpoch}';
 }
