@@ -196,31 +196,49 @@ class CalendarProvider extends ChangeNotifier {
   /// خانه‌های زمانی یک روز بر اساس ساعات کاری و نوبت‌های ثبت‌شده.
   List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
     final stepMinutes = intervalMinutes ?? 30;
-    final dayAppointments = appointmentsOn(date)
-        .where((a) => employee == null || a.employeeId == employee)
-        .toList();
-    final selectedEmployee = employee == null ? null : _employeeList.where((e) => e.id == employee).firstOrNull;
     final dateKey = EmployeeScheduleRules.dateKey(date.toDateTime());
     if (_businessHolidayKeys.contains(dateKey)) return const [];
-    final exception = selectedEmployee == null ? null : (_scheduleExceptions[selectedEmployee.id] ?? const <EmployeeScheduleException>[]).where((item) => item.dateKey == dateKey).firstOrNull;
-    final shifts = selectedEmployee == null ? const <Shift>[] : exception == null ? selectedEmployee.shiftsFor(date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
-    final leaves = selectedEmployee == null ? const <EmployeeLeave>[] : (_employeeLeaves[selectedEmployee.id] ?? const <EmployeeLeave>[]);
-    final slots = <TimeSlot>[];
-    for (final shift in shifts) {
-      for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
-      final hour = minutes ~/ 60;
-      final minute = minutes % 60;
-      final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
-      final busy = dayAppointments.where((a) {
-        return !start.isBefore(a.startAt) && start.isBefore(a.endAt);
-      }).toList();
-        final end = start.add(Duration(minutes: stepMinutes));
-        final onLeave = leaves.any((leave) => leave.overlaps(start, end));
-        if (onLeave) continue;
-        slots.add(TimeSlot(hour: hour, minute: minute, appointment: busy.isEmpty ? null : busy.first, isPast: date.sameDay(today) && DateTime.now().isAfter(start)));
+    final candidates = employee == null
+        ? employees.where((item) => item.isActive).toList()
+        : _employeeList.where((item) => item.id == employee && item.isActive).toList();
+    final dayAppointments = appointmentsOn(date);
+    final slotsByMinute = <int, TimeSlot>{};
+    for (final person in candidates) {
+      final exception = (_scheduleExceptions[person.id] ?? const <EmployeeScheduleException>[])
+          .where((item) => item.dateKey == dateKey).firstOrNull;
+      final shifts = !person.scheduleEnabled
+          ? const <Shift>[]
+          : exception == null
+              ? person.shiftsFor(date.weekday)
+              : (exception.isClosed ? const <Shift>[] : exception.shifts);
+      final leaves = _employeeLeaves[person.id] ?? const <EmployeeLeave>[];
+      for (final shift in shifts) {
+        for (var minutes = shift.startMinutes; minutes + stepMinutes <= shift.endMinutes; minutes += stepMinutes) {
+          final hour = minutes ~/ 60;
+          final minute = minutes % 60;
+          final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
+          final end = start.add(Duration(minutes: stepMinutes));
+          if (leaves.any((leave) => leave.overlaps(start, end))) continue;
+          final busy = dayAppointments.where((a) =>
+            a.employeeId == person.id && a.status.isActive &&
+            a.startAt.isBefore(end) && start.isBefore(a.endAt)).toList();
+          final slot = TimeSlot(
+            hour: hour,
+            minute: minute,
+            appointment: busy.isEmpty ? null : busy.first,
+            isPast: date.sameDay(today) && DateTime.now().isAfter(start),
+          );
+          final key = hour * 60 + minute;
+          final previous = slotsByMinute[key];
+          if (previous == null || (previous.appointment != null && slot.appointment == null)) {
+            slotsByMinute[key] = slot;
+          }
+        }
       }
     }
-    return slots;
+    final result = slotsByMinute.values.toList()
+      ..sort((a,b) => (a.hour*60+a.minute).compareTo(b.hour*60+b.minute));
+    return result;
   }
 
   /// آیا روز تعطیل است؟
