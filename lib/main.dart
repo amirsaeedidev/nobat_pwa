@@ -9,7 +9,6 @@ import 'data/repositories/supabase_auth_repository.dart';
 import 'data/repositories/supabase_repository.dart';
 
 import 'app/app.dart';
-import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
 import 'data/repositories/supabase_activity_repository.dart';
 import 'data/repositories/operations_repository.dart';
@@ -94,10 +93,6 @@ Future<void> main() async {
     }
   }
 
-  // The legacy database remains only as a compatibility dependency for
-  // pages not yet migrated. It is never seeded in production.
-  final database = AppDatabase(seed: false);
-
   final supabaseClient = SupabaseService.client!;
   final supabaseRepository = SupabaseRepository(supabaseClient);
   final supabaseAuthRepository = SupabaseAuthRepository(supabaseClient);
@@ -154,7 +149,6 @@ Future<void> main() async {
         ChangeNotifierProvider<SupabaseAuthStateNotifier>.value(
           value: authStateNotifier,
         ),
-        ChangeNotifierProvider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
         Provider<CustomerRepository>.value(value: customerRepository),
         Provider<ServiceRepository>.value(value: serviceRepository),
@@ -165,18 +159,18 @@ Future<void> main() async {
         Provider<BusinessFinanceRepository>.value(value: businessFinanceRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
         Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, db: database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, db: database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, null, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(
           create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, settingsRepository: settingsRepository, authStateNotifier: authStateNotifier),
         ),
-        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database, operationsRepository: activityOperationsRepository, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, null, operationsRepository: activityOperationsRepository, authStateNotifier: authStateNotifier)),
       ],
       child: const DateTimeApp(),
     ),
