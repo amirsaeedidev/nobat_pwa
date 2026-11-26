@@ -4,6 +4,7 @@ import '../../core/utils/jalali.dart';
 import '../models/appointment.dart';
 import '../models/customer.dart';
 import '../models/employee.dart';
+import '../models/employee_schedule.dart';
 import '../models/employee_service_config.dart';
 import '../models/enums.dart';
 import '../models/service.dart';
@@ -65,6 +66,25 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
   Future<void> save(Employee e) async {final b=await scope.businessId; final profile={'full_name':e.fullName,'phone':e.phone,'email':e.email,'title':e.title,'staff_role':e.role.key,'is_active':e.isActive,'employment_status':e.employmentStatus.name,'hired_on':e.startedAt?.toIso8601String().substring(0,10),'notes':e.notes,'specialties':e.specialties,'emergency_contact_name':e.emergencyContactName,'emergency_contact_phone':e.emergencyContactPhone,'schedule_enabled':e.scheduleEnabled,'buffer_minutes':e.bufferMinutes}; final existingRows=e.id.startsWith('emp-')?const <dynamic>[]:await client.from('employee_services').select('service_id,is_active,custom_price_toman,custom_duration_minutes,notes,employee_service_compensation(commission_rate_bps,fixed_commission_amount_toman)').eq('business_id',b).eq('employee_id',e.id); final existingByService=<String,Map<String,dynamic>>{}; for(final row in existingRows){final value=Map<String,dynamic>.from(row);existingByService[value['service_id'].toString()]=value;} final services=e.serviceIds.map((id){final old=existingByService[id];return <String,dynamic>{'service_id':id,'is_active':old?['is_active']??true,'custom_price_toman':old?['custom_price_toman'],'custom_duration_minutes':old?['custom_duration_minutes'],'notes':old?['notes']??''};}).toList(); final hours=<Map<String,dynamic>>[]; e.schedule.forEach((day,shifts){for(final s in shifts){hours.add({'weekday':(day+6)%7,'starts_at':s.start,'ends_at':s.end,'is_active':true});}}); final dynamic id=e.id.startsWith('emp-')?null:e.id; await client.rpc('save_employee_profile',params:{'p_business_id':b,'p_employee_id':id,'p_profile':profile,'p_services':services,'p_working_hours':hours}); for(final raw in existingRows){final row=Map<String,dynamic>.from(raw);final serviceId=row['service_id'].toString();if(!e.serviceIds.contains(serviceId))continue;final values=(row['employee_service_compensation'] as List? ?? const []);if(values.isEmpty)continue;final comp=Map<String,dynamic>.from(values.first as Map);await client.from('employee_service_compensation').upsert({'business_id':b,'employee_id':id ?? (await client.from('employees').select('id').eq('business_id',b).eq('full_name',e.fullName).order('created_at',ascending:false).limit(1).single())['id'],'service_id':serviceId,'commission_rate_bps':comp['commission_rate_bps'],'fixed_commission_amount_toman':comp['fixed_commission_amount_toman']},onConflict:'business_id,employee_id,service_id');}}
   Future<void> create(Employee e)=>save(e); Future<void> update(Employee e)=>save(e);
   Future<void> delete(String id) async {final b=await scope.businessId; await client.from('employees').update({'is_active':false,'employment_status':'inactive'}).eq('business_id',b).eq('id',id);}
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions(String employeeId) async {
+    final b=await scope.businessId;
+    final rows=await client.from('employee_schedule_exceptions').select('work_date,is_available,starts_at,ends_at,reason').eq('business_id',b).eq('employee_id',employeeId).order('work_date');
+    final grouped=<String,List<Map<String,dynamic>>>{};
+    for(final raw in rows){final row=Map<String,dynamic>.from(raw);final key=row['work_date'].toString().substring(0,10);grouped.putIfAbsent(key,()=>[]).add(row);}
+    return grouped.entries.map((entry){final rows=entry.value;final closed=rows.any((row)=>row['is_available']==false);final shifts=closed?const <Shift>[]:rows.where((row)=>row['is_available']==true&&row['starts_at']!=null&&row['ends_at']!=null).map((row)=>Shift(start:row['starts_at'].toString().substring(0,5),end:row['ends_at'].toString().substring(0,5))).toList();return EmployeeScheduleException(employeeId:employeeId,dateKey:entry.key,title:rows.first['reason'] as String? ?? 'ساعات ویژه',isClosed:closed,shifts:shifts);}).toList();
+  }
+  Future<void> saveScheduleException(EmployeeScheduleException exception) async {
+    final b=await scope.businessId;
+    await client.from('employee_schedule_exceptions').delete().eq('business_id',b).eq('employee_id',exception.employeeId).eq('work_date',exception.dateKey);
+    if(exception.isClosed){await client.from('employee_schedule_exceptions').insert({'business_id':b,'employee_id':exception.employeeId,'work_date':exception.dateKey,'is_available':false,'reason':exception.title});}
+    else {for(final shift in exception.shifts){await client.from('employee_schedule_exceptions').insert({'business_id':b,'employee_id':exception.employeeId,'work_date':exception.dateKey,'is_available':true,'starts_at':shift.start,'ends_at':shift.end,'reason':exception.title});}}
+  }
+  Future<void> deleteScheduleException(String employeeId,String dateKey) async {final b=await scope.businessId;await client.from('employee_schedule_exceptions').delete().eq('business_id',b).eq('employee_id',employeeId).eq('work_date',dateKey);}
+  EmployeeLeave _mapLeave(Map<String,dynamic> r)=>EmployeeLeave(id:r['id'].toString(),employeeId:r['employee_id'].toString(),startAt:DateTime.parse(r['starts_at'].toString()).toLocal(),endAt:DateTime.parse(r['ends_at'].toString()).toLocal(),type:EmployeeLeaveType.values.firstWhere((v)=>v.name==r['leave_type'],orElse:()=>EmployeeLeaveType.daily),status:EmployeeLeaveStatus.values.firstWhere((v)=>v.name==r['status'],orElse:()=>EmployeeLeaveStatus.pending),description:r['description'] as String? ?? '',createdAt:DateTime.parse(r['created_at'].toString()).toLocal(),approvedBy:r['reviewed_by']?.toString());
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId) async {final b=await scope.businessId;final rows=await client.from('employee_leaves').select().eq('business_id',b).eq('employee_id',employeeId).order('starts_at',ascending:false);return rows.map((r)=>_mapLeave(Map<String,dynamic>.from(r))).toList();}
+  Future<void> createLeave(EmployeeLeave leave) async {final b=await scope.businessId;await client.from('employee_leaves').insert({'business_id':b,'employee_id':leave.employeeId,'starts_at':leave.startAt.toUtc().toIso8601String(),'ends_at':leave.endAt.toUtc().toIso8601String(),'leave_type':leave.type.name,'status':leave.status.name,'description':leave.description,'requested_by':client.auth.currentUser!.id});}
+  Future<void> updateLeave(EmployeeLeave leave) async {final b=await scope.businessId;await client.from('employee_leaves').update({'status':leave.status.name,'description':leave.description,'reviewed_by':client.auth.currentUser!.id,'reviewed_at':DateTime.now().toUtc().toIso8601String()}).eq('business_id',b).eq('employee_id',leave.employeeId).eq('id',leave.id);}
+  Future<void> deleteLeave(String id) async {final b=await scope.businessId;await client.from('employee_leaves').delete().eq('business_id',b).eq('id',id);}
 }
 
 class SupabaseAppointmentRepository implements AppointmentRepository {
@@ -101,6 +121,13 @@ class UnavailableEmployeeRepository implements EmployeeRepository {
   Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
   Future<List<Employee>> fetchEmployees({bool onlyActive=false,String? serviceId}) async=>fail(); Future<Employee?> findById(String id) async=>fail();
   Future<void> create(Employee e) async=>fail(); Future<void> update(Employee e) async=>fail(); Future<void> delete(String id) async=>fail();
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions(String employeeId) async=>fail();
+  Future<void> saveScheduleException(EmployeeScheduleException exception) async=>fail();
+  Future<void> deleteScheduleException(String employeeId,String dateKey) async=>fail();
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId) async=>fail();
+  Future<void> createLeave(EmployeeLeave leave) async=>fail();
+  Future<void> updateLeave(EmployeeLeave leave) async=>fail();
+  Future<void> deleteLeave(String id) async=>fail();
 }
 class UnavailableAppointmentRepository implements AppointmentRepository {
   Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
