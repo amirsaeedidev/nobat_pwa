@@ -61,7 +61,7 @@ class ServiceDetailsPage extends StatelessWidget {
         Row(children: [
           Expanded(child: _MetricCard(title: 'تعداد نوبت‌ها', value: FaNum.ofInt(appointments.length))),
           const SizedBox(width: 10),
-          Expanded(child: _MetricCard(title: 'دریافتی ثبت‌شده', value: Fmt.money(revenue))),
+          Expanded(child: _MetricCard(title: 'ارزش نوبت‌های تکمیل‌شده', value: Fmt.money(revenue))),
         ]),
         const SizedBox(height: 12),
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
