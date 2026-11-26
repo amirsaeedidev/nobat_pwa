@@ -38,7 +38,16 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
 
   @override
   Widget build(BuildContext context) {
-    final db = context.watch<AppDatabase>();
+    final db = context.watch<AppDatabase?>();
+    if (db == null) {
+      return PageScaffold(
+        title: 'کیف پول و تسویه',
+        showBackButton: true,
+        child: const ErrorStateView(
+          description: 'کیف پول پرسنل هنوز به Repository و RPC واقعی Supabase متصل نشده است. برای جلوگیری از نمایش مانده یا تراکنش ساختگی، اطلاعات محلی نمایش داده نمی‌شود.',
+        ),
+      );
+    }
     final employee = db.employeeById(widget.employeeId);
     final pal = context.pal;
     if (employee == null) {
