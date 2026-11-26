@@ -3,6 +3,7 @@ import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/repositories/appointment_repository.dart';
@@ -194,15 +195,15 @@ class BookingProvider extends ChangeNotifier {
     final interval = 30;
     final slots = <BookingSlot>[];
     for (final shift in shifts) {
-      for (var minutes = shift.startMinutes; minutes + service.durationMinutes <= shift.endMinutes; minutes += interval) {
+      for (var minutes = shift.startMinutes; minutes + service.totalMinutes <= shift.endMinutes; minutes += interval) {
         final start = _date.toDateTime().add(Duration(minutes: minutes));
         if (start.isBefore(DateTime.now())) {
           slots.add(BookingSlot(start: start, isAvailable: false, reason: 'گذشته'));
           continue;
         }
+        final end = start.add(Duration(minutes: service.totalMinutes));
         final conflict = existing.any((a) {
-          if (a.status == AppointmentStatus.cancelled) return false;
-          final end = start.add(Duration(minutes: service.durationMinutes + service.bufferMinutes));
+          if (!a.status.isActive) return false;
           return a.startAt.isBefore(end) && start.isBefore(a.endAt);
         });
         final scheduleAvailable = shifts.any((shift) => minutes >= shift.startMinutes && minutes + service.totalMinutes <= shift.endMinutes);
