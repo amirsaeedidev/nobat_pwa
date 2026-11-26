@@ -49,7 +49,7 @@ class EmployeeLeaveRequestsPage extends StatelessWidget {
    ]));
  }
  static Widget _status(BuildContext context,EmployeeLeaveStatus status) {
-  final color=switch(status){EmployeeLeaveStatus.pending=>Colors.orange,EmployeeLeaveStatus.approved=>Colors.green,EmployeeLeaveStatus.rejected=>Theme.of(context).colorScheme.error};
+  final color=switch(status){EmployeeLeaveStatus.pending=>Colors.orange,EmployeeLeaveStatus.approved=>Colors.green,EmployeeLeaveStatus.rejected=>Theme.of(context).colorScheme.error,EmployeeLeaveStatus.cancelled=>Colors.grey};
   return Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),decoration:BoxDecoration(color:color.withValues(alpha:.1),borderRadius:BorderRadius.circular(20)),child:Text(status.label,style:TextStyle(color:color,fontSize:11,fontWeight:FontWeight.w700)));
  }
  static String _date(DateTime d)=>d.year.toString()+'/'+d.month.toString().padLeft(2,'0')+'/'+d.day.toString().padLeft(2,'0');
