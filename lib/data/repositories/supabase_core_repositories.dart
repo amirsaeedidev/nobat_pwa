@@ -1,10 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-Map<String,dynamic>? _oneRelation(dynamic value) {
-  if (value is Map) return Map<String,dynamic>.from(value);
-  if (value is List && value.isNotEmpty && value.first is Map) return Map<String,dynamic>.from(value.first as Map);
-  return null;
-}
 import '../../core/models/page_result.dart';
 import '../../core/utils/jalali.dart';
 import '../models/appointment.dart';
@@ -18,6 +12,12 @@ import 'appointment_repository.dart';
 import 'customer_repository.dart';
 import 'employee_repository.dart';
 import 'service_repository.dart';
+
+Map<String,dynamic>? _oneRelation(dynamic value) {
+  if (value is Map) return Map<String,dynamic>.from(value);
+  if (value is List && value.isNotEmpty && value.first is Map) return Map<String,dynamic>.from(value.first as Map);
+  return null;
+}
 
 class SupabaseTenantScope {
   SupabaseTenantScope(this.client);
