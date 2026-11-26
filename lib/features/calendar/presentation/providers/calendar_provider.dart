@@ -209,7 +209,7 @@ class CalendarProvider extends ChangeNotifier {
       final busy = dayAppointments.where((a) {
         return !start.isBefore(a.startAt) && start.isBefore(a.endAt);
       }).toList();
-        final end = start.add(const Duration(minutes: 30));
+        final end = start.add(Duration(minutes: stepMinutes));
         final onLeave = leaves.any((leave) => leave.overlaps(start, end));
         if (onLeave) continue;
         slots.add(TimeSlot(hour: hour, minute: minute, appointment: busy.isEmpty ? null : busy.first, isPast: date.sameDay(today) && DateTime.now().isAfter(start)));
