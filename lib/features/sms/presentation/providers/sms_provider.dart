@@ -10,7 +10,7 @@ import '../../../../data/repositories/sms_repository.dart';
 
 /// مانیتورینگ پیامک، قالب‌ها و تنظیمات پنل.
 class SmsProvider extends DbBoundProvider {
-  SmsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
+  SmsProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
     load();
   }
 
