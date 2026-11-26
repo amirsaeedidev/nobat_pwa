@@ -139,6 +139,10 @@ void main() {
               });
               final total = childWidths.fold<double>(0, (sum, item) => sum + item);
               debugPrint('ROW-DIAG index=$rowIndex width=${flex.size.width} constraints=${flex.constraints} children=$childWidths total=$total');
+              if (rowIndex == 70) {
+                debugPrint('ROW-70-CREATOR ${flex.debugCreator}');
+                debugPrint('ROW-70-WIDGET ${rowFinder.at(rowIndex).evaluate().single.toStringDeep()}');
+              }
             }
           }
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
