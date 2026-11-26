@@ -91,21 +91,20 @@ class EmployeeServicesPanel extends StatelessWidget {
       ])))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('انصراف')),
-        FilledButton(onPressed: () {
+        FilledButton(onPressed: () async {
           if (!formKey.currentState!.validate() || selected == null) return;
           final rateValue = rate.text.trim().isEmpty ? null : (double.parse(FaNum.toLatin(rate.text).replaceAll(',', '.')) * 100).round();
-          servicesProvider.saveEmployeeServiceConfig(EmployeeServiceConfig(
+          await servicesProvider.saveEmployeeServiceConfig(EmployeeServiceConfig(
             employeeId: employee.id, serviceId: selected!.id, active: active,
             customPrice: price.text.trim().isEmpty ? null : int.parse(FaNum.toLatin(price.text)),
             customDurationMinutes: duration.text.trim().isEmpty ? null : int.parse(FaNum.toLatin(duration.text)),
             commissionRateBps: rateValue,
             fixedCommissionAmount: fixed.text.trim().isEmpty ? null : int.parse(FaNum.toLatin(fixed.text)),
             specialtyNote: note.text.trim(),
-          )).then((_) async {
-            await context.read<EmployeesProvider>().load();
-            await servicesProvider.load();
-          });
-          Navigator.pop(dialogContext);
+          ));
+          await context.read<EmployeesProvider>().load();
+          await servicesProvider.load();
+          if (dialogContext.mounted) Navigator.pop(dialogContext);
         }, child: const Text('ذخیره')),
       ],
     )));
