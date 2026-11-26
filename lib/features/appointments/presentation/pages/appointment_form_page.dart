@@ -18,7 +18,6 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../customers/presentation/providers/customers_provider.dart';
@@ -84,57 +83,46 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     super.dispose();
   }
 
-  AppDatabase get _db => context.read<AppDatabase>();
   Employee? get _pricingEmployee {
-    if (_employee != null && _services.every((service) => _db.employeeOffersService(_employee!.id, service.id))) return _employee;
+    if (_employee != null && _services.every((service) => _employee!.serviceIds.contains(service.id))) return _employee;
     if (_services.isEmpty) return null;
-    for (final employee in _db.eligibleEmployeesForService(_services.first.id)) {
-      if (_services.every((service) => _db.employeeOffersService(employee.id, service.id))) return employee;
+    for (final employee in context.read<EmployeesProvider>().items) {
+      if (_services.every((service) => employee.serviceIds.contains(service.id))) return employee;
     }
     return null;
   }
   num get _totalPrice => _services.fold<num>(0, (sum, service) {
     final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
     final savedPrice = previous?['price'] as num?;
-    final config = _pricingEmployee == null ? null : _db.employeeServiceConfig(_pricingEmployee!.id, service.id);
+    final config = _pricingEmployee == null ? null : context.read<ServicesProvider>().employeeServiceConfig(_pricingEmployee!.id, service.id);
     final currentPrice = config?.customPrice ?? service.priceAt(_date.toDateTime());
     return sum + (savedPrice ?? currentPrice);
   });
   int get _totalDuration => _services.fold<int>(0, (sum, service) {
     final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
     final savedDuration = (previous?['duration_minutes'] as num?)?.toInt();
-    final currentDuration = _pricingEmployee == null ? service.totalMinutes : _db.effectiveServiceDuration(_pricingEmployee!.id, service.id);
+    final config = _pricingEmployee == null ? null : context.read<ServicesProvider>().employeeServiceConfig(_pricingEmployee!.id, service.id);
+    final currentDuration = config?.customDurationMinutes ?? service.totalMinutes;
     return sum + (savedDuration ?? currentDuration);
   });
 
   List<Map<String, dynamic>> _buildServiceSnapshots(Employee employee) {
-    final payProfile = _db.payProfileFor(employee.id);
+    final configs = context.read<ServicesProvider>();
     return _services.map((service) {
       final previous = _existing?.serviceSnapshots.where((item) => item['service_id'] == service.id).firstOrNull;
-      final config = _db.employeeServiceConfig(employee.id, service.id);
-      final rule = payProfile.ruleFor(serviceId: service.id, category: service.category, date: _date.toDateTime());
-      final hasServiceCommissionOverride =
-          config?.commissionRateBps != null || config?.fixedCommissionAmount != null;
-      final effectiveRate = hasServiceCommissionOverride
-          ? (config?.commissionRateBps ?? 0)
-          : (rule?.rateBps ?? payProfile.generalRateBps);
-      final effectiveFixed = hasServiceCommissionOverride
-          ? (config?.fixedCommissionAmount ?? 0)
-          : (rule?.fixedAmount ?? 0);
+      final config = configs.employeeServiceConfig(employee.id, service.id);
+      final hasServiceCommissionOverride = config?.commissionRateBps != null || config?.fixedCommissionAmount != null;
       return <String, dynamic>{
         'service_id': service.id,
         'title': previous?['title'] as String? ?? service.title,
         'category': previous?['category'] as String? ?? service.category,
         'price': previous?['price'] as num? ?? config?.customPrice ?? service.priceAt(_date.toDateTime()),
-        // هزینه مستقیم و قیمت نوبت قبلی با تغییر بعدی کاتالوگ خدمات بازنویسی نمی‌شوند.
         'direct_cost': previous == null ? service.directCost : previous['direct_cost'],
-        'duration_minutes': previous?['duration_minutes'] as num? ?? _db.effectiveServiceDuration(employee.id, service.id),
-        'commission_rate_bps': previous?['commission_rate_bps'] as num? ?? effectiveRate,
-        'fixed_commission_amount': previous?['fixed_commission_amount'] as num? ?? effectiveFixed,
-        'service_commission_override': previous == null
-            ? hasServiceCommissionOverride
-            : previous['service_commission_override'] == true,
-        'commission_basis': previous?['commission_basis'] as String? ?? payProfile.basis.name,
+        'duration_minutes': previous?['duration_minutes'] as num? ?? config?.customDurationMinutes ?? service.totalMinutes,
+        'commission_rate_bps': previous?['commission_rate_bps'] as num? ?? config?.commissionRateBps ?? 0,
+        'fixed_commission_amount': previous?['fixed_commission_amount'] as num? ?? config?.fixedCommissionAmount ?? 0,
+        'service_commission_override': previous == null ? hasServiceCommissionOverride : previous['service_commission_override'] == true,
+        'commission_basis': previous?['commission_basis'] as String? ?? 'service',
       };
     }).toList();
   }
@@ -165,7 +153,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     if (selected != null) {
       setState(() {
         _services = selected;
-        if (_employee != null && !selected.every((service) => _db.employeeOffersService(_employee!.id, service.id))) {
+        if (_employee != null && !selected.every((service) => _employee!.serviceIds.contains(service.id))) {
           _employee = null;
         }
       });
@@ -198,7 +186,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       return;
     }
     final employees = context.read<EmployeesProvider>().items;
-    final eligibleEmployees = employees.where((person) => _services.every((service) => _db.employeeOffersService(person.id, service.id))).toList();
+    final eligibleEmployees = employees.where((person) => _services.every((service) => person.serviceIds.contains(service.id))).toList();
     final employee = _employee != null && eligibleEmployees.any((person) => person.id == _employee!.id)
         ? _employee
         : (eligibleEmployees.isEmpty ? null : eligibleEmployees.first);
@@ -217,12 +205,11 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       durationMinutes: _totalDuration,
       ignoreId: _existing?.id,
     );
-    if (!_db.isEmployeeAvailableAt(
-      employeeId: employee.id,
-      startAt: start,
-      durationMinutes: _totalDuration,
-      ignoreAppointmentId: _existing?.id,
-    )) {
+    final startMinute = start.hour * 60 + start.minute;
+    final withinWeeklyShift = employee.scheduleEnabled && employee.shiftsFor(_date.weekday).any(
+      (shift) => startMinute >= shift.startMinutes && startMinute + _totalDuration <= shift.endMinutes,
+    );
+    if (!withinWeeklyShift) {
       if (!mounted) return;
       setState(() => _saving = false);
       AppToast.show(context, 'این زمان خارج از شیفت کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.', success: false);
@@ -249,21 +236,21 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
 
     // ثبت مشتری جدید در صورت نبود در فهرست.
     final customers = context.read<CustomersProvider>();
-    var customer = _customer ?? customers.findByPhone(_phoneController.text.trim());
+    var customer = _customer ?? await customers.findByPhone(_phoneController.text.trim());
     if (customer == null) {
       customer = Customer(
-        id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
+        id: '',
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         createdAt: DateTime.now(),
         tags: const ['ثبت توسط پذیرش'],
       );
-      await customers.create(customer);
+      customer = await customers.createAndReturn(customer);
     }
 
     final appointment = Appointment(
-      id: _existing?.id ?? 'apt-${DateTime.now().millisecondsSinceEpoch}',
-      reference: _existing?.reference ?? 'OT-${1510 + DateTime.now().second}',
+      id: _existing?.id ?? 'appointment-' + DateTime.now().microsecondsSinceEpoch.toString(),
+      reference: _existing?.reference ?? 'DT-' + DateTime.now().millisecondsSinceEpoch.toString(),
       customerId: customer.id,
       customerName: _nameController.text.trim(),
       customerPhone: _phoneController.text.trim(),
@@ -317,7 +304,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final employees = context.watch<EmployeesProvider>().items.where((e) => e.isAvailableForBooking).toList();
     final eligible = _services.isEmpty
         ? employees
-        : employees.where((employee) => _services.every((service) => _db.employeeOffersService(employee.id, service.id))).toList();
+        : employees.where((employee) => _services.every((service) => employee.serviceIds.contains(service.id))).toList();
 
     final form = Form(
       key: _formKey,
