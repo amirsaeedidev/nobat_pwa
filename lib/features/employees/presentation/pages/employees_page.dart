@@ -13,6 +13,7 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/employee.dart';
+import '../../../activity_logs/presentation/providers/activity_provider.dart';
 import '../../../../data/models/enums.dart';
 import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/employees_provider.dart';
@@ -192,7 +193,18 @@ class _EmployeesPageState extends State<EmployeesPage> {
                           try {
                             await provider.remove(employee.id);
                             if (context.mounted) {
-                              AppToast.show(context, 'پرسنل بایگانی شد و رویداد در تاریخچه سرور ثبت شد.');
+                              final activity = context.read<ActivityProvider>();
+                              await activity.load();
+                              final log = activity.logs.where((item) => item.entityId == employee.id && item.isReversible && !item.isUndone).firstOrNull;
+                              if (log != null) {
+                                showUndoableOperationSnackBar(context, message: 'پرسنل بایگانی شد.', onUndo: () async {
+                                  final restored = await activity.undo(log);
+                                  if (restored) await context.read<EmployeesProvider>().load();
+                                  else if (context.mounted) AppToast.show(context, 'بازگردانی توسط سرور پذیرفته نشد.', success: false);
+                                });
+                              } else {
+                                AppToast.show(context, 'پرسنل بایگانی شد و رویداد در تاریخچه سرور ثبت شد.');
+                              }
                             }
                           } catch (error) {
                             if (context.mounted) AppToast.show(context, '$error', success: false);
