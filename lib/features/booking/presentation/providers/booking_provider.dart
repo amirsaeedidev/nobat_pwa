@@ -346,7 +346,14 @@ class BookingProvider extends ChangeNotifier {
         createdBy: 'صفحه رزرو آنلاین',
       );
       await _appointments.create(appointment);
-      _created = appointment;
+      final createdPage = await _appointments.fetchAppointments(
+        filter: AppointmentFilter(query: reference),
+        page: 1,
+        pageSize: 10,
+      );
+      final savedAppointment = createdPage.items.where((item) => item.reference == reference).firstOrNull;
+      if (savedAppointment == null) throw StateError('نوبت ثبت شد اما نسخه ثبت‌شده از سرور بازیابی نشد.');
+      _created = savedAppointment;
       _submitting = false;
       notifyListeners();
       return true;
