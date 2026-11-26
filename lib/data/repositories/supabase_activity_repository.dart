@@ -15,6 +15,9 @@ class SupabaseActivityRepository implements ActivityRepository {
   final SupabaseRepository _records;
   final String? Function() _businessId;
 
+  @override
+  Stream<void>? get authChanges => null;
+
   Future<List<ActivityLog>> _load() async {
     final tenant = _businessId();
     if (tenant == null || tenant.isEmpty) {
