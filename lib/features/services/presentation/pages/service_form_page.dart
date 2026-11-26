@@ -198,10 +198,11 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       final customPrice = selected ? _optionalInteger(fields.price.text, 'قیمت اختصاصی') : previous?.customPrice;
       final customDuration = selected ? _optionalInteger(fields.duration.text, 'مدت اختصاصی') : previous?.customDurationMinutes;
       final rawPercent = selected ? fields.commissionPercent.text.trim() : '';
-      final percent = rawPercent.isEmpty ? previous?.commissionRateBps : num.tryParse(FaNum.toLatin(rawPercent))?.let((value) => (value * 100).round());
-      if (rawPercent.isNotEmpty && num.tryParse(FaNum.toLatin(rawPercent)) == null) {
+      final parsedPercent = rawPercent.isEmpty ? null : num.tryParse(FaNum.toLatin(rawPercent));
+      if (rawPercent.isNotEmpty && parsedPercent == null) {
         throw ArgumentError('درصد پورسانت باید عددی باشد.');
       }
+      final percent = rawPercent.isEmpty ? previous?.commissionRateBps : (parsedPercent! * 100).round();
       if (percent != null && (percent < 0 || percent > 10000)) {
         throw ArgumentError('درصد پورسانت باید بین صفر تا صد باشد.');
       }
