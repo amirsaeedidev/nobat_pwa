@@ -14,7 +14,6 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/models/employee_service_config.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../providers/services_provider.dart';
 
@@ -130,7 +129,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     }
     setState(() => _saving = true);
     final provider = context.read<ServicesProvider>();
-    final serviceId = _existing?.id ?? provider.nextId();
+    var serviceId = _existing?.id ?? provider.nextId();
     final service = (_existing ?? Service(id: serviceId, title: '', price: 0, durationMinutes: 45)).copyWith(
       title: _title.text.trim(),
       description: _description.text.trim(),
@@ -159,9 +158,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       if (_existing != null) {
         await provider.update(service);
       } else {
-        await provider.create(service);
+        serviceId = await provider.createWithId(service);
       }
       await _saveEmployeeServiceConfigs(serviceId);
+      await provider.load();
     } catch (error) {
       if (mounted) {
         setState(() => _saving = false);
@@ -183,34 +183,36 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     return _employeeFields.putIfAbsent(employeeId, () {
       final config = widget.serviceId == null
           ? null
-          : context.read<AppDatabase>().employeeServiceConfig(employeeId, widget.serviceId!);
+          : context.read<ServicesProvider>().employeeServiceConfig(employeeId, widget.serviceId!);
       return _EmployeeServiceFields(config);
     });
   }
 
   Future<void> _saveEmployeeServiceConfigs(String serviceId) async {
-    final db = context.read<AppDatabase>();
-    for (final employeeId in _employeeIds) {
+    final provider = context.read<ServicesProvider>();
+    final employeeIds = <String>{...?_existing?.employeeIds, ..._employeeIds};
+    for (final employeeId in employeeIds) {
       final fields = _fieldsFor(employeeId);
-      final customPrice = _optionalInteger(fields.price.text, 'قیمت اختصاصی');
-      final customDuration = _optionalInteger(fields.duration.text, 'مدت اختصاصی');
-      final rawPercent = fields.commissionPercent.text.trim();
-      final percent = rawPercent.isEmpty ? null : num.tryParse(FaNum.toLatin(rawPercent));
-      if (rawPercent.isNotEmpty && percent == null) {
+      final selected = _employeeIds.contains(employeeId);
+      final previous = provider.employeeServiceConfig(employeeId, serviceId);
+      final customPrice = selected ? _optionalInteger(fields.price.text, 'قیمت اختصاصی') : previous?.customPrice;
+      final customDuration = selected ? _optionalInteger(fields.duration.text, 'مدت اختصاصی') : previous?.customDurationMinutes;
+      final rawPercent = selected ? fields.commissionPercent.text.trim() : '';
+      final percent = rawPercent.isEmpty ? previous?.commissionRateBps : num.tryParse(FaNum.toLatin(rawPercent))?.let((value) => (value * 100).round());
+      if (rawPercent.isNotEmpty && num.tryParse(FaNum.toLatin(rawPercent)) == null) {
         throw ArgumentError('درصد پورسانت باید عددی باشد.');
       }
-      if (percent != null && (percent < 0 || percent > 100)) {
+      if (percent != null && (percent < 0 || percent > 10000)) {
         throw ArgumentError('درصد پورسانت باید بین صفر تا صد باشد.');
       }
-      final fixedCommission = _optionalInteger(fields.fixedCommission.text, 'پورسانت ثابت');
-      final previous = db.employeeServiceConfig(employeeId, serviceId);
-      db.saveEmployeeServiceConfig(EmployeeServiceConfig(
+      final fixedCommission = selected ? _optionalInteger(fields.fixedCommission.text, 'پورسانت ثابت') : previous?.fixedCommissionAmount;
+      await provider.saveEmployeeServiceConfig(EmployeeServiceConfig(
         employeeId: employeeId,
         serviceId: serviceId,
-        active: true,
+        active: selected,
         customPrice: customPrice,
         customDurationMinutes: customDuration,
-        commissionRateBps: percent == null ? null : (percent * 100).round(),
+        commissionRateBps: percent,
         fixedCommissionAmount: fixedCommission,
         specialtyNote: previous?.specialtyNote ?? '',
       ));
