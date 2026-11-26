@@ -120,7 +120,8 @@ class BookingProvider extends ChangeNotifier {
     } catch (_) {
       _availableServices = const [];
       _error = 'دریافت خدمات از سرور ناموفق بود.';
-      _availableEmployees = db.employees.where((item) => item.isActive).toList();
+      _availableEmployees = const [];
+      _error = 'دریافت پرسنل از سرور ناموفق بود.';
     }
     if (generation == _catalogGeneration) notifyListeners();
   }
