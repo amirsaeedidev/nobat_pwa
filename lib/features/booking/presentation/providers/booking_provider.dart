@@ -55,6 +55,7 @@ class BookingProvider extends ChangeNotifier {
   List<Service> _availableServices = const [];
   List<Employee> _availableEmployees = const [];
   List<BookingSlot> _slots = const [];
+  Set<String> _businessHolidayKeys = const {};
   bool _loading = true;
   int _catalogGeneration = 0;
   int _slotGeneration = 0;
@@ -99,11 +100,14 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final services = await _services.fetchServices(onlyActive: true);
+      final holidays = await _employees.fetchBusinessHolidays();
       if (generation != _catalogGeneration) return;
       _availableServices = services;
+      _businessHolidayKeys = holidays.map(EmployeeScheduleRules.dateKey).toSet();
     } catch (_) {
       if (generation != _catalogGeneration) return;
       _availableServices = const [];
+      _businessHolidayKeys = const {};
       _error = 'دریافت خدمات از سرور ناموفق بود.';
     } finally {
       if (generation == _catalogGeneration) {
@@ -171,6 +175,7 @@ class BookingProvider extends ChangeNotifier {
   }
 
   bool isDateEnabled(JalaliDate date) {
+    if (_businessHolidayKeys.contains(EmployeeScheduleRules.dateKey(date.toDateTime()))) return false;
     if (_employee != null) return _employee!.scheduleEnabled && _employee!.shiftsFor(date.weekday).isNotEmpty;
     return false;
   }
@@ -190,6 +195,7 @@ class BookingProvider extends ChangeNotifier {
     if (generation != _slotGeneration) return;
     final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
     final dateKey = EmployeeScheduleRules.dateKey(_date.toDateTime());
+    if (_businessHolidayKeys.contains(dateKey)) { _slots = const []; _loading = false; _error = 'این تاریخ تعطیلی مجموعه است.'; notifyListeners(); return; }
     final exception = exceptionRows.where((item) => item.dateKey == dateKey).firstOrNull;
     final shifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
     final leaves = await _employees.fetchLeaves(employee.id);
@@ -274,6 +280,7 @@ class BookingProvider extends ChangeNotifier {
       }
       final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
       final dateKey = EmployeeScheduleRules.dateKey(slot.start);
+      if (_businessHolidayKeys.contains(dateKey)) throw StateError('این تاریخ تعطیلی مجموعه است.');
       final exception = exceptionRows.where((item) => item.dateKey == dateKey).firstOrNull;
       final availableShifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
       final startMinute = slot.start.hour * 60 + slot.start.minute;
