@@ -12,6 +12,8 @@ import 'app/app.dart';
 import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
 import 'data/repositories/supabase_activity_repository.dart';
+import 'data/repositories/operations_repository.dart';
+import 'data/repositories/supabase_operations_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
@@ -142,6 +144,7 @@ Future<void> main() async {
     records: supabaseRepository,
     businessId: () => authStateNotifier.businessId,
   );
+  final activityOperationsRepository = SupabaseOperationsRepository(supabaseClient);
 
   runApp(
     MultiProvider(
@@ -161,6 +164,7 @@ Future<void> main() async {
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<BusinessFinanceRepository>.value(value: businessFinanceRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
+        Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database, authStateNotifier: authStateNotifier)),
@@ -172,7 +176,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database, authStateNotifier: authStateNotifier)),
-        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database, operationsRepository: activityOperationsRepository, authStateNotifier: authStateNotifier)),
       ],
       child: const DateTimeApp(),
     ),
