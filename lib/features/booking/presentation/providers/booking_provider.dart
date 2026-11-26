@@ -185,6 +185,7 @@ class BookingProvider extends ChangeNotifier {
     }
     _loading = true;
     notifyListeners();
+    try {
     final existing = await _appointments.fetchForDay(_date.toDateTime(), employeeId: employee.id);
     if (generation != _slotGeneration) return;
     final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
@@ -222,6 +223,13 @@ class BookingProvider extends ChangeNotifier {
     _slots = slots;
     _loading = false;
     notifyListeners();
+    } catch (error) {
+      if (generation != _slotGeneration) return;
+      _slots = const [];
+      _error = 'دریافت برنامه کاری و زمان‌های رزرو از سرور ناموفق بود: ' + error.toString();
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   void setName(String value) {
