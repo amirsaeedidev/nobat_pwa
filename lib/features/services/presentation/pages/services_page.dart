@@ -14,8 +14,7 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/service.dart';
-import '../../../../data/mock/app_database.dart';
-import '../../../../data/repositories/operations_repository.dart';
+import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../providers/services_provider.dart';
 
 /// مدیریت خدمات — بازسازی صفحه «مدیریت خدمات» تصویر مرجع.
@@ -242,19 +241,7 @@ class ServicesPage extends StatelessWidget {
               await provider.deleteCategory(category, moveServicesTo: moveTo);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               if (context.mounted) {
-                final operations = OperationsRepository(context.read<AppDatabase>());
-                final undoLog = operations.latestUndoableLogFor(category);
-                if (undoLog != null) {
-                  showUndoableOperationSnackBarForLog(
-                    context,
-                    message: 'دسته‌بندی «$category» حذف شد.',
-                    activityLogId: undoLog.id,
-                    undo: operations.undo,
-                    onUndoSuccess: provider.load,
-                  );
-                } else {
-                  AppToast.show(context, 'دسته‌بندی حذف شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
-                }
+                AppToast.show(context, 'دسته‌بندی «$category» حذف شد و رویداد در تاریخچه سرور ثبت شد.');
               }
             } catch (error) {
               if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -285,19 +272,7 @@ class ServicesPage extends StatelessWidget {
     try {
       await context.read<ServicesProvider>().remove(service.id);
       if (context.mounted) {
-        final operations = OperationsRepository(context.read<AppDatabase>());
-        final undoLog = operations.latestUndoableLogFor(service.id);
-        if (undoLog != null) {
-          showUndoableOperationSnackBarForLog(
-            context,
-            message: 'عملیات خدمت «${service.title}» انجام شد.',
-            activityLogId: undoLog.id,
-            undo: operations.undo,
-            onUndoSuccess: context.read<ServicesProvider>().load,
-          );
-        } else {
-          AppToast.show(context, 'عملیات خدمت انجام شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
-        }
+        AppToast.show(context, 'خدمت «${service.title}» بایگانی شد و رویداد در تاریخچه سرور ثبت شد.');
       }
     } catch (error) {
       if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -325,9 +300,14 @@ class ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final db = context.watch<AppDatabase>();
-    final bookingCount = db.appointments.where((item) => item.serviceIds.contains(service.id)).length;
-    final serviceRevenue = db.employeeFinanceEntries.where((item) => item.serviceId == service.id).fold<int>(0, (sum, item) => sum + item.receivedAmount);
+    final appointments = context.watch<AppointmentsProvider>().allAppointments;
+    final serviceAppointments = appointments.where((item) => item.serviceIds.contains(service.id)).toList();
+    final bookingCount = serviceAppointments.length;
+    final serviceRevenue = serviceAppointments.where((item) => item.status == AppointmentStatus.completed).fold<int>(0, (sum, item) {
+      final snapshot = item.serviceSnapshots.where((value) => value['service_id'] == service.id).firstOrNull;
+      final amount = snapshot?['price'] as num?;
+      return sum + (amount?.round() ?? (item.serviceIds.length == 1 ? item.price.round() : 0));
+    });
     return AppCard(
       radius: AppRadius.xl,
       padding: const EdgeInsets.all(14),
