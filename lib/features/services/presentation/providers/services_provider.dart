@@ -38,6 +38,8 @@ class ServicesProvider extends DbBoundProvider {
       _employeeConfigs['$employeeId::$serviceId'];
   List<EmployeeServiceConfig> employeeServiceConfigsForService(String serviceId) =>
       _employeeConfigs.values.where((config) => config.serviceId == serviceId).toList(growable: false);
+  List<EmployeeServiceConfig> get allEmployeeConfigs =>
+      List<EmployeeServiceConfig>.unmodifiable(_employeeConfigs.values);
   String? get categoryFilter => _categoryFilter;
   num? get minimumPrice => _minimumPrice;
   num? get maximumPrice => _maximumPrice;
