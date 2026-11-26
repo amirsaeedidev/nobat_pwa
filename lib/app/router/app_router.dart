@@ -73,8 +73,8 @@ bool _canOpenCloudPath(SupabaseAuthStateNotifier auth, String path) {
 
 
 /// مسیرهای برنامه؛ ناوبری مستقل از منطق کسب‌وکار.
-GoRouter buildRouter(
-  AppDatabase? database, {
+GoRouter buildRouter({
+  AppDatabase? database,
   SupabaseAuthRepository? authRepository,
   SupabaseAuthStateNotifier? authStateNotifier,
 }) {
