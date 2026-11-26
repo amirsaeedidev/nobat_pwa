@@ -22,7 +22,18 @@ class _PermissionsPageState extends State<PermissionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final db = context.watch<AppDatabase>();
+    final db = context.watch<AppDatabase?>();
+    if (db == null) {
+      return PageScaffold(
+        title: 'مدیریت دسترسی پرسنل',
+        subtitle: 'دسترسی‌ها باید از سرور دریافت شوند',
+        icon: Icons.admin_panel_settings_rounded,
+        showBackButton: true,
+        child: const ErrorStateView(
+          description: 'مدیریت نقش‌ها و مجوزها هنوز به Repository و RLS واقعی Supabase متصل نشده است. برای جلوگیری از نمایش یا تغییر اطلاعات آزمایشی، این بخش موقتاً غیرفعال است.',
+        ),
+      );
+    }
     final pal = context.pal;
     final staffRole = db.accessRoleById('staff')!;
     final adminAccounts = db.accessAccounts.where((account) => account.roleId == 'global_admin').toList();
