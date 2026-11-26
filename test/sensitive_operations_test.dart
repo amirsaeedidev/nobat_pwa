@@ -421,7 +421,7 @@ void main() {
 
     final provider = ActivityProvider(MockActivityRepository(db), db);
     addTearDown(provider.dispose);
-    await provider.loadServices();
+    await provider.load();
 
     final deletion = provider.logs.firstWhere((log) => log.operationType == 'customer_delete');
     expect(deletion.entityId, customer.id);
@@ -588,12 +588,12 @@ void main() {
     expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
 
     await operations.deleteService(service.id);
-    await provider.load();
+    await provider.loadServices();
     await Future<void>.delayed(const Duration(milliseconds: 180));
     expect(provider.availableServices.any((item) => item.id == service.id), isFalse);
 
     expect(operations.undoLatestForEntity(service.id), isTrue);
-    await provider.load();
+    await provider.loadServices();
     await Future<void>.delayed(const Duration(milliseconds: 250));
     expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
   });
