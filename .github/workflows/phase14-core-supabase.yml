@@ -6,6 +6,7 @@ on:
       - phase-14-core-modules-supabase
   pull_request:
     branches:
+      - main
       - phase-14-core-modules-supabase
 
 permissions:
