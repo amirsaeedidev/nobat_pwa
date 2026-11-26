@@ -1,5 +1,6 @@
 import '../mock/app_database.dart';
 import '../models/employee.dart';
+import '../models/employee_schedule.dart';
 import 'operations_repository.dart';
 
 abstract class EmployeeRepository {
@@ -12,6 +13,14 @@ abstract class EmployeeRepository {
   Future<void> update(Employee employee);
 
   Future<void> delete(String id);
+
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions(String employeeId);
+  Future<void> saveScheduleException(EmployeeScheduleException exception);
+  Future<void> deleteScheduleException(String employeeId, String dateKey);
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId);
+  Future<void> createLeave(EmployeeLeave leave);
+  Future<void> updateLeave(EmployeeLeave leave);
+  Future<void> deleteLeave(String id);
 }
 
 class MockEmployeeRepository implements EmployeeRepository {
@@ -50,6 +59,27 @@ class MockEmployeeRepository implements EmployeeRepository {
     await _db.delay(180);
     _db.updateEmployee(employee);
   }
+
+  @override
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions(String employeeId) async => _db.employeeScheduleExceptions.where((item) => item.employeeId == employeeId).toList();
+
+  @override
+  Future<void> saveScheduleException(EmployeeScheduleException exception) async => _db.saveEmployeeScheduleException(exception);
+
+  @override
+  Future<void> deleteScheduleException(String employeeId, String dateKey) async => _db.deleteEmployeeScheduleException(employeeId, dateKey);
+
+  @override
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId) async => _db.leavesForEmployee(employeeId);
+
+  @override
+  Future<void> createLeave(EmployeeLeave leave) async => _db.addEmployeeLeave(leave);
+
+  @override
+  Future<void> updateLeave(EmployeeLeave leave) async => _db.updateEmployeeLeave(leave);
+
+  @override
+  Future<void> deleteLeave(String id) async => _db.deleteEmployeeLeave(id);
 
   @override
   Future<void> delete(String id) async {
