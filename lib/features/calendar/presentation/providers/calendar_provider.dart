@@ -3,6 +3,7 @@ import '../../../../core/utils/jalali.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/repositories/appointment_repository.dart';
 import '../../../../data/repositories/employee_repository.dart';
@@ -40,6 +41,8 @@ class CalendarProvider extends ChangeNotifier {
   List<Appointment> _rangeAppointments = const [];
   List<Employee> _employeeList = const [];
   List<Service> _serviceList = const [];
+  Map<String,List<EmployeeScheduleException>> _scheduleExceptions = const {};
+  Map<String,List<EmployeeLeave>> _employeeLeaves = const {};
   int _loadGeneration = 0;
 
   JalaliDate get today => _today;
@@ -115,16 +118,24 @@ class CalendarProvider extends ChangeNotifier {
       final employees = await _employees.fetchEmployees();
       final services = await _services.fetchServices();
       final appointments = await _appointments.fetchAll();
+      final availability = await Future.wait(employees.map((employee) async => [
+        await _employees.fetchScheduleExceptions(employee.id),
+        await _employees.fetchLeaves(employee.id),
+      ]));
       if (generation != _loadGeneration) return;
       _employeeList = employees;
       _serviceList = services;
       _rangeAppointments = appointments;
+      _scheduleExceptions = {for (var i=0;i<employees.length;i++) employees[i].id: availability[i][0] as List<EmployeeScheduleException>};
+      _employeeLeaves = {for (var i=0;i<employees.length;i++) employees[i].id: availability[i][1] as List<EmployeeLeave>};
       _loadError = null;
     } catch (error) {
       if (generation != _loadGeneration) return;
       _employeeList = const [];
       _serviceList = const [];
       _rangeAppointments = const [];
+      _scheduleExceptions = const {};
+      _employeeLeaves = const {};
       _loadError = error.toString();
     } finally {
       if (generation == _loadGeneration) {
@@ -185,7 +196,10 @@ class CalendarProvider extends ChangeNotifier {
         .where((a) => employee == null || a.employeeId == employee)
         .toList();
     final selectedEmployee = employee == null ? null : _employeeList.where((e) => e.id == employee).firstOrNull;
-    final shifts = selectedEmployee == null ? const <Shift>[] : selectedEmployee.shiftsFor(date.weekday);
+    final dateKey = EmployeeScheduleRules.dateKey(date.toDateTime());
+    final exception = selectedEmployee == null ? null : (_scheduleExceptions[selectedEmployee.id] ?? const <EmployeeScheduleException>[]).where((item) => item.dateKey == dateKey).firstOrNull;
+    final shifts = selectedEmployee == null ? const <Shift>[] : exception == null ? selectedEmployee.shiftsFor(date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+    final leaves = selectedEmployee == null ? const <EmployeeLeave>[] : (_employeeLeaves[selectedEmployee.id] ?? const <EmployeeLeave>[]);
     final slots = <TimeSlot>[];
     for (final shift in shifts) {
       for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
@@ -195,6 +209,9 @@ class CalendarProvider extends ChangeNotifier {
       final busy = dayAppointments.where((a) {
         return !start.isBefore(a.startAt) && start.isBefore(a.endAt);
       }).toList();
+        final end = start.add(const Duration(minutes: 30));
+        final onLeave = leaves.any((leave) => leave.overlaps(start, end));
+        if (onLeave) continue;
         slots.add(TimeSlot(hour: hour, minute: minute, appointment: busy.isEmpty ? null : busy.first, isPast: date.sameDay(today) && DateTime.now().isAfter(start)));
       }
     }
@@ -207,7 +224,14 @@ class CalendarProvider extends ChangeNotifier {
   bool isHoliday(JalaliDate date, {String? employeeId}) {
     if (employeeId != null) {
       final employee = _employeeList.where((e) => e.id == employeeId).firstOrNull;
-      return employee == null || employee.shiftsFor(date.weekday).isEmpty;
+      if (employee == null) return true;
+      final key = EmployeeScheduleRules.dateKey(date.toDateTime());
+      final exception = (_scheduleExceptions[employee.id] ?? const <EmployeeScheduleException>[]).where((item) => item.dateKey == key).firstOrNull;
+      if (exception?.isClosed == true) return true;
+      final shifts = exception == null ? employee.shiftsFor(date.weekday) : exception.shifts;
+      if (shifts.isEmpty) return true;
+      final start = date.toDateTime();
+      return (_employeeLeaves[employee.id] ?? const <EmployeeLeave>[]).any((leave) => leave.status == EmployeeLeaveStatus.approved && !leave.startAt.isAfter(start) && leave.endAt.isAfter(start));
     }
     return false;
   }
