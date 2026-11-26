@@ -51,8 +51,7 @@ class AppointmentsProvider extends DbBoundProvider {
     } catch (error) {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.appointments;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
@@ -92,8 +91,7 @@ class AppointmentsProvider extends DbBoundProvider {
     } catch (error) {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.appointments;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
       notifyListeners();
     }
   }
@@ -217,7 +215,7 @@ class AppointmentsProvider extends DbBoundProvider {
   Future<Appointment?> byId(String id) => _repository.findById(id);
 
   /// یافتن همگام (برای فرم‌ها).
-  Appointment? appointmentById(String id) => db.appointmentById(id);
+  Future<Appointment?> appointmentById(String id) => _repository.findById(id);
 
-  List<Appointment> get allAppointments => db.appointments;
+  Future<List<Appointment>> get allAppointments => _repository.fetchAll();
 }
