@@ -85,6 +85,7 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
   Future<void> createLeave(EmployeeLeave leave) async {final b=await scope.businessId;await client.from('employee_leaves').insert({'business_id':b,'employee_id':leave.employeeId,'starts_at':leave.startAt.toUtc().toIso8601String(),'ends_at':leave.endAt.toUtc().toIso8601String(),'leave_type':leave.type.name,'status':leave.status.name,'description':leave.description,'requested_by':client.auth.currentUser!.id});}
   Future<void> updateLeave(EmployeeLeave leave) async {final b=await scope.businessId;await client.from('employee_leaves').update({'status':leave.status.name,'description':leave.description,'reviewed_by':client.auth.currentUser!.id,'reviewed_at':DateTime.now().toUtc().toIso8601String()}).eq('business_id',b).eq('employee_id',leave.employeeId).eq('id',leave.id);}
   Future<void> deleteLeave(String id) async {final b=await scope.businessId;await client.from('employee_leaves').delete().eq('business_id',b).eq('id',id);}
+  Future<List<DateTime>> fetchBusinessHolidays() async {final b=await scope.businessId;final rows=await client.from('business_holidays').select('holiday_date').eq('business_id',b).order('holiday_date');return rows.map((row)=>DateTime.parse(row['holiday_date'].toString())).toList();}
 }
 
 class SupabaseAppointmentRepository implements AppointmentRepository {
@@ -128,6 +129,7 @@ class UnavailableEmployeeRepository implements EmployeeRepository {
   Future<void> createLeave(EmployeeLeave leave) async=>fail();
   Future<void> updateLeave(EmployeeLeave leave) async=>fail();
   Future<void> deleteLeave(String id) async=>fail();
+  Future<List<DateTime>> fetchBusinessHolidays() async=>fail();
 }
 class UnavailableAppointmentRepository implements AppointmentRepository {
   Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
