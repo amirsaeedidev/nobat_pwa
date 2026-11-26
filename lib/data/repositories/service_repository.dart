@@ -10,6 +10,8 @@ abstract class ServiceRepository {
 
   Future<void> create(Service service);
 
+  Future<String> createAndReturn(Service service);
+
   Future<void> update(Service service);
 
   Future<void> delete(String id);
@@ -47,6 +49,12 @@ class MockServiceRepository implements ServiceRepository {
   Future<void> create(Service service) async {
     await _db.delay(220);
     _db.addService(service);
+  }
+
+  @override
+  Future<String> createAndReturn(Service service) async {
+    await create(service);
+    return service.id;
   }
 
   @override
