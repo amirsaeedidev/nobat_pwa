@@ -15,6 +15,7 @@ class AppointmentsProvider extends ChangeNotifier {
   final AppointmentRepository _repository;
 
   PageResult<Appointment> _page = PageResult.empty(pageSize: 8);
+  List<Appointment> _allAppointments = const [];
   AppointmentFilter _filter = const AppointmentFilter();
   bool _loading = true;
   String? _loadNotice;
@@ -26,6 +27,7 @@ class AppointmentsProvider extends ChangeNotifier {
 
   PageResult<Appointment> get page => _page;
   List<Appointment> get items => _page.items;
+  List<Appointment> get allAppointments => _allAppointments;
   AppointmentFilter get filter => _filter;
   bool get loading => _loading;
   String? get loadNotice => _loadNotice;
@@ -39,18 +41,18 @@ class AppointmentsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _loadNotice = null;
-      final page = await _repository.fetchAppointments(
-        filter: _filter,
-        page: _pageNumber,
-        pageSize: _pageSize,
-        ascending: _ascending,
-      );
+      final results = await Future.wait([
+        _repository.fetchAppointments(filter: _filter, page: _pageNumber, pageSize: _pageSize, ascending: _ascending),
+        _repository.fetchAll(),
+      ]);
       if (generation != _loadGeneration) return;
-      _page = page;
+      _page = results[0] as PageResult<Appointment>;
+      _allAppointments = results[1] as List<Appointment>;
     } catch (error) {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _page = PageResult.empty(pageSize: _pageSize);
+      _allAppointments = const [];
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
@@ -63,12 +65,12 @@ class AppointmentsProvider extends ChangeNotifier {
   Future<void> _loadSilently() async {
     final generation = ++_loadGeneration;
     try {
-      var page = await _repository.fetchAppointments(
-        filter: _filter,
-        page: _pageNumber,
-        pageSize: _pageSize,
-        ascending: _ascending,
-      );
+      final results = await Future.wait([
+        _repository.fetchAppointments(filter: _filter, page: _pageNumber, pageSize: _pageSize, ascending: _ascending),
+        _repository.fetchAll(),
+      ]);
+      var page = results[0] as PageResult<Appointment>;
+      _allAppointments = results[1] as List<Appointment>;
       if (generation != _loadGeneration) return;
       // اگر صفحه فعلی خالی شد به صفحه قبل برگرد.
       if (page.items.isEmpty && _pageNumber > 1) {
@@ -87,6 +89,7 @@ class AppointmentsProvider extends ChangeNotifier {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _page = PageResult.empty(pageSize: _pageSize);
+      _allAppointments = const [];
       notifyListeners();
     }
   }
@@ -220,5 +223,5 @@ class AppointmentsProvider extends ChangeNotifier {
     return null;
   }
 
-  List<Appointment> get allAppointments => _page.items;
+
 }
