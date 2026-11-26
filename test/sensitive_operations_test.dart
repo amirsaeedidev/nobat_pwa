@@ -582,17 +582,18 @@ void main() {
       MockServiceRepository(db),
       MockEmployeeRepository(db),
       MockCustomerRepository(db),
-      db,
     );
     addTearDown(provider.dispose);
     await Future<void>.delayed(const Duration(milliseconds: 180));
     expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
 
     await operations.deleteService(service.id);
+    await provider.loadServices();
     await Future<void>.delayed(const Duration(milliseconds: 180));
     expect(provider.availableServices.any((item) => item.id == service.id), isFalse);
 
     expect(operations.undoLatestForEntity(service.id), isTrue);
+    await provider.loadServices();
     await Future<void>.delayed(const Duration(milliseconds: 250));
     expect(provider.availableServices.any((item) => item.id == service.id), isTrue);
   });
@@ -667,7 +668,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
-    expect(find.text('customer-ui-undo-customer'), findsOneWidget);
+    expect(find.text('شناسه رکورد'), findsOneWidget);
     await tester.tap(find.text('بازگردانی واقعی'));
     // Wait for the async local undo + repository refresh without waiting for
     // the perpetual skeleton animation to become idle.

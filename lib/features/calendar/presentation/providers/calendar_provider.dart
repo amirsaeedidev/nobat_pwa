@@ -1,9 +1,9 @@
-import '../../../../core/providers/db_bound_provider.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/utils/jalali.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/repositories/appointment_repository.dart';
 import '../../../../data/repositories/employee_repository.dart';
@@ -13,13 +13,12 @@ import '../../../../data/repositories/service_repository.dart';
 enum CalendarView { daily, weekly, monthly }
 
 /// مدیریت تقویم شمسی (روز/هفته/ماه)، فیلترها و خانه‌های زمانی.
-class CalendarProvider extends DbBoundProvider {
+class CalendarProvider extends ChangeNotifier {
   CalendarProvider(
     this._appointments,
     this._employees,
     this._services,
-    AppDatabase db,
-  ) : super(db) {
+  ) {
     _today = JalaliDate.today();
     _anchor = _today;
     _selected = _today;
@@ -37,9 +36,14 @@ class CalendarProvider extends DbBoundProvider {
   String? _employeeId;
   String? _serviceId;
   bool _loading = true;
+  String? _loadError;
+  String? get loadError => _loadError;
   List<Appointment> _rangeAppointments = const [];
   List<Employee> _employeeList = const [];
   List<Service> _serviceList = const [];
+  Map<String,List<EmployeeScheduleException>> _scheduleExceptions = const {};
+  Map<String,List<EmployeeLeave>> _employeeLeaves = const {};
+  Set<String> _businessHolidayKeys = const {};
   int _loadGeneration = 0;
 
   JalaliDate get today => _today;
@@ -49,7 +53,7 @@ class CalendarProvider extends DbBoundProvider {
   String? get employeeId => _employeeId;
   String? get serviceId => _serviceId;
   bool get loading => _loading;
-  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => db.employeeOffersService(employee.id, _serviceId!)).toList();
+  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => employee.serviceIds.contains(_serviceId)).toList();
   List<Service> get services => _serviceList;
   List<Appointment> get appointments => _rangeAppointments;
 
@@ -115,15 +119,28 @@ class CalendarProvider extends DbBoundProvider {
       final employees = await _employees.fetchEmployees();
       final services = await _services.fetchServices();
       final appointments = await _appointments.fetchAll();
+      final holidays = await _employees.fetchBusinessHolidays();
+      final availability = await Future.wait(employees.map((employee) async => [
+        await _employees.fetchScheduleExceptions(employee.id),
+        await _employees.fetchLeaves(employee.id),
+      ]));
       if (generation != _loadGeneration) return;
       _employeeList = employees;
       _serviceList = services;
       _rangeAppointments = appointments;
-    } catch (_) {
+      _scheduleExceptions = {for (var i=0;i<employees.length;i++) employees[i].id: availability[i][0] as List<EmployeeScheduleException>};
+      _employeeLeaves = {for (var i=0;i<employees.length;i++) employees[i].id: availability[i][1] as List<EmployeeLeave>};
+      _businessHolidayKeys = holidays.map(EmployeeScheduleRules.dateKey).toSet();
+      _loadError = null;
+    } catch (error) {
       if (generation != _loadGeneration) return;
-      _employeeList = db.employees;
-      _serviceList = db.services;
-      _rangeAppointments = db.appointments;
+      _employeeList = const [];
+      _serviceList = const [];
+      _rangeAppointments = const [];
+      _scheduleExceptions = const {};
+      _employeeLeaves = const {};
+      _businessHolidayKeys = const {};
+      _loadError = error.toString();
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
@@ -132,14 +149,6 @@ class CalendarProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _loadGeneration++;
-    _rangeAppointments = db.appointments;
-    _employeeList = db.employees;
-    _serviceList = db.services;
-    notifyListeners();
-  }
 
   /// همه نوبت‌های یک روز (با اعمال فیلترها).
   List<Appointment> appointmentsOn(JalaliDate date) {
@@ -186,43 +195,75 @@ class CalendarProvider extends DbBoundProvider {
 
   /// خانه‌های زمانی یک روز بر اساس ساعات کاری و نوبت‌های ثبت‌شده.
   List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
-    final stepMinutes = intervalMinutes ?? db.settings.bookingRules.slotIntervalMinutes;
-    final dayAppointments = appointmentsOn(date)
-        .where((a) => employee == null || a.employeeId == employee)
-        .toList();
-    final exception = exceptionFor(date);
-    final shifts = employee != null
-        ? db.employeeShiftsForDate(employee, date.toDateTime())
-        : exception != null
-            ? (exception.isClosed ? const <Shift>[] : exception.shifts)
-            : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
-    final slots = <TimeSlot>[];
-    for (final shift in shifts) {
-      for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
-      final hour = minutes ~/ 60;
-      final minute = minutes % 60;
-      final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
-      final busy = dayAppointments.where((a) {
-        return !start.isBefore(a.startAt) && start.isBefore(a.endAt);
-      }).toList();
-        slots.add(TimeSlot(hour: hour, minute: minute, appointment: busy.isEmpty ? null : busy.first, isPast: date.sameDay(today) && DateTime.now().isAfter(start)));
+    final stepMinutes = intervalMinutes ?? 30;
+    final dateKey = EmployeeScheduleRules.dateKey(date.toDateTime());
+    if (_businessHolidayKeys.contains(dateKey)) return const [];
+    final selectedEmployeeId = employee ?? _employeeId;
+    final candidates = selectedEmployeeId == null
+        ? employees.where((item) => item.isActive).toList()
+        : _employeeList.where((item) => item.id == selectedEmployeeId && item.isActive).toList();
+    final dayAppointments = _rangeAppointments.where((a) =>
+      a.jalali.sameDay(date) &&
+      (selectedEmployeeId == null || a.employeeId == selectedEmployeeId) &&
+      (_serviceId == null || a.serviceIds.contains(_serviceId))
+    ).toList();
+    final slotsByMinute = <int, TimeSlot>{};
+    for (final person in candidates) {
+      final exception = (_scheduleExceptions[person.id] ?? const <EmployeeScheduleException>[])
+          .where((item) => item.dateKey == dateKey).firstOrNull;
+      final shifts = !person.scheduleEnabled
+          ? const <Shift>[]
+          : exception == null
+              ? person.shiftsFor(date.weekday)
+              : (exception.isClosed ? const <Shift>[] : exception.shifts);
+      final leaves = _employeeLeaves[person.id] ?? const <EmployeeLeave>[];
+      for (final shift in shifts) {
+        for (var minutes = shift.startMinutes; minutes + stepMinutes <= shift.endMinutes; minutes += stepMinutes) {
+          final hour = minutes ~/ 60;
+          final minute = minutes % 60;
+          final start = date.toDateTime().add(Duration(hours: hour, minutes: minute));
+          final end = start.add(Duration(minutes: stepMinutes));
+          if (leaves.any((leave) => leave.overlaps(start, end))) continue;
+          final busy = dayAppointments.where((a) =>
+            a.employeeId == person.id && a.status.isActive &&
+            a.startAt.isBefore(end) && start.isBefore(a.endAt)).toList();
+          final slot = TimeSlot(
+            hour: hour,
+            minute: minute,
+            appointment: busy.isEmpty ? null : busy.first,
+            isPast: date.sameDay(today) && DateTime.now().isAfter(start),
+          );
+          final key = hour * 60 + minute;
+          final previous = slotsByMinute[key];
+          if (previous == null || (previous.appointment != null && slot.appointment == null)) {
+            slotsByMinute[key] = slot;
+          }
+        }
       }
     }
-    return slots;
+    final result = slotsByMinute.values.toList()
+      ..sort((a,b) => (a.hour*60+a.minute).compareTo(b.hour*60+b.minute));
+    return result;
   }
 
   /// آیا روز تعطیل است؟
-  ScheduleException? exceptionFor(JalaliDate date) {
-    final key = date.toDateTime().toIso8601String().substring(0, 10);
-    for (final exception in db.settings.scheduleExceptions) { if (exception.dateKey == key) return exception; }
-    return null;
-  }
+  ScheduleException? exceptionFor(JalaliDate date) => null;
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
-    if (employeeId != null) return db.employeeShiftsForDate(employeeId, date.toDateTime()).isEmpty;
-    final exception = exceptionFor(date);
-    if (exception != null) return exception.isClosed;
-    return date.weekday == 6 || db.settings.holidays.contains(date.weekday);
+    if (_businessHolidayKeys.contains(EmployeeScheduleRules.dateKey(date.toDateTime()))) return true;
+    final selectedEmployeeId = employeeId ?? _employeeId;
+    if (selectedEmployeeId != null) {
+      final employee = _employeeList.where((e) => e.id == selectedEmployeeId).firstOrNull;
+      if (employee == null) return true;
+      final key = EmployeeScheduleRules.dateKey(date.toDateTime());
+      final exception = (_scheduleExceptions[employee.id] ?? const <EmployeeScheduleException>[]).where((item) => item.dateKey == key).firstOrNull;
+      if (exception?.isClosed == true) return true;
+      final shifts = exception == null ? employee.shiftsFor(date.weekday) : exception.shifts;
+      if (shifts.isEmpty) return true;
+      final start = date.toDateTime();
+      return (_employeeLeaves[employee.id] ?? const <EmployeeLeave>[]).any((leave) => leave.status == EmployeeLeaveStatus.approved && !leave.startAt.isAfter(start) && leave.endAt.isAfter(start));
+    }
+    return false;
   }
 
   int get monthlyAppointmentsCount => _rangeAppointments

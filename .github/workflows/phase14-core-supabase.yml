@@ -1,0 +1,32 @@
+name: Phase 14 Core Supabase
+
+on:
+  push:
+    branches:
+      - phase-14-core-modules-supabase
+  pull_request:
+    branches:
+      - main
+      - phase-14-core-modules-supabase
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.9
+          cache: true
+      - name: Flutter version
+        run: flutter --version
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Flutter Analyze
+        run: flutter analyze --no-pub --no-fatal-infos --fatal-warnings
+      - name: Flutter tests
+        run: flutter test --no-pub --reporter expanded test/appointments_flow_test.dart test/booking_flow_test.dart test/customers_services_test.dart test/sensitive_operations_test.dart test/personnel_routes_smoke_test.dart test/core_supabase_unavailable_test.dart

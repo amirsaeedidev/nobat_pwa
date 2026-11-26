@@ -14,10 +14,9 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/pagination_bar.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
-import '../../../../data/repositories/operations_repository.dart';
+import '../../../activity_logs/presentation/providers/activity_provider.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/appointments_provider.dart';
@@ -41,12 +40,38 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     super.dispose();
   }
 
+  Future<void> _showUndoForAppointment(BuildContext context, Appointment appointment, String message) async {
+    final activity = context.read<ActivityProvider>();
+    try {
+      await activity.load();
+      final log = activity.logs.where((item) => item.entityId == appointment.id && item.isReversible && !item.isUndone).firstOrNull;
+      if (log == null) {
+        if (context.mounted) AppToast.show(context, '$message بازگردانی سروری برای این رویداد در دسترس نیست.');
+        return;
+      }
+      if (!context.mounted) return;
+      showUndoableOperationSnackBar(
+        context,
+        message: message,
+        onUndo: () async {
+          final restored = await activity.undo(log);
+          if (restored) {
+            await context.read<AppointmentsProvider>().load();
+          } else if (context.mounted) {
+            AppToast.show(context, 'بازگردانی توسط سرور پذیرفته نشد.', success: false);
+          }
+        },
+      );
+    } catch (error) {
+      if (context.mounted) AppToast.show(context, '$message تاریخچه سرور بازیابی نشد: $error', success: false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppointmentsProvider>();
     final services = context.watch<ServicesProvider>();
     final employees = context.watch<EmployeesProvider>();
-    final db = context.watch<AppDatabase>();
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
 
@@ -76,12 +101,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              _AppointmentStatusChip(label: 'همه', count: db.appointments.length, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
+              _AppointmentStatusChip(label: 'همه', count: provider.allAppointments.length, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
               const SizedBox(width: 7),
               for (final status in AppointmentStatus.values) ...[
                 _AppointmentStatusChip(
                   label: status.label,
-                  count: db.appointments.where((a) => a.status == status).length,
+                  count: provider.allAppointments.where((a) => a.status == status).length,
                   selected: provider.filter.status == status,
                   color: status.color,
                   onTap: () => provider.setStatus(status),
@@ -234,19 +259,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                 reason: 'لغو با کشیدن کارت',
                               );
                               if (context.mounted) {
-                                final operations = OperationsRepository(context.read<AppDatabase>());
-                                final undoLog = operations.latestUndoableLogFor(appointment.id);
-                                if (undoLog != null) {
-                                  showUndoableOperationSnackBarForLog(
-                                    context,
-                                    message: 'نوبت لغو شد.',
-                                    activityLogId: undoLog.id,
-                                    undo: operations.undo,
-                                    onUndoSuccess: provider.load,
-                                  );
-                                } else {
-                                  AppToast.show(context, 'نوبت لغو شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-                                }
+                                await _showUndoForAppointment(context, appointment, 'نوبت لغو شد.');
                               }
                             } catch (error) {
                               if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -260,19 +273,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                           try {
                             await provider.changeStatus(appointment, AppointmentStatus.confirmed);
                             if (context.mounted) {
-                              final operations = OperationsRepository(context.read<AppDatabase>());
-                              final undoLog = operations.latestUndoableLogFor(appointment.id);
-                              if (undoLog != null) {
-                                showUndoableOperationSnackBarForLog(
-                                  context,
-                                  message: 'نوبت تأیید شد.',
-                                  activityLogId: undoLog.id,
-                                  undo: operations.undo,
-                                  onUndoSuccess: provider.load,
-                                );
-                              } else {
-                                AppToast.show(context, 'نوبت تأیید شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
-                              }
+                              await _showUndoForAppointment(context, appointment, 'نوبت تأیید شد.');
                             }
                           } catch (error) {
                             if (context.mounted) AppToast.show(context, '$error', success: false);

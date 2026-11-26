@@ -6,7 +6,10 @@ import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
-import '../../../../data/mock/app_database.dart';
+import '../../../../data/models/enums.dart';
+import '../../../appointments/presentation/providers/appointments_provider.dart';
+import '../../../employees/presentation/providers/employees_provider.dart';
+import '../providers/services_provider.dart';
 
 class ServiceDetailsPage extends StatelessWidget {
   const ServiceDetailsPage({super.key, required this.serviceId});
@@ -14,14 +17,16 @@ class ServiceDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final db = context.watch<AppDatabase>();
-    final service = db.serviceById(serviceId);
+    final service = context.watch<ServicesProvider>().items.where((item) => item.id == serviceId).firstOrNull;
     if (service == null) return const PageScaffold(title: 'جزئیات خدمت', child: Center(child: Text('خدمت پیدا نشد.')));
-    final appointments = db.appointments.where((item) => item.serviceIds.contains(serviceId)).toList()
+    final appointments = context.watch<AppointmentsProvider>().allAppointments.where((item) => item.serviceIds.contains(serviceId)).toList()
       ..sort((a, b) => b.startAt.compareTo(a.startAt));
-    final entries = db.employeeFinanceEntries.where((item) => item.serviceId == serviceId);
-    final revenue = entries.fold<int>(0, (sum, item) => sum + item.receivedAmount);
-    final employees = service.employeeIds.map(db.employeeById).whereType<dynamic>().toList();
+    final revenue = appointments.where((item) => item.status == AppointmentStatus.completed).fold<int>(0, (sum, item) {
+      final snapshot = item.serviceSnapshots.where((value) => value['service_id'] == serviceId).firstOrNull;
+      final amount = snapshot?['price'] as num?;
+      return sum + (amount?.round() ?? (item.serviceIds.length == 1 ? item.price.round() : 0));
+    });
+    final employees = context.watch<EmployeesProvider>().items.where((employee) => service.employeeIds.contains(employee.id)).toList();
     final pal = context.pal;
     return PageScaffold(
       title: service.title,
@@ -56,7 +61,7 @@ class ServiceDetailsPage extends StatelessWidget {
         Row(children: [
           Expanded(child: _MetricCard(title: 'تعداد نوبت‌ها', value: FaNum.ofInt(appointments.length))),
           const SizedBox(width: 10),
-          Expanded(child: _MetricCard(title: 'دریافتی ثبت‌شده', value: Fmt.money(revenue))),
+          Expanded(child: _MetricCard(title: 'ارزش نوبت‌های تکمیل‌شده', value: Fmt.money(revenue))),
         ]),
         const SizedBox(height: 12),
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

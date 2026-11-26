@@ -8,6 +8,12 @@ import '../models/employee_wallet.dart';
 import '../models/employee_hr.dart';
 import '../models/enums.dart';
 
+/// قرارداد عملیات Undo برای تاریخچه محلی و سروری.
+abstract interface class ActivityOperationsRepository {
+  bool canUndoActivityLog(ActivityLog log);
+  Future<bool> undoActivityEvent(String activityEventId);
+}
+
 /// ورودی یک عملیات حساس؛ UI جزئیات آن را برای تأیید نمایش می‌دهد.
 class SensitiveOperationPreview {
   const SensitiveOperationPreview({
@@ -26,7 +32,7 @@ class SensitiveOperationPreview {
 }
 
 /// نقطه ورود واحد عملیات حساس؛ تمام تغییرات از مسیر AppDatabase و Audit Log می‌گذرند.
-class OperationsRepository {
+class OperationsRepository implements ActivityOperationsRepository {
   OperationsRepository(this._db);
 
   final AppDatabase _db;
@@ -485,6 +491,14 @@ class OperationsRepository {
   }
 
   bool canUndo(String activityLogId) => _db.canUndoLog(activityLogId);
+
+  @override
+  bool canUndoActivityLog(ActivityLog log) => _db.canUndoLog(log.id);
+
+  @override
+  Future<bool> undoActivityEvent(String activityEventId) async =>
+      _db.undoLog(activityEventId);
+
 
   bool undo(String activityLogId) => _db.undoLog(activityLogId);
 

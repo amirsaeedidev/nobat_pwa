@@ -93,6 +93,12 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
           const SizedBox(height: 12),
           if (provider.loading)
             const LoadingState()
+          else if (provider.error != null)
+            ErrorStateView(
+              title: 'تاریخچه سرور در دسترس نیست',
+              description: provider.error!,
+              onRetry: provider.load,
+            )
           else if (provider.logs.isEmpty)
             const EmptyState(
               title: 'رویدادی یافت نشد',
@@ -128,7 +134,8 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                               'شناسه رکورد': log.entityId.isEmpty ? 'ثبت نشده' : log.entityId,
                               'ثبت‌کننده': log.actor,
                               'زمان': '${Fmt.jalaliDate(log.createdAt)}، ${Fmt.time(log.createdAt.hour, log.createdAt.minute)}',
-                              if (log.idempotencyKey != null) 'کلید یکتا': log.idempotencyKey!,
+                              if (log.operationId != null) 'شناسه عملیات': log.operationId!,
+                              if (log.idempotencyKey != null) 'کلید جلوگیری از تکرار': log.idempotencyKey!,
                             },
                             isReversible: true,
                             confirmLabel: 'بازگردانی واقعی',

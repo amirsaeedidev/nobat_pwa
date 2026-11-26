@@ -6,16 +6,21 @@ import 'package:provider/provider.dart';
 import 'core/services/supabase_service.dart';
 import 'data/repositories/supabase_auth_repository.dart';
 import 'data/repositories/supabase_repository.dart';
+import 'data/repositories/supabase_core_repositories.dart';
 
 import 'app/app.dart';
 import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
+import 'data/repositories/operations_repository.dart';
+import 'data/repositories/supabase_activity_repository.dart';
+import 'data/repositories/supabase_operations_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/service_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/supabase_settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
 import 'features/appointments/presentation/providers/appointments_provider.dart';
@@ -62,9 +67,8 @@ Future<void> main() async {
     }
   };
 
-  // Supabase is opt-in and initialized locally only. No network request is
-  // required for startup; if configuration or local session restoration fails,
-  // the app continues in its Datamonck offline mode.
+  // Core operational modules are Supabase-only. Missing configuration or
+  // connectivity is surfaced as an explicit unavailable state, never as mock data.
   await SupabaseService.initialize();
 
   if (!kIsWeb) {
@@ -79,18 +83,36 @@ Future<void> main() async {
     }
   }
 
-  // All application data is seeded locally in memory. Startup does not wait
-  // for browser storage, network access, or any remote service.
+  // Legacy local database remains injected only for modules not yet migrated.
+  // Core appointments/customers/services/employees never read it as fallback.
   final database = AppDatabase();
 
-  final appointmentRepository = MockAppointmentRepository(database);
-  final customerRepository = MockCustomerRepository(database);
-  final serviceRepository = MockServiceRepository(database);
-  final employeeRepository = MockEmployeeRepository(database);
+  final supabaseClient = SupabaseService.client;
+  final tenantScope = supabaseClient == null ? null : SupabaseTenantScope(supabaseClient);
+  final AppointmentRepository appointmentRepository = supabaseClient == null
+      ? UnavailableAppointmentRepository()
+      : SupabaseAppointmentRepository(supabaseClient, tenantScope!);
+  final CustomerRepository customerRepository = supabaseClient == null
+      ? UnavailableCustomerRepository()
+      : SupabaseCustomerRepository(supabaseClient, tenantScope!);
+  final ServiceRepository serviceRepository = supabaseClient == null
+      ? UnavailableServiceRepository()
+      : SupabaseServiceRepository(supabaseClient, tenantScope!);
+  final EmployeeRepository employeeRepository = supabaseClient == null
+      ? UnavailableEmployeeRepository()
+      : SupabaseEmployeeRepository(supabaseClient, tenantScope!);
   final smsRepository = MockSmsRepository(database);
-  final settingsRepository = MockSettingsRepository(database);
+  final SettingsRepository settingsRepository = SupabaseService.client == null
+      ? UnavailableSettingsRepository()
+      : SupabaseSettingsRepository(SupabaseService.client!);
   final dashboardRepository = MockDashboardRepository(database);
-  final activityRepository = MockActivityRepository(database);
+  final ActivityRepository activityRepository = SupabaseService.client == null
+      ? UnavailableActivityRepository()
+      : SupabaseActivityRepository(SupabaseService.client!);
+  final ActivityOperationsRepository activityOperationsRepository =
+      SupabaseService.client == null
+          ? UnavailableActivityOperationsRepository()
+          : SupabaseOperationsRepository(SupabaseService.client!);
 
   runApp(
     MultiProvider(
@@ -114,25 +136,25 @@ Future<void> main() async {
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
+        Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
-        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository)),
         ChangeNotifierProvider(
-          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database),
+          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository),
         ),
-        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database)),
-        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database)),
-        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database)),
+        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository)),
+        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository)),
+        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository)),
         ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database)),
         ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database)),
-        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database)),
+        ChangeNotifierProvider(create: (_) => ActivityProvider.remote(activityRepository, activityOperationsRepository)),
         ChangeNotifierProvider(
           create: (_) => BookingProvider(
             appointmentRepository,
             serviceRepository,
             employeeRepository,
             customerRepository,
-            database,
           ),
         ),
       ],

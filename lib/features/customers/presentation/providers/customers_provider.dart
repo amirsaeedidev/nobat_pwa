@@ -1,13 +1,12 @@
+import 'package:flutter/foundation.dart';
 import '../../../../core/models/page_result.dart';
-import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/models/app_failure.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/repositories/customer_repository.dart';
 
 /// مدیریت فهرست مشتریان، جست‌وجو و CRUD.
-class CustomersProvider extends DbBoundProvider {
-  CustomersProvider(this._repository, AppDatabase db) : super(db) {
+class CustomersProvider extends ChangeNotifier {
+  CustomersProvider(this._repository) {
     load();
   }
 
@@ -30,7 +29,25 @@ class CustomersProvider extends DbBoundProvider {
   bool get busy => _busy;
   int get total => _page.total;
 
-  List<Customer> get all => db.customers;
+  List<Customer> get all => _page.items;
+
+  void search(String value) {
+    _query = value;
+    _pageNumber = 1;
+    load();
+  }
+
+  void goToPage(int page) {
+    _pageNumber = page.clamp(1, 999);
+    load();
+  }
+
+  Customer? findById(String id) {
+    for (final customer in _page.items) { if (customer.id == id) return customer; }
+    return null;
+  }
+
+  Future<Customer?> byId(String id) => _repository.findById(id);
 
   Future<void> load() async {
     _loading = true;
@@ -40,43 +57,35 @@ class CustomersProvider extends DbBoundProvider {
       _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
     } catch (error) {
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.customers;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
     } finally {
       _loading = false;
       notifyListeners();
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _refresh();
-  }
 
-  Future<void> _refresh() async {
-    _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-    notifyListeners();
-  }
-
-  void search(String query) {
-    _query = query;
-    _pageNumber = 1;
-    load();
-  }
-
-  void goToPage(int page) {
-    _pageNumber = page.clamp(1, _page.totalPages == 0 ? 1 : _page.totalPages);
-    load();
-  }
-
-  Future<Customer?> byId(String id) => _repository.findById(id);
 
   Future<bool> create(Customer customer) async {
     _busy = true;
     notifyListeners();
     try {
       await _repository.create(customer);
+      await load();
       return true;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Customer> createAndReturn(Customer customer) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      final saved = await _repository.createAndReturn(customer);
+      await load();
+      return saved;
     } finally {
       _busy = false;
       notifyListeners();
@@ -88,6 +97,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.update(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -95,19 +105,18 @@ class CustomersProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> delete(String id) => _repository.delete(id);
-
-  Customer? findById(String id) {
-    for (final c in db.customers) {
-      if (c.id == id) return c;
-    }
-    return null;
-  }
+  Future<void> delete(String id) async { await _repository.delete(id); await load(); }
 
   Customer? findByPhone(String phone) {
-    for (final c in db.customers) {
-      if (c.phone == phone) return c;
-    }
+    for (final customer in _page.items) { if (customer.phone == phone) return customer; }
     return null;
   }
+
+  Future<Customer?> findByPhoneRemote(String phone) async {
+    final rows = await _repository.fetchAll(query: phone);
+    for (final customer in rows) { if (customer.phone == phone) return customer; }
+    return null;
+  }
+
+
 }

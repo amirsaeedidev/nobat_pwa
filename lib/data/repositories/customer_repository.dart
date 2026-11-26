@@ -17,6 +17,7 @@ abstract class CustomerRepository {
   Future<Customer?> findById(String id);
 
   Future<void> create(Customer customer);
+  Future<Customer> createAndReturn(Customer customer);
 
   Future<void> update(Customer customer);
 
@@ -96,6 +97,12 @@ class MockCustomerRepository implements CustomerRepository {
       await _db.delay(220);
       _db.addCustomer(customer);
     }, fallback: AppErrorKind.save);
+  }
+
+  @override
+  Future<Customer> createAndReturn(Customer customer) async {
+    await create(customer);
+    return customer;
   }
 
   @override

@@ -1,9 +1,9 @@
-import '../../../../core/providers/db_bound_provider.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/utils/jalali.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/repositories/appointment_repository.dart';
@@ -24,14 +24,13 @@ class BookingSlot {
 }
 
 /// فرایند رزرو عمومی مشتری (بدون نیاز به نصب اپلیکیشن).
-class BookingProvider extends DbBoundProvider {
+class BookingProvider extends ChangeNotifier {
   BookingProvider(
     this._appointments,
     this._services,
     this._employees,
     this._customers,
-    AppDatabase db,
-  ) : super(db) {
+  ) {
     _date = JalaliDate.today();
     loadServices();
   }
@@ -56,6 +55,7 @@ class BookingProvider extends DbBoundProvider {
   List<Service> _availableServices = const [];
   List<Employee> _availableEmployees = const [];
   List<BookingSlot> _slots = const [];
+  Set<String> _businessHolidayKeys = const {};
   bool _loading = true;
   int _catalogGeneration = 0;
   int _slotGeneration = 0;
@@ -92,43 +92,7 @@ class BookingProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _refreshAfterDatabaseChange();
-  }
 
-  Future<void> _refreshAfterDatabaseChange() async {
-    final generation = ++_catalogGeneration;
-    try {
-      final services = await _services.fetchServices(onlyActive: true);
-      if (generation != _catalogGeneration) return;
-      _availableServices = services;
-      if (_service != null && !services.any((item) => item.id == _service!.id)) {
-        _service = null;
-        _employee = null;
-        _slot = null;
-        _availableEmployees = const [];
-        _slots = const [];
-        _step = 0;
-      } else if (_service != null) {
-        final employees = await _employees.fetchEmployees(serviceId: _service!.id);
-        if (generation != _catalogGeneration) return;
-        _availableEmployees = employees.where((item) => item.isActive).toList();
-        if (_employee != null && !_availableEmployees.any((item) => item.id == _employee!.id)) {
-          _employee = null;
-          _slot = null;
-          _slots = const [];
-          _step = 1;
-        } else if (_employee != null) {
-          await _loadSlots();
-        }
-      }
-    } catch (_) {
-      _availableServices = db.services.where((item) => item.isActive).toList();
-      _availableEmployees = db.employees.where((item) => item.isActive).toList();
-    }
-    if (generation == _catalogGeneration) notifyListeners();
-  }
 
   Future<void> loadServices() async {
     final generation = ++_catalogGeneration;
@@ -136,11 +100,15 @@ class BookingProvider extends DbBoundProvider {
     notifyListeners();
     try {
       final services = await _services.fetchServices(onlyActive: true);
+      final holidays = await _employees.fetchBusinessHolidays();
       if (generation != _catalogGeneration) return;
       _availableServices = services;
+      _businessHolidayKeys = holidays.map(EmployeeScheduleRules.dateKey).toSet();
     } catch (_) {
       if (generation != _catalogGeneration) return;
-      _availableServices = db.services.where((service) => service.isActive).toList();
+      _availableServices = const [];
+      _businessHolidayKeys = const {};
+      _error = 'دریافت خدمات از سرور ناموفق بود.';
     } finally {
       if (generation == _catalogGeneration) {
         _loading = false;
@@ -201,14 +169,15 @@ class BookingProvider extends DbBoundProvider {
 
   /// تاریخ‌های قابل انتخاب تا سقف مجاز رزرو.
   List<JalaliDate> get selectableDates {
-    final maxDays = db.settings.bookingRules.maxAdvanceDays.clamp(7, 60);
+    final maxDays = (_service?.advanceDays ?? 30).clamp(1, 90);
     final today = JalaliDate.today();
     return [for (var i = 0; i < maxDays; i++) today.addDays(i)];
   }
 
   bool isDateEnabled(JalaliDate date) {
-    if (_employee != null) return db.employeeShiftsForDate(_employee!.id, date.toDateTime()).isNotEmpty;
-    return !db.settings.holidays.contains(date.weekday);
+    if (_businessHolidayKeys.contains(EmployeeScheduleRules.dateKey(date.toDateTime()))) return false;
+    if (_employee != null) return _employee!.scheduleEnabled && _employee!.shiftsFor(date.weekday).isNotEmpty;
+    return false;
   }
 
   Future<void> _loadSlots() async {
@@ -221,34 +190,37 @@ class BookingProvider extends DbBoundProvider {
     }
     _loading = true;
     notifyListeners();
+    try {
     final existing = await _appointments.fetchForDay(_date.toDateTime(), employeeId: employee.id);
     if (generation != _slotGeneration) return;
-    final shifts = db.employeeShiftsForDate(employee.id, _date.toDateTime());
-    final interval = db.settings.bookingRules.slotIntervalMinutes.clamp(15, 60);
+    final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
+    final dateKey = EmployeeScheduleRules.dateKey(_date.toDateTime());
+    if (_businessHolidayKeys.contains(dateKey)) { _slots = const []; _loading = false; _error = 'این تاریخ تعطیلی مجموعه است.'; notifyListeners(); return; }
+    final exception = exceptionRows.where((item) => item.dateKey == dateKey).firstOrNull;
+    final shifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+    final leaves = await _employees.fetchLeaves(employee.id);
+    final interval = 30;
     final slots = <BookingSlot>[];
     for (final shift in shifts) {
-      for (var minutes = shift.startMinutes; minutes + service.durationMinutes <= shift.endMinutes; minutes += interval) {
+      for (var minutes = shift.startMinutes; minutes + service.totalMinutes <= shift.endMinutes; minutes += interval) {
         final start = _date.toDateTime().add(Duration(minutes: minutes));
         if (start.isBefore(DateTime.now())) {
           slots.add(BookingSlot(start: start, isAvailable: false, reason: 'گذشته'));
           continue;
         }
+        final end = start.add(Duration(minutes: service.totalMinutes));
         final conflict = existing.any((a) {
-          if (a.status == AppointmentStatus.cancelled) return false;
-          final end = start.add(Duration(minutes: service.durationMinutes + service.bufferMinutes));
+          if (!a.status.isActive) return false;
           return a.startAt.isBefore(end) && start.isBefore(a.endAt);
         });
-        final scheduleAvailable = db.isEmployeeAvailableAt(
-          employeeId: employee.id,
-          startAt: start,
-          durationMinutes: service.totalMinutes,
-        );
-        final available = !conflict && scheduleAvailable;
+        final scheduleAvailable = shifts.any((shift) => minutes >= shift.startMinutes && minutes + service.totalMinutes <= shift.endMinutes);
+        final leaveConflict = leaves.any((leave) => leave.overlaps(start, end));
+        final available = !conflict && scheduleAvailable && !leaveConflict;
         slots.add(
           BookingSlot(
             start: start,
             isAvailable: available,
-            reason: conflict ? 'رزرو شده' : (scheduleAvailable ? null : 'مرخصی یا فاصله بین نوبت‌ها'),
+            reason: conflict ? 'رزرو شده' : leaveConflict ? 'مرخصی پرسنل' : (scheduleAvailable ? null : 'خارج از برنامه کاری'),
           ),
         );
       }
@@ -257,6 +229,13 @@ class BookingProvider extends DbBoundProvider {
     _slots = slots;
     _loading = false;
     notifyListeners();
+    } catch (error) {
+      if (generation != _slotGeneration) return;
+      _slots = const [];
+      _error = 'دریافت برنامه کاری و زمان‌های رزرو از سرور ناموفق بود: ' + error.toString();
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   void setName(String value) {
@@ -299,30 +278,39 @@ class BookingProvider extends DbBoundProvider {
         notifyListeners();
         return false;
       }
-      if (!db.isEmployeeAvailableAt(employeeId: employee.id, startAt: slot.start, durationMinutes: service.totalMinutes)) {
-        _error = 'این زمان خارج از برنامه کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.';
+      final exceptionRows = await _employees.fetchScheduleExceptions(employee.id);
+      final dateKey = EmployeeScheduleRules.dateKey(slot.start);
+      if (_businessHolidayKeys.contains(dateKey)) throw StateError('این تاریخ تعطیلی مجموعه است.');
+      final exception = exceptionRows.where((item) => item.dateKey == dateKey).firstOrNull;
+      final availableShifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+      final startMinute = slot.start.hour * 60 + slot.start.minute;
+      final inShift = availableShifts.any((shift) => startMinute >= shift.startMinutes && startMinute + service.totalMinutes <= shift.endMinutes);
+      final leaves = await _employees.fetchLeaves(employee.id);
+      final onLeave = leaves.any((leave) => leave.overlaps(slot.start, slot.start.add(Duration(minutes: service.totalMinutes))));
+      if (!inShift || onLeave) {
+        _error = onLeave ? 'این زمان با مرخصی پرسنل تداخل دارد.' : 'این زمان خارج از برنامه کاری پرسنل است.';
         _submitting = false;
         notifyListeners();
         return false;
       }
 
-      var customer = db.customers.where((c) => c.phone == _phone).firstOrNull;
+      var customer = (await _customers.fetchAll(query: _phone)).where((c) => c.phone == _phone.trim()).firstOrNull;
       if (customer == null) {
         customer = Customer(
-          id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
+          id: '',
           fullName: _name.trim(),
           phone: _phone.trim(),
           createdAt: DateTime.now(),
           tags: const ['رزرو آنلاین'],
         );
-        await _customers.create(customer);
+        customer = await _customers.createAndReturn(customer);
       }
 
-      final reference = 'OT-${1500 + db.appointments.length}';
-      final bookedPrice = db.employeeServiceConfig(employee.id, service.id)?.customPrice ?? service.priceAt(slot.start);
-      final bookedDuration = db.effectiveServiceDuration(employee.id, service.id);
+      final reference = 'DT-' + DateTime.now().millisecondsSinceEpoch.toString();
+      final bookedPrice = service.priceAt(slot.start);
+      final bookedDuration = service.durationMinutes + service.prepMinutes + service.bufferMinutes;
       final appointment = Appointment(
-        id: 'apt-${DateTime.now().millisecondsSinceEpoch}',
+        id: 'booking-' + DateTime.now().microsecondsSinceEpoch.toString(),
         reference: reference,
         customerId: customer.id,
         customerName: customer.fullName,
@@ -333,7 +321,7 @@ class BookingProvider extends DbBoundProvider {
         employeeName: employee.fullName,
         startAt: slot.start,
         durationMinutes: bookedDuration,
-        status: db.settings.bookingRules.requireConfirmation ? AppointmentStatus.pending : AppointmentStatus.confirmed,
+        status: service.requiresConfirmation ? AppointmentStatus.pending : AppointmentStatus.confirmed,
         price: bookedPrice,
         serviceSnapshots: [{
           'service_id': service.id,
@@ -349,12 +337,19 @@ class BookingProvider extends DbBoundProvider {
         createdBy: 'صفحه رزرو آنلاین',
       );
       await _appointments.create(appointment);
-      _created = appointment;
+      final createdPage = await _appointments.fetchAppointments(
+        filter: AppointmentFilter(query: reference),
+        page: 1,
+        pageSize: 10,
+      );
+      final savedAppointment = createdPage.items.where((item) => item.reference == reference).firstOrNull;
+      if (savedAppointment == null) throw StateError('نوبت ثبت شد اما نسخه ثبت‌شده از سرور بازیابی نشد.');
+      _created = savedAppointment;
       _submitting = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'خطا در ثبت نوبت. لطفاً دوباره تلاش کنید.';
+      _error = 'ثبت نوبت در سرور ناموفق بود: ' + e.toString();
       _submitting = false;
       notifyListeners();
       return false;
@@ -382,27 +377,12 @@ class BookingProvider extends DbBoundProvider {
 
   /// آیا مشتری می‌تواند این نوبت را لغو کند؟
   String? cancelBlockReason(Appointment appointment) {
-    final rules = db.settings.bookingRules;
-    if (!rules.allowCustomerCancel) return 'لغو نوبت توسط مشتری غیرفعال است.';
-    final hours = appointment.startAt.difference(DateTime.now()).inHours;
-    if (hours < rules.minHoursBeforeChange) {
-      return 'تا شروع نوبت کمتر از ${rules.minHoursBeforeChange} ساعت باقی مانده است.';
-    }
-    return null;
+    return null; // سیاست نهایی لغو توسط RPC و مجوزهای سرور اعمال می‌شود.
   }
 
   /// آیا مشتری می‌تواند این نوبت را جابه‌جا کند؟
   String? rescheduleBlockReason(Appointment appointment) {
-    final rules = db.settings.bookingRules;
-    if (!rules.allowReschedule) return 'جابه‌جایی نوبت غیرفعال است.';
-    if (appointment.rescheduleCount >= rules.maxReschedules) {
-      return 'سقف جابه‌جایی (${rules.maxReschedules} بار) تکمیل شده است.';
-    }
-    final hours = appointment.startAt.difference(DateTime.now()).inHours;
-    if (hours < rules.minHoursBeforeChange) {
-      return 'تا شروع نوبت کمتر از ${rules.minHoursBeforeChange} ساعت باقی مانده است.';
-    }
-    return null;
+    return null; // سیاست نهایی جابه‌جایی توسط RPC و مجوزهای سرور اعمال می‌شود.
   }
 
   Future<void> customerCancel(Appointment appointment, {String reason = 'لغو توسط مشتری'}) async {
@@ -430,13 +410,14 @@ class BookingProvider extends DbBoundProvider {
   /// یافتن نوبت‌های مشتری با شماره موبایل.
   Future<List<Appointment>> lookup(String phone) async {
     final normalized = phone.trim();
-    final customer = db.customers.where((c) => c.phone == normalized).firstOrNull;
+    final matches = await _customers.fetchAll(query: normalized);
+    final customer = matches.where((c) => c.phone == normalized).firstOrNull;
     if (customer == null) return const [];
     return _appointments.fetchForCustomer(customer.id);
   }
 
   Future<List<Appointment>> lookupByReference(String reference) async {
-    final appointment = db.appointments.where((a) => a.reference == reference.trim()).firstOrNull;
-    return appointment == null ? const [] : [appointment];
+    final page = await _appointments.fetchAppointments(filter: AppointmentFilter(query: reference.trim()), page: 1, pageSize: 20);
+    return page.items.where((a) => a.reference == reference.trim()).toList();
   }
 }

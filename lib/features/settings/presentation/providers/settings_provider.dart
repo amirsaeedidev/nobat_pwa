@@ -1,69 +1,91 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/theme/app_palette.dart';
-import '../../../../core/providers/db_bound_provider.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/settings_repository.dart';
 
-/// تنظیمات ظاهری و اطلاعات مجموعه.
-class SettingsProvider extends DbBoundProvider {
-  SettingsProvider(this._repository, AppDatabase db) : super(db) {
+/// Commercial settings are remote; only the application palette is local.
+class SettingsProvider extends ChangeNotifier {
+  SettingsProvider(this._repository) {
+    _authSubscription = _repository.authChanges?.listen((_) => load());
     load();
   }
 
   final SettingsRepository _repository;
+  StreamSubscription<void>? _authSubscription;
 
   BusinessSettings? _settings;
   bool _loading = true;
+  bool _saving = false;
+  String? _loadError;
   String _paletteId = 'pastel_pink';
   String _formThemeId = 'pastel_pink';
-  bool _saving = false;
 
   BusinessSettings? get settings => _settings;
   bool get loading => _loading;
   bool get saving => _saving;
+  String? get loadError => _loadError;
   AppPalette get palette => AppPalette.byId(_paletteId);
   AppFormTheme get formTheme => AppFormTheme.byId(_formThemeId);
   Color get formAccentColor => formTheme.accent;
   String get formThemeId => _formThemeId;
   String get paletteId => _paletteId;
-  String get ownerName => 'فاطمه رضایی';
-  String get ownerRole => 'مدیر مجموعه';
-  int get totalUnread => 3;
+  String get ownerName => 'مدیر کل';
+  String get ownerRole => 'مدیر کل';
+  int get totalUnread => 0;
 
   BookingRules get rules => _settings?.bookingRules ?? const BookingRules();
   Map<int, List<Shift>> get workingHours => _settings?.workingHours ?? const {};
   List<int> get holidays => _settings?.holidays ?? const [];
-  List<ScheduleException> get scheduleExceptions => _settings?.scheduleExceptions ?? const [];
-  SmsProviderSettings get smsProvider => _settings?.smsProvider ?? const SmsProviderSettings();
-  NotificationSettings get notifications => _settings?.notifications ?? const NotificationSettings();
+  List<ScheduleException> get scheduleExceptions =>
+      _settings?.scheduleExceptions ?? const [];
+  SmsProviderSettings get smsProvider =>
+      _settings?.smsProvider ?? const SmsProviderSettings(
+        providerName: '',
+        endpoint: '',
+        credit: 0,
+      );
+  NotificationSettings get notifications =>
+      _settings?.notifications ?? const NotificationSettings();
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   Future<void> load() async {
     _loading = true;
+    _loadError = null;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
-      _paletteId = AppPalette.byId(prefs.getString('datetime_palette') ?? 'pastel_pink').id;
-      _formThemeId = AppFormTheme.byId(prefs.getString('datetime_form_theme') ?? 'pastel_pink').id;
+      _paletteId =
+          AppPalette.byId(prefs.getString('datetime_palette') ?? 'pastel_pink').id;
+    } catch (error) {
+      // Local appearance preferences must not block commercial settings.
+      debugPrint('Could not load local app palette preference: $error');
+    }
+
+    try {
       _settings = await _repository.fetchSettings();
+      _formThemeId = AppFormTheme.byId(
+        await _repository.fetchBookingFormTheme(),
+      ).id;
+      _loadError = null;
     } catch (error, stackTrace) {
-      debugPrint('Settings mock load failed; using seeded data: $error');
+      _settings = null;
+      _loadError = error.toString();
+      debugPrint('Remote settings load failed: $error');
       debugPrintStack(stackTrace: stackTrace);
-      _settings = db.settings;
     } finally {
       _loading = false;
       notifyListeners();
     }
-  }
-
-  @override
-  void onDatabaseChanged() {
-    _settings = db.settings;
-    notifyListeners();
   }
 
   Future<void> setPalette(String id) async {
@@ -73,78 +95,107 @@ class SettingsProvider extends DbBoundProvider {
     await prefs.setString('datetime_palette', _paletteId);
   }
 
+  /// The booking-form theme belongs to the business and is shared by clients.
   Future<void> setFormTheme(String id) async {
-    _formThemeId = AppFormTheme.byId(id).id;
+    final nextId = AppFormTheme.byId(id).id;
+    await _repository.saveBookingFormTheme(nextId);
+    _formThemeId = nextId;
     notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('datetime_form_theme', _formThemeId);
   }
 
-  Future<void> saveBusiness(BusinessSettings settings, {String? logTitle, String? logDescription}) async {
+  Future<void> _persist(
+    BusinessSettings updated, {
+    String? logTitle,
+    String? logDescription,
+  }) async {
     _saving = true;
     notifyListeners();
     try {
-      await _repository.saveSettings(settings, logTitle: logTitle, logDescription: logDescription);
-      _settings = db.settings;
+      await _repository.saveSettings(
+        updated,
+        logTitle: logTitle,
+        logDescription: logDescription,
+      );
+      _settings = await _repository.fetchSettings();
+      _loadError = null;
+    } catch (error) {
+      _loadError = error.toString();
+      rethrow;
     } finally {
       _saving = false;
       notifyListeners();
     }
   }
 
+  Future<void> saveBusiness(
+    BusinessSettings settings, {
+    String? logTitle,
+    String? logDescription,
+  }) =>
+      _persist(
+        settings,
+        logTitle: logTitle,
+        logDescription: logDescription,
+      );
+
   Future<void> updateRules(BookingRules rules) async {
     final current = _settings;
-    if (current == null) return;
-    await _repository.saveSettings(
+    if (current == null) throw StateError(_loadError ?? 'تنظیمات مجموعه بارگذاری نشده است.');
+    await _persist(
       current.copyWith(bookingRules: rules),
       logTitle: 'تغییر قواعد رزرو',
-      logDescription: 'قواعد لغو و جابه‌جایی نوبت به‌روزرسانی شد.',
+      logDescription: 'قواعد رزرو، لغو و جابه‌جایی در سرور به‌روزرسانی شد.',
     );
-    _settings = db.settings;
-    notifyListeners();
   }
 
   Future<void> updateNotifications(NotificationSettings notifications) async {
     final current = _settings;
-    if (current == null) return;
-    await _repository.saveSettings(
+    if (current == null) throw StateError(_loadError ?? 'تنظیمات مجموعه بارگذاری نشده است.');
+    await _persist(
       current.copyWith(notifications: notifications),
       logTitle: 'تغییر تنظیمات اطلاع‌رسانی',
-      logDescription: 'تنظیمات پیامک‌های خودکار به‌روزرسانی شد.',
+      logDescription: 'تنظیمات اطلاع‌رسانی در سرور به‌روزرسانی شد.',
     );
-    _settings = db.settings;
-    notifyListeners();
   }
 
-  Future<void> updateWorkingHours(Map<int, List<Shift>> hours, {List<int>? holidays}) async {
+  Future<void> updateWorkingHours(
+    Map<int, List<Shift>> hours, {
+    List<int>? holidays,
+  }) async {
     final current = _settings;
-    if (current == null) return;
-    await _repository.saveSettings(
-      current.copyWith(workingHours: hours, workSchedules: hours, holidays: holidays ?? current.holidays),
+    if (current == null) throw StateError(_loadError ?? 'تنظیمات مجموعه بارگذاری نشده است.');
+    await _persist(
+      current.copyWith(
+        workingHours: hours,
+        workSchedules: hours,
+        holidays: holidays ?? current.holidays,
+      ),
       logTitle: 'تغییر ساعت کاری',
-      logDescription: 'شیفت‌های کاری و روزهای تعطیل به‌روزرسانی شد.',
+      logDescription: 'ساعات کاری و تعطیلات هفتگی در سرور به‌روزرسانی شد.',
     );
-    _settings = db.settings;
-    notifyListeners();
   }
 
-  Future<void> updateScheduleExceptions(List<ScheduleException> exceptions) async {
+  Future<void> updateScheduleExceptions(
+    List<ScheduleException> exceptions,
+  ) async {
     final current = _settings;
-    if (current == null) return;
-    await _repository.saveSettings(current.copyWith(scheduleExceptions: List.unmodifiable(exceptions)), logTitle: 'تغییر محدودیت‌های تقویم', logDescription: 'تعطیلات و ساعات ویژه تاریخ‌دار به‌روزرسانی شد.');
-    _settings = db.settings;
-    notifyListeners();
+    if (current == null) throw StateError(_loadError ?? 'تنظیمات مجموعه بارگذاری نشده است.');
+    await _persist(
+      current.copyWith(scheduleExceptions: List.unmodifiable(exceptions)),
+      logTitle: 'تغییر محدودیت‌های تقویم',
+      logDescription: 'تعطیلات و ساعات ویژه تاریخ‌دار در سرور به‌روزرسانی شد.',
+    );
   }
 
-  Future<void> updateProvider(SmsProviderSettings provider, {String? logTitle, String? logDescription}) async {
-    final current = _settings;
-    if (current == null) return;
-    await _repository.saveSettings(
-      current.copyWith(smsProvider: provider),
-      logTitle: logTitle ?? 'به‌روزرسانی پنل پیامک',
-      logDescription: logDescription ?? 'تنظیمات پنل پیامک ذخیره شد.',
+  /// SMS gateway credentials must be stored in a server-side secret store,
+  /// never in the client-readable business settings JSON.
+  Future<void> updateProvider(
+    SmsProviderSettings provider, {
+    String? logTitle,
+    String? logDescription,
+  }) async {
+    throw UnsupportedError(
+      'ذخیره اطلاعات محرمانه پنل پیامک باید از طریق Secret/Edge Function انجام شود.',
     );
-    _settings = db.settings;
-    notifyListeners();
   }
 }

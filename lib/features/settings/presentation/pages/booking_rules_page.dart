@@ -20,7 +20,7 @@ class BookingRulesPage extends StatefulWidget {
 }
 
 class _BookingRulesPageState extends State<BookingRulesPage> {
-  late BookingRules _rules;
+  BookingRules _rules = const BookingRules();
   final _maxReschedules = TextEditingController();
   final _minHours = TextEditingController();
   final _advanceDays = TextEditingController();
@@ -32,8 +32,10 @@ class _BookingRulesPageState extends State<BookingRulesPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
+    final provider = Provider.of<SettingsProvider>(context);
+    if (provider.settings == null) return;
     _prefilled = true;
-    _rules = context.read<SettingsProvider>().rules;
+    _rules = provider.rules;
     _maxReschedules.text = _rules.maxReschedules.toString();
     _minHours.text = _rules.minHoursBeforeChange.toString();
     _advanceDays.text = _rules.maxAdvanceDays.toString();
@@ -57,10 +59,14 @@ class _BookingRulesPageState extends State<BookingRulesPage> {
       maxAdvanceDays: int.tryParse(FaNum.toLatin(_advanceDays.text)) ?? 30,
       slotIntervalMinutes: int.tryParse(FaNum.toLatin(_interval.text)) ?? 15,
     );
-    await context.read<SettingsProvider>().updateRules(updated);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, 'قواعد رزرو ذخیره شد');
+    try {
+      await context.read<SettingsProvider>().updateRules(updated);
+      if (mounted) AppToast.show(context, 'قواعد رزرو در سرور ذخیره شد');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره قواعد ناموفق بود: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override

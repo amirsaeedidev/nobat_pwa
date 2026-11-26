@@ -180,6 +180,7 @@ class AppToast {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
           margin: const EdgeInsets.all(16),
           backgroundColor: pal.surfaceHigh,

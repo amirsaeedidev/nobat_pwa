@@ -64,6 +64,12 @@ class SupabaseServiceRepository implements ServiceRepository {
   }
 
   @override
+  Future<String> createAndReturn(Service service) async {
+    await create(service);
+    return service.id;
+  }
+
+  @override
   Future<void> update(Service service) async {
     if (await findById(service.id) == null) {
       throw StateError('خدمت مورد نظر در Supabase پیدا نشد.');

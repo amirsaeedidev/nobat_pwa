@@ -13,10 +13,9 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/enums.dart';
-import '../../../../data/repositories/operations_repository.dart';
+import '../../../activity_logs/presentation/providers/activity_provider.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../providers/customers_provider.dart';
@@ -59,29 +58,34 @@ class CustomerProfilePage extends StatelessWidget {
           'نام مشتری': customer.fullName,
           'شماره تماس': customer.phone,
           'تعداد سوابق نوبت': appointments.length.toString(),
-          'مجموع خرید': '${FaNum.ofInt(customer.totalSpent.round())} تومان',
+          'مبلغ نوبت‌های تکمیل‌شده': '${FaNum.ofInt(customer.totalSpent.round())} تومان',
         },
         isReversible: true,
         confirmLabel: 'ادامه عملیات',
       );
       if (!confirmed || !context.mounted) return;
-      final db = context.read<AppDatabase>();
       final customersProvider = context.read<CustomersProvider>();
       try {
         await customersProvider.delete(customer.id);
         if (context.mounted) {
-          final operations = OperationsRepository(db);
-          final undoLog = operations.latestUndoableLogFor(customer.id);
+          final activity = context.read<ActivityProvider>();
+          await activity.load();
+          final undoLog = activity.logs.where((log) => log.entityId == customer.id && log.isReversible && !log.isUndone).firstOrNull;
           if (undoLog != null) {
-            showUndoableOperationSnackBarForLog(
+            showUndoableOperationSnackBar(
               context,
               message: 'عملیات مشتری «${customer.fullName}» انجام شد.',
-              activityLogId: undoLog.id,
-              undo: operations.undo,
-              onUndoSuccess: customersProvider.load,
+              onUndo: () async {
+                final restored = await activity.undo(undoLog);
+                if (restored) {
+                  await customersProvider.load();
+                } else if (context.mounted) {
+                  AppToast.show(context, 'بازگردانی توسط سرور پذیرفته نشد.', success: false);
+                }
+              },
             );
           } else {
-            AppToast.show(context, 'عملیات مشتری انجام شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
+            AppToast.show(context, 'عملیات مشتری انجام شد؛ بازگردانی سروری برای این رویداد در دسترس نیست.');
           }
           context.pop();
         }

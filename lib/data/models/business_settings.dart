@@ -251,8 +251,8 @@ class BusinessSettings {
   final NotificationSettings notifications;
   final BookingRules bookingRules;
 
-  String get publicUrl => 'datetime.app/book/$publicSlug';
-  String get fullUrl => 'https://datetime.app/book/$publicSlug';
+  String get publicUrl => publicSlug.trim().isEmpty ? '' : 'datetime.app/book/$publicSlug';
+  String get fullUrl => publicSlug.trim().isEmpty ? '' : 'https://datetime.app/book/$publicSlug';
 
   BusinessSettings copyWith({
     String? name,

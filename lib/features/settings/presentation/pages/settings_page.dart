@@ -47,6 +47,14 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (settings.loading) const LinearProgressIndicator(),
+          if (settings.loadError != null)
+            AppCard(
+              child: Text(
+                'تنظیمات تجاری از Supabase دریافت نشد. هیچ داده محلی جایگزین نشده است.\n${settings.loadError}',
+                style: TextStyle(fontSize: 11, color: pal.danger, height: 1.7),
+              ),
+            ),
           AppCard(
             gradient: LinearGradient(
               colors: [pal.primary.withValues(alpha: 0.22), pal.surface],
@@ -75,8 +83,8 @@ class SettingsPage extends StatelessWidget {
                           Icon(Icons.verified_rounded, size: 12, color: pal.success),
                           const SizedBox(width: 4),
                           Expanded(child: Text(
-                            'پنل پیامک: ${settings.smsProvider.status.label}',
-                            style: TextStyle(fontSize: 10, color: pal.success),
+                            settings.loadError == null ? 'تنظیمات مجموعه از سرور دریافت شد' : 'اتصال به تنظیمات سرور برقرار نیست',
+                            style: TextStyle(fontSize: 10, color: settings.loadError == null ? pal.success : pal.danger),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           )),

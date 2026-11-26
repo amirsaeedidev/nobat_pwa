@@ -34,21 +34,21 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   final _website = TextEditingController();
   final _slug = TextEditingController();
 
-  String _province = 'تهران';
-  String _city = 'تهران';
+  String _province = 'انتخاب نشده';
+  String _city = 'انتخاب نشده';
   bool _saving = false;
   bool _prefilled = false;
 
-  static const _provinces = ['تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
-  static const _cities = ['تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
+  static const _provinces = ['انتخاب نشده', 'تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
+  static const _cities = ['انتخاب نشده', 'تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    _prefilled = true;
-    final settings = context.read<SettingsProvider>().settings;
+    final settings = Provider.of<SettingsProvider>(context).settings;
     if (settings == null) return;
+    _prefilled = true;
     _name.text = settings.name;
     _slogan.text = settings.slogan;
     _description.text = settings.description;
@@ -62,8 +62,8 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
     _whatsapp.text = settings.whatsapp;
     _website.text = settings.website;
     _slug.text = settings.publicSlug;
-    _province = settings.province;
-    _city = settings.city;
+    _province = settings.province.isEmpty ? 'انتخاب نشده' : settings.province;
+    _city = settings.city.isEmpty ? 'انتخاب نشده' : settings.city;
   }
 
   @override
@@ -79,35 +79,41 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final current = context.read<SettingsProvider>().settings;
+    if (current == null) {
+      AppToast.show(context, 'تنظیمات واقعی مجموعه از سرور بارگذاری نشده است.');
+      return;
+    }
     setState(() => _saving = true);
-    final provider = context.read<SettingsProvider>();
-    final current = provider.settings;
-    if (current == null) return;
-    await provider.saveBusiness(
-      current.copyWith(
-        name: _name.text.trim(),
-        slogan: _slogan.text.trim(),
-        description: _description.text.trim(),
-        phone: _phone.text.trim(),
-        mobile: _mobile.text.trim(),
-        email: _email.text.trim(),
-        address: _address.text.trim(),
-        postalCode: _postal.text.trim(),
-        province: _province,
-        city: _city,
-        instagram: _instagram.text.trim(),
-        telegram: _telegram.text.trim(),
-        whatsapp: _whatsapp.text.trim(),
-        website: _website.text.trim(),
-        publicSlug: _slug.text.trim(),
-        logoText: _name.text.trim().isEmpty ? 'OT' : _name.text.trim().substring(0, 2),
-      ),
-      logTitle: 'ویرایش اطلاعات مجموعه',
-      logDescription: 'اطلاعات پایه مجموعه به‌روزرسانی شد.',
-    );
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, 'اطلاعات مجموعه ذخیره شد');
+    try {
+      await context.read<SettingsProvider>().saveBusiness(
+        current.copyWith(
+          name: _name.text.trim(),
+          slogan: _slogan.text.trim(),
+          description: _description.text.trim(),
+          phone: _phone.text.trim(),
+          mobile: _mobile.text.trim(),
+          email: _email.text.trim(),
+          address: _address.text.trim(),
+          postalCode: _postal.text.trim(),
+          province: _province == 'انتخاب نشده' ? '' : _province,
+          city: _city == 'انتخاب نشده' ? '' : _city,
+          instagram: _instagram.text.trim(),
+          telegram: _telegram.text.trim(),
+          whatsapp: _whatsapp.text.trim(),
+          website: _website.text.trim(),
+          publicSlug: _slug.text.trim(),
+          logoText: _name.text.trim().isEmpty ? '' : _name.text.trim().substring(0, 2),
+        ),
+        logTitle: 'ویرایش اطلاعات مجموعه',
+        logDescription: 'اطلاعات پایه مجموعه به‌روزرسانی شد.',
+      );
+      if (mounted) AppToast.show(context, 'اطلاعات مجموعه در سرور ذخیره شد');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره اطلاعات ناموفق بود: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -128,6 +134,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         width: 58,
@@ -155,10 +162,19 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                               'در این فاز حروف اول نام به‌عنوان لوگو نمایش داده می‌شود (آماده Supabase Storage).',
                               style: TextStyle(fontSize: 10, color: pal.textMuted, height: 1.6),
                             ),
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: SoftButton(
+                                label: 'تغییر',
+                                icon: Icons.upload_rounded,
+                                dense: true,
+                                onTap: () => AppToast.show(context, 'بارگذاری تصویر در فاز بعدی'),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      SoftButton(label: 'تغییر', icon: Icons.upload_rounded, dense: true, onTap: () => AppToast.show(context, 'بارگذاری تصویر در فاز بعدی')),
                     ],
                   ),
                   const SizedBox(height: 16),

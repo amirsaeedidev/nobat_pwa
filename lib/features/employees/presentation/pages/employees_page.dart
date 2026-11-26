@@ -12,9 +12,8 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
-import '../../../../data/mock/app_database.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../../../../data/models/employee.dart';
+import '../../../activity_logs/presentation/providers/activity_provider.dart';
 import '../../../../data/models/enums.dart';
 import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/employees_provider.dart';
@@ -194,18 +193,17 @@ class _EmployeesPageState extends State<EmployeesPage> {
                           try {
                             await provider.remove(employee.id);
                             if (context.mounted) {
-                              final operations = OperationsRepository(context.read<AppDatabase>());
-                              final undoLog = operations.latestUndoableLogFor(employee.id);
-                              if (undoLog != null) {
-                                showUndoableOperationSnackBarForLog(
-                                  context,
-                                  message: 'عملیات پرسنل انجام شد.',
-                                  activityLogId: undoLog.id,
-                                  undo: operations.undo,
-                                  onUndoSuccess: provider.load,
-                                );
+                              final activity = context.read<ActivityProvider>();
+                              await activity.load();
+                              final log = activity.logs.where((item) => item.entityId == employee.id && item.isReversible && !item.isUndone).firstOrNull;
+                              if (log != null) {
+                                showUndoableOperationSnackBar(context, message: 'پرسنل بایگانی شد.', onUndo: () async {
+                                  final restored = await activity.undo(log);
+                                  if (restored) await context.read<EmployeesProvider>().load();
+                                  else if (context.mounted) AppToast.show(context, 'بازگردانی توسط سرور پذیرفته نشد.', success: false);
+                                });
                               } else {
-                                AppToast.show(context, 'عملیات پرسنل انجام شد؛ بازگردانی به‌دلیل سوابق وابسته ممکن نیست.');
+                                AppToast.show(context, 'پرسنل بایگانی شد و رویداد در تاریخچه سرور ثبت شد.');
                               }
                             }
                           } catch (error) {

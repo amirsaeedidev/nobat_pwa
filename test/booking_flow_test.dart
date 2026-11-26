@@ -17,7 +17,6 @@ void main() {
       MockServiceRepository(db),
       MockEmployeeRepository(db),
       MockCustomerRepository(db),
-      db,
     );
     await Future<void>.delayed(const Duration(milliseconds: 400));
   });
