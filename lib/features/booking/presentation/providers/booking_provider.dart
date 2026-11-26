@@ -91,40 +91,6 @@ class BookingProvider extends ChangeNotifier {
   }
 
 
-  Future<void> _refreshAfterDatabaseChange() async {
-    final generation = ++_catalogGeneration;
-    try {
-      final services = await _services.fetchServices(onlyActive: true);
-      if (generation != _catalogGeneration) return;
-      _availableServices = services;
-      if (_service != null && !services.any((item) => item.id == _service!.id)) {
-        _service = null;
-        _employee = null;
-        _slot = null;
-        _availableEmployees = const [];
-        _slots = const [];
-        _step = 0;
-      } else if (_service != null) {
-        final employees = await _employees.fetchEmployees(serviceId: _service!.id);
-        if (generation != _catalogGeneration) return;
-        _availableEmployees = employees.where((item) => item.isActive).toList();
-        if (_employee != null && !_availableEmployees.any((item) => item.id == _employee!.id)) {
-          _employee = null;
-          _slot = null;
-          _slots = const [];
-          _step = 1;
-        } else if (_employee != null) {
-          await _loadSlots();
-        }
-      }
-    } catch (_) {
-      _availableServices = const [];
-      _error = 'دریافت خدمات از سرور ناموفق بود.';
-      _availableEmployees = const [];
-      _error = 'دریافت پرسنل از سرور ناموفق بود.';
-    }
-    if (generation == _catalogGeneration) notifyListeners();
-  }
 
   Future<void> loadServices() async {
     final generation = ++_catalogGeneration;
