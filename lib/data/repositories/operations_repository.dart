@@ -31,6 +31,16 @@ abstract class ActivityOperationsRepository {
   Future<bool> undoActivityEvent(String activityLogId);
 }
 
+/// Production-safe fallback: without a server operation gateway Undo is disabled.
+class UnavailableActivityOperationsRepository implements ActivityOperationsRepository {
+  @override
+  bool canUndoActivityLog(ActivityLog log) => false;
+
+  @override
+  Future<bool> undoActivityEvent(String activityLogId) =>
+      Future.error(StateError('بازگردانی فقط با اتصال معتبر به سرور امکان‌پذیر است.'));
+}
+
 /// نقطه ورود واحد عملیات حساس؛ تمام تغییرات از مسیر AppDatabase و Audit Log می‌گذرند.
 class OperationsRepository implements ActivityOperationsRepository {
   OperationsRepository(this._db);
