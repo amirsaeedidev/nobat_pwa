@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'core/services/supabase_service.dart';
 import 'data/repositories/supabase_auth_repository.dart';
 import 'data/repositories/supabase_repository.dart';
+import 'data/repositories/supabase_core_repositories.dart';
 
 import 'app/app.dart';
 import 'data/mock/app_database.dart';
@@ -66,9 +67,8 @@ Future<void> main() async {
     }
   };
 
-  // Supabase is opt-in and initialized locally only. No network request is
-  // required for startup; if configuration or local session restoration fails,
-  // the app continues in its Datamonck offline mode.
+  // Core operational modules are Supabase-only. Missing configuration or
+  // connectivity is surfaced as an explicit unavailable state, never as mock data.
   await SupabaseService.initialize();
 
   if (!kIsWeb) {
@@ -83,14 +83,24 @@ Future<void> main() async {
     }
   }
 
-  // All application data is seeded locally in memory. Startup does not wait
-  // for browser storage, network access, or any remote service.
+  // Legacy local database remains injected only for modules not yet migrated.
+  // Core appointments/customers/services/employees never read it as fallback.
   final database = AppDatabase();
 
-  final appointmentRepository = MockAppointmentRepository(database);
-  final customerRepository = MockCustomerRepository(database);
-  final serviceRepository = MockServiceRepository(database);
-  final employeeRepository = MockEmployeeRepository(database);
+  final supabaseClient = SupabaseService.client;
+  final tenantScope = supabaseClient == null ? null : SupabaseTenantScope(supabaseClient);
+  final AppointmentRepository appointmentRepository = supabaseClient == null
+      ? UnavailableAppointmentRepository()
+      : SupabaseAppointmentRepository(supabaseClient, tenantScope!);
+  final CustomerRepository customerRepository = supabaseClient == null
+      ? UnavailableCustomerRepository()
+      : SupabaseCustomerRepository(supabaseClient, tenantScope!);
+  final ServiceRepository serviceRepository = supabaseClient == null
+      ? UnavailableServiceRepository()
+      : SupabaseServiceRepository(supabaseClient, tenantScope!);
+  final EmployeeRepository employeeRepository = supabaseClient == null
+      ? UnavailableEmployeeRepository()
+      : SupabaseEmployeeRepository(supabaseClient, tenantScope!);
   final smsRepository = MockSmsRepository(database);
   final SettingsRepository settingsRepository = SupabaseService.client == null
       ? UnavailableSettingsRepository()
