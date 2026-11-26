@@ -262,7 +262,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     final employee = context.watch<EmployeesProvider>().byIdSync(widget.employeeId);
     final pal = context.pal;
     if (employee == null) return PageScaffold(title: 'برنامه کاری پرسنل', showBackButton: true, child: const EmptyState(title: 'پرسنل یافت نشد'));
-    final exceptions = _exceptions..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+    final exceptions = _exceptions.toList()..sort((a, b) => a.dateKey.compareTo(b.dateKey));
     final leaves = _leaves;
     return PageScaffold(
       title: 'برنامه کاری پرسنل',
