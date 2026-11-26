@@ -10,7 +10,6 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/enums.dart';
@@ -28,6 +27,29 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   int _tab = 0;
   late JalaliDate _visibleMonth = JalaliDate.today();
   JalaliDate? _selectedDate;
+  List<EmployeeScheduleException> _exceptions = const [];
+  List<EmployeeLeave> _leaves = const [];
+  bool _relatedLoading = true;
+  bool _relatedStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_relatedStarted) { _relatedStarted = true; _loadRelated(); }
+  }
+
+  Future<void> _loadRelated() async {
+    final provider = context.read<EmployeesProvider>();
+    try {
+      final values = await Future.wait([provider.scheduleExceptions(widget.employeeId), provider.leaves(widget.employeeId)]);
+      if (!mounted) return;
+      setState(() { _exceptions = values[0] as List<EmployeeScheduleException>; _leaves = values[1] as List<EmployeeLeave>; _relatedLoading = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _exceptions = const []; _leaves = const []; _relatedLoading = false; });
+      AppToast.show(context, 'دریافت استثناها و مرخصی‌ها از سرور ناموفق بود: $error', success: false);
+    }
+  }
 
   Future<TimeOfDay?> _time(TimeOfDay? initial) => showTimePicker(
     context: context,
@@ -59,7 +81,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
     try {
       EmployeeScheduleRules.validateShifts(shifts);
       schedule[weekday] = shifts..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
-      context.read<AppDatabase>().saveEmployeeWeeklySchedule(employee.id, schedule, enabled: employee.scheduleEnabled, bufferMinutes: employee.bufferMinutes);
+      await context.read<EmployeesProvider>().update(employee.copyWith(schedule: schedule));
       AppToast.show(context, 'شیفت اضافه شد.');
     } catch (error) {
       AppToast.show(context, error.toString().replaceFirst('ArgumentError: ', ''), success: false);
@@ -69,7 +91,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   Future<void> _removeShift(Employee employee, int weekday, Shift shift) async {
     final schedule = employee.schedule.map((key, value) => MapEntry(key, [...value]));
     schedule[weekday] = (schedule[weekday] ?? []).where((item) => item.start != shift.start || item.end != shift.end).toList();
-    context.read<AppDatabase>().saveEmployeeWeeklySchedule(employee.id, schedule, enabled: employee.scheduleEnabled, bufferMinutes: employee.bufferMinutes);
+    await context.read<EmployeesProvider>().update(employee.copyWith(schedule: schedule));
   }
 
   Future<void> _addException(Employee employee) async {
@@ -97,10 +119,11 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
       shifts = [shift];
     }
     try {
-      context.read<AppDatabase>().saveEmployeeScheduleException(EmployeeScheduleException(
+      await context.read<EmployeesProvider>().saveScheduleException(EmployeeScheduleException(
         employeeId: employee.id, dateKey: EmployeeScheduleRules.dateKey(date), title: title,
         isClosed: closed, shifts: shifts,
       ));
+      await _loadRelated();
       AppToast.show(context, 'استثنای تاریخ‌دار ذخیره شد.');
     } catch (error) {
       AppToast.show(context, error.toString(), success: false);
@@ -144,25 +167,27 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
       end = DateTime(startDate.year, startDate.month, startDate.day, to.hour, to.minute);
     }
     try {
-      context.read<AppDatabase>().addEmployeeLeave(EmployeeLeave(
+      await context.read<EmployeesProvider>().createLeave(EmployeeLeave(
         id: 'leave-${DateTime.now().microsecondsSinceEpoch}', employeeId: employee.id,
         startAt: start, endAt: end, type: type, status: EmployeeLeaveStatus.pending,
         description: description, createdAt: DateTime.now(),
       ));
+      await _loadRelated();
       AppToast.show(context, 'درخواست مرخصی ثبت شد.');
     } catch (error) {
       AppToast.show(context, error.toString().replaceFirst('ArgumentError: ', ''), success: false);
     }
   }
 
-  Widget _buildMonthlyCalendar(Employee employee, AppDatabase db, AppPalette pal) {
+  Widget _buildMonthlyCalendar(Employee employee, AppPalette pal) {
     final first = JalaliDate(_visibleMonth.year, _visibleMonth.month, 1);
     final days = List.generate(42, (index) => first.addDays(index - first.weekday));
     final selected = _selectedDate ?? JalaliDate.today();
     final selectedStart = selected.toDateTime();
     final selectedEnd = selectedStart.add(const Duration(days: 1));
-    final selectedShifts = db.employeeShiftsForDate(employee.id, selectedStart);
-    final selectedLeave = db.leavesForEmployee(employee.id).where((leave) => leave.overlaps(selectedStart, selectedEnd)).toList();
+    final selectedException = _exceptions.where((item) => item.dateKey == EmployeeScheduleRules.dateKey(selectedStart)).firstOrNull;
+    final selectedShifts = selectedException == null ? employee.shiftsFor(selected.weekday) : (selectedException.isClosed ? const <Shift>[] : selectedException.shifts);
+    final selectedLeave = _leaves.where((leave) => leave.overlaps(selectedStart, selectedEnd)).toList();
 
     return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
@@ -190,9 +215,10 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
               final inMonth = day.month == _visibleMonth.month;
               final dateStart = day.toDateTime();
               final dateEnd = dateStart.add(const Duration(days: 1));
-              final exception = db.employeeScheduleException(employee.id, dateStart);
-              final onLeave = db.leavesForEmployee(employee.id).any((leave) => leave.overlaps(dateStart, dateEnd));
-              final hasShift = db.employeeShiftsForDate(employee.id, dateStart).isNotEmpty;
+              final exception = _exceptions.where((item) => item.dateKey == EmployeeScheduleRules.dateKey(dateStart)).firstOrNull;
+              final onLeave = _leaves.any((leave) => leave.overlaps(dateStart, dateEnd));
+              final dayShifts = exception == null ? employee.shiftsFor(day.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+              final hasShift = dayShifts.isNotEmpty;
               final selectedDay = day.year == selected.year && day.month == selected.month && day.day == selected.day;
               final tint = onLeave ? pal.danger : (exception?.isClosed ?? false) ? pal.warning : hasShift ? pal.success : pal.textMuted;
               return InkWell(
@@ -234,17 +260,16 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   @override
   Widget build(BuildContext context) {
     final employee = context.watch<EmployeesProvider>().byIdSync(widget.employeeId);
-    final db = context.watch<AppDatabase>();
     final pal = context.pal;
     if (employee == null) return PageScaffold(title: 'برنامه کاری پرسنل', showBackButton: true, child: const EmptyState(title: 'پرسنل یافت نشد'));
-    final exceptions = db.employeeScheduleExceptions.where((item) => item.employeeId == employee.id).toList()..sort((a, b) => a.dateKey.compareTo(b.dateKey));
-    final leaves = db.leavesForEmployee(employee.id);
+    final exceptions = _exceptions..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+    final leaves = _leaves;
     return PageScaffold(
       title: 'برنامه کاری پرسنل',
       subtitle: employee.fullName,
       icon: Icons.calendar_month_rounded,
       showBackButton: true,
-      actions: [SoftButton(label: employee.scheduleEnabled ? 'برنامه فعال' : 'برنامه غیرفعال', icon: Icons.toggle_on_rounded, onTap: () => db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: !employee.scheduleEnabled, bufferMinutes: employee.bufferMinutes))],
+      actions: [SoftButton(label: employee.scheduleEnabled ? 'برنامه فعال' : 'برنامه غیرفعال', icon: Icons.toggle_on_rounded, onTap: () => context.read<EmployeesProvider>().update(employee.copyWith(scheduleEnabled: !employee.scheduleEnabled)))],
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final item in const [(0, 'برنامه هفتگی'), (1, 'استثناها'), (2, 'مرخصی‌ها')])
@@ -252,13 +277,13 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
         ]),
         const SizedBox(height: 12),
         if (_tab == 0) ...[
-          _buildMonthlyCalendar(employee, db, pal),
+          _buildMonthlyCalendar(employee, pal),
           const SizedBox(height: 10),
           AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const SectionHeader(title: 'تنظیمات برنامه'),
             Material(
               color: Colors.transparent,
-              child: SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled, onChanged: (value) => db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: value, bufferMinutes: employee.bufferMinutes)),
+              child: SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('فعال بودن برنامه کاری'), value: employee.scheduleEnabled, onChanged: (value) => context.read<EmployeesProvider>().update(employee.copyWith(scheduleEnabled: value))),
             ),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
@@ -267,7 +292,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
               runSpacing: 4,
               children: [
                 const Text('فاصله بین نوبت‌ها', style: TextStyle(fontSize: 12)),
-                DropdownButton<int>(value: employee.bufferMinutes, items: [0, 5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقیقه'))).toList(), onChanged: (value) { if (value != null) db.saveEmployeeWeeklySchedule(employee.id, employee.schedule, enabled: employee.scheduleEnabled, bufferMinutes: value); }),
+                DropdownButton<int>(value: employee.bufferMinutes, items: [0, 5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقیقه'))).toList(), onChanged: (value) { if (value != null) context.read<EmployeesProvider>().update(employee.copyWith(bufferMinutes: value)); }),
               ],
             ),
           ])),
@@ -286,7 +311,8 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
         ] else if (_tab == 1) ...[
           SectionHeader(title: 'استثناهای تاریخ‌دار', actionLabel: 'افزودن', onAction: () => _addException(employee)),
           const SizedBox(height: 8),
-          if (exceptions.isEmpty) const EmptyState(compact: true, title: 'استثنایی ثبت نشده')
+          if (_relatedLoading) const LoadingState(compact: true)
+          else if (exceptions.isEmpty) const EmptyState(compact: true, title: 'استثنایی ثبت نشده')
           else for (final item in exceptions)
             AppCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
               const Icon(Icons.event_busy_rounded),
@@ -296,24 +322,25 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
                 Text(item.dateKey, style: TextStyle(color: pal.textMuted, fontSize: 11)),
                 Text(item.isClosed ? 'تعطیل کامل' : item.shifts.map((s) => s.label).join('، '), style: const TextStyle(fontSize: 11)),
               ])),
-              IconButton(onPressed: () => db.deleteEmployeeScheduleException(employee.id, item.dateKey), icon: const Icon(Icons.delete_outline_rounded)),
+              IconButton(onPressed: () async { await context.read<EmployeesProvider>().deleteScheduleException(employee.id, item.dateKey); await _loadRelated(); }, icon: const Icon(Icons.delete_outline_rounded)),
             ])),
         ] else ...[
           SectionHeader(title: 'درخواست‌ها و مرخصی‌ها', actionLabel: 'ثبت مرخصی', onAction: () => _addLeave(employee)),
           const SizedBox(height: 8),
-          if (leaves.isEmpty) const EmptyState(compact: true, title: 'مرخصی ثبت نشده')
+          if (_relatedLoading) const LoadingState(compact: true)
+          else if (leaves.isEmpty) const EmptyState(compact: true, title: 'مرخصی ثبت نشده')
           else for (final leave in leaves)
             AppCard(margin: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(child: Text(leave.type.label, style: const TextStyle(fontWeight: FontWeight.w700))),
                 StatusBadge(label: leave.status.label, color: leave.status == EmployeeLeaveStatus.approved ? pal.success : leave.status == EmployeeLeaveStatus.rejected ? pal.danger : pal.warning),
-                IconButton(onPressed: () => db.deleteEmployeeLeave(leave.id), icon: const Icon(Icons.delete_outline_rounded)),
+                IconButton(onPressed: () async { await context.read<EmployeesProvider>().deleteLeave(leave.id); await _loadRelated(); }, icon: const Icon(Icons.delete_outline_rounded)),
               ]),
               Text('${Fmt.jalaliDate(leave.startAt)} تا ${Fmt.jalaliDate(leave.endAt)}', style: TextStyle(color: pal.textSecondary, fontSize: 11)),
               if (leave.description.isNotEmpty) Text(leave.description, style: TextStyle(color: pal.textMuted, fontSize: 11)),
               if (leave.status == EmployeeLeaveStatus.pending) Wrap(spacing: 8, children: [
-                TextButton(onPressed: () => db.updateEmployeeLeave(leave.copyWith(status: EmployeeLeaveStatus.approved, approvedBy: 'مدیر')), child: const Text('تأیید')),
-                TextButton(onPressed: () => db.updateEmployeeLeave(leave.copyWith(status: EmployeeLeaveStatus.rejected, approvedBy: 'مدیر')), child: const Text('رد درخواست')),
+                TextButton(onPressed: () async { await context.read<EmployeesProvider>().updateLeave(leave.copyWith(status: EmployeeLeaveStatus.approved)); await _loadRelated(); }, child: const Text('تأیید')),
+                TextButton(onPressed: () async { await context.read<EmployeesProvider>().updateLeave(leave.copyWith(status: EmployeeLeaveStatus.rejected)); await _loadRelated(); }, child: const Text('رد درخواست')),
               ]),
             ])),
         ],
