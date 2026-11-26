@@ -251,8 +251,9 @@ class CalendarProvider extends ChangeNotifier {
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
     if (_businessHolidayKeys.contains(EmployeeScheduleRules.dateKey(date.toDateTime()))) return true;
-    if (employeeId != null) {
-      final employee = _employeeList.where((e) => e.id == employeeId).firstOrNull;
+    final selectedEmployeeId = employeeId ?? _employeeId;
+    if (selectedEmployeeId != null) {
+      final employee = _employeeList.where((e) => e.id == selectedEmployeeId).firstOrNull;
       if (employee == null) return true;
       final key = EmployeeScheduleRules.dateKey(date.toDateTime());
       final exception = (_scheduleExceptions[employee.id] ?? const <EmployeeScheduleException>[]).where((item) => item.dateKey == key).firstOrNull;
