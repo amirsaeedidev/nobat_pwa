@@ -117,7 +117,12 @@ class CustomersProvider extends ChangeNotifier {
 
   Future<void> delete(String id) async { await _repository.delete(id); await load(); }
 
-  Future<Customer?> findByPhone(String phone) async {
+  Customer? findByPhone(String phone) {
+    for (final customer in _page.items) { if (customer.phone == phone) return customer; }
+    return null;
+  }
+
+  Future<Customer?> findByPhoneRemote(String phone) async {
     final rows = await _repository.fetchAll(query: phone);
     for (final customer in rows) { if (customer.phone == phone) return customer; }
     return null;
