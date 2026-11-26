@@ -53,7 +53,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => ReportsProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => ActivityProvider(MockActivityRepository(db), db)),
         ],
-        child: const DateTimeApp(),
+        child: DateTimeApp(database: db),
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
