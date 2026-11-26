@@ -342,46 +342,40 @@ class ServiceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconTile(icon: Icons.content_cut_rounded, color: pal.primary, size: 42, radius: 14),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      service.title,
-                      style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: pal.textPrimary),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
-                      children: [
-                        _MetaItem(
-                          icon: Icons.sell_outlined,
-                          label: Fmt.money(service.priceAt(DateTime.now())),
-                          color: pal.primaryBright,
-                        ),
-                        _MetaItem(
-                          icon: Icons.timelapse_rounded,
-                          label: Fmt.duration(service.durationMinutes),
-                          color: pal.textSecondary,
-                        ),
-                        _MetaItem(
-                          icon: Icons.category_outlined,
-                          label: service.category,
-                          color: pal.textMuted,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final details = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    service.title,
+                    style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: pal.textPrimary),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    children: [
+                      _MetaItem(
+                        icon: Icons.sell_outlined,
+                        label: Fmt.money(service.priceAt(DateTime.now())),
+                        color: pal.primaryBright,
+                      ),
+                      _MetaItem(
+                        icon: Icons.timelapse_rounded,
+                        label: Fmt.duration(service.durationMinutes),
+                        color: pal.textSecondary,
+                      ),
+                      _MetaItem(
+                        icon: Icons.category_outlined,
+                        label: service.category,
+                        color: pal.textMuted,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+              final toggle = InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: onToggle,
                 child: Container(
@@ -398,8 +392,32 @@ class ServiceCard extends StatelessWidget {
                     color: pal.primaryBright,
                   ),
                 ),
-              ),
-            ],
+              );
+              final information = Row(
+                children: [
+                  IconTile(icon: Icons.content_cut_rounded, color: pal.primary, size: 42, radius: 14),
+                  const SizedBox(width: 8),
+                  Expanded(child: details),
+                ],
+              );
+              if (constraints.maxWidth < 300) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    information,
+                    Align(alignment: AlignmentDirectional.centerEnd, child: toggle),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: information),
+                  const SizedBox(width: 8),
+                  toggle,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           Divider(color: pal.border.withValues(alpha: 0.8), height: 1),
