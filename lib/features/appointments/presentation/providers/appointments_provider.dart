@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../../../../core/models/page_result.dart';
-import '../../../../core/utils/jalali.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
@@ -62,6 +61,53 @@ class AppointmentsProvider extends ChangeNotifier {
   }
 
 
+
+  Future<Appointment?> checkConflict({
+    required String employeeId,
+    required DateTime startAt,
+    required int durationMinutes,
+    String? ignoreId,
+  }) => _repository.findConflict(employeeId: employeeId, startAt: startAt, durationMinutes: durationMinutes, ignoreId: ignoreId);
+
+  void setQuery(String value) {
+    _filter = _filter.copyWith(query: value);
+    _pageNumber = 1;
+    load();
+  }
+
+  void setStatus(AppointmentStatus? value) {
+    _filter = _filter.copyWith(status: value, clearStatus: value == null);
+    _pageNumber = 1;
+    load();
+  }
+
+  void setService(String? value) {
+    _filter = _filter.copyWith(serviceId: value, clearService: value == null);
+    _pageNumber = 1;
+    load();
+  }
+
+  void setEmployee(String? value) {
+    _filter = _filter.copyWith(employeeId: value, clearEmployee: value == null);
+    _pageNumber = 1;
+    load();
+  }
+
+  void clearFilters() {
+    _filter = const AppointmentFilter();
+    _pageNumber = 1;
+    load();
+  }
+
+  void toggleSort() {
+    _ascending = !_ascending;
+    load();
+  }
+
+  void goToPage(int page) {
+    _pageNumber = page.clamp(1, 999);
+    load();
+  }
 
   Future<bool> create(Appointment appointment) async {
     _busy = true;
