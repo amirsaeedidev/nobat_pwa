@@ -202,7 +202,11 @@ class CalendarProvider extends ChangeNotifier {
     final candidates = selectedEmployeeId == null
         ? employees.where((item) => item.isActive).toList()
         : _employeeList.where((item) => item.id == selectedEmployeeId && item.isActive).toList();
-    final dayAppointments = appointmentsOn(date);
+    final dayAppointments = _rangeAppointments.where((a) =>
+      a.jalali.sameDay(date) &&
+      (selectedEmployeeId == null || a.employeeId == selectedEmployeeId) &&
+      (_serviceId == null || a.serviceIds.contains(_serviceId))
+    ).toList();
     final slotsByMinute = <int, TimeSlot>{};
     for (final person in candidates) {
       final exception = (_scheduleExceptions[person.id] ?? const <EmployeeScheduleException>[])
