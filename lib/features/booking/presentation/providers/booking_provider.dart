@@ -275,10 +275,7 @@ class BookingProvider extends ChangeNotifier {
           createdAt: DateTime.now(),
           tags: const ['رزرو آنلاین'],
         );
-        await _customers.create(customer);
-        final matches = await _customers.fetchAll(query: _phone);
-        customer = matches.where((c) => c.phone == _phone.trim()).firstOrNull;
-        if (customer == null) throw StateError('مشتری پس از ثبت در سرور بازیابی نشد.');
+        customer = await _customers.createAndReturn(customer);
       }
 
       final reference = 'DT-' + DateTime.now().millisecondsSinceEpoch.toString();
