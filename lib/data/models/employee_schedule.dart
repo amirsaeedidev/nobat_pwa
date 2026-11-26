@@ -5,7 +5,8 @@ enum EmployeeLeaveType {
   hourly('مرخصی ساعتی'),
   multiDay('مرخصی چندروزه'),
   emergency('مرخصی اضطراری'),
-  holiday('تعطیلی اختصاصی');
+  holiday('تعطیلی اختصاصی'),
+  other('سایر');
 
   const EmployeeLeaveType(this.label);
   final String label;
@@ -14,7 +15,8 @@ enum EmployeeLeaveType {
 enum EmployeeLeaveStatus {
   pending('در انتظار تأیید'),
   approved('تأیید شده'),
-  rejected('رد شده');
+  rejected('رد شده'),
+  cancelled('لغو شده');
 
   const EmployeeLeaveStatus(this.label);
   final String label;
