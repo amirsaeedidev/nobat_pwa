@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/sensitive_operation_dialog.dart';
+import '../../../activity_logs/presentation/providers/activity_provider.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
 import '../providers/appointments_provider.dart';
@@ -24,15 +26,8 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
             title: const Text('تأیید نوبت'),
             onTap: () async {
               Navigator.of(context, rootNavigator: true).pop();
-              final previousStatus = appointment.status;
               await provider.changeStatus(appointment, AppointmentStatus.confirmed);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: const Text('نوبت تأیید شد'),
-                  behavior: SnackBarBehavior.floating,
-                  action: SnackBarAction(label: 'برگشت', onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی تأیید نوبت')),
-                ));
-              }
+              if (context.mounted) await _showServerUndo(context, appointment, 'نوبت تأیید شد.');
             },
           ),
           ListTile(
@@ -67,15 +62,8 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
                 icon: Icons.event_busy_rounded,
               );
               if (confirmed) {
-                final previousStatus = appointment.status;
                 await provider.changeStatus(appointment, AppointmentStatus.cancelled, reason: 'رد / لغو توسط پرسنل');
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: const Text('نوبت رد یا لغو شد'),
-                    behavior: SnackBarBehavior.floating,
-                    action: SnackBarAction(label: 'برگشت', onPressed: () => provider.changeStatus(appointment, previousStatus, reason: 'بازگردانی رد نوبت')),
-                  ));
-                }
+                if (context.mounted) await _showServerUndo(context, appointment, 'نوبت رد یا لغو شد.');
               }
             },
           ),
@@ -83,4 +71,24 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
         ],
       ),
   );
+
+Future<void> _showServerUndo(BuildContext context, Appointment appointment, String message) async {
+  final activity = context.read<ActivityProvider>();
+  try {
+    await activity.load();
+    final log = activity.logs.where((item) => item.entityId == appointment.id && item.isReversible && !item.isUndone).firstOrNull;
+    if (log == null) {
+      if (context.mounted) AppToast.show(context, '$message رویداد قابل بازگردانی در تاریخچه سرور پیدا نشد.');
+      return;
+    }
+    if (!context.mounted) return;
+    showUndoableOperationSnackBar(context, message: message, onUndo: () async {
+      final restored = await activity.undo(log);
+      if (restored) await context.read<AppointmentsProvider>().load();
+      else if (context.mounted) AppToast.show(context, 'بازگردانی توسط سرور پذیرفته نشد.', success: false);
+    });
+  } catch (error) {
+    if (context.mounted) AppToast.show(context, '$message خطا در دریافت تاریخچه سرور: $error', success: false);
+  }
+}
 }
