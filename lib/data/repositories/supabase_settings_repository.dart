@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/business_settings.dart';
@@ -6,7 +8,7 @@ import 'settings_repository.dart';
 
 /// Business settings persisted in tenant-scoped app_records. API credentials
 /// are deliberately never returned to or stored by this public Flutter client.
-class SupabaseSettingsRepository implements SettingsRepository {
+class SupabaseSettingsRepository extends SettingsRepository {
   SupabaseSettingsRepository({
     required SupabaseClient client,
     required String? Function() businessId,
@@ -15,6 +17,9 @@ class SupabaseSettingsRepository implements SettingsRepository {
 
   final SupabaseClient _client;
   final String? Function() _businessId;
+
+  @override
+  Stream<void>? get authChanges => _client.auth.onAuthStateChange.map((_) {});
 
   String _tenant() {
     if (_client.auth.currentUser == null) {
@@ -193,6 +198,29 @@ class SupabaseSettingsRepository implements SettingsRepository {
         ? Map<String, dynamic>.from(row!['payload'] as Map)
         : <String, dynamic>{};
     return _fromPayload(payload, businessName: business['name'] as String? ?? '');
+  }
+
+  @override
+  Future<String> fetchBookingFormTheme() async {
+    final tenant = _tenant();
+    final row = await _client.from('app_records').select('payload').eq('business_id', tenant).eq('entity_type', 'settings').eq('record_id', 'booking_form_theme').maybeSingle();
+    final payload = row?['payload'];
+    if (payload is Map && payload['theme_id'] is String) return payload['theme_id'] as String;
+    return 'pastel_pink';
+  }
+
+  @override
+  Future<void> saveBookingFormTheme(String themeId) async {
+    final tenant = _tenant();
+    final userId = _client.auth.currentUser!.id;
+    await _client.from('app_records').upsert({
+      'business_id': tenant,
+      'entity_type': 'settings',
+      'record_id': 'booking_form_theme',
+      'payload': {'theme_id': themeId},
+      'created_by': userId,
+      'updated_by': userId,
+    }, onConflict: 'business_id,entity_type,record_id');
   }
 
   @override
