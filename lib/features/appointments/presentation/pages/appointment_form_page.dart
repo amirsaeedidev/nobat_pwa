@@ -18,6 +18,7 @@ import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/models/service.dart';
 import '../../../customers/presentation/providers/customers_provider.dart';
@@ -206,13 +207,18 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
       ignoreId: _existing?.id,
     );
     final startMinute = start.hour * 60 + start.minute;
-    final withinWeeklyShift = employee.scheduleEnabled && employee.shiftsFor(_date.weekday).any(
-      (shift) => startMinute >= shift.startMinutes && startMinute + _totalDuration <= shift.endMinutes,
-    );
-    if (!withinWeeklyShift) {
+    final employeesProvider = context.read<EmployeesProvider>();
+    final exceptions = await employeesProvider.scheduleExceptions(employee.id);
+    final dateKey = EmployeeScheduleRules.dateKey(start);
+    final exception = exceptions.where((item) => item.dateKey == dateKey).firstOrNull;
+    final shifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
+    final withinShift = shifts.any((shift) => startMinute >= shift.startMinutes && startMinute + _totalDuration <= shift.endMinutes);
+    final leaves = await employeesProvider.leaves(employee.id);
+    final onLeave = leaves.any((leave) => leave.overlaps(start, start.add(Duration(minutes: _totalDuration))));
+    if (!withinShift || onLeave) {
       if (!mounted) return;
       setState(() => _saving = false);
-      AppToast.show(context, 'این زمان خارج از شیفت کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.', success: false);
+      AppToast.show(context, onLeave ? 'این زمان با مرخصی پرسنل تداخل دارد.' : 'این زمان خارج از برنامه کاری ثبت‌شده پرسنل است.', success: false);
       return;
     }
 
