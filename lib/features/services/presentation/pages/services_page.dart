@@ -15,6 +15,7 @@ import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/service.dart';
 import '../../../../data/models/enums.dart';
+import '../../../activity_logs/presentation/providers/activity_provider.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../providers/services_provider.dart';
 
@@ -273,7 +274,18 @@ class ServicesPage extends StatelessWidget {
     try {
       await context.read<ServicesProvider>().remove(service.id);
       if (context.mounted) {
-        AppToast.show(context, 'خدمت «${service.title}» بایگانی شد و رویداد در تاریخچه سرور ثبت شد.');
+        final activity = context.read<ActivityProvider>();
+        await activity.load();
+        final log = activity.logs.where((item) => item.entityId == service.id && item.isReversible && !item.isUndone).firstOrNull;
+        if (log != null) {
+          showUndoableOperationSnackBar(context, message: 'خدمت «${service.title}» بایگانی شد.', onUndo: () async {
+            final restored = await activity.undo(log);
+            if (restored) await context.read<ServicesProvider>().load();
+            else if (context.mounted) AppToast.show(context, 'بازگردانی توسط سرور پذیرفته نشد.', success: false);
+          });
+        } else {
+          AppToast.show(context, 'خدمت «${service.title}» بایگانی شد و رویداد در تاریخچه سرور ثبت شد.');
+        }
       }
     } catch (error) {
       if (context.mounted) AppToast.show(context, '$error', success: false);
