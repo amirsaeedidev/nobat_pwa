@@ -202,6 +202,7 @@ class BusinessSettings {
     this.website = '',
     this.currency = 'تومان',
     this.logoText = 'DT',
+    this.publicSlug = '',
     this.workingHours = const {},
     this.holidays = const [],
     this.smsProvider = const SmsProviderSettings(),
@@ -230,6 +231,10 @@ class BusinessSettings {
   final String website;
   final String currency;
   final String logoText;
+  final String publicSlug;
+  String get publicUrl => publicSlug.trim().isEmpty
+      ? ''
+      : '/book?slug=${Uri.encodeQueryComponent(publicSlug.trim())}';
 
   /// ساعات کاری مجموعه (کلید = روز هفته، ۰ = شنبه).
   final Map<int, List<Shift>> workingHours;
@@ -267,6 +272,7 @@ class BusinessSettings {
     String? website,
     String? currency,
     String? logoText,
+    String? publicSlug,
     Map<int, List<Shift>>? workingHours,
     List<int>? holidays,
     Map<int, List<Shift>>? workSchedules,
@@ -295,6 +301,7 @@ class BusinessSettings {
       website: website ?? this.website,
       currency: currency ?? this.currency,
       logoText: logoText ?? this.logoText,
+      publicSlug: publicSlug ?? this.publicSlug,
       workingHours: workingHours ?? this.workingHours,
       holidays: holidays ?? this.holidays,
       workSchedules: workSchedules ?? this.workSchedules,
