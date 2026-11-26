@@ -89,6 +89,7 @@ class EmployeesProvider extends ChangeNotifier {
   Future<void> createLeave(EmployeeLeave value) async { await _repository.createLeave(value); notifyListeners(); }
   Future<void> updateLeave(EmployeeLeave value) async { await _repository.updateLeave(value); notifyListeners(); }
   Future<void> deleteLeave(String id) async { await _repository.deleteLeave(id); notifyListeners(); }
+  Future<List<DateTime>> businessHolidays() => _repository.fetchBusinessHolidays();
 
   String nextId() => 'emp-${DateTime.now().millisecondsSinceEpoch}';
 }
