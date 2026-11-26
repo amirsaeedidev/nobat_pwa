@@ -141,7 +141,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
         ChangeNotifierProvider(
-          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database),
+          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository),
         ),
         ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database)),
         ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database)),
@@ -155,7 +155,6 @@ Future<void> main() async {
             serviceRepository,
             employeeRepository,
             customerRepository,
-            database,
           ),
         ),
       ],
