@@ -110,17 +110,19 @@ class ServicesProvider extends ChangeNotifier {
 
   Future<bool> create(Service service) async {
     await _repository.create(service);
+    await load();
     return true;
   }
 
   Future<bool> update(Service service) async {
     await _repository.update(service);
+    await load();
     return true;
   }
 
-  Future<void> remove(String id) => _repository.delete(id);
+  Future<void> remove(String id) async { await _repository.delete(id); await load(); }
 
-  Future<void> toggle(String id, bool active) => _repository.toggle(id, active);
+  Future<void> toggle(String id, bool active) async { await _repository.toggle(id, active); await load(); }
 
   Future<void> addCategory(String name) async {
     await _repository.addCategory(name);
