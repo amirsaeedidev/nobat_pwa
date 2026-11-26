@@ -1,6 +1,4 @@
-import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/utils/jalali.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/employee.dart';
@@ -13,13 +11,12 @@ import '../../../../data/repositories/service_repository.dart';
 enum CalendarView { daily, weekly, monthly }
 
 /// مدیریت تقویم شمسی (روز/هفته/ماه)، فیلترها و خانه‌های زمانی.
-class CalendarProvider extends DbBoundProvider {
+class CalendarProvider extends ChangeNotifier {
   CalendarProvider(
     this._appointments,
     this._employees,
     this._services,
-    AppDatabase db,
-  ) : super(db) {
+  ) {
     _today = JalaliDate.today();
     _anchor = _today;
     _selected = _today;
@@ -37,6 +34,8 @@ class CalendarProvider extends DbBoundProvider {
   String? _employeeId;
   String? _serviceId;
   bool _loading = true;
+  String? _loadError;
+  String? get loadError => _loadError;
   List<Appointment> _rangeAppointments = const [];
   List<Employee> _employeeList = const [];
   List<Service> _serviceList = const [];
@@ -49,7 +48,7 @@ class CalendarProvider extends DbBoundProvider {
   String? get employeeId => _employeeId;
   String? get serviceId => _serviceId;
   bool get loading => _loading;
-  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => db.employeeOffersService(employee.id, _serviceId!)).toList();
+  List<Employee> get employees => _serviceId == null ? _employeeList : _employeeList.where((employee) => employee.serviceIds.contains(_serviceId)).toList();
   List<Service> get services => _serviceList;
   List<Appointment> get appointments => _rangeAppointments;
 
@@ -119,11 +118,13 @@ class CalendarProvider extends DbBoundProvider {
       _employeeList = employees;
       _serviceList = services;
       _rangeAppointments = appointments;
-    } catch (_) {
+      _loadError = null;
+    } catch (error) {
       if (generation != _loadGeneration) return;
-      _employeeList = db.employees;
-      _serviceList = db.services;
-      _rangeAppointments = db.appointments;
+      _employeeList = const [];
+      _serviceList = const [];
+      _rangeAppointments = const [];
+      _loadError = error.toString();
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
@@ -132,14 +133,6 @@ class CalendarProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _loadGeneration++;
-    _rangeAppointments = db.appointments;
-    _employeeList = db.employees;
-    _serviceList = db.services;
-    notifyListeners();
-  }
 
   /// همه نوبت‌های یک روز (با اعمال فیلترها).
   List<Appointment> appointmentsOn(JalaliDate date) {
@@ -186,16 +179,12 @@ class CalendarProvider extends DbBoundProvider {
 
   /// خانه‌های زمانی یک روز بر اساس ساعات کاری و نوبت‌های ثبت‌شده.
   List<TimeSlot> slotsFor(JalaliDate date, {int? intervalMinutes, String? employee}) {
-    final stepMinutes = intervalMinutes ?? db.settings.bookingRules.slotIntervalMinutes;
+    final stepMinutes = intervalMinutes ?? 30;
     final dayAppointments = appointmentsOn(date)
         .where((a) => employee == null || a.employeeId == employee)
         .toList();
-    final exception = exceptionFor(date);
-    final shifts = employee != null
-        ? db.employeeShiftsForDate(employee, date.toDateTime())
-        : exception != null
-            ? (exception.isClosed ? const <Shift>[] : exception.shifts)
-            : (db.settings.workingHours[date.weekday] ?? db.settings.workSchedules[date.weekday] ?? const <Shift>[]);
+    final selectedEmployee = employee == null ? null : _employeeList.where((e) => e.id == employee).firstOrNull;
+    final shifts = selectedEmployee == null ? const <Shift>[] : selectedEmployee.shiftsFor(date.weekday);
     final slots = <TimeSlot>[];
     for (final shift in shifts) {
       for (var minutes = shift.startMinutes; minutes < shift.endMinutes; minutes += stepMinutes) {
@@ -212,17 +201,14 @@ class CalendarProvider extends DbBoundProvider {
   }
 
   /// آیا روز تعطیل است؟
-  ScheduleException? exceptionFor(JalaliDate date) {
-    final key = date.toDateTime().toIso8601String().substring(0, 10);
-    for (final exception in db.settings.scheduleExceptions) { if (exception.dateKey == key) return exception; }
-    return null;
-  }
+  ScheduleException? exceptionFor(JalaliDate date) => null;
 
   bool isHoliday(JalaliDate date, {String? employeeId}) {
-    if (employeeId != null) return db.employeeShiftsForDate(employeeId, date.toDateTime()).isEmpty;
-    final exception = exceptionFor(date);
-    if (exception != null) return exception.isClosed;
-    return date.weekday == 6 || db.settings.holidays.contains(date.weekday);
+    if (employeeId != null) {
+      final employee = _employeeList.where((e) => e.id == employeeId).firstOrNull;
+      return employee == null || employee.shiftsFor(date.weekday).isEmpty;
+    }
+    return false;
   }
 
   int get monthlyAppointmentsCount => _rangeAppointments
