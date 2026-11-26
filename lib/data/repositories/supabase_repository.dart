@@ -2,9 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Tenant-scoped repository for records stored in public.app_records.
 ///
-/// The existing Mock repositories remain the default UI data source. This
-/// repository is the authenticated remote data layer used when a feature is
-/// explicitly migrated to Supabase.
+/// Authenticated tenant-scoped access to auxiliary records stored in
+/// public.app_records. Primary business entities use their normalized tables.
 class SupabaseRepository {
   SupabaseRepository(this._client);
 
