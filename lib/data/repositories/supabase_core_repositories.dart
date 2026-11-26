@@ -39,10 +39,28 @@ class SupabaseTenantScope {
 class SupabaseCustomerRepository implements CustomerRepository {
   SupabaseCustomerRepository(this.client, this.scope);
   final SupabaseClient client; final SupabaseTenantScope scope;
-  Customer map(Map<String,dynamic> r) => Customer(id:r['id'].toString(),fullName:r['full_name'] as String? ?? '',phone:r['phone'] as String? ?? '',notes:r['notes'] as String? ?? '',tags:(r['tags'] as List? ?? const []).map((e)=>e.toString()).toList(),createdAt:DateTime.tryParse(r['created_at']?.toString() ?? ''),isArchived:r['is_active']==false);
-  Future<List<Customer>> fetchAll({String query = ''}) async { final b=await scope.businessId; var q=client.from('customers').select().eq('business_id',b).eq('is_active',true); if(query.trim().isNotEmpty){ final term=query.trim().replaceAll('%',r'\%').replaceAll('_',r'\_'); q=q.or('full_name.ilike.%'+term+'%,phone.ilike.%'+term+'%,normalized_phone.ilike.%'+term+'%'); } final rows=await q.order('created_at',ascending:false); return rows.map((r)=>map(Map<String,dynamic>.from(r))).toList(); }
+  Customer map(Map<String,dynamic> r,{List<Map<String,dynamic>> appointments=const []}) {
+    final completed=appointments.where((a)=>a['status']=='completed').toList();
+    final cancelled=appointments.where((a)=>a['status']=='cancelled'||a['status']=='rejected').length;
+    final noShow=appointments.where((a)=>a['status']=='no_show').length;
+    final visits=completed.map((a)=>DateTime.tryParse(a['starts_at']?.toString() ?? '')).whereType<DateTime>().toList()..sort();
+    final spent=completed.fold<num>(0,(sum,a)=>sum+(a['price_toman'] as num? ?? 0));
+    return Customer(id:r['id'].toString(),fullName:r['full_name'] as String? ?? '',phone:r['phone'] as String? ?? '',notes:r['notes'] as String? ?? '',tags:(r['tags'] as List? ?? const []).map((e)=>e.toString()).toList(),createdAt:DateTime.tryParse(r['created_at']?.toString() ?? ''),visitCount:completed.length,totalSpent:spent,cancelCount:cancelled,noShowCount:noShow,lastVisitAt:visits.isEmpty?null:visits.last,isArchived:r['is_active']==false);
+  }
+  Future<List<Customer>> fetchAll({String query = ''}) async {
+    final b=await scope.businessId;
+    var q=client.from('customers').select().eq('business_id',b).eq('is_active',true);
+    if(query.trim().isNotEmpty){final term=query.trim().replaceAll('%',r'\%').replaceAll('_',r'\_');q=q.or('full_name.ilike.%'+term+'%,phone.ilike.%'+term+'%,normalized_phone.ilike.%'+term+'%');}
+    final rows=await q.order('created_at',ascending:false);
+    if(rows.isEmpty)return const [];
+    final ids=rows.map((row)=>row['id'].toString()).toList();
+    final appointmentRows=await client.from('appointments').select('customer_id,starts_at,status,price_toman').eq('business_id',b).inFilter('customer_id',ids).isFilter('deleted_at',null);
+    final grouped=<String,List<Map<String,dynamic>>>{};
+    for(final raw in appointmentRows){final item=Map<String,dynamic>.from(raw);grouped.putIfAbsent(item['customer_id'].toString(),()=>[]).add(item);}
+    return rows.map((row){final value=Map<String,dynamic>.from(row);return map(value,appointments:grouped[value['id'].toString()]??const []);}).toList();
+  }
   Future<PageResult<Customer>> fetchCustomers({String query='',int page=1,int pageSize=8,String sortBy='createdAt'}) async { final all=await fetchAll(query:query); final start=((page-1)*pageSize).clamp(0,all.length); final end=(start+pageSize).clamp(start,all.length); return PageResult(items:all.sublist(start,end),total:all.length,page:page,pageSize:pageSize); }
-  Future<Customer?> findById(String id) async { final b=await scope.businessId; final r=await client.from('customers').select().eq('business_id',b).eq('id',id).maybeSingle(); return r==null?null:map(Map<String,dynamic>.from(r)); }
+  Future<Customer?> findById(String id) async { final b=await scope.businessId; final r=await client.from('customers').select().eq('business_id',b).eq('id',id).maybeSingle(); if(r==null)return null; final appointments=await client.from('appointments').select('customer_id,starts_at,status,price_toman').eq('business_id',b).eq('customer_id',id).isFilter('deleted_at',null); return map(Map<String,dynamic>.from(r),appointments:appointments.map((x)=>Map<String,dynamic>.from(x)).toList()); }
   Future<Customer> createAndReturn(Customer c) async { final b=await scope.businessId; final row=await client.from('customers').insert({'business_id':b,'full_name':c.fullName.trim(),'phone':c.phone.trim(),'notes':c.notes,'tags':c.tags,'is_active':!c.isArchived}).select().single(); return map(Map<String,dynamic>.from(row)); }
   Future<void> create(Customer c) async { await createAndReturn(c); }
   Future<void> update(Customer c) async { final b=await scope.businessId; await client.from('customers').update({'full_name':c.fullName.trim(),'phone':c.phone.trim(),'notes':c.notes,'tags':c.tags,'is_active':!c.isArchived}).eq('business_id',b).eq('id',c.id); }
