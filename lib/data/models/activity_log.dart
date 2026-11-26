@@ -16,6 +16,8 @@ class ActivityLog {
     this.operationType,
     this.isReversible = false,
     this.idempotencyKey,
+    this.operationId,
+    this.isUndone = false,
   });
 
   final String id;
@@ -34,6 +36,8 @@ class ActivityLog {
   final bool isReversible;
   /// کلید جلوگیری از اجرای دوباره عملیات.
   final String? idempotencyKey;
+  final String? operationId;
+  final bool isUndone;
 
   String get operationLabel => switch (operationType) {
     'customer_create' => 'ثبت مشتری',
@@ -95,6 +99,8 @@ class ActivityLog {
         'operation_type': operationType,
         'is_reversible': isReversible,
         'idempotency_key': idempotencyKey,
+        'operation_id': operationId,
+        'is_undone': isUndone,
       };
 
   factory ActivityLog.fromJson(Map<String, dynamic> json) => ActivityLog(
@@ -111,5 +117,7 @@ class ActivityLog {
         operationType: json['operation_type'] as String?,
         isReversible: json['is_reversible'] as bool? ?? (json['undo_action'] != null && json['undo_data'] != null),
         idempotencyKey: json['idempotency_key'] as String?,
+        operationId: json['operation_id'] as String?,
+        isUndone: json['is_undone'] as bool? ?? false,
       );
 }
