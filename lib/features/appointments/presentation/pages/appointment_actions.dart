@@ -71,6 +71,7 @@ Future<void> showAppointmentActions(BuildContext context, Appointment appointmen
         ],
       ),
   );
+}
 
 Future<void> _showServerUndo(BuildContext context, Appointment appointment, String message) async {
   final activity = context.read<ActivityProvider>();
@@ -90,5 +91,4 @@ Future<void> _showServerUndo(BuildContext context, Appointment appointment, Stri
   } catch (error) {
     if (context.mounted) AppToast.show(context, '$message خطا در دریافت تاریخچه سرور: $error', success: false);
   }
-}
 }
