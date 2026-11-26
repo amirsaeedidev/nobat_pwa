@@ -36,7 +36,7 @@ Future<bool> showSensitiveOperationDialog(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: pal.surfaceAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: pal.border)),
                 child: Column(children: [
-                  for (final entry in recordDetails.entries)
+                  for (final entry in recordDetails.entries.where((entry) => entry.key != 'شناسه رکورد'))
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
