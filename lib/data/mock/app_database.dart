@@ -26,8 +26,8 @@ class AccessDeniedException implements Exception { const AccessDeniedException(t
 /// پایگاه‌داده درون‌حافظه‌ای (شبیه‌ساز Supabase در این فاز).
 /// تمام تغییرات، گزارش فعالیت و وضعیت‌های وابسته را به‌صورت مرکزی به‌روزرسانی می‌کند.
 class AppDatabase extends ChangeNotifier {
-  AppDatabase() {
-    _seed();
+  AppDatabase({bool seed = true}) {
+    if (seed) _seed();
   }
 
   final List<Customer> _customers = [];
@@ -47,6 +47,7 @@ class AppDatabase extends ChangeNotifier {
   final List<EmployeeWalletTransaction> _employeeWalletTransactions = [];
   final List<EmployeeWalletSettlement> _employeeWalletSettlements = [];
   final List<EmployeeWalletPayment> _employeeWalletPayments = [];
+  final List<EmployeeWalletSettlementRequest> _employeeWalletSettlementRequests = [];
   final List<AppointmentPayment> _appointmentPayments = [];
   final List<BusinessExpense> _businessExpenses = [];
   final Map<String, EmployeeServiceConfig> _employeeServiceConfigs = {};
@@ -61,25 +62,78 @@ class AppDatabase extends ChangeNotifier {
   final Map<String, AccessAssignment> _accessAssignments = {};
   final List<AccessAccount> _accessAccounts = [];
   String _currentAccessAccountId = 'demo-global-admin';
-  BusinessSettings _settings = const BusinessSettings();
+  BusinessSettings _settings = const BusinessSettings(
+    name: '',
+    slogan: '',
+    description: '',
+    phone: '',
+    mobile: '',
+    email: '',
+    province: '',
+    city: '',
+    address: '',
+    postalCode: '',
+    latitude: 0,
+    longitude: 0,
+    currency: '',
+    logoText: '',
+    smsProvider: SmsProviderSettings(providerName: '', endpoint: '', credit: 0),
+    notifications: NotificationSettings(
+      confirmationEnabled: false,
+      reminderEnabled: false,
+      cancellationEnabled: false,
+      rescheduleEnabled: false,
+      reminderHours: [],
+      sendToStaff: false,
+    ),
+    bookingRules: BookingRules(
+      allowCustomerCancel: false,
+      allowReschedule: false,
+      maxReschedules: 0,
+      minHoursBeforeChange: 0,
+      maxAdvanceDays: 0,
+      requireConfirmation: false,
+      preventOverlap: false,
+      slotIntervalMinutes: 0,
+      cancelPenaltyCount: 0,
+    ),
+  );
 
   int _idCounter = 5000;
   final Set<String> _undoneLogIds = {};
   final Set<String> _executedOperationKeys = {};
 
-  /// فقط مشتریان فعال در فهرست عمومی؛ پروفایل‌های بایگانی‌شده برای سوابق با customerById در دسترس می‌مانند.
-  List<Customer> get customers => List.unmodifiable(_customers.where((customer) => !customer.isArchived));
-  List<Appointment> get appointments => List.unmodifiable(_appointments);
-  List<Service> get services => List.unmodifiable(_services);
-  List<String> get serviceCategories => List.unmodifiable(_serviceCategories);
-  List<Employee> get employees => List.unmodifiable(_employees);
-  List<SmsMessage> get smsMessages => List.unmodifiable(_sms);
-  List<ActivityLog> get activityLogs => List.unmodifiable(_logs);
-  List<SmsTemplate> get smsTemplates => List.unmodifiable(_templates);
-  List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries);
-  List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments);
-  List<PayrollAdvance> get payrollAdvances => List.unmodifiable(_payrollAdvances);
-  List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets);
+  bool get _isGlobalAdmin => currentAccessAccount.roleId == 'global_admin';
+  String? get _activeEmployeeId => currentAccessAccount.employeeId;
+
+  /// پرسنل فقط مشتریانی را می‌بیند که در نوبت‌های خودش ثبت شده‌اند.
+  List<Customer> get customers => List.unmodifiable(_customers.where((customer) =>
+    !customer.isArchived && (_isGlobalAdmin || _appointments.any((item) =>
+      item.employeeId == _activeEmployeeId && item.customerId == customer.id))));
+  /// Complete customer collection for the isolated mock/test adapter only.
+  List<Customer> get allCustomers => List.unmodifiable(_customers);
+  List<Appointment> get appointments => List.unmodifiable(_appointments.where((item) =>
+    _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<Service> get services => List.unmodifiable(_services.where((service) =>
+    _isGlobalAdmin || (_activeEmployeeId != null &&
+      (_employees.firstWhere((item) => item.id == _activeEmployeeId, orElse: () => _employees.first).serviceIds.contains(service.id)))));
+  List<String> get serviceCategories => List.unmodifiable(services.map((service) => service.category).toSet().toList()..sort());
+  List<Employee> get employees => List.unmodifiable(_employees.where((employee) =>
+    _isGlobalAdmin || employee.id == _activeEmployeeId));
+  List<SmsMessage> get smsMessages => List.unmodifiable(_isGlobalAdmin ? _sms : const <SmsMessage>[]);
+  List<ActivityLog> get activityLogs => List.unmodifiable(_isGlobalAdmin ? _logs : const <ActivityLog>[]);
+  List<SmsTemplate> get smsTemplates => List.unmodifiable(_isGlobalAdmin ? _templates : const <SmsTemplate>[]);
+  List<EmployeeFinanceEntry> get employeeFinanceEntries => List.unmodifiable(_employeeFinanceEntries.where((entry) =>
+    _isGlobalAdmin || (entry.employeeId == _activeEmployeeId &&
+      (entry.type == FinanceEntryType.commission || entry.type == FinanceEntryType.refund))));
+  List<PayrollAdjustment> get payrollAdjustments => List.unmodifiable(_payrollAdjustments.where((item) =>
+    _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<PayrollAdvance> get payrollAdvances => List.unmodifiable(
+    _payrollAdvances.where((item) =>
+      currentAccessAccount.roleId == 'global_admin' ||
+      item.employeeId == currentAccessAccount.employeeId),
+  );
+  List<EmployeePerformanceTarget> get performanceTargets => List.unmodifiable(_performanceTargets.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   /// Public wallet collections are row-scoped too; callers cannot bypass walletTransactionsFor.
   List<EmployeeWalletTransaction> get employeeWalletTransactions => List.unmodifiable(
     _employeeWalletTransactions.where((entry) =>
@@ -98,17 +152,20 @@ class AppDatabase extends ChangeNotifier {
       hasPermission('finance.salary.view', employeeId: entry.employeeId) &&
       hasPermission('finance.settlement.view', employeeId: entry.employeeId)),
   );
-  List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_appointmentPayments);
-  List<BusinessExpense> get businessExpenses => List.unmodifiable(_businessExpenses);
-  List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves);
-  List<AttendanceRecord> get attendanceRecords => List.unmodifiable(_attendanceRecords);
-  List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments);
-  List<EmployeeNotice> get employeeNotices => List.unmodifiable(_employeeNotices);
+  List<AppointmentPayment> get appointmentPayments => List.unmodifiable(_isGlobalAdmin ? _appointmentPayments : const <AppointmentPayment>[]);
+  List<BusinessExpense> get businessExpenses => List.unmodifiable(_isGlobalAdmin ? _businessExpenses : const <BusinessExpense>[]);
+  List<EmployeeLeave> get employeeLeaves => List.unmodifiable(_employeeLeaves.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<AttendanceRecord> get attendanceRecords => List.unmodifiable(_attendanceRecords.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<EmployeeDocument> get employeeDocuments => List.unmodifiable(_employeeDocuments.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
+  List<EmployeeNotice> get employeeNotices => List.unmodifiable(_employeeNotices.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   List<AccessRole> get accessRoles => List.unmodifiable(_accessRoles.values);
+  /// حساب‌های آزمایشی فقط برای جابه‌جایی بین دو نقش در محیط آفلاین Datamonck.
   List<AccessAccount> get accessAccounts => List.unmodifiable(_accessAccounts);
-  AccessAccount get currentAccessAccount => _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
+  AccessAccount get currentAccessAccount => _accessAccounts.isEmpty
+      ? const AccessAccount(id: 'unauthenticated', name: 'کاربر واردنشده', roleId: 'unauthenticated', isDemo: false)
+      : _accessAccounts.firstWhere((account) => account.id == _currentAccessAccountId, orElse: () => _accessAccounts.first);
   String get currentAccessRoleName => _accessRoles[currentAccessAccount.roleId]?.name ?? 'نقش نامشخص';
-  List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values);
+  List<EmployeeScheduleException> get employeeScheduleExceptions => List.unmodifiable(_employeeScheduleExceptions.values.where((item) => _isGlobalAdmin || item.employeeId == _activeEmployeeId));
   EmployeePayProfile payProfileFor(String employeeId) {
     requirePermission('finance.salary.view', employeeId: employeeId);
     return _employeePayProfiles[employeeId] ?? EmployeePayProfile(employeeId: employeeId);
@@ -257,7 +314,7 @@ class AppDatabase extends ChangeNotifier {
       throw StateError('شناسه هزینه یا سند منبع تکراری است.');
     }
     _businessExpenses.add(expense);
-    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} با سند ${expense.sourceDocumentId} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
+    log(ActivityType.settingsChanged, 'ثبت هزینه مجموعه', 'هزینه ${expense.category.label} ثبت شد.', entity: 'امور مالی مجموعه', entityId: expense.id, operationType: 'financial_expense_create', isReversible: false);
     _commit();
   }
 
@@ -401,29 +458,37 @@ class AppDatabase extends ChangeNotifier {
   // کنترل دسترسی و نقش‌ها — منبع حقیقت در لایه داده
   // ---------------------------------------------------------------------------
   void _seedAccessControl() {
-    for (final role in AccessRole.defaults()) { _accessRoles[role.id] = role; }
-    final custom = AccessRole(
-      id: 'custom_limited', name: 'نقش سفارشی محدود',
-      permissionIds: const ['appointments.view_self', 'customers.view'],
-      description: 'نقش نمونه برای بررسی دسترسی محدود',
-    );
-    _accessRoles[custom.id] = custom;
+    for (final role in AccessRole.defaults()) {
+      _accessRoles[role.id] = role;
+    }
     _accessAccounts.addAll(const [
-      AccessAccount(id: 'demo-global-admin', name: 'فاطمه رضایی — مدیر کل', roleId: 'global_admin', employeeId: 'emp-fateme'),
-      AccessAccount(id: 'demo-manager', name: 'مدیر مجموعه آزمایشی', roleId: 'manager', employeeId: 'emp-shima'),
-      AccessAccount(id: 'demo-operator', name: 'نیما احمدی — اپراتور', roleId: 'operator', employeeId: 'emp-nima'),
-      AccessAccount(id: 'demo-staff', name: 'زهرا نوری — پرسنل', roleId: 'staff', employeeId: 'emp-zahra'),
-      AccessAccount(id: 'demo-accountant', name: 'الهه یاری — حسابدار', roleId: 'accountant', employeeId: 'emp-elham'),
-      AccessAccount(id: 'demo-custom', name: 'امیر کاظمی — نقش سفارشی', roleId: 'custom_limited', employeeId: 'emp-amir'),
+      AccessAccount(
+        id: 'demo-global-admin',
+        name: 'فاطمه رضایی — مدیر کل',
+        roleId: 'global_admin',
+        employeeId: 'emp-shima',
+      ),
+      AccessAccount(
+        id: 'demo-staff',
+        name: 'زهرا نوری — پرسنل',
+        roleId: 'staff',
+        employeeId: 'emp-zahra',
+      ),
     ]);
-    for (final account in _accessAccounts.where((item) => item.employeeId != null)) {
-      _accessAssignments[account.employeeId!] = AccessAssignment(
-        employeeId: account.employeeId!,
-        roleId: account.roleId,
-        canViewOtherEmployees: account.roleId == 'global_admin' || account.roleId == 'manager' || account.roleId == 'operator' || account.roleId == 'accountant',
-        canViewPersonalIncome: account.roleId != 'custom_limited',
+    for (final employee in _employees) {
+      _accessAssignments[employee.id] = AccessAssignment(
+        employeeId: employee.id,
+        roleId: 'staff',
+        canViewOtherEmployees: false,
+        canViewPersonalIncome: true,
       );
     }
+    _accessAssignments['emp-shima'] = const AccessAssignment(
+      employeeId: 'emp-shima',
+      roleId: 'global_admin',
+      canViewOtherEmployees: true,
+      canViewPersonalIncome: true,
+    );
   }
 
   AccessRole? accessRoleById(String id) => _accessRoles[id];
@@ -478,6 +543,9 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void requirePermission(String permissionId, {String? employeeId}) {
+    if (employeeId != null && !canViewEmployee(employeeId)) {
+      throw const AccessDeniedException('فقط اطلاعات و عملیات مربوط به خودتان در دسترس است.');
+    }
     if (!hasPermission(permissionId, employeeId: employeeId)) {
       final matches = AccessPermission.all.where((item) => item.id == permissionId).toList();
       throw AccessDeniedException('برای انجام این عملیات دسترسی «${matches.isEmpty ? permissionId : matches.first.label}» را ندارید.');
@@ -487,11 +555,13 @@ class AppDatabase extends ChangeNotifier {
   bool canOpenRoute(String path) {
     if (path == '/my-wallet') {
       final employeeId = currentAccessAccount.employeeId;
-      return employeeId != null && canViewEmployeeIncome(employeeId);
+      return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
-    if (path == '/search' || path == '/search/result') return true;
-    if (path == '/book' || path.startsWith('/book/')) return true;
-    if (path == '/dashboard' || path == '/access-denied') return true;
+    if (path == '/search' || path == '/search/result') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/book' || path.startsWith('/book/')) return false;
+    if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/my-leaves') return currentAccessAccount.roleId == 'staff' && hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
+    if (path == '/access-denied') return true;
     if (path.startsWith('/settings/permissions')) return hasPermission('permissions.manage');
     if (path.startsWith('/settings/hours')) return hasPermission('settings.hours.edit');
     if (path.startsWith('/settings')) return hasPermission('settings.view') || hasPermission('permissions.manage');
@@ -500,9 +570,11 @@ class AppDatabase extends ChangeNotifier {
       if (parts.length == 1) return hasPermission('employees.view_list');
       if (parts.length == 2 && parts[1] == 'new') return hasPermission('employees.create');
       final employeeId = parts.length > 1 ? parts[1] : '';
-      if (parts.contains('wallet')) return canViewEmployeeIncome(employeeId);
+      if (parts.contains('wallet')) return canViewEmployeeIncome(employeeId) && hasPermission('finance.wallet.view', employeeId: employeeId);
       if (parts.contains('finance')) return canViewEmployeeIncome(employeeId) && hasPermission('finance.salary.view', employeeId: employeeId);
-      if (parts.contains('analytics')) return canViewEmployeeIncome(employeeId);
+      if (parts.contains('schedule')) return hasPermission('employees.edit', employeeId: employeeId);
+      if (parts.contains('attendance')) return hasPermission('employees.edit', employeeId: employeeId);
+      if (parts.contains('analytics')) return hasPermission('finance.income.view', employeeId: employeeId);
       if (parts.contains('edit')) return canViewEmployee(employeeId) && hasPermission('employees.edit');
       return canViewEmployee(employeeId) && hasPermission('employees.view_profile');
     }
@@ -533,10 +605,11 @@ class AppDatabase extends ChangeNotifier {
   }
 
   bool canOpenNavigation(String path) {
-    if (path == '/dashboard') return true;
+    if (path == '/dashboard') return currentAccessAccount.roleId == 'global_admin';
+    if (path == '/my-leaves') return currentAccessAccount.roleId == 'staff' && hasPermission('employees.leave.request', employeeId: currentAccessAccount.employeeId);
     if (path == '/my-wallet') {
       final employeeId = currentAccessAccount.employeeId;
-      return employeeId != null && canViewEmployeeIncome(employeeId);
+      return employeeId != null && hasPermission('finance.wallet.view', employeeId: employeeId);
     }
     if (path == '/appointments' || path == '/calendar') return hasPermission('appointments.view_all') || hasPermission('appointments.view_self');
     if (path == '/customers') return hasPermission('customers.view');
@@ -550,49 +623,12 @@ class AppDatabase extends ChangeNotifier {
 
   AccessRole createAccessRole({required String name, required List<String> permissionIds}) {
     requirePermission('permissions.manage');
-    final normalized = name.trim();
-    if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
-    if (_accessRoles.values.any((role) => role.name == normalized)) throw StateError('نقشی با این نام وجود دارد.');
-    final role = AccessRole(
-      id: 'custom-${DateTime.now().microsecondsSinceEpoch}',
-      name: normalized,
-      permissionIds: List.unmodifiable(permissionIds.where(AccessPermission.ids.contains)),
-    );
-    _accessRoles[role.id] = role;
-    log(
-      ActivityType.settingsChanged,
-      'ایجاد نقش دسترسی',
-      'نقش سفارشی «${role.name}» با ${role.permissionIds.length} مجوز ایجاد شد.',
-      entity: 'نقش دسترسی',
-      entityId: role.id,
-      undoAction: 'access_role_delete',
-      undoData: {
-        'id': role.id,
-        'name': role.name,
-        'permission_ids': role.permissionIds,
-        'description': role.description,
-        'is_system': role.isSystem,
-      },
-      operationType: 'access_role_create',
-      isReversible: true,
-    );
-    _commit();
-    return role;
+    throw StateError('در DateTime فقط دو نقش مدیر کل و پرسنل مجاز است.');
   }
 
   void updateAccessRole(String roleId, {required String name, required List<String> permissionIds}) {
     requirePermission('permissions.manage');
-    final current = _accessRoles[roleId];
-    if (current == null || current.isSystem) throw StateError('نقش سیستمی قابل ویرایش نیست.');
-    final normalized = name.trim();
-    if (normalized.isEmpty) throw ArgumentError('نام نقش الزامی است.');
-    final normalizedPermissions = permissionIds.where(AccessPermission.ids.contains).toSet();
-    if (current.name == normalized && current.permissionIds.toSet().difference(normalizedPermissions).isEmpty && normalizedPermissions.difference(current.permissionIds.toSet()).isEmpty) return;
-    _accessRoles[roleId] = current.copyWith(name: normalized, permissionIds: normalizedPermissions.toList());
-    log(ActivityType.settingsChanged, 'ویرایش نقش دسترسی', 'نقش «${current.name}» و مجوزهای آن تغییر کرد.', entity: 'نقش دسترسی', entityId: roleId,
-      undoAction: 'access_role_restore', undoData: {'id': current.id, 'name': current.name, 'permission_ids': current.permissionIds, 'description': current.description, 'is_system': current.isSystem},
-      operationType: 'access_role_update', isReversible: true);
-    _commit();
+    throw StateError('نقش‌های سیستمی قابل تغییر نیستند؛ مجوز هر پرسنل را جداگانه مدیریت کنید.');
   }
 
   void resetAccessRole(String roleId) {
@@ -619,9 +655,11 @@ class AppDatabase extends ChangeNotifier {
   }) {
     requirePermission('permissions.manage');
     if (!_employees.any((employee) => employee.id == employeeId)) throw StateError('پرسنل پیدا نشد.');
-    if (!_accessRoles.containsKey(roleId)) throw StateError('نقش انتخاب‌شده پیدا نشد.');
-    if (roleId == 'global_admin' && currentAccessAccount.roleId != 'global_admin') {
-      throw AccessDeniedException('فقط مدیر کل می‌تواند نقش مدیر کل را اختصاص دهد.');
+    if (roleId != 'staff' || !_accessRoles.containsKey(roleId)) {
+      throw StateError('برای حساب‌های پرسنلی فقط نقش «پرسنل» قابل اختصاص است.');
+    }
+    if (_accessAccounts.any((account) => account.employeeId == employeeId && account.roleId == 'global_admin')) {
+      throw AccessDeniedException('حساب مدیر کل از مدیریت دسترسی پرسنل جدا است.');
     }
     final previous = _accessAssignments[employeeId];
     final nextOverrides = Map<String, bool>.fromEntries(overrides.entries.where((entry) => AccessPermission.ids.contains(entry.key)));
@@ -668,7 +706,7 @@ class AppDatabase extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   Appointment? appointmentById(String id) {
     for (final a in _appointments) {
-      if (a.id == id) return a;
+      if (a.id == id && (_isGlobalAdmin || a.employeeId == _activeEmployeeId)) return a;
     }
     return null;
   }
@@ -692,6 +730,10 @@ class AppDatabase extends ChangeNotifier {
 
   void addAppointment(Appointment appointment, {String? actor}) {
     requirePermission('appointments.create');
+    if (currentAccessAccount.roleId != 'global_admin' &&
+        currentAccessAccount.employeeId != appointment.employeeId) {
+      throw const AccessDeniedException('پرسنل فقط می‌تواند نوبت مربوط به خودش را ثبت کند.');
+    }
     _appointments.add(appointment);
     log(
       ActivityType.appointmentCreated,
@@ -709,7 +751,7 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void updateAppointment(Appointment appointment, {String? actor}) {
-    requirePermission('appointments.edit');
+    requirePermission('appointments.edit', employeeId: appointment.employeeId);
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
@@ -730,7 +772,14 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String? actor, String? operationType}) {
-    requirePermission(status == AppointmentStatus.cancelled ? 'appointments.cancel' : status == AppointmentStatus.completed ? 'appointments.complete' : 'appointments.edit');
+    final permissionId = status == AppointmentStatus.confirmed
+        ? 'appointments.confirm'
+        : status == AppointmentStatus.cancelled
+            ? (operationType == 'appointment_reject' ? 'appointments.reject' : 'appointments.cancel')
+            : status == AppointmentStatus.completed
+                ? 'appointments.complete'
+                : 'appointments.edit';
+    requirePermission(permissionId, employeeId: appointment.employeeId);
     final index = _appointments.indexWhere((a) => a.id == appointment.id);
     if (index == -1) return;
     final previous = _appointments[index];
@@ -830,7 +879,14 @@ class AppDatabase extends ChangeNotifier {
   }
 
   void addPayrollAdvance(PayrollAdvance advance) {
-    requirePermission('finance.advance.create', employeeId: advance.employeeId);
+    if (currentAccessAccount.roleId == 'staff' && currentAccessAccount.employeeId == advance.employeeId) {
+      requirePermission('finance.advance.request', employeeId: advance.employeeId);
+      if (advance.status != AdvanceStatus.requested) {
+        throw const AccessDeniedException('پرسنل فقط می‌تواند درخواست مساعده ثبت کند.');
+      }
+    } else {
+      requirePermission('finance.advance.create', employeeId: advance.employeeId);
+    }
     if (!_employees.any((item) => item.id == advance.employeeId)) throw StateError('پرسنل پیدا نشد.');
     if (advance.amount <= 0 || advance.description.trim().isEmpty) throw ArgumentError('مبلغ و توضیحات مساعده الزامی است.');
     if (_payrollAdvances.any((item) => item.id == advance.id)) throw StateError('شناسه مساعده تکراری است.');
@@ -852,6 +908,32 @@ class AppDatabase extends ChangeNotifier {
     }
     _payrollAdvances.add(savedAdvance);
     log(ActivityType.settingsChanged, 'ثبت مساعده پرسنل', 'مساعده برای پرسنل ثبت شد.', entity: 'حقوق پرسنل', entityId: savedAdvance.id, operationType: 'financial_payroll_advance', isReversible: false);
+    _commit();
+  }
+
+  void reviewPayrollAdvanceRequest(String requestId, AdvanceStatus status) {
+    requirePermission('finance.advance.create');
+    if (status != AdvanceStatus.approved && status != AdvanceStatus.rejected) {
+      throw ArgumentError('وضعیت بررسی مساعده معتبر نیست.');
+    }
+    final index = _payrollAdvances.indexWhere((item) => item.id == requestId);
+    if (index < 0) throw StateError('درخواست مساعده پیدا نشد.');
+    final current = _payrollAdvances[index];
+    if (current.status != AdvanceStatus.requested) throw StateError('این درخواست قبلاً بررسی شده است.');
+    _payrollAdvances[index] = PayrollAdvance(
+      id: current.id,
+      employeeId: current.employeeId,
+      amount: current.amount,
+      requestedAt: current.requestedAt,
+      description: current.description,
+      status: status,
+      paidAt: current.paidAt,
+      deductedAmount: current.deductedAmount,
+      sourceWalletTransactionId: current.sourceWalletTransactionId,
+    );
+    log(ActivityType.settingsChanged, 'بررسی درخواست مساعده',
+      'درخواست مساعده ${current.amount} تومان ${status == AdvanceStatus.approved ? 'تأیید' : 'رد'} شد.',
+      entity: 'درخواست مساعده', entityId: requestId, operationType: 'payroll_advance_request_review');
     _commit();
   }
 
@@ -1311,6 +1393,60 @@ class AppDatabase extends ChangeNotifier {
     return [reversal, correction];
   }
 
+  List<EmployeeWalletSettlementRequest> walletSettlementRequestsFor(String employeeId) {
+    if (currentAccessAccount.roleId != 'global_admin' &&
+        currentAccessAccount.employeeId != employeeId) {
+      throw const AccessDeniedException('فقط درخواست‌های تسویه شخصی قابل مشاهده است.');
+    }
+    return List.unmodifiable(_employeeWalletSettlementRequests.where((item) => item.employeeId == employeeId));
+  }
+
+  void requestWalletSettlement(EmployeeWalletSettlementRequest request) {
+    requirePermission('finance.settlement.request', employeeId: request.employeeId);
+    if (request.amount <= 0 || request.description.trim().isEmpty ||
+        request.periodEnd.isBefore(request.periodStart)) {
+      throw ArgumentError('مبلغ، توضیحات و بازه درخواست تسویه معتبر نیست.');
+    }
+    final availableBalance = walletTransactionsFor(request.employeeId)
+        .where((item) => item.status == EmployeeWalletTransactionStatus.posted)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    if (request.amount > availableBalance) {
+      throw ArgumentError('مبلغ درخواست از مانده قابل تسویه کیف پول بیشتر است.');
+    }
+    if (_employeeWalletSettlementRequests.any((item) =>
+        item.employeeId == request.employeeId &&
+        item.status == EmployeeWalletRequestStatus.pending &&
+        !item.periodStart.isAfter(request.periodEnd) &&
+        !request.periodStart.isAfter(item.periodEnd))) {
+      throw StateError('برای این بازه یک درخواست تسویه در انتظار بررسی وجود دارد.');
+    }
+    _employeeWalletSettlementRequests.add(request);
+    log(ActivityType.settingsChanged, 'درخواست تسویه پرسنل',
+      'درخواست تسویه ${request.amount} تومان برای ${employeeById(request.employeeId)?.fullName ?? request.employeeId} ثبت شد.',
+      entity: 'درخواست تسویه', entityId: request.id, operationType: 'wallet_settlement_request');
+    _commit();
+  }
+
+  void reviewWalletSettlementRequest(String requestId, EmployeeWalletRequestStatus status) {
+    requirePermission('finance.settlement.view');
+    final index = _employeeWalletSettlementRequests.indexWhere((item) => item.id == requestId);
+    if (index < 0) throw StateError('درخواست تسویه پیدا نشد.');
+    final current = _employeeWalletSettlementRequests[index];
+    if (current.status != EmployeeWalletRequestStatus.pending ||
+        status == EmployeeWalletRequestStatus.pending) {
+      throw StateError('وضعیت این درخواست قبلاً بررسی شده است.');
+    }
+    _employeeWalletSettlementRequests[index] = current.copyWith(
+      status: status,
+      reviewedAt: DateTime.now(),
+      reviewedBy: currentAccessAccount.name,
+    );
+    log(ActivityType.settingsChanged, 'بررسی درخواست تسویه',
+      'درخواست تسویه ${current.amount} تومان ${status == EmployeeWalletRequestStatus.approved ? 'تأیید' : 'رد'} شد.',
+      entity: 'درخواست تسویه', entityId: requestId, operationType: 'wallet_settlement_request_review');
+    _commit();
+  }
+
   EmployeeWalletSettlement settleEmployeeWallet({
     required String employeeId,
     required DateTime periodStart,
@@ -1443,7 +1579,7 @@ class AppDatabase extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   Customer? customerById(String id) {
     for (final c in _customers) {
-      if (c.id == id) return c;
+      if (c.id == id && (_isGlobalAdmin || _appointments.any((item) => item.employeeId == _activeEmployeeId && item.customerId == id))) return c;
     }
     return null;
   }
@@ -1489,6 +1625,7 @@ class AppDatabase extends ChangeNotifier {
   // خدمات
   // ---------------------------------------------------------------------------
   Service? serviceById(String id) {
+    if (!_isGlobalAdmin && !services.any((item) => item.id == id)) return null;
     for (final s in _services) {
       if (s.id == id) return s;
     }
@@ -1643,6 +1780,7 @@ class AppDatabase extends ChangeNotifier {
   // پرسنل
   // ---------------------------------------------------------------------------
   Employee? employeeById(String id) {
+    if (!_isGlobalAdmin && id != _activeEmployeeId) return null;
     for (final e in _employees) {
       if (e.id == id) return e;
     }
@@ -1956,7 +2094,11 @@ class AppDatabase extends ChangeNotifier {
   void addEmployeeLeave(EmployeeLeave leave) {
     final employee = employeeById(leave.employeeId);
     if (employee == null) throw StateError('پرسنل یافت نشد.');
-    if (currentAccessAccount.employeeId != leave.employeeId) requirePermission('employees.edit', employeeId: leave.employeeId);
+    if (currentAccessAccount.employeeId == leave.employeeId) {
+      requirePermission('employees.leave.request', employeeId: leave.employeeId);
+    } else {
+      requirePermission('employees.edit', employeeId: leave.employeeId);
+    }
     if (!leave.endAt.isAfter(leave.startAt)) throw ArgumentError('پایان مرخصی باید بعد از شروع آن باشد.');
     if (_employeeLeaves.any((item) => item.id == leave.id)) throw StateError('شناسه مرخصی تکراری است.');
     if (_employeeLeaves.any((item) => item.employeeId == leave.employeeId && item.status != EmployeeLeaveStatus.rejected && item.startAt.isBefore(leave.endAt) && leave.startAt.isBefore(item.endAt))) {
@@ -1964,7 +2106,7 @@ class AppDatabase extends ChangeNotifier {
     }
     _employeeLeaves.add(leave);
     _notifyEmployee(leave.employeeId,EmployeeNoticeType.leaveRequested,'درخواست مرخصی ثبت شد.','درخواست مرخصی شما در انتظار بررسی است.');
-    for(final manager in _accessAccounts.where((account)=>account.isEnabled && account.employeeId!=null && (account.roleId=='global_admin'||account.roleId=='manager'))){
+    for(final manager in _accessAccounts.where((account)=>account.isEnabled && account.employeeId!=null && account.roleId=='global_admin')){
       _notifyEmployee(manager.employeeId!,EmployeeNoticeType.leaveRequested,'درخواست مرخصی جدید','درخواست مرخصی برای ${employee.fullName} ثبت شده و نیازمند بررسی است.');
     }
     log(ActivityType.settingsChanged, 'ثبت مرخصی پرسنل', 'مرخصی جدید برای ' + employee.fullName + ' ثبت شد.', entity: 'مرخصی پرسنل');

@@ -87,8 +87,12 @@ class AppearanceSettingsPage extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 onTap: () async {
-                  await settings.setFormTheme(formTheme.id);
-                  if (context.mounted) AppToast.show(context, 'تم فرم «${formTheme.label}» فعال شد');
+                  try {
+                    await settings.setFormTheme(formTheme.id);
+                    if (context.mounted) AppToast.show(context, 'تم فرم «${formTheme.label}» در تنظیمات مجموعه ذخیره شد');
+                  } catch (error) {
+                    if (context.mounted) AppToast.show(context, 'ذخیره تم فرم ناموفق بود: $error');
+                  }
                 },
                 child: AnimatedContainer(
                   duration: AppDurations.normal,

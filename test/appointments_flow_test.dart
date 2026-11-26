@@ -12,7 +12,7 @@ void main() {
 
   setUp(() async {
     db = AppDatabase();
-    provider = AppointmentsProvider(MockAppointmentRepository(db), db);
+    provider = AppointmentsProvider(MockAppointmentRepository(db));
     await provider.load();
   });
 

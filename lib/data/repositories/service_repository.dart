@@ -3,14 +3,51 @@ import '../models/service.dart';
 import '../models/employee_service_config.dart';
 import 'operations_repository.dart';
 
+class ServiceAppointmentSummary {
+  const ServiceAppointmentSummary({
+    required this.reference,
+    required this.title,
+    required this.startsAt,
+    required this.status,
+    required this.price,
+  });
+
+  final String reference;
+  final String title;
+  final DateTime startsAt;
+  final String status;
+  final num price;
+}
+
+class ServiceHistoryPage {
+  const ServiceHistoryPage({required this.totalCount, required this.items});
+  final int totalCount;
+  final List<ServiceAppointmentSummary> items;
+}
+
 abstract class ServiceRepository {
   Future<List<Service>> fetchServices({bool onlyActive = false, String query = ''});
 
   Future<Service?> findById(String id);
 
+  Future<ServiceHistoryPage> fetchServiceHistory(String serviceId, {int limit = 8}) async =>
+      const ServiceHistoryPage(totalCount: 0, items: []);
+
   Future<void> create(Service service);
 
   Future<void> update(Service service);
+
+  Future<String> saveCatalogItem(Service service, List<EmployeeServiceConfig> configs) async {
+    if (service.id.startsWith('srv-')) {
+      await create(service);
+    } else {
+      await update(service);
+    }
+    for (final config in configs) {
+      await saveEmployeeServiceConfig(config);
+    }
+    return service.id;
+  }
 
   Future<void> delete(String id);
 
@@ -25,7 +62,7 @@ abstract class ServiceRepository {
   Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig config);
 }
 
-class MockServiceRepository implements ServiceRepository {
+class MockServiceRepository extends ServiceRepository {
   MockServiceRepository(this._db);
 
   final AppDatabase _db;

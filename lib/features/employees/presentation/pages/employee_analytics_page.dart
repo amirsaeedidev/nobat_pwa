@@ -11,6 +11,7 @@ import '../../../../core/utils/pdf_table_document_builder.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee_analytics.dart';
 import '../../../../data/models/employee.dart';
@@ -86,18 +87,30 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
   }
 
   Future<void> _chooseCustomRange() async {
-    final range = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: DateTimeRange(start: _from, end: _to.subtract(const Duration(days: 1))),
-      helpText: 'انتخاب بازه گزارش',
-      saveText: 'اعمال بازه',
+    final today = JalaliDate.today();
+    final first = JalaliDate(1400, 1, 1);
+    final last = today.addDays(365);
+    final start = await showJalaliDatePicker(
+      context,
+      initial: JalaliDate.fromDateTime(_from),
+      minDate: first,
+      maxDate: last,
+      title: 'شروع بازه گزارش',
     );
-    if (range == null || !mounted) return;
+    if (start == null || !mounted) return;
+    final end = await showJalaliDatePicker(
+      context,
+      initial: JalaliDate.fromDateTime(_to.subtract(const Duration(days: 1))).isBefore(start)
+          ? start
+          : JalaliDate.fromDateTime(_to.subtract(const Duration(days: 1))),
+      minDate: start,
+      maxDate: last,
+      title: 'پایان بازه گزارش',
+    );
+    if (end == null || !mounted) return;
     setState(() {
-      _from = DateTime(range.start.year, range.start.month, range.start.day);
-      _to = DateTime(range.end.year, range.end.month, range.end.day).add(const Duration(days: 1));
+      _from = start.toDateTime();
+      _to = end.toDateTime().add(const Duration(days: 1));
       _preset = _RangePreset.custom;
     });
   }

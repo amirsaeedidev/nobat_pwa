@@ -77,7 +77,7 @@ class _JalaliPickerBodyState extends State<_JalaliPickerBody> {
               child: Text(
                 '${_visible.monthName} ${FaNum.ofInt(_visible.year)}',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary, shadows: const [Shadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 1))]),
               ),
             ),
             IconButton(
@@ -191,7 +191,7 @@ Future<TimeOfDayLite?> showTimePickerSheet(
               ),
               child: Text(
                 Fmt.time(slot.hour, slot.minute),
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: context.pal.textPrimary),
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.pal.textPrimary, shadows: const [Shadow(color: Color(0x44000000), blurRadius: 4, offset: Offset(0, 1))]),
               ),
             ),
           ),

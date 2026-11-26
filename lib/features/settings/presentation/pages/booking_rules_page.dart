@@ -68,7 +68,7 @@ class _BookingRulesPageState extends State<BookingRulesPage> {
     final pal = context.pal;
     return PageScaffold(
       title: 'قواعد رزرو و لغو',
-      subtitle: 'محدودیت‌های رزرو آنلاین و تغییر نوبت',
+      subtitle: 'قواعد داخلی ثبت، لغو و جابه‌جایی نوبت',
       icon: Icons.rule_rounded,
       showBackButton: true,
       child: Column(
@@ -78,14 +78,7 @@ class _BookingRulesPageState extends State<BookingRulesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SectionHeader(title: 'رزرو آنلاین'),
-                AppSwitchRow(
-                  title: 'امکان رزرو آنلاین توسط مشتری',
-                  description: 'اگر غیرفعال شود، صفحه رزرو عمومی فقط نمایشی خواهد بود.',
-                  value: _rules.allowOnlineBooking,
-                  onChanged: (v) => setState(() => _rules = _rules.copyWith(allowOnlineBooking: v)),
-                  icon: Icons.public_rounded,
-                ),
+                const SectionHeader(title: 'ثبت نوبت داخلی'),
                 AppSwitchRow(
                   title: 'نیاز به تأیید دستی نوبت‌ها',
                   description: 'نوبت‌های جدید در وضعیت «در انتظار» ثبت می‌شوند.',

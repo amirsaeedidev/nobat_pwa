@@ -66,6 +66,7 @@ class _CustomersPageState extends State<CustomersPage> {
       icon: Icons.people_alt_rounded,
       actions: [
         if (isDesktop) smsPill,
+        SoftButton(label: provider.showArchived ? 'مشتریان فعال' : 'بایگانی مشتریان', icon: Icons.archive_outlined, onTap: provider.toggleArchived),
         SoftButton(label: 'بازآوری', icon: Icons.refresh_rounded, onTap: provider.load),
         SolidButton(
           label: 'افزودن مشتری',
@@ -75,6 +76,7 @@ class _CustomersPageState extends State<CustomersPage> {
         ),
       ],
       mobileActions: [
+        CircleIconButton(icon: Icons.archive_outlined, size: 38, onTap: provider.toggleArchived),
         CircleIconButton(icon: Icons.refresh_rounded, size: 38, onTap: provider.load),
         CircleIconButton(icon: Icons.person_add_alt_1_rounded, size: 38, onTap: () => context.push('/customers/new')),
       ],
@@ -119,9 +121,9 @@ class _CustomersPageState extends State<CustomersPage> {
           if (provider.items.isEmpty && provider.loadNotice != null)
             ErrorStateView(description: provider.loadNotice, onRetry: provider.load)
           else if (provider.items.isEmpty)
-            const EmptyState(
-              title: 'مشتری‌ای یافت نشد',
-              description: 'شماره یا نام دیگری را جست‌وجو کنید یا مشتری جدید اضافه کنید.',
+            EmptyState(
+              title: provider.showArchived ? 'مشتری بایگانی‌شده‌ای وجود ندارد' : 'مشتری‌ای یافت نشد',
+              description: provider.showArchived ? 'در بایگانی مجموعه مشتری‌ای ثبت نشده است.' : 'شماره یا نام دیگری را جست‌وجو کنید یا مشتری جدید اضافه کنید.',
               icon: Icons.person_search_rounded,
             )
           else ...[

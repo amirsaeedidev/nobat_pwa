@@ -57,8 +57,9 @@ void main() {
     });
 
     test('employee role cannot mutate another employee schedule or delete their leave', () {
-      final db = AppDatabase()..switchMockAccount('demo-staff');
-      final target = db.employeeById('emp-shima')!;
+      final db = AppDatabase();
+      final target = db.employeeById('emp-fateme')!;
+      db.switchMockAccount('demo-staff');
       final day = DateTime(2026, 12, 1);
       expect(
         () => db.saveEmployeeScheduleException(EmployeeScheduleException(
