@@ -13,7 +13,7 @@ import '../../../../data/repositories/settings_repository.dart';
 
 /// تنظیمات ظاهری و اطلاعات مجموعه.
 class SettingsProvider extends DbBoundProvider {
-  SettingsProvider(this._repository, AppDatabase db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
+  SettingsProvider(this._repository, [AppDatabase? db], {SupabaseAuthStateNotifier? authStateNotifier}) : super(db ?? AppDatabase(seed: false), authStateNotifier: authStateNotifier) {
     load();
   }
 
@@ -24,10 +24,12 @@ class SettingsProvider extends DbBoundProvider {
   String _paletteId = 'pastel_pink';
   String _formThemeId = 'pastel_pink';
   bool _saving = false;
+  String? _loadError;
 
   BusinessSettings? get settings => _settings;
   bool get loading => _loading;
   bool get saving => _saving;
+  String? get loadError => _loadError;
   AppPalette get palette => AppPalette.byId(_paletteId);
   AppFormTheme get formTheme => AppFormTheme.byId(_formThemeId);
   Color get formAccentColor => formTheme.accent;
@@ -48,11 +50,13 @@ class SettingsProvider extends DbBoundProvider {
     _loading = true;
     notifyListeners();
     try {
+      _loadError = null;
       final prefs = await SharedPreferences.getInstance();
       _paletteId = AppPalette.byId(prefs.getString('datetime_palette') ?? 'pastel_pink').id;
       _formThemeId = AppFormTheme.byId(prefs.getString('datetime_form_theme') ?? 'pastel_pink').id;
       _settings = await _repository.fetchSettings();
     } catch (error, stackTrace) {
+      _loadError = error.toString();
       debugPrint('Settings remote load failed; no local/demo fallback is shown: $error');
       debugPrintStack(stackTrace: stackTrace);
       _settings = null;
