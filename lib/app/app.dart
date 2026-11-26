@@ -11,7 +11,10 @@ import 'theme/app_theme.dart';
 
 /// ریشه برنامه با پشتیبانی کامل RTL و تم پویا.
 class DateTimeApp extends StatefulWidget {
-  const DateTimeApp({super.key});
+  const DateTimeApp({super.key, this.database});
+
+  /// Optional local database used only by isolated widget tests.
+  final AppDatabase? database;
 
   @override
   State<DateTimeApp> createState() => _DateTimeAppState();
@@ -19,7 +22,7 @@ class DateTimeApp extends StatefulWidget {
 
 class _DateTimeAppState extends State<DateTimeApp> {
   late final _router = buildRouter(
-    database: context.read<AppDatabase?>(),
+    database: widget.database,
     authRepository: context.read<SupabaseAuthRepository?>(),
     // Widget tests and embedded previews may intentionally omit cloud auth.
     // Production injects this notifier from main.dart.
