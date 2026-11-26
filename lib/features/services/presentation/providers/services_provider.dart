@@ -114,6 +114,12 @@ class ServicesProvider extends ChangeNotifier {
     return true;
   }
 
+  Future<String> createWithId(Service service) async {
+    final id = await _repository.createAndReturn(service);
+    await load();
+    return id;
+  }
+
   Future<bool> update(Service service) async {
     await _repository.update(service);
     await load();
