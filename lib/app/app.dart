@@ -19,7 +19,7 @@ class DateTimeApp extends StatefulWidget {
 
 class _DateTimeAppState extends State<DateTimeApp> {
   late final _router = buildRouter(
-    context.read<AppDatabase>(),
+    context.read<AppDatabase?>(),
     authRepository: context.read<SupabaseAuthRepository?>(),
     // Widget tests and embedded previews may intentionally omit cloud auth.
     // Production injects this notifier from main.dart.

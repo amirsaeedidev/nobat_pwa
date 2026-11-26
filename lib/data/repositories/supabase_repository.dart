@@ -215,6 +215,20 @@ class SupabaseRepository {
     return rows.map((row) => Map<String, dynamic>.from(row)).toList(growable: false);
   }
 
+
+  Future<String?> fetchMyEmployeeId({required String businessId}) async {
+    final userId = _requireUserId();
+    _validateBusinessId(businessId);
+    final row = await _client
+        .from('employees')
+        .select('id')
+        .eq('business_id', businessId)
+        .eq('auth_user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+    return row?['id'] as String?;
+  }
+
   void _validateBusinessId(String value) {
     if (value.trim().isEmpty) {
       throw ArgumentError.value(value, 'businessId', 'Business ID is required.');

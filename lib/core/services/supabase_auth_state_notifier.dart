@@ -41,6 +41,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
   String? _userId;
   String? _businessId;
   String? _businessName;
+  String? _employeeId;
   String? _role;
   Map<String, dynamic> _permissions = const {};
   String? _verificationError;
@@ -55,6 +56,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
   String? get userEmail => _authRepository?.currentUser?.email;
   String? get businessId => _businessId;
   String? get businessName => _businessName;
+  String? get employeeId => _employeeId;
   String? get role => _role;
   Map<String, dynamic> get permissions => Map.unmodifiable(_permissions);
   String? get verificationError => _verificationError;
@@ -124,6 +126,7 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
     _status = SupabaseAuthStatus.checkingMembership;
     _businessId = null;
     _businessName = null;
+    _employeeId = null;
     _role = null;
     _permissions = const {};
     _verificationError = null;
@@ -166,6 +169,12 @@ class SupabaseAuthStateNotifier extends ChangeNotifier {
       }
 
       _businessId = businessId;
+      try {
+        _employeeId = await data.fetchMyEmployeeId(businessId: businessId);
+      } catch (error) {
+        _employeeId = null;
+        debugPrint('[DateTime][SupabaseAuth] Employee self-link unavailable: $error');
+      }
       _businessName = business['name'] as String?;
       _role = role;
       final rawPermissions = membership['permissions'];

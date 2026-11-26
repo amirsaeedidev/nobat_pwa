@@ -100,20 +100,20 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final database = context.watch<AppDatabase>();
+    final database = context.watch<AppDatabase?>();
     final auth = context.watch<SupabaseAuthStateNotifier?>();
     final canCreate = auth != null
         ? _hasSupabasePermission(auth, 'appointments.create')
-        : database.hasPermission('appointments.create');
+        : database?.hasPermission('appointments.create') ?? false;
     final destinations = appDestinations.where((item) {
-      if (auth == null) return database.canOpenNavigation(item.route);
+      if (auth == null) return database?.canOpenNavigation(item.route) ?? false;
       return _canOpenSupabaseDestination(auth, item.route);
     }).toList();
     final accountName = auth == null
-        ? database.currentAccessAccount.name
+        ? database?.currentAccessAccount.name ?? 'کاربر'
         : auth.role == 'owner' ? 'مدیر کل' : 'پرسنل';
     final roleName = auth == null
-        ? database.currentAccessRoleName
+        ? database?.currentAccessRoleName ?? 'بدون نقش'
         : auth.role == 'owner' ? 'مدیر کل' : 'پرسنل';
     final selectedIndex = destinations.indexWhere((item) => location.startsWith(item.route));
     final useSidebar = width >= Breakpoints.tablet;

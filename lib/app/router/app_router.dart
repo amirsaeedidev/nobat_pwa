@@ -47,16 +47,41 @@ import '../../features/sms/presentation/pages/sms_settings_page.dart';
 import '../../features/sms/presentation/pages/sms_templates_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+bool _hasCloudPermission(SupabaseAuthStateNotifier auth, String permission) =>
+    auth.role == 'owner' || auth.permissions[permission] == true;
+
+bool _hasAnyCloudPermission(SupabaseAuthStateNotifier auth, List<String> permissions) =>
+    auth.role == 'owner' || permissions.any((permission) => auth.permissions[permission] == true);
+
+bool _canOpenCloudPath(SupabaseAuthStateNotifier auth, String path) {
+  if (path == '/login' || path == '/access-denied') return true;
+  if (path.startsWith('/dashboard')) return _hasCloudPermission(auth, 'dashboard.view');
+  if (path.startsWith('/appointments') || path.startsWith('/calendar')) {
+    return _hasAnyCloudPermission(auth, ['appointments.view_all', 'appointments.view_self']);
+  }
+  if (path.startsWith('/customers')) return _hasCloudPermission(auth, 'customers.view');
+  if (path.startsWith('/services')) return _hasAnyCloudPermission(auth, ['services.view', 'services.manage']);
+  if (path.startsWith('/employees')) return _hasAnyCloudPermission(auth, ['employees.view_list', 'employees.view_self']);
+  if (path.startsWith('/my-wallet')) return _hasCloudPermission(auth, 'finance.wallet.view');
+  if (path.startsWith('/reports')) return _hasAnyCloudPermission(auth, ['reports.view', 'finance.income.view']);
+  if (path.startsWith('/activity')) return _hasAnyCloudPermission(auth, ['activity.view', 'activity.manage']);
+  if (path.startsWith('/settings/permissions')) return _hasAnyCloudPermission(auth, ['permissions.manage', 'settings.roles.manage']);
+  if (path.startsWith('/settings')) return _hasAnyCloudPermission(auth, ['settings.view', 'settings.manage']);
+  if (path.startsWith('/sms')) return _hasAnyCloudPermission(auth, ['sms.view', 'settings.view']);
+  return true;
+}
+
 
 /// مسیرهای برنامه؛ ناوبری مستقل از منطق کسب‌وکار.
 GoRouter buildRouter(
-  AppDatabase database, {
+  AppDatabase? database, {
   SupabaseAuthRepository? authRepository,
   SupabaseAuthStateNotifier? authStateNotifier,
 }) {
-  final refreshListenable = authStateNotifier == null
-      ? database
-      : Listenable.merge([database, authStateNotifier]);
+  final refreshListenable = Listenable.merge([
+    if (database != null) database,
+    if (authStateNotifier != null) authStateNotifier,
+  ]);
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
@@ -75,14 +100,22 @@ GoRouter buildRouter(
           return isLoginPage ? null : '/login';
         }
         if (isLoginPage) return '/dashboard';
-        // Cloud authorization is enforced by Supabase RLS/RPC. Do not apply
-        // the local demo-account permission model to an authenticated user.
+        if (state.uri.path == '/access-denied') return null;
+        if (!_canOpenCloudPath(authStateNotifier, state.uri.path)) {
+          return '/access-denied';
+        }
+        // Row-level authorization remains enforced independently by RLS/RPC.
         return null;
       }
-      if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
-        return '/appointments';
+      if (database != null) {
+        if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
+          return '/appointments';
+        }
+        return database.canOpenRoute(state.uri.path) ? null : '/access-denied';
       }
-      return database.canOpenRoute(state.uri.path) ? null : '/access-denied';
+      return state.uri.path == '/login' || state.uri.path == '/access-denied'
+          ? null
+          : '/login';
     },
     routes: [
       GoRoute(
@@ -96,7 +129,7 @@ GoRouter buildRouter(
           GoRoute(
             path: '/my-wallet',
             builder: (context, state) {
-              final employeeId = database.currentAccessAccount.employeeId;
+              final employeeId = authStateNotifier?.employeeId ?? database?.currentAccessAccount.employeeId;
               return employeeId == null
                   ? const Scaffold(body: Center(child: Text('حساب پرسنلی فعال نیست.')))
                   : EmployeeWalletPage(employeeId: employeeId);
@@ -229,16 +262,18 @@ GoRouter buildRouter(
                 const SizedBox(height: 16),
                 Text('دسترسی به این بخش مجاز نیست', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
                 const SizedBox(height: 8),
-                Text('نقش فعال شما اجازه مشاهده یا انجام این عملیات را ندارد. برای آزمایش حالت‌های دیگر، حساب Mock را تغییر دهید.',
+                Text('نقش فعال شما اجازه مشاهده یا انجام این عملیات را ندارد. برای دریافت دسترسی با مدیر مجموعه تماس بگیرید.',
                   textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: context.pal.textMuted)),
-                const SizedBox(height: 18),
-                DropdownButtonFormField<String>(
-                  value: database.currentAccessAccount.id,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'حساب آزمایشی'),
-                  items: database.accessAccounts.map((account) => DropdownMenuItem(value: account.id, child: Text(account.name))).toList(),
-                  onChanged: (id) { if (id != null) { database.switchMockAccount(id); context.go('/dashboard'); } },
-                ),
+                if (database != null && authRepository == null) ...[
+                  const SizedBox(height: 18),
+                  DropdownButtonFormField<String>(
+                    value: database.currentAccessAccount.id,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'حساب آزمایشی'),
+                    items: database.accessAccounts.map((account) => DropdownMenuItem(value: account.id, child: Text(account.name))).toList(),
+                    onChanged: (id) { if (id != null) { database.switchMockAccount(id); context.go('/dashboard'); } },
+                  ),
+                ],
                 const SizedBox(height: 12),
                 SolidButton(label: 'بازگشت به پیشخوان', icon: Icons.dashboard_rounded, gradient: true, onPressed: () => context.go('/dashboard')),
               ],
