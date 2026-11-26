@@ -128,6 +128,19 @@ void main() {
         }
         final exception = tester.takeException();
         if (exception != null) {
+          if (width == 320 && path == '/services') {
+            final rowFinder = find.byType(Row);
+            final rowCount = rowFinder.evaluate().length;
+            for (var rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+              final flex = tester.renderObject<RenderFlex>(rowFinder.at(rowIndex));
+              final childWidths = <double>[];
+              flex.visitChildren((child) {
+                if (child is RenderBox) childWidths.add(child.size.width);
+              });
+              final total = childWidths.fold<double>(0, (sum, item) => sum + item);
+              debugPrint('ROW-DIAG index=$rowIndex width=${flex.size.width} constraints=${flex.constraints} children=$childWidths total=$total');
+            }
+          }
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
           fail('Responsive route failure at ${width.toInt()}px $path: $details');
