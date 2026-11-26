@@ -339,15 +339,15 @@ class ServiceCard extends StatelessWidget {
     final pal = context.pal;
     return AppCard(
       radius: AppRadius.xl,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconTile(icon: Icons.content_cut_rounded, color: pal.primary, size: 46, radius: 15),
-              const SizedBox(width: 12),
+              IconTile(icon: Icons.content_cut_rounded, color: pal.primary, size: 42, radius: 14),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,8 +386,8 @@ class ServiceCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 onTap: onToggle,
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: pal.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
