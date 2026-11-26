@@ -1,6 +1,4 @@
-import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/utils/jalali.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/models/employee.dart';
@@ -24,14 +22,13 @@ class BookingSlot {
 }
 
 /// فرایند رزرو عمومی مشتری (بدون نیاز به نصب اپلیکیشن).
-class BookingProvider extends DbBoundProvider {
+class BookingProvider extends ChangeNotifier {
   BookingProvider(
     this._appointments,
     this._services,
     this._employees,
     this._customers,
-    AppDatabase db,
-  ) : super(db) {
+  ) {
     _date = JalaliDate.today();
     loadServices();
   }
@@ -92,10 +89,6 @@ class BookingProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _refreshAfterDatabaseChange();
-  }
 
   Future<void> _refreshAfterDatabaseChange() async {
     final generation = ++_catalogGeneration;
@@ -124,7 +117,8 @@ class BookingProvider extends DbBoundProvider {
         }
       }
     } catch (_) {
-      _availableServices = db.services.where((item) => item.isActive).toList();
+      _availableServices = const [];
+      _error = 'دریافت خدمات از سرور ناموفق بود.';
       _availableEmployees = db.employees.where((item) => item.isActive).toList();
     }
     if (generation == _catalogGeneration) notifyListeners();
@@ -140,7 +134,8 @@ class BookingProvider extends DbBoundProvider {
       _availableServices = services;
     } catch (_) {
       if (generation != _catalogGeneration) return;
-      _availableServices = db.services.where((service) => service.isActive).toList();
+      _availableServices = const [];
+      _error = 'دریافت خدمات از سرور ناموفق بود.';
     } finally {
       if (generation == _catalogGeneration) {
         _loading = false;
@@ -201,14 +196,14 @@ class BookingProvider extends DbBoundProvider {
 
   /// تاریخ‌های قابل انتخاب تا سقف مجاز رزرو.
   List<JalaliDate> get selectableDates {
-    final maxDays = db.settings.bookingRules.maxAdvanceDays.clamp(7, 60);
+    final maxDays = (_service?.advanceDays ?? 30).clamp(1, 90);
     final today = JalaliDate.today();
     return [for (var i = 0; i < maxDays; i++) today.addDays(i)];
   }
 
   bool isDateEnabled(JalaliDate date) {
-    if (_employee != null) return db.employeeShiftsForDate(_employee!.id, date.toDateTime()).isNotEmpty;
-    return !db.settings.holidays.contains(date.weekday);
+    if (_employee != null) return _employee!.scheduleEnabled && _employee!.shiftsFor(date.weekday).isNotEmpty;
+    return false;
   }
 
   Future<void> _loadSlots() async {
@@ -223,8 +218,8 @@ class BookingProvider extends DbBoundProvider {
     notifyListeners();
     final existing = await _appointments.fetchForDay(_date.toDateTime(), employeeId: employee.id);
     if (generation != _slotGeneration) return;
-    final shifts = db.employeeShiftsForDate(employee.id, _date.toDateTime());
-    final interval = db.settings.bookingRules.slotIntervalMinutes.clamp(15, 60);
+    final shifts = employee.scheduleEnabled ? employee.shiftsFor(_date.weekday) : const <Shift>[];
+    final interval = 30;
     final slots = <BookingSlot>[];
     for (final shift in shifts) {
       for (var minutes = shift.startMinutes; minutes + service.durationMinutes <= shift.endMinutes; minutes += interval) {
@@ -238,11 +233,7 @@ class BookingProvider extends DbBoundProvider {
           final end = start.add(Duration(minutes: service.durationMinutes + service.bufferMinutes));
           return a.startAt.isBefore(end) && start.isBefore(a.endAt);
         });
-        final scheduleAvailable = db.isEmployeeAvailableAt(
-          employeeId: employee.id,
-          startAt: start,
-          durationMinutes: service.totalMinutes,
-        );
+        final scheduleAvailable = shifts.any((shift) => minutes >= shift.startMinutes && minutes + service.totalMinutes <= shift.endMinutes);
         final available = !conflict && scheduleAvailable;
         slots.add(
           BookingSlot(
@@ -299,30 +290,34 @@ class BookingProvider extends DbBoundProvider {
         notifyListeners();
         return false;
       }
-      if (!db.isEmployeeAvailableAt(employeeId: employee.id, startAt: slot.start, durationMinutes: service.totalMinutes)) {
+      final inShift = employee.scheduleEnabled && employee.shiftsFor(_date.weekday).any((shift) => slot.start.hour * 60 + slot.start.minute >= shift.startMinutes && slot.start.hour * 60 + slot.start.minute + service.totalMinutes <= shift.endMinutes);
+      if (!inShift) {
         _error = 'این زمان خارج از برنامه کاری پرسنل است یا با مرخصی و فاصله بین نوبت‌ها تداخل دارد.';
         _submitting = false;
         notifyListeners();
         return false;
       }
 
-      var customer = db.customers.where((c) => c.phone == _phone).firstOrNull;
+      var customer = (await _customers.fetchAll(query: _phone)).where((c) => c.phone == _phone.trim()).firstOrNull;
       if (customer == null) {
         customer = Customer(
-          id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
+          id: '',
           fullName: _name.trim(),
           phone: _phone.trim(),
           createdAt: DateTime.now(),
           tags: const ['رزرو آنلاین'],
         );
         await _customers.create(customer);
+        final matches = await _customers.fetchAll(query: _phone);
+        customer = matches.where((c) => c.phone == _phone.trim()).firstOrNull;
+        if (customer == null) throw StateError('مشتری پس از ثبت در سرور بازیابی نشد.');
       }
 
-      final reference = 'OT-${1500 + db.appointments.length}';
-      final bookedPrice = db.employeeServiceConfig(employee.id, service.id)?.customPrice ?? service.priceAt(slot.start);
-      final bookedDuration = db.effectiveServiceDuration(employee.id, service.id);
+      final reference = 'DT-' + DateTime.now().millisecondsSinceEpoch.toString();
+      final bookedPrice = service.priceAt(slot.start);
+      final bookedDuration = service.durationMinutes + service.prepMinutes + service.bufferMinutes;
       final appointment = Appointment(
-        id: 'apt-${DateTime.now().millisecondsSinceEpoch}',
+        id: 'booking-' + DateTime.now().microsecondsSinceEpoch.toString(),
         reference: reference,
         customerId: customer.id,
         customerName: customer.fullName,
@@ -333,7 +328,7 @@ class BookingProvider extends DbBoundProvider {
         employeeName: employee.fullName,
         startAt: slot.start,
         durationMinutes: bookedDuration,
-        status: db.settings.bookingRules.requireConfirmation ? AppointmentStatus.pending : AppointmentStatus.confirmed,
+        status: service.requiresConfirmation ? AppointmentStatus.pending : AppointmentStatus.confirmed,
         price: bookedPrice,
         serviceSnapshots: [{
           'service_id': service.id,
@@ -354,7 +349,7 @@ class BookingProvider extends DbBoundProvider {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'خطا در ثبت نوبت. لطفاً دوباره تلاش کنید.';
+      _error = 'ثبت نوبت در سرور ناموفق بود: ' + e.toString();
       _submitting = false;
       notifyListeners();
       return false;
@@ -382,27 +377,12 @@ class BookingProvider extends DbBoundProvider {
 
   /// آیا مشتری می‌تواند این نوبت را لغو کند؟
   String? cancelBlockReason(Appointment appointment) {
-    final rules = db.settings.bookingRules;
-    if (!rules.allowCustomerCancel) return 'لغو نوبت توسط مشتری غیرفعال است.';
-    final hours = appointment.startAt.difference(DateTime.now()).inHours;
-    if (hours < rules.minHoursBeforeChange) {
-      return 'تا شروع نوبت کمتر از ${rules.minHoursBeforeChange} ساعت باقی مانده است.';
-    }
-    return null;
+    return null; // سیاست نهایی لغو توسط RPC و مجوزهای سرور اعمال می‌شود.
   }
 
   /// آیا مشتری می‌تواند این نوبت را جابه‌جا کند؟
   String? rescheduleBlockReason(Appointment appointment) {
-    final rules = db.settings.bookingRules;
-    if (!rules.allowReschedule) return 'جابه‌جایی نوبت غیرفعال است.';
-    if (appointment.rescheduleCount >= rules.maxReschedules) {
-      return 'سقف جابه‌جایی (${rules.maxReschedules} بار) تکمیل شده است.';
-    }
-    final hours = appointment.startAt.difference(DateTime.now()).inHours;
-    if (hours < rules.minHoursBeforeChange) {
-      return 'تا شروع نوبت کمتر از ${rules.minHoursBeforeChange} ساعت باقی مانده است.';
-    }
-    return null;
+    return null; // سیاست نهایی جابه‌جایی توسط RPC و مجوزهای سرور اعمال می‌شود.
   }
 
   Future<void> customerCancel(Appointment appointment, {String reason = 'لغو توسط مشتری'}) async {
@@ -430,13 +410,14 @@ class BookingProvider extends DbBoundProvider {
   /// یافتن نوبت‌های مشتری با شماره موبایل.
   Future<List<Appointment>> lookup(String phone) async {
     final normalized = phone.trim();
-    final customer = db.customers.where((c) => c.phone == normalized).firstOrNull;
+    final matches = await _customers.fetchAll(query: normalized);
+    final customer = matches.where((c) => c.phone == normalized).firstOrNull;
     if (customer == null) return const [];
     return _appointments.fetchForCustomer(customer.id);
   }
 
   Future<List<Appointment>> lookupByReference(String reference) async {
-    final appointment = db.appointments.where((a) => a.reference == reference.trim()).firstOrNull;
-    return appointment == null ? const [] : [appointment];
+    final page = await _appointments.fetchAppointments(filter: AppointmentFilter(query: reference.trim()), page: 1, pageSize: 20);
+    return page.items.where((a) => a.reference == reference.trim()).toList();
   }
 }
