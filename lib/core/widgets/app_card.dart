@@ -268,11 +268,22 @@ class InfoRow extends StatelessWidget {
             Icon(icon, size: 15, color: pal.textMuted),
             const SizedBox(width: 6),
           ],
-          Text(label, style: TextStyle(fontSize: 12, color: pal.textMuted)),
+          Flexible(
+            flex: 2,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: pal.textMuted),
+            ),
+          ),
           const SizedBox(width: 10),
           Expanded(
+            flex: 3,
             child: Text(
               value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.left,
               style: TextStyle(
                 fontSize: dense ? 12 : 12.5,
