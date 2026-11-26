@@ -80,3 +80,30 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
   Future<void> reschedule(Appointment a,DateTime d,{bool byCustomer=false}) async {await client.rpc('reschedule_appointment',params:{'p_appointment_id':a.id,'p_new_starts_at':d.toUtc().toIso8601String()});}
   Future<void> delete(String id) async {await client.rpc('delete_appointment',params:{'p_appointment_id':id});}
 }
+/// Explicit failure repositories: a missing Supabase configuration never switches
+/// a production module back to local/mock records.
+class UnavailableCustomerRepository implements CustomerRepository {
+  Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
+  Future<PageResult<Customer>> fetchCustomers({String query='',int page=1,int pageSize=8,String sortBy='createdAt'}) async=>fail();
+  Future<List<Customer>> fetchAll({String query=''}) async=>fail(); Future<Customer?> findById(String id) async=>fail();
+  Future<void> create(Customer c) async=>fail(); Future<void> update(Customer c) async=>fail(); Future<void> delete(String id) async=>fail();
+}
+class UnavailableServiceRepository implements ServiceRepository {
+  Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
+  Future<List<Service>> fetchServices({bool onlyActive=false,String query=''}) async=>fail(); Future<Service?> findById(String id) async=>fail();
+  Future<void> create(Service s) async=>fail(); Future<void> update(Service s) async=>fail(); Future<void> delete(String id) async=>fail(); Future<void> toggle(String id,bool active) async=>fail();
+  Future<List<String>> fetchCategories() async=>fail(); Future<void> addCategory(String name) async=>fail(); Future<void> renameCategory(String oldName,String newName) async=>fail(); Future<void> deleteCategory(String name,{String? moveServicesTo}) async=>fail();
+  Future<List<EmployeeServiceConfig>> fetchEmployeeServiceConfigs() async=>fail(); Future<void> saveEmployeeServiceConfig(EmployeeServiceConfig c) async=>fail();
+}
+class UnavailableEmployeeRepository implements EmployeeRepository {
+  Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
+  Future<List<Employee>> fetchEmployees({bool onlyActive=false,String? serviceId}) async=>fail(); Future<Employee?> findById(String id) async=>fail();
+  Future<void> create(Employee e) async=>fail(); Future<void> update(Employee e) async=>fail(); Future<void> delete(String id) async=>fail();
+}
+class UnavailableAppointmentRepository implements AppointmentRepository {
+  Never fail()=>throw StateError('اتصال Supabase فعال نیست؛ اطلاعات آزمایشی نمایش داده نمی‌شود.');
+  Future<PageResult<Appointment>> fetchAppointments({AppointmentFilter filter=const AppointmentFilter(),int page=1,int pageSize=8,bool ascending=true}) async=>fail();
+  Future<List<Appointment>> fetchAll({AppointmentFilter filter=const AppointmentFilter()}) async=>fail(); Future<List<Appointment>> fetchForDay(DateTime day,{String? employeeId,String? serviceId}) async=>fail(); Future<List<Appointment>> fetchForCustomer(String id) async=>fail(); Future<Appointment?> findById(String id) async=>fail();
+  Future<Appointment?> findConflict({required String employeeId,required DateTime startAt,required int durationMinutes,String? ignoreId}) async=>fail();
+  Future<void> create(Appointment a) async=>fail(); Future<void> update(Appointment a) async=>fail(); Future<void> changeStatus(Appointment a,AppointmentStatus s,{String? reason}) async=>fail(); Future<void> reschedule(Appointment a,DateTime d,{bool byCustomer=false}) async=>fail(); Future<void> delete(String id) async=>fail();
+}
