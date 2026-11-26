@@ -1,15 +1,14 @@
+import 'package:flutter/foundation.dart';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/utils/jalali.dart';
-import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/models/app_failure.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
 import '../../../../data/repositories/appointment_repository.dart';
 
 /// جست‌وجو، فیلتر، صفحه‌بندی و عملیات نوبت‌ها.
-class AppointmentsProvider extends DbBoundProvider {
-  AppointmentsProvider(this._repository, AppDatabase db) : super(db) {
+class AppointmentsProvider extends ChangeNotifier {
+  AppointmentsProvider(this._repository) {
     load();
   }
 
@@ -60,10 +59,6 @@ class AppointmentsProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() {
-    _loadSilently();
-  }
 
   Future<void> _loadSilently() async {
     final generation = ++_loadGeneration;
