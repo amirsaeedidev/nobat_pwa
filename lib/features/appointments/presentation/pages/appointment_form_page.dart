@@ -210,6 +210,13 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
     final employeesProvider = context.read<EmployeesProvider>();
     final exceptions = await employeesProvider.scheduleExceptions(employee.id);
     final dateKey = EmployeeScheduleRules.dateKey(start);
+    final holidays = await employeesProvider.businessHolidays();
+    if (holidays.any((date) => EmployeeScheduleRules.dateKey(date) == dateKey)) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, 'این تاریخ تعطیلی مجموعه است.', success: false);
+      return;
+    }
     final exception = exceptions.where((item) => item.dateKey == dateKey).firstOrNull;
     final shifts = !employee.scheduleEnabled ? const <Shift>[] : exception == null ? employee.shiftsFor(_date.weekday) : (exception.isClosed ? const <Shift>[] : exception.shifts);
     final withinShift = shifts.any((shift) => startMinute >= shift.startMinutes && startMinute + _totalDuration <= shift.endMinutes);
