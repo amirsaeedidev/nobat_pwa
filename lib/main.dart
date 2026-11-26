@@ -136,7 +136,7 @@ Future<void> main() async {
     businessId: () => authStateNotifier.businessId,
   );
   final activityRepository = SupabaseActivityRepository(
-    records: supabaseRepository,
+    client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
   );
   final activityOperationsRepository = SupabaseOperationsRepository(supabaseClient);
