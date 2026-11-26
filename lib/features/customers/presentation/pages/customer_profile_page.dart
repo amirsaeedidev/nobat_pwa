@@ -58,7 +58,7 @@ class CustomerProfilePage extends StatelessWidget {
           'نام مشتری': customer.fullName,
           'شماره تماس': customer.phone,
           'تعداد سوابق نوبت': appointments.length.toString(),
-          'مجموع خرید': '${FaNum.ofInt(customer.totalSpent.round())} تومان',
+          'مبلغ نوبت‌های تکمیل‌شده': '${FaNum.ofInt(customer.totalSpent.round())} تومان',
         },
         isReversible: true,
         confirmLabel: 'ادامه عملیات',
