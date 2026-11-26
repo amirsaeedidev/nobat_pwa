@@ -55,26 +55,23 @@ class ServicesPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: SoftButton(
-                  label: 'دسته‌بندی‌ها',
-                  icon: Icons.category_outlined,
-                  dense: true,
-                  expanded: true,
-                  onTap: () => _manageCategories(context),
-                ),
+              SoftButton(
+                label: 'دسته‌بندی‌ها',
+                icon: Icons.category_outlined,
+                dense: true,
+                expanded: true,
+                onTap: () => _manageCategories(context),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SoftButton(
-                  label: 'بازآوری',
-                  icon: Icons.refresh_rounded,
-                  dense: true,
-                  expanded: true,
-                  onTap: provider.load,
-                ),
+              const SizedBox(height: 8),
+              SoftButton(
+                label: 'بازآوری',
+                icon: Icons.refresh_rounded,
+                dense: true,
+                expanded: true,
+                onTap: provider.load,
               ),
             ],
           ),
