@@ -71,6 +71,11 @@ class CustomersProvider extends ChangeNotifier {
 
   Future<Customer?> byId(String id) => _repository.findById(id);
 
+  Customer? findById(String id) {
+    for (final customer in _page.items) { if (customer.id == id) return customer; }
+    return null;
+  }
+
   Future<bool> create(Customer customer) async {
     _busy = true;
     notifyListeners();
