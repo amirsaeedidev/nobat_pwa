@@ -1,13 +1,12 @@
-import '../../../../core/providers/db_bound_provider.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/fa_num.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
 /// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
-class EmployeesProvider extends DbBoundProvider {
-  EmployeesProvider(this._repository, AppDatabase db) : super(db) {
+class EmployeesProvider extends ChangeNotifier {
+  EmployeesProvider(this._repository) {
     load();
   }
 
@@ -45,8 +44,6 @@ class EmployeesProvider extends DbBoundProvider {
     }
   }
 
-  @override
-  void onDatabaseChanged() { load(); }
 
   Future<List<Employee>> forService(String serviceId) => _repository.fetchEmployees(onlyActive: true, serviceId: serviceId);
   Future<Employee?> byId(String id) => _repository.findById(id);
