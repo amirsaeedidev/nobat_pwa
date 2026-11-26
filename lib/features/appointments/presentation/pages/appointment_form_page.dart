@@ -236,7 +236,7 @@ class _AppointmentFormPageState extends State<AppointmentFormPage> {
 
     // ثبت مشتری جدید در صورت نبود در فهرست.
     final customers = context.read<CustomersProvider>();
-    var customer = _customer ?? await customers.findByPhone(_phoneController.text.trim());
+    var customer = _customer ?? await customers.findByPhoneRemote(_phoneController.text.trim());
     if (customer == null) {
       customer = Customer(
         id: '',
