@@ -24,6 +24,7 @@ class CustomersProvider extends DbBoundProvider {
   String? _loadNotice;
   bool _busy = false;
   bool _showArchived = false;
+  int _loadGeneration = 0;
 
   PageResult<Customer> get page => _page;
   List<Customer> get items => _page.items;
@@ -38,17 +39,23 @@ class CustomersProvider extends DbBoundProvider {
   List<Customer> get all => _page.items;
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     notifyListeners();
     try {
+      final result = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
+      if (generation != _loadGeneration) return;
       _loadNotice = null;
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
+      _page = result;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _page = PageResult.empty(pageSize: _pageSize);
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -70,14 +77,18 @@ class CustomersProvider extends DbBoundProvider {
   }
 
   Future<void> _refresh() async {
+    final generation = _loadGeneration;
     try {
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
+      final result = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
+      if (generation != _loadGeneration) return;
+      _page = result;
       _loadNotice = null;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _page = PageResult.empty(pageSize: _pageSize);
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
     }
-    notifyListeners();
+    if (generation == _loadGeneration) notifyListeners();
   }
 
   Future<void> toggleArchived() async {
