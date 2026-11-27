@@ -39,7 +39,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     EmployeeAttendanceEventType type,
   ) async {
     final note = TextEditingController();
-    final late = TextEditingController();
+    final lateController = TextEditingController();
     final overtime = TextEditingController();
     final early = TextEditingController();
     final result = await showDialog<bool>(
@@ -51,7 +51,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
           children: [
             TextField(controller: note, decoration: const InputDecoration(labelText: 'توضیحات')),
             if (type == EmployeeAttendanceEventType.checkIn)
-              TextField(controller: late, keyboardType: TextInputType.number,
+              TextField(controller: lateController, keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'دقایق تأخیر')),
             if (type == EmployeeAttendanceEventType.checkOut) ...[
               TextField(controller: overtime, keyboardType: TextInputType.number,
@@ -68,7 +68,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       ),
     );
     if (result != true || !mounted) {
-      note.dispose(); late.dispose(); overtime.dispose(); early.dispose();
+      note.dispose(); lateController.dispose(); overtime.dispose(); early.dispose();
       return;
     }
     setState(() => _busy = true);
@@ -80,7 +80,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         workDate: DateTime(now.year, now.month, now.day),
         occurredAt: now,
         note: note.text,
-        lateMinutes: int.tryParse(late.text) ?? 0,
+        lateMinutes: int.tryParse(lateController.text) ?? 0,
         overtimeMinutes: int.tryParse(overtime.text) ?? 0,
         earlyLeaveMinutes: int.tryParse(early.text) ?? 0,
       );
@@ -91,7 +91,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     } catch (error) {
       if (mounted) AppToast.show(context, 'ثبت حضور ناموفق بود: $error', success: false);
     } finally {
-      note.dispose(); late.dispose(); overtime.dispose(); early.dispose();
+      note.dispose(); lateController.dispose(); overtime.dispose(); early.dispose();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -146,7 +146,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
   ) async {
     final note = TextEditingController();
     final worked = TextEditingController();
-    final late = TextEditingController();
+    final lateController = TextEditingController();
     final overtime = TextEditingController();
     final early = TextEditingController();
     final confirmed = await showDialog<bool>(
@@ -156,7 +156,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: note, decoration: const InputDecoration(labelText: 'دلیل اصلاح (الزامی)')),
           TextField(controller: worked, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'دقایق کارکرد')),
-          TextField(controller: late, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'دقایق تأخیر')),
+          TextField(controller: lateController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'دقایق تأخیر')),
           TextField(controller: overtime, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'دقایق اضافه‌کاری')),
           TextField(controller: early, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'دقایق خروج زودهنگام')),
         ])),
@@ -167,12 +167,12 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       ),
     );
     if (confirmed != true || !mounted) {
-      note.dispose(); worked.dispose(); late.dispose(); overtime.dispose(); early.dispose();
+      note.dispose(); worked.dispose(); lateController.dispose(); overtime.dispose(); early.dispose();
       return;
     }
     if (note.text.trim().isEmpty) {
       AppToast.show(context, 'ثبت دلیل اصلاح الزامی است.', success: false);
-      note.dispose(); worked.dispose(); late.dispose(); overtime.dispose(); early.dispose();
+      note.dispose(); worked.dispose(); lateController.dispose(); overtime.dispose(); early.dispose();
       return;
     }
     setState(() => _busy = true);
@@ -185,7 +185,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         occurredAt: now,
         note: note.text.trim(),
         workedMinutes: int.tryParse(worked.text) ?? 0,
-        lateMinutes: int.tryParse(late.text) ?? 0,
+        lateMinutes: int.tryParse(lateController.text) ?? 0,
         overtimeMinutes: int.tryParse(overtime.text) ?? 0,
         earlyLeaveMinutes: int.tryParse(early.text) ?? 0,
       );
@@ -196,7 +196,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     } catch (error) {
       if (mounted) AppToast.show(context, 'ثبت اصلاح ناموفق بود: $error', success: false);
     } finally {
-      note.dispose(); worked.dispose(); late.dispose(); overtime.dispose(); early.dispose();
+      note.dispose(); worked.dispose(); lateController.dispose(); overtime.dispose(); early.dispose();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -205,7 +205,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     SupabaseEmployeeAttendanceRepository repository,
     EmployeeAttendancePayrollPolicy current,
   ) async {
-    final late = TextEditingController(text: current.lateDeductionPerMinute.toString());
+    final lateController = TextEditingController(text: current.lateDeductionPerMinute.toString());
     final absence = TextEditingController(text: current.absenceDeductionPerDay.toString());
     final overtime = TextEditingController(text: current.overtimePaymentPerMinute.toString());
     final early = TextEditingController(text: current.earlyLeaveDeductionPerMinute.toString());
@@ -214,7 +214,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('قانون مالی حضور و غیاب'),
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: late, keyboardType: TextInputType.number,
+          TextField(controller: lateController, keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'کسر هر دقیقه تأخیر (تومان)')),
           TextField(controller: absence, keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'کسر هر روز غیبت (تومان)')),
@@ -230,7 +230,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       ),
     );
     if (confirmed == true && mounted) {
-      final values = [late.text, absence.text, overtime.text, early.text]
+      final values = [lateController.text, absence.text, overtime.text, early.text]
           .map((value) => int.tryParse(value) ?? 0).toList();
       if (values.any((value) => value < 0)) {
         AppToast.show(context, 'نرخ‌ها نمی‌توانند منفی باشند.', success: false);
@@ -255,7 +255,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         }
       }
     }
-    late.dispose(); absence.dispose(); overtime.dispose(); early.dispose();
+    lateController.dispose(); absence.dispose(); overtime.dispose(); early.dispose();
   }
 
   Future<void> _setPolicyEnabled(
