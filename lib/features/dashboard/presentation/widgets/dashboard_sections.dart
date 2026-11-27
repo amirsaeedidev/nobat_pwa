@@ -270,7 +270,7 @@ class StatusBreakdownCard extends StatelessWidget {
                     ),
                 ],
               );
-              if (constraints.maxWidth < 340) {
+              if (constraints.maxWidth < 500) {
                 return Column(
                   children: [
                     Center(child: StatusDonut(counts: counts, size: 104)),
