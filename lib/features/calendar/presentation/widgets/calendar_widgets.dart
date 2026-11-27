@@ -208,23 +208,26 @@ class CalendarDayCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _MiniActionButton(
-                    label: 'نوبت جدید',
-                    icon: Icons.add_rounded,
-                    color: pal.primary,
-                    onTap: onAdd,
-                  ),
-                  const SizedBox(height: 6),
-                  _MiniActionButton(
-                    label: 'پیام همگانی',
-                    icon: Icons.sms_rounded,
-                    color: pal.purple,
-                    onTap: onBroadcast,
-                  ),
-                ],
+              SizedBox(
+                width: 96,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _MiniActionButton(
+                      label: 'نوبت جدید',
+                      icon: Icons.add_rounded,
+                      color: pal.primary,
+                      onTap: onAdd,
+                    ),
+                    const SizedBox(height: 6),
+                    _MiniActionButton(
+                      label: 'پیام همگانی',
+                      icon: Icons.sms_rounded,
+                      color: pal.purple,
+                      onTap: onBroadcast,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
