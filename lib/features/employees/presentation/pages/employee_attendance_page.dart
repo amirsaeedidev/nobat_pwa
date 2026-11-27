@@ -204,7 +204,7 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
   Widget build(BuildContext context) {
     final employees = context.watch<EmployeesProvider>();
     final auth = context.watch<SupabaseAuthStateNotifier?>();
-    final repository = context.read<SupabaseEmployeeAttendanceRepository>();
+    final repository = context.watch<SupabaseEmployeeAttendanceRepository?>();
     final employee = employees.byIdSync(widget.employeeId);
     final canManage = auth?.role == 'owner' || auth?.permissions['employees.manage'] == true;
     final canRecord = canManage || auth?.employeeId == widget.employeeId;
@@ -221,6 +221,16 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       );
     }
 
+    if (repository == null) {
+      return PageScaffold(
+        title: 'حضور و غیاب',
+        subtitle: employee.fullName,
+        showBackButton: true,
+        child: const ErrorStateView(
+          description: 'Repository حضور و غیاب Supabase در این محیط تزریق نشده است. هیچ داده محلی یا آزمایشی نمایش داده نمی‌شود.',
+        ),
+      );
+    }
     final now = DateTime.now();
     final from = DateTime(now.year, now.month, 1);
     final to = DateTime(now.year, now.month + 1, 0);
