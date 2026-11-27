@@ -212,7 +212,7 @@ class SupabaseEmployeeWalletRepository {
     if (original.status != EmployeeWalletTransactionStatus.posted) {
       throw StateError('فقط سند قطعی قابل برگشت است.');
     }
-    if (entries.any((entry) => entry.idempotencyKey == 'wallet-reversal:$transactionId')) {
+    if (entries.any((entry) => entry.idempotencyKey == 'wallet-reversal:$transactionId' || entry.referenceId == transactionId)) {
       throw StateError('این سند قبلاً برگشت داده شده است.');
     }
     return recordTransaction(
