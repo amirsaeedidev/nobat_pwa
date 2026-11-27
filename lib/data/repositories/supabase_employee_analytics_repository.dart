@@ -191,7 +191,7 @@ class SupabaseEmployeeAnalyticsRepository {
         final overlapEnd = leaveEnd.isBefore(dayEnd) ? leaveEnd : dayEnd;
         minutes -= overlapEnd.difference(overlapStart).inMinutes;
       }
-      total += minutes.clamp(0, 1440);
+      total += minutes.clamp(0, 1440).toInt();
     }
     return total;
   }
