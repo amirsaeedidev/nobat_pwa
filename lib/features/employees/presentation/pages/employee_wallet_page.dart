@@ -56,7 +56,6 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       auth?.role == 'owner' || auth?.permissions[permission] == true;
 
   Future<void> _record(
-    BuildContext context,
     SupabaseEmployeeWalletRepository repository,
     EmployeeWalletTransactionType type,
     bool credit,
@@ -124,7 +123,6 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
   }
 
   Future<void> _settle(
-    BuildContext context,
     SupabaseEmployeeWalletRepository repository,
     int payable,
   ) async {
@@ -191,6 +189,36 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
     }
   }
 
+  Future<void> _reverse(
+    SupabaseEmployeeWalletRepository repository,
+    EmployeeWalletTransaction entry,
+  ) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('برگشت سند مالی'),
+        content: Text('برای سند «${entry.type.label}» به مبلغ ${Fmt.money(entry.amount)} یک سند اصلاحی معکوس در دفتر کل ثبت می‌شود. سند اصلی حذف یا ویرایش نخواهد شد.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تأیید برگشت')),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await repository.reverseTransaction(employeeId: widget.employeeId, transactionId: entry.id);
+      if (mounted) {
+        AppToast.show(context, 'سند معکوس در دفتر کل ثبت شد.');
+        _refresh(repository);
+      }
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'برگشت سند ناموفق بود: $error', success: false);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final repository = Provider.of<SupabaseEmployeeWalletRepository?>(context);
@@ -220,7 +248,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       subtitle: employee.fullName,
       showBackButton: true,
       actions: [
-        if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت پاداش', onTap: _busy ? null : () => _record(context, repository, EmployeeWalletTransactionType.bonus, true)),
+        if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت پاداش', onTap: _busy ? null : () => _record(repository, EmployeeWalletTransactionType.bonus, true)),
         if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت کسورات', onTap: _busy ? null : () => _record(context, repository, EmployeeWalletTransactionType.deduction, false)),
         if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت حقوق ماه', onTap: _busy ? null : () => _accrueSalary(repository)),
       ],
@@ -250,7 +278,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
             if (_can(auth, 'finance.manage')) ...[
               Row(children: [
                 Expanded(child: OutlinedButton.icon(
-                  onPressed: _busy || payable <= 0 ? null : () => _settle(context, repository, payable),
+                  onPressed: _busy || payable <= 0 ? null : () => _settle(repository, payable),
                   icon: const Icon(Icons.payments_outlined), label: const Text('ثبت تسویه و صدور رسید'),
                 )),
                 const SizedBox(width: 8),
@@ -274,6 +302,15 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                   Text('${Fmt.jalaliDate(entry.createdAt)} • ${entry.description}', style: TextStyle(fontSize: 11, color: palette.textMuted)),
                 ])),
                 Text(Fmt.money(entry.amount), style: TextStyle(fontWeight: FontWeight.w700, color: entry.amount >= 0 ? palette.success : palette.danger)),
+                if (_can(auth, 'finance.manage') &&
+                    entry.status == EmployeeWalletTransactionStatus.posted &&
+                    !(entry.idempotencyKey?.startsWith('wallet-reversal:') ?? false) &&
+                    !snapshot.entries.any((candidate) => candidate.referenceId == entry.id))
+                  IconButton(
+                    tooltip: 'ثبت سند معکوس',
+                    onPressed: _busy ? null : () => _reverse(repository, entry),
+                    icon: const Icon(Icons.undo_rounded),
+                  ),
               ])),
             const SizedBox(height: 12),
             SectionHeader(title: 'تاریخچه تسویه‌ها', subtitle: '${snapshot.settlements.length} رسید'),
