@@ -104,7 +104,14 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
                 Row(children: [
                   Icon(Icons.storefront_rounded, color: pal.primaryBright, size: 22),
                   const SizedBox(width: 8),
-                  Text('موقعیت سالن زیبایی', style: TextStyle(fontWeight: FontWeight.w800, color: pal.textPrimary)),
+                  Expanded(
+                    child: Text(
+                      'موقعیت سالن زیبایی',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w800, color: pal.textPrimary),
+                    ),
+                  ),
                 ]),
                 const SizedBox(height: 14),
                 AppTextField(controller: _address, label: 'آدرس', icon: Icons.location_on_outlined, maxLines: 2),
