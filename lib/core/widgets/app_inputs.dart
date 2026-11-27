@@ -81,6 +81,7 @@ class AppTextField extends StatelessWidget {
                 ]
               : null,
           decoration: InputDecoration(
+            constraints: const BoxConstraints(minWidth: 0),
             hintText: hint,
             filled: true,
             fillColor: pal.surfaceAlt,
