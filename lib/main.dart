@@ -14,6 +14,8 @@ import 'data/repositories/supabase_activity_repository.dart';
 import 'data/repositories/operations_repository.dart';
 import 'data/repositories/supabase_operations_repository.dart';
 import 'data/repositories/supabase_employee_wallet_repository.dart';
+import 'data/repositories/supabase_employee_attendance_repository.dart';
+import 'data/repositories/supabase_employee_analytics_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
@@ -145,6 +147,14 @@ Future<void> main() async {
     client: supabaseClient,
     businessId: () => authStateNotifier.businessId,
   );
+  final employeeAttendanceRepository = SupabaseEmployeeAttendanceRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final employeeAnalyticsRepository = SupabaseEmployeeAnalyticsRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
 
   runApp(
     MultiProvider(
@@ -165,6 +175,8 @@ Future<void> main() async {
         Provider<ActivityRepository>.value(value: activityRepository),
         Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
         Provider<SupabaseEmployeeWalletRepository>.value(value: employeeWalletRepository),
+        Provider<SupabaseEmployeeAttendanceRepository>.value(value: employeeAttendanceRepository),
+        Provider<SupabaseEmployeeAnalyticsRepository>.value(value: employeeAnalyticsRepository),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, null, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, authStateNotifier: authStateNotifier)),
