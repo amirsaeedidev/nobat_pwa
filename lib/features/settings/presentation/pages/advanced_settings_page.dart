@@ -83,7 +83,11 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     OutlinedButton.icon(
                       onPressed: () => setState(() {
@@ -99,7 +103,6 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
                     ),
-                    const Spacer(),
                     Text(
                       'مدیریت شیفت‌های کاری',
                       style: TextStyle(fontSize: 12, color: pal.textSecondary, fontWeight: FontWeight.w600),
