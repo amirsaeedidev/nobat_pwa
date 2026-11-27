@@ -10,7 +10,7 @@ import '../../../../data/repositories/customer_repository.dart';
 
 /// مدیریت فهرست مشتریان، جست‌وجو و CRUD.
 class CustomersProvider extends DbBoundProvider {
-  CustomersProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
+  CustomersProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier) {
     load();
   }
 
