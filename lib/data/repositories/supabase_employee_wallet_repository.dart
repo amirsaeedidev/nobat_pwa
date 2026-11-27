@@ -198,6 +198,33 @@ class SupabaseEmployeeWalletRepository {
     );
   }
 
+  /// Financial undo is an immutable compensating entry, never UPDATE/DELETE.
+  /// The original transaction id is kept as reference_id and the stable
+  /// idempotency key prevents duplicate reversals on retries.
+  Future<String> reverseTransaction({
+    required String employeeId,
+    required String transactionId,
+  }) async {
+    final entries = await fetchTransactions(employeeId);
+    final original = entries.where((entry) => entry.id == transactionId).firstOrNull;
+    if (original == null) throw StateError('سند دفتر کل پیدا نشد.');
+    if (original.status != EmployeeWalletTransactionStatus.posted) {
+      throw StateError('فقط سند قطعی قابل برگشت است.');
+    }
+    if (entries.any((entry) => entry.idempotencyKey == 'wallet-reversal:$transactionId')) {
+      throw StateError('این سند قبلاً برگشت داده شده است.');
+    }
+    return recordTransaction(
+      employeeId: employeeId,
+      amount: original.amount.abs(),
+      type: EmployeeWalletTransactionType.adjustment,
+      credit: original.amount < 0,
+      description: 'برگشت سند دفتر کل $transactionId',
+      idempotencyKey: 'wallet-reversal:$transactionId',
+      referenceId: transactionId,
+    );
+  }
+
   Future<String> settle({
     required String employeeId,
     required DateTime periodStart,
