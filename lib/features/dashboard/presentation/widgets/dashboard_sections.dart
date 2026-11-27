@@ -242,6 +242,7 @@ class StatusBreakdownCard extends StatelessWidget {
             builder: (context, constraints) {
               if (constraints.maxWidth < 180) return const SizedBox.shrink();
               final legend = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final status in statuses)
                     Padding(
@@ -276,7 +277,7 @@ class StatusBreakdownCard extends StatelessWidget {
                   children: [
                     Center(child: StatusDonut(counts: counts, size: 104)),
                     const SizedBox(height: 12),
-                    legend,
+                    SizedBox(width: double.infinity, child: legend),
                   ],
                 );
               }
