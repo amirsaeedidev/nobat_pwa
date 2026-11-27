@@ -10,7 +10,7 @@ import '../../../../data/repositories/employee_repository.dart';
 
 /// مدیریت پرسنل و برنامه کاری از طریق مخزن داده فعال.
 class EmployeesProvider extends DbBoundProvider {
-  EmployeesProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier) {
+  EmployeesProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) {
     load();
   }
 
