@@ -43,6 +43,7 @@ class AppTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.pal;
     final compactLogoHeader = MediaQuery.sizeOf(context).width < 440;
+    final compactActions = MediaQuery.sizeOf(context).width < 480;
     final narrowHeader = MediaQuery.sizeOf(context).width < 360;
     return LiquidGlassLayer(
       settings: LiquidGlassSettings.ios27Regular(
@@ -154,8 +155,8 @@ class AppTopBar extends StatelessWidget {
                       )
                     else
                       const Spacer(),
-                    ...actions,
-                    if (actions.isNotEmpty) const SizedBox(width: 8),
+                    if (!compactActions) ...actions,
+                    if (!compactActions && actions.isNotEmpty) const SizedBox(width: 8),
                     if (onSearch != null && !narrowHeader) ...[
                       HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                     ],
@@ -184,6 +185,19 @@ class AppTopBar extends StatelessWidget {
                       ),
                   ],
                 ),
+              if (actions.isNotEmpty && ((showLogo && compactLogoHeader) || (!showLogo && compactActions))) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: actions,
+                  ),
+                ),
+              ],
               if (bottom != null) ...[
                 const SizedBox(height: 10),
                 bottom!,
