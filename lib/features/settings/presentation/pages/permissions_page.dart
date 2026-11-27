@@ -123,20 +123,23 @@ class _PermissionsPageState extends State<PermissionsPage> {
                     )),
                   ),
                   for (final permission in group.value)
-                    CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: Text(permission.label, style: TextStyle(fontSize: 11, color: pal.textPrimary)),
-                      value: overrides.containsKey(permission.id)
-                          ? overrides[permission.id]
-                          : staffRole.permissionIds.contains(permission.id),
-                      onChanged: (value) => _savePermission(
-                        db,
-                        selectedEmployee.id,
-                        permission.id,
-                        value == (staffRole.permissionIds.contains(permission.id)) ? null : value,
-                        overrides,
+                    Material(
+                      color: Colors.transparent,
+                      child: CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text(permission.label, style: TextStyle(fontSize: 11, color: pal.textPrimary)),
+                        value: overrides.containsKey(permission.id)
+                            ? overrides[permission.id]
+                            : staffRole.permissionIds.contains(permission.id),
+                        onChanged: (value) => _savePermission(
+                          db,
+                          selectedEmployee.id,
+                          permission.id,
+                          value == (staffRole.permissionIds.contains(permission.id)) ? null : value,
+                          overrides,
+                        ),
                       ),
                     ),
                 ],
