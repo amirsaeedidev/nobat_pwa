@@ -318,9 +318,13 @@ class _MiniActionButton extends StatelessWidget {
           children: [
             Icon(icon, size: 13, color: Colors.white),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -369,11 +373,13 @@ class _AppointmentRow extends StatelessWidget {
                         dense: true,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        appointment.serviceName,
-                        style: TextStyle(fontSize: 10, color: pal.textMuted),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Expanded(
+                        child: Text(
+                          appointment.serviceName,
+                          style: TextStyle(fontSize: 10, color: pal.textMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
