@@ -10,7 +10,7 @@ import '../../../../data/repositories/operations_repository.dart';
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
   ActivityProvider(this._repository, AppDatabase? db, {ActivityOperationsRepository? operationsRepository, SupabaseAuthStateNotifier? authStateNotifier})
-      : _operations = operationsRepository ?? (db == null ? UnavailableActivityOperationsRepository() : OperationsRepository(db)), super(db, authStateNotifier: authStateNotifier) {
+      : _operations = operationsRepository ?? UnavailableActivityOperationsRepository(), super(authStateNotifier: authStateNotifier) {
     load();
   }
 
@@ -67,14 +67,6 @@ class ActivityProvider extends DbBoundProvider {
     _recent = const [];
     _loading = false;
     _undoing = false;
-  }
-
-  @override
-  void onDatabaseChanged() {
-    // Undo already performs one awaited reload below. Suppress the database
-    // listener's parallel reload to avoid racing generations during the
-    // confirmation flow.
-    if (!_undoing) _refresh();
   }
 
   Future<void> _refresh() async => load();
