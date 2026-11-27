@@ -74,11 +74,9 @@ class ActivityProvider extends DbBoundProvider {
 
   bool canUndo(ActivityLog log) => _operations.canUndoActivityLog(log);
   Future<bool> undo(ActivityLog log) async {
-    try {
-      final result = await _operations.undoActivityEvent(log.operationId ?? log.id);
-      if (result) await load();
-      return result;
-    }
+    final result = await _operations.undoActivityEvent(log.operationId ?? log.id);
+    if (result) await load();
+    return result;
   }
   void search(String query) {
     _query = query;
