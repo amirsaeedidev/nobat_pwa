@@ -12,7 +12,7 @@ import '../../../../data/repositories/appointment_repository.dart';
 
 /// وضعیت صفحه پیشخوان.
 class DashboardProvider extends DbBoundProvider {
-  DashboardProvider(this._repository, AppDatabase? db, {AppointmentRepository? appointmentRepository, this.isAdminView = true, SupabaseAuthStateNotifier? authStateNotifier}) : _appointmentRepository = appointmentRepository, super(db, authStateNotifier: authStateNotifier) {
+  DashboardProvider(this._repository, AppDatabase? db, {AppointmentRepository? appointmentRepository, this.isAdminView = true, SupabaseAuthStateNotifier? authStateNotifier}) : _appointmentRepository = appointmentRepository, super(authStateNotifier: authStateNotifier) {
     load();
   }
 
