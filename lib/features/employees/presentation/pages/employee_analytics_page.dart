@@ -78,7 +78,7 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
   Widget build(BuildContext context) {
     final employees = context.watch<EmployeesProvider>();
     final auth = context.watch<SupabaseAuthStateNotifier?>();
-    final repository = context.read<SupabaseEmployeeAnalyticsRepository>();
+    final repository = context.watch<SupabaseEmployeeAnalyticsRepository?>();
     final employee = widget.employeeId == null
         ? (employees.items.isEmpty ? null : employees.items.first)
         : employees.byIdSync(widget.employeeId!);
@@ -97,6 +97,16 @@ class _EmployeeAnalyticsPageState extends State<EmployeeAnalyticsPage> {
       );
     }
 
+    if (repository == null) {
+      return PageScaffold(
+        title: 'تحلیل عملکرد پرسنل',
+        subtitle: employee.fullName,
+        showBackButton: true,
+        child: const ErrorStateView(
+          description: 'Repository گزارش عملکرد Supabase در این محیط تزریق نشده است. برای جلوگیری از نمایش ارقام آزمایشی، گزارش غیرفعال است.',
+        ),
+      );
+    }
     return PageScaffold(
       title: 'تحلیل عملکرد پرسنل',
       subtitle: employee.fullName,
