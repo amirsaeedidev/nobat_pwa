@@ -13,7 +13,7 @@ import '../../../../data/repositories/dashboard_repository.dart';
 enum ReportServiceSort { revenue, bookings, profit }
 
 class ReportsProvider extends DbBoundProvider {
-  ReportsProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) { load(); }
+  ReportsProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier) { load(); }
 
   final DashboardRepository _repository;
   ReportDateRange _range = ReportDateRange.preset(ReportPeriod.thisMonth);
