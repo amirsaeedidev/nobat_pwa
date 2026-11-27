@@ -10,7 +10,7 @@ import '../../../../data/repositories/operations_repository.dart';
 /// گزارش فعالیت‌ها با فیلتر نوع و جست‌وجو.
 class ActivityProvider extends DbBoundProvider {
   ActivityProvider(this._repository, AppDatabase? db, {ActivityOperationsRepository? operationsRepository, SupabaseAuthStateNotifier? authStateNotifier})
-      : _operations = operationsRepository ?? UnavailableActivityOperationsRepository(), super(authStateNotifier: authStateNotifier) {
+      : _operations = operationsRepository ?? (db == null ? UnavailableActivityOperationsRepository() : OperationsRepository(db)), super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) {
     load();
   }
 
@@ -23,6 +23,7 @@ class ActivityProvider extends DbBoundProvider {
   String _query = '';
   bool _loading = true;
   int _loadGeneration = 0;
+  bool _undoing = false;
   String? _error;
 
   List<ActivityLog> get logs => _logs;
@@ -67,6 +68,11 @@ class ActivityProvider extends DbBoundProvider {
     _loading = false;
   }
 
+  @override
+  void onDatabaseChanged() {
+    if (!_undoing) unawaited(load());
+  }
+
   void filterType(ActivityType? type) {
     _type = type;
     load();
@@ -74,9 +80,14 @@ class ActivityProvider extends DbBoundProvider {
 
   bool canUndo(ActivityLog log) => _operations.canUndoActivityLog(log);
   Future<bool> undo(ActivityLog log) async {
-    final result = await _operations.undoActivityEvent(log.operationId ?? log.id);
-    if (result) await load();
-    return result;
+    _undoing = true;
+    try {
+      final result = await _operations.undoActivityEvent(log.operationId ?? log.id);
+      if (result) await load();
+      return result;
+    } finally {
+      _undoing = false;
+    }
   }
   void search(String query) {
     _query = query;
