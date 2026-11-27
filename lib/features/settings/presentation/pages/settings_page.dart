@@ -115,7 +115,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${authSession?.businessName ?? 'مجموعه'} • ${authSession.roleLabel}',
+                    '${authSession?.businessName ?? 'مجموعه'} • ${authSession?.roleLabel ?? settings.ownerRole}',
                     style: TextStyle(fontSize: 11, color: pal.textMuted),
                   ),
                   const SizedBox(height: 10),
