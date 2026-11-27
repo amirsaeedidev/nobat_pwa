@@ -249,7 +249,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
       showBackButton: true,
       actions: [
         if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت پاداش', onTap: _busy ? null : () => _record(repository, EmployeeWalletTransactionType.bonus, true)),
-        if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت کسورات', onTap: _busy ? null : () => _record(context, repository, EmployeeWalletTransactionType.deduction, false)),
+        if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت کسورات', onTap: _busy ? null : () => _record(repository, EmployeeWalletTransactionType.deduction, false)),
         if (_can(auth, 'finance.manage')) SoftButton(label: 'ثبت حقوق ماه', onTap: _busy ? null : () => _accrueSalary(repository)),
       ],
       child: FutureBuilder<_WalletSnapshot>(
@@ -283,7 +283,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
                 )),
                 const SizedBox(width: 8),
                 Expanded(child: OutlinedButton.icon(
-                  onPressed: _busy ? null : () => _record(context, repository, EmployeeWalletTransactionType.adjustment, true),
+                  onPressed: _busy ? null : () => _record(repository, EmployeeWalletTransactionType.adjustment, true),
                   icon: const Icon(Icons.add_circle_outline), label: const Text('اصلاح مثبت'),
                 )),
               ]),
