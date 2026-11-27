@@ -68,7 +68,7 @@ void main() {
       final archived = await provider.byId(target.id);
       await provider.update(archived!.copyWith(isArchived: false));
       await provider.toggleArchived();
-      print('ARCHIVE_DEBUG archivedView=${provider.showArchived} dbArchived=${db.allCustomers.firstWhere((item) => item.id == target.id).isArchived} providerItems=${provider.items.map((item) => '${item.id}:${item.isArchived}').join(',')} notice=${provider.loadNotice}');
+      print('ARCHIVE_DEBUG targetId=${target.id} archivedView=${provider.showArchived} dbArchived=${db.allCustomers.firstWhere((item) => item.id == target.id).isArchived} dbContains=${db.allCustomers.any((item) => item.id == target.id)} providerContains=${provider.items.any((item) => item.id == target.id)} providerItems=${provider.items.map((item) => '${item.id}:${item.isArchived}').join(',')} notice=${provider.loadNotice}');
       expect(provider.items.any((item) => item.id == target.id && !item.isArchived), isTrue);
     });
   });
