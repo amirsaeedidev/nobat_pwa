@@ -80,10 +80,10 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
   }
 
-  void toggleArchived() {
+  Future<void> toggleArchived() async {
     _showArchived = !_showArchived;
     _pageNumber = 1;
-    load();
+    await load();
   }
 
   void search(String query) {
