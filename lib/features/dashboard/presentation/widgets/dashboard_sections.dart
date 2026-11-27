@@ -240,6 +240,7 @@ class StatusBreakdownCard extends StatelessWidget {
           const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
+              if (constraints.maxWidth < 180) return const SizedBox.shrink();
               final legend = Column(
                 children: [
                   for (final status in statuses)
