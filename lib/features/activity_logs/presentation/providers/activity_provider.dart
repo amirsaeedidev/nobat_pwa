@@ -23,7 +23,6 @@ class ActivityProvider extends DbBoundProvider {
   String _query = '';
   bool _loading = true;
   int _loadGeneration = 0;
-  bool _undoing = false;
   String? _error;
 
   List<ActivityLog> get logs => _logs;
@@ -66,10 +65,7 @@ class ActivityProvider extends DbBoundProvider {
     _logs = const [];
     _recent = const [];
     _loading = false;
-    _undoing = false;
   }
-
-  Future<void> _refresh() async => load();
 
   void filterType(ActivityType? type) {
     _type = type;
@@ -78,13 +74,10 @@ class ActivityProvider extends DbBoundProvider {
 
   bool canUndo(ActivityLog log) => _operations.canUndoActivityLog(log);
   Future<bool> undo(ActivityLog log) async {
-    _undoing = true;
     try {
       final result = await _operations.undoActivityEvent(log.operationId ?? log.id);
       if (result) await load();
       return result;
-    } finally {
-      _undoing = false;
     }
   }
   void search(String query) {
