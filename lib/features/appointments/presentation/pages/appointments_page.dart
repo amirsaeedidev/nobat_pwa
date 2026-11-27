@@ -12,12 +12,10 @@ import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
-import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../core/widgets/pagination_bar.dart';
-import '../../../../data/mock/app_database.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/models/appointment.dart';
 import '../../../../data/models/enums.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../services/presentation/providers/services_provider.dart';
 import '../providers/appointments_provider.dart';
@@ -44,9 +42,14 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppointmentsProvider>();
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    bool hasPermission(String permission) =>
+        auth != null && auth.hasActiveBusiness &&
+        (auth.role == 'owner' || auth.permissions[permission] == true);
+    final canCreate = hasPermission('appointments.create');
+    final canEdit = hasPermission('appointments.edit');
     final services = context.watch<ServicesProvider>();
     final employees = context.watch<EmployeesProvider>();
-    final db = context.watch<AppDatabase>();
     final pal = context.pal;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
 
@@ -76,12 +79,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              _AppointmentStatusChip(label: 'همه', count: db.appointments.length, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
+              _AppointmentStatusChip(label: 'همه', count: provider.page.total, selected: provider.filter.status == null, color: pal.primaryBright, onTap: () => provider.setStatus(null)),
               const SizedBox(width: 7),
               for (final status in AppointmentStatus.values) ...[
                 _AppointmentStatusChip(
                   label: status.label,
-                  count: db.appointments.where((a) => a.status == status).length,
                   selected: provider.filter.status == status,
                   color: status.color,
                   onTap: () => provider.setStatus(status),
@@ -149,12 +151,13 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       icon: Icons.event_note_rounded,
       actions: [
         SoftButton(label: 'تقویم', icon: Icons.calendar_month_rounded, onTap: () => context.go('/calendar')),
-        SolidButton(
-          label: 'نوبت جدید',
-          icon: Icons.add_rounded,
-          height: 42,
-          onPressed: () => context.push('/appointments/new'),
-        ),
+        if (canCreate)
+          SolidButton(
+            label: 'نوبت جدید',
+            icon: Icons.add_rounded,
+            height: 42,
+            onPressed: () => context.push('/appointments/new'),
+          ),
       ],
       showBackButton: false,
       child: Column(
@@ -162,7 +165,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
         children: [
           filters,
           const SizedBox(height: 12),
-          if (!isDesktop) ...[
+          if (!isDesktop && canCreate) ...[
             GradientCta(
               title: 'ثبت نوبت جدید',
               subtitle: 'رزرو سریع در چند ثانیه',
@@ -199,116 +202,121 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   for (final appointment in provider.items)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: Dismissible(
-                        key: ValueKey('appointment-${appointment.id}'),
-                        direction: DismissDirection.horizontal,
-                        confirmDismiss: (direction) async {
-                          // در رابط راست‌به‌چپ، startToEnd یعنی کشیدن کارت به سمت چپ: تأیید.
-                          if (direction == DismissDirection.startToEnd) return true;
-                          final action = await showAppSheet<String>(
-                            context,
-                            title: 'اقدامات نوبت',
-                            useRootNavigator: true,
-                            scrollable: false,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ListTile(
-                                  leading: Icon(Icons.event_busy_rounded, color: pal.danger),
-                                  title: const Text('لغو نوبت'),
-                                  onTap: () => Navigator.of(context, rootNavigator: true).pop('cancel'),
+                      child: Builder(
+                        builder: (context) {
+                          final canConfirm = appointment.status == AppointmentStatus.pending &&
+                              hasPermission('appointments.confirm');
+                          final canReject = appointment.status == AppointmentStatus.pending &&
+                              hasPermission('appointments.reject');
+                          final canCancel =  (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed) &&
+                              hasPermission('appointments.cancel');
+                          final canDelete = hasPermission('appointments.cancel');
+                          final canOpenActions = canConfirm || canReject || canCancel || canDelete ||
+                              (appointment.status == AppointmentStatus.confirmed &&
+                                  (hasPermission('appointments.complete') || hasPermission('appointments.edit')));
+                          final canEditAppointment = canEdit &&
+                              (appointment.status == AppointmentStatus.pending || appointment.status == AppointmentStatus.confirmed);
+                          final canSwipeSecondary = canCancel || canEditAppointment;
+                          final direction = canConfirm && canSwipeSecondary
+                              ? DismissDirection.horizontal
+                              : canConfirm
+                                  ? DismissDirection.startToEnd
+                                  : canSwipeSecondary
+                                      ? DismissDirection.endToStart
+                                      : DismissDirection.none;
+                          return Dismissible(
+                            key: ValueKey('appointment-${appointment.id}'),
+                            direction: direction,
+                            confirmDismiss: (direction) async {
+                              // در رابط راست‌به‌چپ، startToEnd یعنی کشیدن کارت به سمت چپ: تأیید.
+                              if (direction == DismissDirection.startToEnd) return canConfirm;
+                              if (!canSwipeSecondary) return false;
+                              final action = await showAppSheet<String>(
+                                context,
+                                title: 'اقدامات نوبت',
+                                useRootNavigator: true,
+                                scrollable: false,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (canCancel)
+                                      ListTile(
+                                        leading: Icon(Icons.event_busy_rounded, color: pal.danger),
+                                        title: const Text('لغو نوبت'),
+                                        onTap: () => Navigator.of(context, rootNavigator: true).pop('cancel'),
+                                      ),
+                                    if (canEditAppointment)
+                                      ListTile(
+                                        leading: Icon(Icons.edit_calendar_rounded, color: pal.primaryBright),
+                                        title: const Text('جابه‌جایی نوبت'),
+                                        onTap: () => Navigator.of(context, rootNavigator: true).pop('move'),
+                                      ),
+                                  ],
                                 ),
-                                ListTile(
-                                  leading: Icon(Icons.edit_calendar_rounded, color: pal.primaryBright),
-                                  title: const Text('جابه‌جایی نوبت'),
-                                  onTap: () => Navigator.of(context, rootNavigator: true).pop('move'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (action == 'cancel') {
-                            try {
-                              await provider.changeStatus(
-                                appointment,
-                                AppointmentStatus.cancelled,
-                                reason: 'لغو با کشیدن کارت',
                               );
-                              if (context.mounted) {
-                                final operations = OperationsRepository(context.read<AppDatabase>());
-                                final undoLog = operations.latestUndoableLogFor(appointment.id);
-                                if (undoLog != null) {
-                                  showUndoableOperationSnackBarForLog(
-                                    context,
-                                    message: 'نوبت لغو شد.',
-                                    activityLogId: undoLog.id,
-                                    undo: operations.undo,
-                                    onUndoSuccess: provider.load,
+                              if (action == 'cancel') {
+                                try {
+                                  await provider.changeStatus(
+                                    appointment,
+                                    AppointmentStatus.cancelled,
+                                    reason: 'لغو با کشیدن کارت',
                                   );
-                                } else {
-                                  AppToast.show(context, 'نوبت لغو شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+                                  if (context.mounted) {
+                                    AppToast.show(context, 'نوبت لغو شد و در تاریخچه فعالیت ثبت شد.');
+                                  }
+                                } catch (error) {
+                                  await provider.load();
+                                  if (context.mounted) AppToast.show(context, '$error', success: false);
                                 }
+                              } else if (action == 'move' && context.mounted) {
+                                context.push('/appointments/${appointment.id}/edit');
                               }
-                            } catch (error) {
-                              if (context.mounted) AppToast.show(context, '$error', success: false);
-                            }
-                          } else if (action == 'move' && context.mounted) {
-                            context.push('/appointments/${appointment.id}/edit');
-                          }
-                          return false;
-                        },
-                        onDismissed: (_) async {
-                          try {
-                            await provider.changeStatus(appointment, AppointmentStatus.confirmed);
-                            if (context.mounted) {
-                              final operations = OperationsRepository(context.read<AppDatabase>());
-                              final undoLog = operations.latestUndoableLogFor(appointment.id);
-                              if (undoLog != null) {
-                                showUndoableOperationSnackBarForLog(
-                                  context,
-                                  message: 'نوبت تأیید شد.',
-                                  activityLogId: undoLog.id,
-                                  undo: operations.undo,
-                                  onUndoSuccess: provider.load,
-                                );
-                              } else {
-                                AppToast.show(context, 'نوبت تأیید شد؛ بازگردانی به‌دلیل تغییرات بعدی ممکن نیست.');
+                              return false;
+                            },
+                            onDismissed: (_) async {
+                              try {
+                                await provider.changeStatus(appointment, AppointmentStatus.confirmed);
+                                if (context.mounted) {
+                                  AppToast.show(context, 'نوبت تأیید شد و در تاریخچه فعالیت ثبت شد.');
+                                }
+                              } catch (error) {
+                                await provider.load();
+                                if (context.mounted) AppToast.show(context, '$error', success: false);
                               }
-                            }
-                          } catch (error) {
-                            if (context.mounted) AppToast.show(context, '$error', success: false);
-                          }
-                        },
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: pal.success,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                          ),
-                          child: const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                            Icon(Icons.check_circle_rounded, color: Colors.white),
-                            SizedBox(width: 8),
-                            Text('تأیید', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                          ]),
-                        ),
-                        secondaryBackground: Container(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: pal.danger,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                          ),
-                          child: const Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-                            Icon(Icons.more_horiz_rounded, color: Colors.white),
-                            SizedBox(width: 8),
-                            Text('لغو / جابه‌جایی', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                          ]),
-                        ),
-                        child: AppointmentTile(
+                            },
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: pal.success,
+                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                              ),
+                              child: const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text('تأیید', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                              ]),
+                            ),
+                            secondaryBackground: Container(
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: pal.danger,
+                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                              ),
+                              child: const Row(mainAxisAlignment: MainAxisAlignment.start, children: [
+                                Icon(Icons.more_horiz_rounded, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text('لغو / جابه‌جایی', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                              ]),
+                            ),
+                            child: AppointmentTile(
                           appointment: appointment,
                           onTap: () => context.push('/appointments/${appointment.id}'),
-                          onMore: () => showAppointmentActions(context, appointment),
-                        ),
+                          onMore: canOpenActions ? () => showAppointmentActions(context, appointment) : null,
+                            ),
+                          );
+                        },
                       ),
                     ),
                 const SizedBox(height: 10),
@@ -330,9 +338,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
 }
 
 class _AppointmentStatusChip extends StatelessWidget {
-  const _AppointmentStatusChip({required this.label, required this.count, required this.selected, required this.color, required this.onTap});
+  const _AppointmentStatusChip({required this.label, this.count, required this.selected, required this.color, required this.onTap});
   final String label;
-  final int count;
+  final int? count;
   final bool selected;
   final Color color;
   final VoidCallback onTap;
@@ -355,8 +363,10 @@ class _AppointmentStatusChip extends StatelessWidget {
             else Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 6),
             Text(label, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, color: selected ? color : pal.textSecondary)),
-            const SizedBox(width: 5),
-            Text(FaNum.ofInt(count), style: TextStyle(fontSize: 10, color: selected ? color : pal.textMuted)),
+            if (count != null) ...[
+              const SizedBox(width: 5),
+              Text(FaNum.ofInt(count!), style: TextStyle(fontSize: 10, color: selected ? color : pal.textMuted)),
+            ],
           ]),
         ),
       ),

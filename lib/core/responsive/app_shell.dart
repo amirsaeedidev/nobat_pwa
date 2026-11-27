@@ -7,37 +7,83 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
+import '../services/supabase_auth_state_notifier.dart';
 import '../../data/mock/app_database.dart';
-import '../utils/fa_num.dart';
-import '../widgets/app_card.dart';
 import '../widgets/badges.dart';
+import '../widgets/app_card.dart';
 import 'nav_destinations.dart';
 
-void _showMockAccountPicker(BuildContext context, AppDatabase database) {
-  showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) => SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text('حساب‌های آزمایشی Datamonck', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          for (final account in database.accessAccounts)
-            ListTile(
-              leading: Icon(account.id == database.currentAccessAccount.id ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded),
-              title: Text(account.name),
-              subtitle: Text(database.accessRoleById(account.roleId)?.name ?? 'نقش نامشخص'),
-              onTap: () {
-                database.switchMockAccount(account.id);
-                Navigator.pop(sheetContext);
-              },
-            ),
-        ],
-      ),
-    ),
-  );
+
+/// Returns the HugeIcons 4.4.0 glyph for a navigation destination.
+List<List<dynamic>> _navIcon(NavDestination destination) {
+  switch (destination.route) {
+    case '/dashboard':
+      return HugeIcons.strokeRoundedDashboardSquare01;
+    case '/appointments':
+      return HugeIcons.strokeRoundedAppointment01;
+    case '/calendar':
+      return HugeIcons.strokeRoundedCalendar03;
+    case '/customers':
+    case '/employees':
+      return HugeIcons.strokeRoundedUserGroup;
+    case '/services':
+      return HugeIcons.strokeRoundedScissor;
+    case '/my-wallet':
+      return HugeIcons.strokeRoundedMoneyBagTime;
+    case '/my-leaves':
+      return HugeIcons.strokeRoundedCalendarBlock01;
+    case '/sms':
+      return HugeIcons.strokeRoundedMessage01;
+    case '/reports':
+      return HugeIcons.strokeRoundedAnalytics01;
+    case '/activity':
+      return HugeIcons.strokeRoundedActivity01;
+    case '/settings':
+      return HugeIcons.strokeRoundedSettings01;
+    default:
+      return HugeIcons.strokeRoundedLayer;
+  }
+}
+
+bool _hasSupabasePermission(SupabaseAuthStateNotifier auth, String permission) =>
+    auth.hasActiveBusiness &&
+    (auth.role == 'owner' || auth.permissions[permission] == true);
+
+bool _canOpenSupabaseDestination(SupabaseAuthStateNotifier auth, String route) {
+  if (!auth.hasActiveBusiness) return false;
+  if (auth.role == 'owner') return true;
+  switch (route) {
+    case '/dashboard':
+      return _hasSupabasePermission(auth, 'dashboard.view');
+    case '/appointments':
+    case '/calendar':
+      return _hasSupabasePermission(auth, 'appointments.view_all') ||
+          _hasSupabasePermission(auth, 'appointments.view_self');
+    case '/customers':
+      return _hasSupabasePermission(auth, 'customers.view');
+    case '/services':
+      return _hasSupabasePermission(auth, 'services.manage');
+    case '/employees':
+      return _hasSupabasePermission(auth, 'employees.view_list');
+    case '/my-wallet':
+      return _hasSupabasePermission(auth, 'finance.wallet.view') ||
+          _hasSupabasePermission(auth, 'finance.wallet.view_self');
+    case '/my-leaves':
+      return _hasSupabasePermission(auth, 'employees.leave.request');
+    case '/sms':
+      return _hasSupabasePermission(auth, 'sms.view') ||
+          _hasSupabasePermission(auth, 'settings.view');
+    case '/reports':
+      return _hasSupabasePermission(auth, 'finance.income.view');
+    case '/activity':
+      return _hasSupabasePermission(auth, 'activity.view') ||
+          _hasSupabasePermission(auth, 'settings.view');
+    case '/settings':
+      return _hasSupabasePermission(auth, 'settings.view') ||
+          _hasSupabasePermission(auth, 'permissions.manage');
+    default:
+      return false;
+  }
 }
 
 /// پوسته اصلی برنامه: سایدبار در دسکتاپ/تبلت بزرگ، ناوبری پایین در موبایل.
@@ -55,8 +101,21 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final database = context.watch<AppDatabase>();
-    final destinations = appDestinations.where((item) => database.canOpenNavigation(item.route)).toList();
+    final database = context.watch<AppDatabase?>();
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    final canCreate = auth != null
+        ? _hasSupabasePermission(auth, 'appointments.create')
+        : database?.hasPermission('appointments.create') ?? false;
+    final destinations = appDestinations.where((item) {
+      if (auth == null) return database?.canOpenNavigation(item.route) ?? false;
+      return _canOpenSupabaseDestination(auth, item.route);
+    }).toList();
+    final accountName = auth == null
+        ? database?.currentAccessAccount.name ?? 'کاربر'
+        : auth.role == 'owner' ? 'مدیر کل' : 'پرسنل';
+    final roleName = auth == null
+        ? database?.currentAccessRoleName ?? 'بدون نقش'
+        : auth.role == 'owner' ? 'مدیر کل' : 'پرسنل';
     final selectedIndex = destinations.indexWhere((item) => location.startsWith(item.route));
     final useSidebar = width >= Breakpoints.tablet;
 
@@ -68,7 +127,7 @@ class AppShell extends StatelessWidget {
         bottomNavigationBar: MobileBottomNav(
           destinations: destinations,
           currentIndex: selectedIndex < 0 ? 0 : selectedIndex,
-          showAdd: database.hasPermission('appointments.create'),
+          showAdd: canCreate,
           onSelect: (i) => _navigate(context, destinations[i].route),
           onAdd: () => context.push('/appointments/new'),
         ),
@@ -85,6 +144,9 @@ class AppShell extends StatelessWidget {
             expanded: width >= Breakpoints.desktop,
             onSelect: (i) => _navigate(context, destinations[i].route),
             onAdd: () => context.push('/appointments/new'),
+            canCreate: canCreate,
+            accountName: accountName,
+            roleName: roleName,
           ),
           Expanded(child: child),
         ],
@@ -411,6 +473,9 @@ class AppSidebar extends StatelessWidget {
     required this.expanded,
     required this.onAdd,
     required this.destinations,
+    required this.canCreate,
+    required this.accountName,
+    required this.roleName,
   });
 
   final int currentIndex;
@@ -418,12 +483,14 @@ class AppSidebar extends StatelessWidget {
   final bool expanded;
   final VoidCallback onAdd;
   final List<NavDestination> destinations;
+  final bool canCreate;
+  final String accountName;
+  final String roleName;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
     final settings = context.watch<SettingsProvider>();
-    final database = context.watch<AppDatabase>();
     final width = expanded ? 246.0 : 84.0;
 
     return AnimatedContainer(
@@ -504,22 +571,11 @@ class AppSidebar extends StatelessWidget {
                       expanded: expanded,
                       onTap: () => onSelect(i),
                     ),
-                  const SizedBox(height: 14),
-                  if (expanded)
-                    _BookingLinkCard(onTap: () => context.push('/book'))
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: IconButton(
-                        tooltip: 'صفحه رزرو عمومی',
-                        onPressed: () => context.push('/book'),
-                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedHome01, color: Colors.blue),
-                      ),
-                    ),
+
                 ],
               ),
             ),
-            if (database.hasPermission('appointments.create'))
+            if (canCreate)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Tooltip(
@@ -550,37 +606,44 @@ class AppSidebar extends StatelessWidget {
             Padding(
               padding: EdgeInsets.all(expanded ? 12 : 8),
               child: expanded
-                  ? InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => _showMockAccountPicker(context, database),
-                      child: LayoutBuilder(builder: (context, constraints) {
-                        if (constraints.maxWidth < 150) {
-                          return Center(child: AvatarBadge(name: database.currentAccessAccount.name, size: 36, color: pal.primaryBright));
-                        }
-                        return Row(
-                          children: [
-                            AvatarBadge(name: database.currentAccessAccount.name, size: 36, color: pal.primaryBright),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(database.currentAccessAccount.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary), overflow: TextOverflow.ellipsis),
-                                  Text(database.currentAccessRoleName, style: TextStyle(fontSize: 10, color: pal.textMuted), overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
-                            if (constraints.maxWidth >= 205) CountPill(value: settings.totalUnread, icon: Icons.notifications_none_rounded),
-                          ],
+                  ? LayoutBuilder(builder: (context, constraints) {
+                      if (constraints.maxWidth < 150) {
+                        return Center(
+                          child: AvatarBadge(
+                            name: accountName,
+                            size: 36,
+                            color: pal.primaryBright,
+                          ),
                         );
-                      }),
-                    )
+                      }
+                      return Row(
+                        children: [
+                          AvatarBadge(name: accountName, size: 36, color: pal.primaryBright),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  accountName,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  roleName,
+                                  style: TextStyle(fontSize: 10, color: pal.textMuted),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (constraints.maxWidth >= 205)
+                            CountPill(value: settings.totalUnread, icon: Icons.notifications_none_rounded),
+                        ],
+                      );
+                    })
                   : Center(
-                      child: IconButton(
-                        tooltip: 'تغییر حساب آزمایشی',
-                        onPressed: () => _showMockAccountPicker(context, database),
-                        icon: AvatarBadge(name: database.currentAccessAccount.name, size: 34, color: pal.primaryBright),
-                      ),
+                      child: AvatarBadge(name: accountName, size: 34, color: pal.primaryBright),
                     ),
             ),
           ],
@@ -656,96 +719,5 @@ class _SidebarItem extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _BookingLinkCard extends StatelessWidget {
-  const _BookingLinkCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.pal;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [pal.primary.withValues(alpha: 0.22), pal.purple.withValues(alpha: 0.12)],
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: pal.primary.withValues(alpha: 0.35)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.public_rounded, size: 15, color: pal.primaryBright),
-                const SizedBox(width: 6),
-                Expanded(child: Text(
-                  'صفحه رزرو عمومی',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                )),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'datetime.app/book',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textDirection: TextDirection.ltr,
-              style: TextStyle(fontSize: 10, color: pal.textMuted),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'مشاهده صفحه مشتری',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: pal.primaryBright, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// نمایش شماره صفحه‌ها برای هدر‌ها.
-String faCount(int value) => FaNum.ofInt(value);
-
-/// آیکون هر مقصد بر اساس مسیر؛ مستقل از ترتیب فیلترشدن دسترسی‌ها.
-List<List> _navIcon(NavDestination destination) {
-  switch (destination.route) {
-    case '/dashboard':
-      return HugeIcons.strokeRoundedHome01;
-    case '/appointments':
-      return HugeIcons.strokeRoundedCalendarCheckIn01;
-    case '/calendar':
-      return HugeIcons.strokeRoundedCalendar03;
-    case '/customers':
-      return HugeIcons.strokeRoundedUser;
-    case '/services':
-      return HugeIcons.strokeRoundedScissor;
-    case '/employees':
-      return HugeIcons.strokeRoundedGroup;
-    case '/my-wallet':
-      return HugeIcons.strokeRoundedWallet01;
-    case '/sms':
-      return HugeIcons.strokeRoundedMessage01;
-    case '/reports':
-      return HugeIcons.strokeRoundedChartColumnDots;
-    case '/activity':
-      return HugeIcons.strokeRoundedActivity01;
-    case '/settings':
-      return HugeIcons.strokeRoundedSettings01;
-    default:
-      return HugeIcons.strokeRoundedHome01;
   }
 }

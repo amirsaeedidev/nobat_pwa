@@ -81,6 +81,7 @@ class AppTextField extends StatelessWidget {
                 ]
               : null,
           decoration: InputDecoration(
+            constraints: const BoxConstraints(minWidth: 0),
             hintText: hint,
             filled: true,
             fillColor: pal.surfaceAlt,
@@ -446,7 +447,7 @@ class TimeDropdown extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: Text(FaNum.convert(normalized), textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary))),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: pal.textPrimary, shadows: const [Shadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 1))]))),
             Icon(Icons.unfold_more_rounded, size: 18, color: pal.primaryBright),
           ],
         ),
@@ -527,7 +528,7 @@ class _TimeWheelSheetState extends State<_TimeWheelSheet> {
         childCount: values.length,
         builder: (context, index) => Center(
           child: Text(values[index].toString().padLeft(2, '0'),
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: pal.textPrimary)),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: pal.textPrimary, shadows: const [Shadow(color: Color(0x44000000), blurRadius: 5, offset: Offset(0, 1))])),
         ),
       ),
     );

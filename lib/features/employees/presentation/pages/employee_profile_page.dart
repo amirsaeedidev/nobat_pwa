@@ -12,7 +12,7 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../data/models/employee.dart';
-import '../../../../data/mock/app_database.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/models/enums.dart';
 import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
@@ -37,16 +37,6 @@ class _ProfileInfo extends StatelessWidget {
   );
 }
 
-class _ProfileStat extends StatelessWidget {
-  const _ProfileStat({required this.label, required this.value});
-  final String label;
-  final String value;
-  @override
-  Widget build(BuildContext context) => Column(children: [
-    Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
-    Text(label, style: TextStyle(fontSize: 9.5, color: context.pal.textMuted)),
-  ]);
-}
 
 class EmployeeProfilePage extends StatelessWidget {
   const EmployeeProfilePage({super.key, required this.employeeId});
@@ -57,7 +47,10 @@ class EmployeeProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
     final appointments = context.watch<AppointmentsProvider>();
-    final db = context.watch<AppDatabase>();
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    final canViewIncome = auth?.role == 'owner' ||
+        auth?.permissions['finance.payroll.view'] == true ||
+        auth?.permissions['finance.wallet.view_all'] == true;
     final pal = context.pal;
     final employee = provider.byIdSync(employeeId);
 
@@ -65,7 +58,11 @@ class EmployeeProfilePage extends StatelessWidget {
       return PageScaffold(
         title: 'پروفایل پرسنل',
         showBackButton: true,
-        child: const EmptyState(title: 'پرسنل یافت نشد'),
+        child: provider.loading
+            ? const LoadingState(kind: SkeletonKind.personnel)
+            : provider.error != null
+                ? ErrorStateView(description: provider.error, onRetry: provider.load)
+                : const EmptyState(title: 'پرسنل یافت نشد'),
       );
     }
 
@@ -85,7 +82,6 @@ class EmployeeProfilePage extends StatelessWidget {
       EmployeeStatus.suspended => pal.danger,
       EmployeeStatus.inactive => pal.textMuted,
     };
-    final completedCount = appointments.allAppointments.where((a) => a.employeeId == employee.id && a.status == AppointmentStatus.completed).length;
 
     return PageScaffold(
       title: 'پروفایل پرسنل',
@@ -95,7 +91,7 @@ class EmployeeProfilePage extends StatelessWidget {
       mobileHeader: Wrap(spacing: 8, runSpacing: 8, children: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
         SoftButton(label: 'حقوق', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
-        if (db.canViewEmployeeIncome(employee.id))
+        if (canViewIncome)
           SoftButton(label: 'کیف پول', icon: Icons.account_balance_wallet_rounded, onTap: () => context.push('/employees/${employee.id}/wallet')),
         SoftButton(label: 'حضور', icon: Icons.access_time_rounded, onTap: () => context.push('/employees/${employee.id}/attendance')),
         SoftButton(label: 'مرخصی', icon: Icons.event_busy_rounded, onTap: () => context.push('/employees/${employee.id}/leaves')),
@@ -104,7 +100,7 @@ class EmployeeProfilePage extends StatelessWidget {
       actions: [
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/employees/${employee.id}/edit')),
         SoftButton(label: 'حقوق و پورسانت', icon: Icons.account_balance_wallet_outlined, onTap: () => context.push('/employees/${employee.id}/finance')),
-        if (db.canViewEmployeeIncome(employee.id))
+        if (canViewIncome)
           SoftButton(label: 'کیف پول و تسویه', icon: Icons.account_balance_wallet_rounded, onTap: () => context.push('/employees/${employee.id}/wallet')),
         SoftButton(label: 'حضور و غیاب', icon: Icons.access_time_rounded, onTap: () => context.push('/employees/${employee.id}/attendance')),
         SoftButton(label: 'مرخصی‌ها', icon: Icons.event_busy_rounded, onTap: () => context.push('/employees/${employee.id}/leaves')),
@@ -159,7 +155,7 @@ class EmployeeProfilePage extends StatelessWidget {
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (employee.rating > 0) Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.star_rounded, size: 13, color: pal.warning),
                             Text(FaNum.convert(employee.rating.toStringAsFixed(1)), style: TextStyle(fontSize: 10.5, color: pal.textSecondary)),
                           ]),
@@ -206,16 +202,6 @@ class EmployeeProfilePage extends StatelessWidget {
               ],
             ]),
           ),
-          const SizedBox(height: 12),
-          AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SectionHeader(title: 'خلاصه عملکرد'),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: _ProfileStat(label: 'کل نوبت‌ها', value: employee.bookedCount.toString())),
-              Expanded(child: _ProfileStat(label: 'تکمیل‌شده', value: completedCount.toString())),
-              Expanded(child: _ProfileStat(label: 'امتیاز', value: employee.rating.toStringAsFixed(1))),
-            ]),
-          ])),
           const SizedBox(height: 12),
           AppCard(
             child: Column(

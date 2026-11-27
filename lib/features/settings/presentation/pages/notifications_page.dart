@@ -7,7 +7,9 @@ import '../../../../core/utils/fa_num.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
-import '../../../sms/presentation/providers/sms_provider.dart';
+import '../../../../core/widgets/feedback.dart';
+import '../../../../data/models/business_settings.dart';
+import '../providers/settings_provider.dart';
 
 /// تنظیمات اطلاع‌رسانی پیامکی و زمان یادآوری.
 class NotificationsPage extends StatelessWidget {
@@ -15,8 +17,17 @@ class NotificationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sms = context.watch<SmsProvider>();
-    final settings = sms.dbSettingsNotifications;
+    final settingsProvider = context.watch<SettingsProvider>();
+    final settings = settingsProvider.notifications;
+
+    Future<void> saveNotifications(NotificationSettings next) async {
+      try {
+        await settingsProvider.updateNotifications(next);
+        if (context.mounted) AppToast.show(context, 'تنظیمات اطلاع‌رسانی در سرور ذخیره شد');
+      } catch (error) {
+        if (context.mounted) AppToast.show(context, 'ذخیره تنظیمات ناموفق بود: $error');
+      }
+    }
     final pal = context.pal;
 
     return PageScaffold(
@@ -27,6 +38,8 @@ class NotificationsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (settingsProvider.loadError != null)
+            AppCard(child: Text('تنظیمات از سرور بارگذاری نشدند؛ تغییرات تا زمان اتصال و ورود مدیر کل ذخیره نمی‌شوند. ${settingsProvider.loadError}', style: TextStyle(fontSize: 11, color: pal.danger))),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -36,33 +49,33 @@ class NotificationsPage extends StatelessWidget {
                   title: 'تأیید رزرو',
                   description: 'بلافاصله پس از ثبت نوبت ارسال می‌شود.',
                   value: settings.confirmationEnabled,
-                  onChanged: (v) => sms.saveNotifications(settings.copyWith(confirmationEnabled: v)),
+                  onChanged: (v) => saveNotifications(settings.copyWith(confirmationEnabled: v)),
                   icon: Icons.mark_email_read_outlined,
                 ),
                 AppSwitchRow(
                   title: 'یادآوری نوبت',
                   description: 'پیش از زمان نوبت ارسال می‌شود.',
                   value: settings.reminderEnabled,
-                  onChanged: (v) => sms.saveNotifications(settings.copyWith(reminderEnabled: v)),
+                  onChanged: (v) => saveNotifications(settings.copyWith(reminderEnabled: v)),
                   icon: Icons.alarm_outlined,
                 ),
                 AppSwitchRow(
                   title: 'لغو نوبت',
                   value: settings.cancellationEnabled,
-                  onChanged: (v) => sms.saveNotifications(settings.copyWith(cancellationEnabled: v)),
+                  onChanged: (v) => saveNotifications(settings.copyWith(cancellationEnabled: v)),
                   icon: Icons.event_busy_outlined,
                 ),
                 AppSwitchRow(
                   title: 'جابه‌جایی نوبت',
                   value: settings.rescheduleEnabled,
-                  onChanged: (v) => sms.saveNotifications(settings.copyWith(rescheduleEnabled: v)),
+                  onChanged: (v) => saveNotifications(settings.copyWith(rescheduleEnabled: v)),
                   icon: Icons.swap_horiz_rounded,
                 ),
                 AppSwitchRow(
                   title: 'ارسال نسخه به پرسنل',
                   description: 'یک نسخه از پیام تأیید برای متخصص نیز ارسال شود.',
                   value: settings.sendToStaff,
-                  onChanged: (v) => sms.saveNotifications(settings.copyWith(sendToStaff: v)),
+                  onChanged: (v) => saveNotifications(settings.copyWith(sendToStaff: v)),
                   icon: Icons.groups_outlined,
                 ),
               ],
@@ -86,7 +99,7 @@ class NotificationsPage extends StatelessWidget {
                           final updated = current.contains(hours)
                               ? current.where((h) => h != hours).toList()
                               : ([...current, hours]..sort((a, b) => b.compareTo(a)));
-                          sms.saveNotifications(settings.copyWith(reminderHours: updated));
+                          saveNotifications(settings.copyWith(reminderHours: updated));
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -120,31 +133,7 @@ class NotificationsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader(title: 'وضعیت پنل پیامک'),
-                const SizedBox(height: 10),
-                InfoRow(
-                  label: 'ارائه‌دهنده',
-                  value: sms.provider.providerName,
-                  icon: Icons.dns_outlined,
-                ),
-                InfoRow(
-                  label: 'وضعیت',
-                  value: sms.provider.status.label,
-                  icon: Icons.wifi_tethering_rounded,
-                  valueColor: sms.provider.status.name == 'connected' ? pal.success : pal.warning,
-                ),
-                InfoRow(
-                  label: 'اعتبار',
-                  value: '${FaNum.ofInt(sms.stats?.credit ?? 0)} پیامک',
-                  icon: Icons.account_balance_wallet_outlined,
-                ),
-              ],
-            ),
-          ),
+
         ],
       ),
     );

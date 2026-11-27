@@ -1,5 +1,7 @@
+import 'dart:async';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/enums.dart';
@@ -8,16 +10,17 @@ import '../../../../data/repositories/sms_repository.dart';
 
 /// مانیتورینگ پیامک، قالب‌ها و تنظیمات پنل.
 class SmsProvider extends DbBoundProvider {
-  SmsProvider(this._repository, AppDatabase db) : super(db) {
+  SmsProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) {
     load();
   }
 
   final SmsRepository _repository;
+  static const _emptyProvider = SmsProviderSettings(providerName: '', endpoint: '', credit: 0);
 
   PageResult<SmsMessage> _page = PageResult.empty(pageSize: 8);
   SmsStats? _stats;
   List<SmsTemplate> _templates = const [];
-  SmsProviderSettings _provider = const SmsProviderSettings();
+  SmsProviderSettings _provider = _emptyProvider;
   String _query = '';
   SmsStatus? _statusFilter;
   int _pageNumber = 1;
@@ -46,14 +49,29 @@ class SmsProvider extends DbBoundProvider {
       _templates = await _repository.fetchTemplates();
       _provider = await _repository.fetchProviderSettings();
     } catch (error) {
-      // Keep the seeded in-memory values visible if a mock read fails.
-      _page = PageResult(items: db.smsMessages, total: db.smsMessages.length, page: 1, pageSize: 8);
-      _templates = db.smsTemplates;
-      _provider = db.settings.smsProvider;
+      // A failed remote read is an error, never a reason to display local/demo data.
+      _page = PageResult.empty(pageSize: 8);
+      _stats = null;
+      _templates = const [];
+      _provider = _emptyProvider;
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _page = PageResult.empty(pageSize: 8);
+    _stats = null;
+    _templates = const [];
+    _provider = const SmsProviderSettings();
+    _loading = false;
+    _testing = false;
+    _sendingTest = false;
   }
 
   @override
@@ -65,7 +83,7 @@ class SmsProvider extends DbBoundProvider {
     _page = await _repository.fetchMessages(query: _query, status: _statusFilter, page: _pageNumber, pageSize: 8);
     _stats = await _repository.fetchStats();
     _templates = await _repository.fetchTemplates();
-    _provider = db.settings.smsProvider;
+    _provider = await _repository.fetchProviderSettings();
     notifyListeners();
   }
 
@@ -86,7 +104,14 @@ class SmsProvider extends DbBoundProvider {
     load();
   }
 
-  NotificationSettings get dbSettingsNotifications => db.settings.notifications;
+  NotificationSettings get dbSettingsNotifications => const NotificationSettings(
+    confirmationEnabled: false,
+    reminderEnabled: false,
+    cancellationEnabled: false,
+    rescheduleEnabled: false,
+    reminderHours: [],
+    sendToStaff: false,
+  );
 
   Future<void> saveNotifications(NotificationSettings settings) async {
     await _repository.updateNotifications(settings);
@@ -99,7 +124,7 @@ class SmsProvider extends DbBoundProvider {
 
   Future<void> saveProvider(SmsProviderSettings settings) async {
     await _repository.updateProviderSettings(settings);
-    _provider = db.settings.smsProvider;
+    _provider = await _repository.fetchProviderSettings();
     notifyListeners();
   }
 
@@ -126,7 +151,7 @@ class SmsProvider extends DbBoundProvider {
         phone: phone,
         templateKey: 'test',
         templateLabel: 'پیامک آزمایشی',
-        content: content ?? 'این یک پیامک آزمایشی از سامانه ${db.settings.name} است.',
+        content: content ?? 'پیام از مجموعه ${authStateNotifier?.businessName ?? ''}',
       );
     } finally {
       _sendingTest = false;
@@ -134,13 +159,16 @@ class SmsProvider extends DbBoundProvider {
     }
   }
 
-  /// ارسال پیامک تأیید برای یک نوبت (شبیه‌سازی).
-  Future<SmsMessage> sendConfirmation({
+  /// Sends only when a real configured gateway is available. The current
+  /// Supabase setup has no SMS gateway, so booking is saved without inventing
+  /// a delivered-message record.
+  Future<SmsMessage?> sendConfirmation({
     required String recipient,
     required String phone,
     required String content,
     required String appointmentId,
   }) async {
+    if (!_provider.isEnabled || !_provider.isConfigured) return null;
     return _repository.sendMock(
       recipientName: recipient,
       phone: phone,

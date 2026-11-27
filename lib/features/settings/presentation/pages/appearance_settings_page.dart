@@ -60,9 +60,9 @@ class AppearanceSettingsPage extends StatelessWidget {
                       Text(palette.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
                         color: palette.textPrimary)),
                       const SizedBox(height: 7),
-                      Row(children: [for (final color in [palette.primary, palette.primaryBright,
+                      Wrap(spacing: 5, runSpacing: 4, children: [for (final color in [palette.primary, palette.primaryBright,
                         palette.accentGlow, palette.surfaceAlt, palette.background])
-                        Container(width: 22, height: 17, margin: const EdgeInsets.only(left: 5),
+                        Container(width: 22, height: 17,
                           decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5),
                             border: Border.all(color: palette.borderStrong)))])
                     ])),
@@ -87,8 +87,12 @@ class AppearanceSettingsPage extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 onTap: () async {
-                  await settings.setFormTheme(formTheme.id);
-                  if (context.mounted) AppToast.show(context, 'تم فرم «${formTheme.label}» فعال شد');
+                  try {
+                    await settings.setFormTheme(formTheme.id);
+                    if (context.mounted) AppToast.show(context, 'تم فرم «${formTheme.label}» در تنظیمات مجموعه ذخیره شد');
+                  } catch (error) {
+                    if (context.mounted) AppToast.show(context, 'ذخیره تم فرم ناموفق بود: $error');
+                  }
                 },
                 child: AnimatedContainer(
                   duration: AppDurations.normal,

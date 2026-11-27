@@ -1,5 +1,8 @@
+import 'dart:async';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/utils/fa_num.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
@@ -7,7 +10,7 @@ import '../../../../data/repositories/customer_repository.dart';
 
 /// مدیریت فهرست مشتریان، جست‌وجو و CRUD.
 class CustomersProvider extends DbBoundProvider {
-  CustomersProvider(this._repository, AppDatabase db) : super(db) {
+  CustomersProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) {
     load();
   }
 
@@ -20,6 +23,8 @@ class CustomersProvider extends DbBoundProvider {
   bool _loading = true;
   String? _loadNotice;
   bool _busy = false;
+  bool _showArchived = false;
+  int _loadGeneration = 0;
 
   PageResult<Customer> get page => _page;
   List<Customer> get items => _page.items;
@@ -28,24 +33,42 @@ class CustomersProvider extends DbBoundProvider {
   bool get loading => _loading;
   String? get loadNotice => _loadNotice;
   bool get busy => _busy;
+  bool get showArchived => _showArchived;
   int get total => _page.total;
 
-  List<Customer> get all => db.customers;
+  List<Customer> get all => _page.items;
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     _loading = true;
     notifyListeners();
     try {
+      final result = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
+      if (generation != _loadGeneration) return;
       _loadNotice = null;
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
+      _page = result;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.customers;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _page = PageResult.empty(pageSize: _pageSize);
+    _loading = false;
+    _loadNotice = null;
+    _busy = false;
+    _showArchived = false;
   }
 
   @override
@@ -54,8 +77,24 @@ class CustomersProvider extends DbBoundProvider {
   }
 
   Future<void> _refresh() async {
-    _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-    notifyListeners();
+    final generation = _loadGeneration;
+    try {
+      final result = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize, archivedOnly: _showArchived);
+      if (generation != _loadGeneration) return;
+      _page = result;
+      _loadNotice = null;
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _page = PageResult.empty(pageSize: _pageSize);
+      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
+    }
+    if (generation == _loadGeneration) notifyListeners();
+  }
+
+  Future<void> toggleArchived() async {
+    _showArchived = !_showArchived;
+    _pageNumber = 1;
+    await load();
   }
 
   void search(String query) {
@@ -71,11 +110,30 @@ class CustomersProvider extends DbBoundProvider {
 
   Future<Customer?> byId(String id) => _repository.findById(id);
 
+  Future<CustomerProfile?> fetchProfile(String id) => _repository.fetchProfile(id);
+
+  Future<List<Customer>> fetchAll() => _repository.fetchAll();
+
+  Future<Customer?> findByPhoneRemote(String phone) async {
+    final normalized = FaNum.toLatin(phone).replaceAll(RegExp(r'[^0-9]'), '');
+    if (normalized.isEmpty) return null;
+    var matches = await _repository.fetchAll(query: phone.trim());
+    if (matches.isEmpty) {
+      matches = await _repository.fetchAll(query: normalized);
+    }
+    for (final customer in matches) {
+      final candidate = FaNum.toLatin(customer.phone).replaceAll(RegExp(r'[^0-9]'), '');
+      if (candidate == normalized) return customer;
+    }
+    return null;
+  }
+
   Future<bool> create(Customer customer) async {
     _busy = true;
     notifyListeners();
     try {
       await _repository.create(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -88,6 +146,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.update(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -95,17 +154,20 @@ class CustomersProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> delete(String id) => _repository.delete(id);
+  Future<void> delete(String id) async {
+    await _repository.delete(id);
+    await load();
+  }
 
   Customer? findById(String id) {
-    for (final c in db.customers) {
+    for (final c in _page.items) {
       if (c.id == id) return c;
     }
     return null;
   }
 
   Customer? findByPhone(String phone) {
-    for (final c in db.customers) {
+    for (final c in _page.items) {
       if (c.phone == phone) return c;
     }
     return null;

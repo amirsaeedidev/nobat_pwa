@@ -18,6 +18,7 @@ class Appointment {
     this.status = AppointmentStatus.pending,
     this.note = '',
     this.price = 0,
+    this.discount = 0,
     this.createdAt,
     this.updatedAt,
     this.rescheduleCount = 0,
@@ -41,6 +42,7 @@ class Appointment {
   final AppointmentStatus status;
   final String note;
   final num price;
+  final num discount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int rescheduleCount;
@@ -89,6 +91,7 @@ class Appointment {
     AppointmentStatus? status,
     String? note,
     num? price,
+    num? discount,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? rescheduleCount,
@@ -112,6 +115,7 @@ class Appointment {
       status: status ?? this.status,
       note: note ?? this.note,
       price: price ?? this.price,
+      discount: discount ?? this.discount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rescheduleCount: rescheduleCount ?? this.rescheduleCount,
@@ -137,6 +141,7 @@ class Appointment {
         'status': status.key,
         'note': note,
         'price': price,
+        'discount': discount,
         'created_at': createdAt?.toUtc().toIso8601String(),
         'updated_at': updatedAt?.toUtc().toIso8601String(),
         'reschedule_count': rescheduleCount,
@@ -161,6 +166,7 @@ class Appointment {
         status: AppointmentStatus.fromKey(json['status'] as String? ?? 'pending'),
         note: json['note'] as String? ?? '',
         price: json['price'] as num? ?? 0,
+        discount: json['discount'] as num? ?? 0,
         createdAt: json['created_at'] == null ? null : DateTime.tryParse(json['created_at'] as String),
         updatedAt: json['updated_at'] == null ? null : DateTime.tryParse(json['updated_at'] as String),
         rescheduleCount: (json['reschedule_count'] as num?)?.toInt() ?? 0,

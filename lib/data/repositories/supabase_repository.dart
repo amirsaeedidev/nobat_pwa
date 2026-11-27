@@ -2,9 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Tenant-scoped repository for records stored in public.app_records.
 ///
-/// The existing Mock repositories remain the default UI data source. This
-/// repository is the authenticated remote data layer used when a feature is
-/// explicitly migrated to Supabase.
+/// Authenticated tenant-scoped access to auxiliary records stored in
+/// public.app_records. Primary business entities use their normalized tables.
 class SupabaseRepository {
   SupabaseRepository(this._client);
 
@@ -208,11 +207,26 @@ class SupabaseRepository {
     final userId = _requireUserId();
     final rows = await _client
         .from('business_memberships')
-        .select('business_id,role,permissions,is_active,businesses(id,name)')
+        .select('business_id,user_id,role,permissions,is_active,created_at,businesses(id,name)')
         .eq('user_id', userId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', ascending: true);
 
     return rows.map((row) => Map<String, dynamic>.from(row)).toList(growable: false);
+  }
+
+
+  Future<String?> fetchMyEmployeeId({required String businessId}) async {
+    final userId = _requireUserId();
+    _validateBusinessId(businessId);
+    final row = await _client
+        .from('employees')
+        .select('id')
+        .eq('business_id', businessId)
+        .eq('auth_user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+    return row?['id'] as String?;
   }
 
   void _validateBusinessId(String value) {

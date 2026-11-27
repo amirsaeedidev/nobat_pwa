@@ -32,5 +32,14 @@ class SupabaseAuthRepository {
     );
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> resetPasswordForEmail({required String email, String? redirectTo}) {
+    return _client.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: redirectTo,
+    );
+  }
+
+  Future<AuthResponse> refreshSession() => _client.auth.refreshSession();
+
+  Future<void> signOut() => _client.auth.signOut(scope: SignOutScope.local);
 }

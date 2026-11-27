@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -43,59 +45,54 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   EmployeeStatus _status = EmployeeStatus.active;
   DateTime? _startedAt;
   List<String> _serviceIds = [];
-  List<String> _permissions = ['appointments', 'customers'];
   final Map<int, List<Shift>> _schedule = {};
   bool _saving = false;
-  bool _prefilled = false;
+  bool _loadingExisting = false;
+  String? _loadError;
   Employee? _existing;
 
-  static const _permissionOptions = {
-    'dashboard': 'پیشخوان',
-    'appointments': 'نوبت‌ها',
-    'customers': 'مشتریان',
-    'services': 'خدمات',
-    'employees': 'پرسنل',
-    'sms': 'پیامک',
-    'reports': 'گزارش‌ها',
-    'settings': 'تنظیمات',
-  };
 
   @override
   void initState() {
     super.initState();
-    for (var day = 0; day < 6; day++) {
-      _schedule[day] = [const Shift(start: '09:00', end: '17:00')];
+    if (widget.employeeId != null) {
+      _loadingExisting = true;
+      unawaited(_loadExisting());
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_prefilled) return;
-    _prefilled = true;
-    if (widget.employeeId != null) {
-      final employee = context.read<EmployeesProvider>().byIdSync(widget.employeeId!);
-      if (employee != null) {
-        _existing = employee;
-        _name.text = employee.fullName;
-        _phone.text = employee.phone;
-        _title.text = employee.title;
-        _email.text = employee.email;
-        _specialties.text = employee.specialties.join('، ');
-        _notes.text = employee.notes;
-        _emergencyName.text = employee.emergencyContactName;
-        _emergencyPhone.text = employee.emergencyContactPhone;
-        _avatarAsset.text = employee.avatarAsset;
-        _status = employee.employmentStatus;
-        _startedAt = employee.startedAt;
-        _role = employee.role;
-        _status = employee.employmentStatus;
-        _serviceIds = [...employee.serviceIds];
-        _permissions = [...employee.permissions];
-        _schedule
-          ..clear()
-          ..addAll(employee.schedule.map((k, v) => MapEntry(k, [...v])));
-      }
+  Future<void> _loadExisting() async {
+    try {
+      final employee = await context.read<EmployeesProvider>().byId(widget.employeeId!);
+      if (!mounted) return;
+      if (employee == null) throw StateError('پروفایل پرسنل در Supabase پیدا نشد یا دسترسی مشاهده آن وجود ندارد.');
+      _existing = employee;
+      _name.text = employee.fullName;
+      _phone.text = employee.phone;
+      _title.text = employee.title;
+      _email.text = employee.email;
+      _specialties.text = employee.specialties.join('، ');
+      _notes.text = employee.notes;
+      _emergencyName.text = employee.emergencyContactName;
+      _emergencyPhone.text = employee.emergencyContactPhone;
+      _avatarAsset.text = employee.avatarAsset;
+      _status = employee.employmentStatus;
+      _startedAt = employee.startedAt;
+      _role = employee.role;
+      _serviceIds = [...employee.serviceIds];
+      _schedule
+        ..clear()
+        ..addAll(employee.schedule.map((key, value) => MapEntry(key, [...value])));
+      setState(() {
+        _loadingExisting = false;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingExisting = false;
+        _loadError = error.toString();
+      });
     }
   }
 
@@ -114,6 +111,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   }
 
   Future<void> _save() async {
+    if (widget.employeeId != null && _existing == null) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     final provider = context.read<EmployeesProvider>();
@@ -138,25 +136,30 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
       emergencyContactPhone: _emergencyPhone.text.trim(),
       avatarAsset: _avatarAsset.text.trim(),
       serviceIds: _serviceIds,
-      permissions: _permissions,
       schedule: _schedule,
-      startedAt: _startedAt ?? _existing?.startedAt ?? DateTime.now(),
+      startedAt: _startedAt ?? _existing?.startedAt,
     );
-    final saved = _existing != null ? await provider.update(employee) : await provider.create(employee);
-    if (!saved) {
-      if (mounted) {
-        setState(() => _saving = false);
-        AppToast.show(context, 'این شماره موبایل قبلاً برای پرسنل دیگری ثبت شده است.', success: false);
+    try {
+      final saved = _existing != null ? await provider.update(employee) : await provider.create(employee);
+      if (!saved) {
+        if (mounted) {
+          setState(() => _saving = false);
+          AppToast.show(context, 'این شماره موبایل قبلاً برای پرسنل دیگری ثبت شده است.', success: false);
+        }
+        return;
       }
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, _existing != null ? 'اطلاعات پرسنل به‌روزرسانی شد' : 'پرسنل جدید اضافه شد');
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/employees');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, _existing != null ? 'اطلاعات پرسنل به‌روزرسانی شد' : 'پرسنل جدید اضافه شد');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/employees');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, error.toString(), success: false);
     }
   }
 
@@ -165,9 +168,21 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
     final pal = context.pal;
     final services = context.watch<ServicesProvider>().items;
 
+    if (_loadingExisting) {
+      return PageScaffold(title: 'ویرایش پرسنل', showBackButton: true,
+        child: const LoadingState(kind: SkeletonKind.personnel));
+    }
+    if (_loadError != null) {
+      return PageScaffold(title: 'ویرایش پرسنل', showBackButton: true,
+        child: ErrorStateView(description: _loadError, onRetry: () {
+          setState(() { _loadingExisting = true; _loadError = null; });
+          unawaited(_loadExisting());
+        }));
+    }
+
     return PageScaffold(
       title: widget.employeeId == null ? 'پرسنل جدید' : 'ویرایش پرسنل',
-      subtitle: 'پروفایل، دسترسی و برنامه کاری',
+      subtitle: 'پروفایل، تخصص و برنامه کاری',
       icon: Icons.badge_rounded,
       showBackButton: true,
       child: Form(
@@ -285,23 +300,9 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const SectionHeader(title: 'مجوزهای دسترسی'),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final entry in _permissionOptions.entries)
-                        FilterChip(
-                          label: Text(entry.value),
-                          selected: _permissions.contains(entry.key),
-                          onSelected: (selected) => setState(() {
-                            _permissions = selected
-                                ? [..._permissions, entry.key]
-                                : _permissions.where((p) => p != entry.key).toList();
-                          }),
-                        ),
-                    ],
+                  const Text(
+                    'این فرم حساب ورود نمی‌سازد یا مجوز حساب را تغییر نمی‌دهد؛ برای دسترسی شخصی باید حساب Supabase پرسنل به رکورد پرسنل متصل شود.',
+                    style: TextStyle(fontSize: 11, height: 1.7),
                   ),
                 ],
               ),

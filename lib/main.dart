@@ -4,22 +4,36 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/supabase_service.dart';
+import 'core/services/supabase_auth_state_notifier.dart';
 import 'data/repositories/supabase_auth_repository.dart';
 import 'data/repositories/supabase_repository.dart';
 
 import 'app/app.dart';
-import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
+import 'data/repositories/supabase_activity_repository.dart';
+import 'data/repositories/operations_repository.dart';
+import 'data/repositories/supabase_operations_repository.dart';
+import 'data/repositories/supabase_employee_wallet_repository.dart';
+import 'data/repositories/supabase_employee_attendance_repository.dart';
+import 'data/repositories/supabase_employee_analytics_repository.dart';
 import 'data/repositories/appointment_repository.dart';
+import 'data/repositories/supabase_relational_appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
+import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
+import 'data/repositories/business_finance_repository.dart';
+import 'data/repositories/supabase_business_finance_repository.dart';
+import 'data/repositories/supabase_dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
+import 'data/repositories/supabase_relational_employee_repository.dart';
 import 'data/repositories/service_repository.dart';
+import 'data/repositories/supabase_relational_service_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/supabase_settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
+import 'data/repositories/supabase_sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
 import 'features/appointments/presentation/providers/appointments_provider.dart';
-import 'features/booking/presentation/providers/booking_provider.dart';
 import 'features/calendar/presentation/providers/calendar_provider.dart';
 import 'features/customers/presentation/providers/customers_provider.dart';
 import 'features/dashboard/presentation/providers/dashboard_provider.dart';
@@ -62,10 +76,13 @@ Future<void> main() async {
     }
   };
 
-  // Supabase is opt-in and initialized locally only. No network request is
-  // required for startup; if configuration or local session restoration fails,
-  // the app continues in its Datamonck offline mode.
-  await SupabaseService.initialize();
+  // Cloud data is mandatory. Never fall back to seeded or in-memory demo data
+  // when Supabase is not configured or cannot initialize.
+  final cloudReady = await SupabaseService.initialize();
+  if (!cloudReady) {
+    runApp(const SupabaseUnavailableApp());
+    return;
+  }
 
   if (!kIsWeb) {
     try {
@@ -79,33 +96,74 @@ Future<void> main() async {
     }
   }
 
-  // All application data is seeded locally in memory. Startup does not wait
-  // for browser storage, network access, or any remote service.
-  final database = AppDatabase();
+  final supabaseClient = SupabaseService.client!;
+  final supabaseRepository = SupabaseRepository(supabaseClient);
+  final supabaseAuthRepository = SupabaseAuthRepository(supabaseClient);
+  final authStateNotifier = SupabaseAuthStateNotifier(
+    supabaseAuthRepository,
+    supabaseRepository,
+  );
 
-  final appointmentRepository = MockAppointmentRepository(database);
-  final customerRepository = MockCustomerRepository(database);
-  final serviceRepository = MockServiceRepository(database);
-  final employeeRepository = MockEmployeeRepository(database);
-  final smsRepository = MockSmsRepository(database);
-  final settingsRepository = MockSettingsRepository(database);
-  final dashboardRepository = MockDashboardRepository(database);
-  final activityRepository = MockActivityRepository(database);
+  // Customer CRUD is backed by the normalized public.customers table.
+  final customerRepository = SupabaseCustomerRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+    canViewFinance: () => authStateNotifier.role == 'owner' || authStateNotifier.permissions['finance.view'] == true,
+  );
+  // Primary business data modules use tenant-scoped Supabase repositories.
+  // SMS stays explicitly unavailable until a real gateway is configured.
+  final appointmentRepository = SupabaseRelationalAppointmentRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final serviceRepository = SupabaseRelationalServiceRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final employeeRepository = SupabaseRelationalEmployeeRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final smsRepository = const SupabaseSmsRepository();
+  final settingsRepository = SupabaseSettingsRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final dashboardRepository = SupabaseDashboardRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+    appointments: appointmentRepository,
+  );
+  final businessFinanceRepository = SupabaseBusinessFinanceRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final activityRepository = SupabaseActivityRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final activityOperationsRepository = SupabaseOperationsRepository(supabaseClient);
+  final employeeWalletRepository = SupabaseEmployeeWalletRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final employeeAttendanceRepository = SupabaseEmployeeAttendanceRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
+  final employeeAnalyticsRepository = SupabaseEmployeeAnalyticsRepository(
+    client: supabaseClient,
+    businessId: () => authStateNotifier.businessId,
+  );
 
   runApp(
     MultiProvider(
       providers: [
-        Provider<SupabaseRepository?>.value(
-          value: SupabaseService.client == null
-              ? null
-              : SupabaseRepository(SupabaseService.client!),
+        Provider<SupabaseRepository?>.value(value: supabaseRepository),
+        Provider<SupabaseAuthRepository?>.value(value: supabaseAuthRepository),
+        ChangeNotifierProvider<SupabaseAuthStateNotifier>.value(
+          value: authStateNotifier,
         ),
-        Provider<SupabaseAuthRepository?>.value(
-          value: SupabaseService.client == null
-              ? null
-              : SupabaseAuthRepository(SupabaseService.client!),
-        ),
-        ChangeNotifierProvider<AppDatabase>.value(value: database),
         Provider<AppointmentRepository>.value(value: appointmentRepository),
         Provider<CustomerRepository>.value(value: customerRepository),
         Provider<ServiceRepository>.value(value: serviceRepository),
@@ -113,30 +171,69 @@ Future<void> main() async {
         Provider<SmsRepository>.value(value: smsRepository),
         Provider<SettingsRepository>.value(value: settingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
+        Provider<BusinessFinanceRepository>.value(value: businessFinanceRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
-        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
-        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
+        Provider<ActivityOperationsRepository>.value(value: activityOperationsRepository),
+        Provider<SupabaseEmployeeWalletRepository>.value(value: employeeWalletRepository),
+        Provider<SupabaseEmployeeAttendanceRepository>.value(value: employeeAttendanceRepository),
+        Provider<SupabaseEmployeeAnalyticsRepository>.value(value: employeeAnalyticsRepository),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, null, appointmentRepository: appointmentRepository, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, authStateNotifier: authStateNotifier)),
         ChangeNotifierProvider(
-          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, database),
+          create: (_) => CalendarProvider(appointmentRepository, employeeRepository, serviceRepository, settingsRepository: settingsRepository, authStateNotifier: authStateNotifier),
         ),
-        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, database)),
-        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, database)),
-        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, database)),
-        ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, database)),
-        ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, database)),
-        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, database)),
-        ChangeNotifierProvider(
-          create: (_) => BookingProvider(
-            appointmentRepository,
-            serviceRepository,
-            employeeRepository,
-            customerRepository,
-            database,
-          ),
-        ),
+        ChangeNotifierProvider(create: (_) => CustomersProvider(customerRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ServicesProvider(serviceRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => EmployeesProvider(employeeRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => SmsProvider(smsRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ReportsProvider(dashboardRepository, null, authStateNotifier: authStateNotifier)),
+        ChangeNotifierProvider(create: (_) => ActivityProvider(activityRepository, null, operationsRepository: activityOperationsRepository, authStateNotifier: authStateNotifier)),
       ],
       child: const DateTimeApp(),
     ),
   );
+}
+
+
+class SupabaseUnavailableApp extends StatelessWidget {
+  const SupabaseUnavailableApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('fa', 'IR'),
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.cloud_off_rounded, size: 52),
+                        SizedBox(height: 18),
+                        Text(
+                          'اتصال امن به Supabase در دسترس نیست',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'برای جلوگیری از نمایش اطلاعات ساختگی، برنامه بدون اتصال معتبر به پایگاه داده اجرا نمی‌شود. تنظیمات اتصال و اینترنت را بررسی کنید.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }

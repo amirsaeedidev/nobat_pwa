@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_palette.dart';
 import '../../../../app/theme/app_tokens.dart';
@@ -209,23 +208,26 @@ class CalendarDayCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _MiniActionButton(
-                    label: 'نوبت جدید',
-                    icon: Icons.add_rounded,
-                    color: pal.primary,
-                    onTap: onAdd,
-                  ),
-                  const SizedBox(height: 6),
-                  _MiniActionButton(
-                    label: 'پیام همگانی',
-                    icon: Icons.sms_rounded,
-                    color: pal.purple,
-                    onTap: onBroadcast,
-                  ),
-                ],
+              SizedBox(
+                width: 96,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _MiniActionButton(
+                      label: 'نوبت جدید',
+                      icon: Icons.add_rounded,
+                      color: pal.primary,
+                      onTap: onAdd,
+                    ),
+                    const SizedBox(height: 6),
+                    _MiniActionButton(
+                      label: 'پیام همگانی',
+                      icon: Icons.sms_rounded,
+                      color: pal.purple,
+                      onTap: onBroadcast,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -316,9 +318,13 @@ class _MiniActionButton extends StatelessWidget {
           children: [
             Icon(icon, size: 13, color: Colors.white),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -346,55 +352,58 @@ class _AppointmentRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(color: pal.border),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    appointment.customerName,
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      StatusBadge(
-                        label: appointment.status.label,
-                        color: appointment.status.color,
-                        dense: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final serviceWidth = (constraints.maxWidth * 0.58).clamp(0.0, 220.0);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.68),
+                      child: Text(
+                        appointment.customerName,
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
+                    ),
+                    Text(
+                      Fmt.time(appointment.startAt.hour, appointment.startAt.minute),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: pal.textPrimary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    StatusBadge(
+                      label: appointment.status.label,
+                      color: appointment.status.color,
+                      dense: true,
+                    ),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: serviceWidth),
+                      child: Text(
                         appointment.serviceName,
                         style: TextStyle(fontSize: 10, color: pal.textMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              Fmt.time(appointment.startAt.hour, appointment.startAt.minute),
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: pal.textPrimary),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: pal.success.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: pal.success.withValues(alpha: 0.3)),
-              ),
-              child: Icon(Icons.access_time_rounded, size: 15, color: pal.success),
-            ),
-          ],
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -449,146 +458,179 @@ class DayTimeline extends StatelessWidget {
     super.key,
     required this.slots,
     required this.onSlotTap,
+    this.onReschedule,
     this.hourHeight = 62,
   });
 
   final List<TimeSlot> slots;
   final void Function(TimeSlot slot) onSlotTap;
+  final void Function(Appointment appointment, DateTime newStart)? onReschedule;
   final double hourHeight;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final visible = slots.where((s) => s.isBooked).toList();
-    if (visible.isEmpty) {
+    if (slots.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Center(child: Text('نوبتی نیست', style: TextStyle(fontSize: 12, color: pal.textMuted, fontWeight: FontWeight.w600))),
+        child: Center(
+          child: Text(
+            'برای این روز شیفت فعال یا ظرفیت قابل رزرو ثبت نشده است.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: pal.textMuted, fontWeight: FontWeight.w600),
+          ),
+        ),
       );
     }
+
     return Column(
       children: [
-        for (final slot in visible)
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 46,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      FaNum.convert(slot.label),
-                      style: TextStyle(fontSize: 10.5, color: pal.textMuted, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => onSlotTap(slot),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      constraints: BoxConstraints(minHeight: hourHeight * 0.78),
-                      decoration: BoxDecoration(
-                        color: slot.isBooked ? pal.surfaceAlt : Colors.transparent,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(
-                          color: slot.isBooked
-                              ? slot.appointment!.status.color.withValues(alpha: 0.45)
-                              : pal.border.withValues(alpha: 0.5),
+        for (final slot in slots)
+          DragTarget<Appointment>(
+            onWillAcceptWithDetails: (details) =>
+                onReschedule != null &&
+                slot.availableCapacity > 0 &&
+                !slot.isPast &&
+                details.data.employeeId.isNotEmpty,
+            onAcceptWithDetails: (details) =>
+                onReschedule?.call(details.data, slot.startAt),
+            builder: (context, candidates, rejected) {
+              final hovering = candidates.isNotEmpty;
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: 46,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          FaNum.convert(slot.label),
+                          style: TextStyle(fontSize: 10.5, color: pal.textMuted, fontWeight: FontWeight.w600),
                         ),
                       ),
-                      child: slot.isBooked
-                          ? Row(
-                              children: [
-                                Container(
-                                  width: 4,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: slot.appointment!.status.color,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        slot.appointment!.customerName,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: pal.textPrimary,
+                    ),
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        constraints: BoxConstraints(minHeight: hourHeight * 0.78),
+                        decoration: BoxDecoration(
+                          color: hovering
+                              ? pal.primary.withValues(alpha: 0.14)
+                              : slot.isBooked ? pal.surfaceAlt : Colors.transparent,
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(
+                            color: hovering
+                                ? pal.primary
+                                : slot.isBooked
+                                    ? slot.appointment!.status.color.withValues(alpha: 0.45)
+                                    : pal.border.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: slot.isBooked
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (final appointment in slot.appointments)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: LongPressDraggable<Appointment>(
+                                        data: appointment,
+                                        feedback: Material(
+                                          color: Colors.transparent,
+                                          child: Container(
+                                            width: 230,
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: pal.surfaceHigh,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: pal.primary),
+                                            ),
+                                            child: Text(appointment.customerName,
+                                                style: TextStyle(color: pal.textPrimary, fontWeight: FontWeight.w700)),
+                                          ),
+                                        ),
+                                        childWhenDragging: Opacity(
+                                          opacity: 0.35,
+                                          child: _appointmentContent(context, appointment),
+                                        ),
+                                        child: InkWell(
+                                          onTap: () => onSlotTap(slot),
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: _appointmentContent(context, appointment),
                                         ),
                                       ),
-                                      Text(
-                                        '${slot.appointment!.serviceName} • ${slot.appointment!.employeeName}',
-                                        style: TextStyle(fontSize: 10, color: pal.textMuted),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                    ),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'ظرفیت آزاد: ${FaNum.ofInt(slot.availableCapacity)} از ${FaNum.ofInt(slot.capacity)}',
+                                      style: TextStyle(fontSize: 9.5, color: pal.textMuted),
+                                    ),
                                   ),
+                                ],
+                              )
+                            : InkWell(
+                                onTap: () => onSlotTap(slot),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.add_circle_outline_rounded, size: 14, color: pal.textMuted),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        slot.isPast
+                                            ? 'زمان گذشته'
+                                            : 'آزاد — ظرفیت ${FaNum.ofInt(slot.availableCapacity)} نفر',
+                                        style: TextStyle(fontSize: 10.5, color: pal.textMuted),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                StatusBadge(
-                                  label: slot.appointment!.status.label,
-                                  color: slot.appointment!.status.color,
-                                  dense: true,
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Icon(Icons.add_circle_outline_rounded, size: 14, color: pal.textMuted),
-                                const SizedBox(width: 6),
-                                Text(
-                                  slot.isPast ? 'زمان گذشته' : 'آزاد — ثبت نوبت',
-                                  style: TextStyle(fontSize: 10.5, color: pal.textMuted),
-                                ),
-                              ],
-                            ),
+                              ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
       ],
     );
   }
-}
 
-/// دکمه‌های ناوبری سریع به صفحه رزرو.
-class PublicBookingHint extends StatelessWidget {
-  const PublicBookingHint({super.key});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _appointmentContent(BuildContext context, Appointment appointment) {
     final pal = context.pal;
-    return AppCard(
-      color: pal.primary.withValues(alpha: 0.08),
-      borderColor: pal.primary.withValues(alpha: 0.3),
-      child: Row(
-        children: [
-          IconTile(icon: Icons.public_rounded, color: pal.primaryBright, size: 36, radius: 11),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('لینک رزرو اختصاصی شما',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-                Text('datetime.app/book/datetime-salon',
-                    textDirection: TextDirection.ltr,
-                    style: TextStyle(fontSize: 10, color: pal.textMuted)),
-              ],
-            ),
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 30,
+          decoration: BoxDecoration(
+            color: appointment.status.color,
+            borderRadius: BorderRadius.circular(4),
           ),
-          SoftButton(label: 'مشاهده', dense: true, onTap: () => context.push('/book')),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                appointment.customerName,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: pal.textPrimary),
+              ),
+              Text(
+                '${appointment.serviceName} • ${appointment.employeeName}',
+                style: TextStyle(fontSize: 10, color: pal.textMuted),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        StatusBadge(label: appointment.status.label, color: appointment.status.color, dense: true),
+      ],
     );
   }
 }

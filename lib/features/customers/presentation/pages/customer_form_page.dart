@@ -30,6 +30,8 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
   List<String> _tags = [];
   bool _saving = false;
   bool _prefilled = false;
+  bool _loadingExisting = false;
+  String? _loadError;
 
   static const _tagOptions = ['وفادار', 'جدید', 'حساسیت پوستی', 'پیگیری', 'معرفی دوستان', 'بدون مراجعه'];
 
@@ -39,13 +41,34 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
     if (_prefilled) return;
     _prefilled = true;
     if (widget.customerId != null) {
-      final customer = context.read<CustomersProvider>().findById(widget.customerId!);
-      if (customer != null) {
-        _nameController.text = customer.fullName;
-        _phoneController.text = customer.phone;
-        _noteController.text = customer.notes;
-        _tags = [...customer.tags];
+      _loadingExisting = true;
+      _loadExisting();
+    }
+  }
+
+  Future<void> _loadExisting() async {
+    _loadError = null;
+    try {
+      final customer = await context.read<CustomersProvider>().byId(widget.customerId!);
+      if (!mounted) return;
+      if (customer == null) {
+        setState(() {
+          _loadingExisting = false;
+          _loadError = 'مشتری در مجموعه فعلی پیدا نشد یا دسترسی مشاهده آن وجود ندارد.';
+        });
+        return;
       }
+      _nameController.text = customer.fullName;
+      _phoneController.text = customer.phone;
+      _noteController.text = customer.notes;
+      _tags = [...customer.tags];
+      setState(() => _loadingExisting = false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingExisting = false;
+        _loadError = 'دریافت اطلاعات مشتری از Supabase ناموفق بود: $error';
+      });
     }
   }
 
@@ -58,33 +81,43 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _saving) return;
     setState(() => _saving = true);
     final provider = context.read<CustomersProvider>();
-    final existing = widget.customerId == null ? null : provider.findById(widget.customerId!);
-    final customer = (existing ?? Customer(
-      id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
-      fullName: '',
-      phone: '',
-    )).copyWith(
-      fullName: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
-      notes: _noteController.text.trim(),
-      tags: _tags,
-      createdAt: existing?.createdAt ?? DateTime.now(),
-    );
-    if (existing != null) {
-      await provider.update(customer);
-    } else {
-      await provider.create(customer);
-    }
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, existing != null ? 'اطلاعات مشتری به‌روزرسانی شد' : 'مشتری جدید ثبت شد');
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/customers');
+    try {
+      final existing = widget.customerId == null
+          ? null
+          : await provider.byId(widget.customerId!);
+      if (widget.customerId != null && existing == null) {
+        throw StateError('مشتری برای ویرایش در Supabase پیدا نشد.');
+      }
+      final customer = (existing ?? const Customer(
+        id: '',
+        fullName: '',
+        phone: '',
+      )).copyWith(
+        fullName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        notes: _noteController.text.trim(),
+        tags: _tags,
+      );
+      if (existing != null) {
+        await provider.update(customer);
+      } else {
+        await provider.create(customer);
+      }
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, existing != null ? 'اطلاعات مشتری در Supabase به‌روزرسانی شد' : 'مشتری در Supabase ثبت شد');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/customers');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppToast.show(context, 'ذخیره اطلاعات مشتری انجام نشد: $error', success: false);
     }
   }
 
@@ -96,7 +129,14 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
       subtitle: 'اطلاعات پایه و یادداشت‌های داخلی',
       icon: Icons.person_add_alt_1_rounded,
       showBackButton: true,
-      child: Form(
+      child: _loadingExisting
+          ? const LoadingState(kind: SkeletonKind.customers)
+          : _loadError != null
+              ? ErrorStateView(description: _loadError!, onRetry: () {
+                  setState(() => _loadingExisting = true);
+                  _loadExisting();
+                })
+              : Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

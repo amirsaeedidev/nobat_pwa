@@ -120,12 +120,12 @@ class _ActivityLogsPageState extends State<ActivityLogsPage> {
                           final confirmed = await showSensitiveOperationDialog(
                             context,
                             title: 'تأیید بازگردانی تغییر',
-                            description: 'رکورد به آخرین وضعیت ثبت‌شده قبل از این عملیات بازمی‌گردد. اگر عملیات وابسته جدیدتری انجام شده باشد، سیستم اجازه بازگردانی ناسازگار نمی‌دهد.',
+                            description: 'رکورد مرتبط به آخرین وضعیت ثبت‌شده پیش از این عملیات بازمی‌گردد. اگر عملیات وابسته جدیدتری انجام شده باشد، سیستم اجازه بازگردانی ناسازگار نمی‌دهد.',
                             recordDetails: {
+                              'شناسه رکورد': log.entityId.isEmpty ? 'ثبت نشده' : log.entityId,
                               'عملیات': log.title,
                               'نوع عملیات': log.operationLabel,
                               'رکورد': log.entityName,
-                              'شناسه رکورد': log.entityId.isEmpty ? 'ثبت نشده' : log.entityId,
                               'ثبت‌کننده': log.actor,
                               'زمان': '${Fmt.jalaliDate(log.createdAt)}، ${Fmt.time(log.createdAt.hour, log.createdAt.minute)}',
                               if (log.idempotencyKey != null) 'کلید یکتا': log.idempotencyKey!,

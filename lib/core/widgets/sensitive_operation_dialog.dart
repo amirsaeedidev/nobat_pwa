@@ -25,6 +25,10 @@ Future<bool> showSensitiveOperationDialog(
         constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            if (recordDetails['شناسه رکورد'] != null) ...[
+              Text(recordDetails['شناسه رکورد']!, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: pal.textPrimary)),
+              const SizedBox(height: 8),
+            ],
             Text(description, style: TextStyle(color: pal.textSecondary, height: 1.7)),
             if (recordDetails.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -32,7 +36,7 @@ Future<bool> showSensitiveOperationDialog(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: pal.surfaceAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: pal.border)),
                 child: Column(children: [
-                  for (final entry in recordDetails.entries)
+                  for (final entry in recordDetails.entries.where((entry) => entry.key != 'شناسه رکورد'))
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_palette.dart';
 import '../../data/mock/app_database.dart';
+import '../../core/services/supabase_auth_state_notifier.dart';
+import '../../data/repositories/supabase_auth_repository.dart';
+import '../../features/auth/presentation/pages/supabase_login_page.dart';
 import '../../core/responsive/app_shell.dart';
 import '../../core/widgets/app_buttons.dart';
 import '../../core/widgets/badges.dart';
@@ -10,8 +13,7 @@ import '../../features/activity_logs/presentation/pages/activity_logs_page.dart'
 import '../../features/appointments/presentation/pages/appointment_details_page.dart';
 import '../../features/appointments/presentation/pages/appointment_form_page.dart';
 import '../../features/appointments/presentation/pages/appointments_page.dart';
-import '../../features/booking/presentation/pages/booking_flow_page.dart';
-import '../../features/booking/presentation/pages/booking_manage_page.dart';
+import '../../features/booking/presentation/pages/public_booking_unavailable_page.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/customers/presentation/pages/customer_form_page.dart';
 import '../../features/customers/presentation/pages/customer_profile_page.dart';
@@ -47,15 +49,83 @@ import '../../features/sms/presentation/pages/sms_settings_page.dart';
 import '../../features/sms/presentation/pages/sms_templates_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+bool _hasCloudPermission(SupabaseAuthStateNotifier auth, String permission) =>
+    auth.role == 'owner' || auth.permissions[permission] == true;
+
+bool _hasAnyCloudPermission(SupabaseAuthStateNotifier auth, List<String> permissions) =>
+    auth.role == 'owner' || permissions.any((permission) => auth.permissions[permission] == true);
+
+bool _canOpenCloudPath(SupabaseAuthStateNotifier auth, String path) {
+  if (path == '/login' || path == '/access-denied') return true;
+  if (path.startsWith('/dashboard')) return _hasCloudPermission(auth, 'dashboard.view');
+  if (path.startsWith('/appointments') || path.startsWith('/calendar')) {
+    return _hasAnyCloudPermission(auth, ['appointments.view_all', 'appointments.view_self']);
+  }
+  if (path.startsWith('/customers')) return _hasCloudPermission(auth, 'customers.view');
+  if (path.startsWith('/services')) return _hasAnyCloudPermission(auth, ['services.view', 'services.manage']);
+  if (path.startsWith('/employees')) return _hasAnyCloudPermission(auth, ['employees.view_list', 'employees.view_self']);
+  if (path.startsWith('/my-wallet')) return _hasAnyCloudPermission(auth, ['finance.wallet.view', 'finance.wallet.view_self']);
+  if (path.startsWith('/reports')) return _hasAnyCloudPermission(auth, ['reports.view', 'finance.income.view']);
+  if (path.startsWith('/activity')) return _hasAnyCloudPermission(auth, ['activity.view', 'activity.manage']);
+  if (path.startsWith('/settings/permissions')) return _hasAnyCloudPermission(auth, ['permissions.manage', 'settings.roles.manage']);
+  if (path.startsWith('/settings')) return _hasAnyCloudPermission(auth, ['settings.view', 'settings.manage']);
+  if (path.startsWith('/sms')) return _hasAnyCloudPermission(auth, ['sms.view', 'settings.view']);
+  return true;
+}
+
 
 /// مسیرهای برنامه؛ ناوبری مستقل از منطق کسب‌وکار.
-GoRouter buildRouter(AppDatabase database) {
+GoRouter buildRouter({
+  AppDatabase? database,
+  SupabaseAuthRepository? authRepository,
+  SupabaseAuthStateNotifier? authStateNotifier,
+}) {
+  final refreshListenable = Listenable.merge([
+    if (database != null) database,
+    if (authStateNotifier != null) authStateNotifier,
+  ]);
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
-    refreshListenable: database,
-    redirect: (context, state) => database.canOpenRoute(state.uri.path) ? null : '/access-denied',
+    refreshListenable: refreshListenable,
+    redirect: (context, state) {
+      // Public booking routes remain addressable without a customer login.
+      if (state.uri.path == '/book' || state.uri.path == '/book/manage') return null;
+      if (authRepository != null) {
+        final isLoginPage = state.uri.path == '/login';
+        if (authRepository.currentUser == null) {
+          return isLoginPage ? null : '/login';
+        }
+        // Do not redirect on a transient loading frame before the stored
+        // Supabase session has finished checking its active membership.
+        if (authStateNotifier == null ||
+            authStateNotifier.isCheckingMembership ||
+            !authStateNotifier.hasActiveBusiness) {
+          return isLoginPage ? null : '/login';
+        }
+        if (isLoginPage) return '/dashboard';
+        if (state.uri.path == '/access-denied') return null;
+        if (!_canOpenCloudPath(authStateNotifier, state.uri.path)) {
+          return '/access-denied';
+        }
+        // Row-level authorization remains enforced independently by RLS/RPC.
+        return null;
+      }
+      if (database != null) {
+        if (database.currentAccessAccount.roleId == 'staff' && state.uri.path == '/dashboard') {
+          return '/appointments';
+        }
+        return database.canOpenRoute(state.uri.path) ? null : '/access-denied';
+      }
+      return state.uri.path == '/login' || state.uri.path == '/access-denied'
+          ? null
+          : '/login';
+    },
     routes: [
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) => const NoTransitionPage(child: SupabaseLoginPage()),
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(location: state.uri.path, child: child),
         routes: [
@@ -63,7 +133,7 @@ GoRouter buildRouter(AppDatabase database) {
           GoRoute(
             path: '/my-wallet',
             builder: (context, state) {
-              final employeeId = database.currentAccessAccount.employeeId;
+              final employeeId = authStateNotifier?.employeeId ?? database?.currentAccessAccount.employeeId;
               return employeeId == null
                   ? const Scaffold(body: Center(child: Text('حساب پرسنلی فعال نیست.')))
                   : EmployeeWalletPage(employeeId: employeeId);
@@ -83,7 +153,13 @@ GoRouter buildRouter(AppDatabase database) {
             path: '/appointments',
             pageBuilder: (context, state) => const NoTransitionPage(child: AppointmentsPage()),
             routes: [
-              GoRoute(path: 'new', builder: (context, state) => const AppointmentFormPage()),
+              GoRoute(
+                path: 'new',
+                builder: (context, state) => AppointmentFormPage(
+                  initialDate: state.uri.queryParameters['date'],
+                  initialTime: state.uri.queryParameters['time'],
+                ),
+              ),
               GoRoute(
                 path: ':id',
                 builder: (context, state) => AppointmentDetailsPage(appointmentId: state.pathParameters['id']!),
@@ -178,6 +254,8 @@ GoRouter buildRouter(AppDatabase database) {
           ),
         ],
       ),
+      GoRoute(path: '/book', builder: (context, state) => const PublicBookingUnavailablePage()),
+      GoRoute(path: '/book/manage', builder: (context, state) => const PublicBookingUnavailablePage(manage: true)),
       GoRoute(
         path: '/access-denied',
         builder: (context, state) => Scaffold(
@@ -191,16 +269,18 @@ GoRouter buildRouter(AppDatabase database) {
                 const SizedBox(height: 16),
                 Text('دسترسی به این بخش مجاز نیست', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.pal.textPrimary)),
                 const SizedBox(height: 8),
-                Text('نقش فعال شما اجازه مشاهده یا انجام این عملیات را ندارد. برای آزمایش حالت‌های دیگر، حساب Mock را تغییر دهید.',
+                Text('نقش فعال شما اجازه مشاهده یا انجام این عملیات را ندارد. برای دریافت دسترسی با مدیر مجموعه تماس بگیرید.',
                   textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: context.pal.textMuted)),
-                const SizedBox(height: 18),
-                DropdownButtonFormField<String>(
-                  value: database.currentAccessAccount.id,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'حساب آزمایشی'),
-                  items: database.accessAccounts.map((account) => DropdownMenuItem(value: account.id, child: Text(account.name))).toList(),
-                  onChanged: (id) { if (id != null) { database.switchMockAccount(id); context.go('/dashboard'); } },
-                ),
+                if (database != null && authRepository == null) ...[
+                  const SizedBox(height: 18),
+                  DropdownButtonFormField<String>(
+                    value: database.currentAccessAccount.id,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'حساب آزمایشی'),
+                    items: database.accessAccounts.map((account) => DropdownMenuItem(value: account.id, child: Text(account.name))).toList(),
+                    onChanged: (id) { if (id != null) { database.switchMockAccount(id); context.go('/dashboard'); } },
+                  ),
+                ],
                 const SizedBox(height: 12),
                 SolidButton(label: 'بازگشت به پیشخوان', icon: Icons.dashboard_rounded, gradient: true, onPressed: () => context.go('/dashboard')),
               ],
@@ -209,8 +289,6 @@ GoRouter buildRouter(AppDatabase database) {
         ),
       ),
       // تجربه مشتری (بدون پوسته مدیریتی)
-      GoRoute(path: '/book', builder: (context, state) => const BookingFlowPage()),
-      GoRoute(path: '/book/manage', builder: (context, state) => const BookingManagePage()),
     ],
     errorBuilder: (context, state) => Scaffold(
       backgroundColor: context.pal.background,

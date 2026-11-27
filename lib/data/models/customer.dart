@@ -1,3 +1,5 @@
+import 'appointment.dart';
+
 /// مشتری (بیمار / مراجع) — آماده برای جدول customers در Supabase.
 class Customer {
   const Customer({
@@ -120,4 +122,34 @@ class Customer {
 
 extension _Chars on String {
   Iterable<String> get characters => runes.map(String.fromCharCode);
+}
+
+
+/// داده‌های تجمیعی پروفایل مشتری که فقط از روابط واقعی Supabase ساخته می‌شود.
+class CustomerProfile {
+  const CustomerProfile({
+    required this.customer,
+    required this.appointments,
+    required this.services,
+    required this.completedVisits,
+    required this.cancelledAppointments,
+    required this.noShowAppointments,
+    required this.lastVisitAt,
+    required this.financeVisible,
+    this.totalBilled,
+    this.totalPaid,
+    this.outstanding,
+  });
+
+  final Customer customer;
+  final List<Appointment> appointments;
+  final List<String> services;
+  final int completedVisits;
+  final int cancelledAppointments;
+  final int noShowAppointments;
+  final DateTime? lastVisitAt;
+  final bool financeVisible;
+  final num? totalBilled;
+  final num? totalPaid;
+  final num? outstanding;
 }

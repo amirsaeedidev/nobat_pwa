@@ -1,4 +1,6 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../data/mock/app_database.dart';
@@ -11,7 +13,7 @@ import '../../../../data/repositories/dashboard_repository.dart';
 enum ReportServiceSort { revenue, bookings, profit }
 
 class ReportsProvider extends DbBoundProvider {
-  ReportsProvider(this._repository, AppDatabase db) : super(db) { load(); }
+  ReportsProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) { load(); }
 
   final DashboardRepository _repository;
   ReportDateRange _range = ReportDateRange.preset(ReportPeriod.thisMonth);
@@ -133,6 +135,19 @@ class ReportsProvider extends DbBoundProvider {
         notifyListeners();
       }
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _analytics = null;
+    _comparisonAnalytics = null;
+    _loading = false;
+    _error = null;
+    _errorKind = null;
   }
 
   @override

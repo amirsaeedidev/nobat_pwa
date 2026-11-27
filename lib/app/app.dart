@@ -4,19 +4,30 @@ import 'package:provider/provider.dart';
 
 import '../features/settings/presentation/providers/settings_provider.dart';
 import '../data/mock/app_database.dart';
+import '../core/services/supabase_auth_state_notifier.dart';
+import '../data/repositories/supabase_auth_repository.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
 /// ریشه برنامه با پشتیبانی کامل RTL و تم پویا.
 class DateTimeApp extends StatefulWidget {
-  const DateTimeApp({super.key});
+  const DateTimeApp({super.key, this.database});
+
+  /// Optional local database used only by isolated widget tests.
+  final AppDatabase? database;
 
   @override
   State<DateTimeApp> createState() => _DateTimeAppState();
 }
 
 class _DateTimeAppState extends State<DateTimeApp> {
-  late final _router = buildRouter(context.read<AppDatabase>());
+  late final _router = buildRouter(
+    database: widget.database,
+    authRepository: context.read<SupabaseAuthRepository?>(),
+    // Widget tests and embedded previews may intentionally omit cloud auth.
+    // Production injects this notifier from main.dart.
+    authStateNotifier: context.read<SupabaseAuthStateNotifier?>(),
+  );
 
   @override
   Widget build(BuildContext context) {

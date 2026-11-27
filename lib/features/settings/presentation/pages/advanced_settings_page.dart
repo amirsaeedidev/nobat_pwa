@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../../../app/theme/app_palette.dart';
 import '../../../../app/theme/app_tokens.dart';
 import '../../../../core/utils/fa_num.dart';
+import '../../../../core/utils/jalali.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
+import '../../../../core/widgets/jalali_picker.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/business_settings.dart';
 import '../../../../data/models/enums.dart';
@@ -81,7 +83,11 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     OutlinedButton.icon(
                       onPressed: () => setState(() {
@@ -97,7 +103,6 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
                     ),
-                    const Spacer(),
                     Text(
                       'مدیریت شیفت‌های کاری',
                       style: TextStyle(fontSize: 12, color: pal.textSecondary, fontWeight: FontWeight.w600),
@@ -217,9 +222,17 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   }
 
   Future<void> _addScheduleException() async {
-    final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2024), lastDate: DateTime(2035), helpText: 'انتخاب تاریخ محدودیت');
+    final today = JalaliDate.today();
+    final picked = await showJalaliDatePicker(
+      context,
+      initial: today,
+      minDate: JalaliDate(1400, 1, 1),
+      maxDate: today.addDays(730),
+      title: 'انتخاب تاریخ محدودیت',
+    );
     if (picked == null || !mounted) return;
-    final dateKey = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    final selectedDate = picked.toDateTime();
+    final dateKey = '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
     final closed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
       title: const Text('نوع محدودیت'), content: const Text('برای این تاریخ چه برنامه‌ای ثبت شود؟'),
       actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('ساعات ویژه')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تعطیلی کامل'))],
@@ -227,10 +240,12 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
     if (closed == null || !mounted) return;
     var specialShifts = const <Shift>[];
     if (!closed) {
-      final start = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 10, minute: 0), helpText: 'شروع ساعت ویژه');
-      if (start == null || !mounted) return;
-      final end = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 14, minute: 0), helpText: 'پایان ساعت ویژه');
-      if (end == null || !mounted) return;
+      final startLite = await showTimePickerSheet(context, initial: const TimeOfDayLite(10, 0), title: 'شروع ساعت ویژه');
+      if (startLite == null || !mounted) return;
+      final endLite = await showTimePickerSheet(context, initial: const TimeOfDayLite(14, 0), title: 'پایان ساعت ویژه');
+      if (endLite == null || !mounted) return;
+      final start = TimeOfDay(hour: startLite.hour, minute: startLite.minute);
+      final end = TimeOfDay(hour: endLite.hour, minute: endLite.minute);
       final startMinutes = start.hour * 60 + start.minute;
       final endMinutes = end.hour * 60 + end.minute;
       if (endMinutes <= startMinutes) {
@@ -242,7 +257,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
     }
     setState(() {
       _exceptions.removeWhere((e) => e.dateKey == dateKey);
-      _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی $dateKey' : 'ساعات ویژه $dateKey', isClosed: closed, shifts: specialShifts));
+      _exceptions.add(ScheduleException(dateKey: dateKey, title: closed ? 'تعطیلی ${picked.numeric}' : 'ساعات ویژه ${picked.numeric}', isClosed: closed, shifts: specialShifts));
     });
   }
 

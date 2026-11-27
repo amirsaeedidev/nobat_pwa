@@ -3,8 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 
-/// Optional Supabase client lifecycle. The app remains usable when disabled
-/// or when Supabase cannot be initialized.
+/// Supabase client lifecycle. Cloud data is required; initialization failure
+/// must never silently switch the application to local/demo records.
 class SupabaseService {
   SupabaseService._();
 
@@ -17,7 +17,7 @@ class SupabaseService {
 
   static Future<bool> initialize() async {
     if (!SupabaseConfig.isConfigured) {
-      debugPrint('[DateTime] Supabase disabled; using local Datamonck data.');
+      debugPrint('[DateTime] Supabase is not configured; cloud data access is unavailable.');
       return false;
     }
 
@@ -31,7 +31,7 @@ class SupabaseService {
       return true;
     } catch (error, stackTrace) {
       _initialized = false;
-      debugPrint('[DateTime] Supabase initialization failed; offline mode stays active: $error');
+      debugPrint('[DateTime] Supabase initialization failed; no local/demo fallback is enabled: $error');
       debugPrintStack(stackTrace: stackTrace);
       return false;
     }

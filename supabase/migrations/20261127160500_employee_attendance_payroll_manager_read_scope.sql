@@ -1,0 +1,3 @@
+drop policy if exists employee_attendance_policy_read on public.employee_attendance_payroll_policies;
+create policy employee_attendance_policy_read on public.employee_attendance_payroll_policies for select to authenticated
+using (private.has_business_permission(business_id,'employees.manage') or private.has_business_permission(business_id,'finance.payroll.manage') or private.has_business_permission(business_id,'finance.payroll.view'));

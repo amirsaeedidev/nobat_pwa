@@ -1,6 +1,8 @@
+import 'dart:async';
 import '../../../../core/models/page_result.dart';
 import '../../../../core/utils/jalali.dart';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/appointment.dart';
@@ -9,7 +11,7 @@ import '../../../../data/repositories/appointment_repository.dart';
 
 /// جست‌وجو، فیلتر، صفحه‌بندی و عملیات نوبت‌ها.
 class AppointmentsProvider extends DbBoundProvider {
-  AppointmentsProvider(this._repository, AppDatabase db) : super(db) {
+  AppointmentsProvider(this._repository, {AppDatabase? db, SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) {
     load();
   }
 
@@ -51,14 +53,25 @@ class AppointmentsProvider extends DbBoundProvider {
     } catch (error) {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.appointments;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
     } finally {
       if (generation == _loadGeneration) {
         _loading = false;
         notifyListeners();
       }
     }
+  }
+
+  @override
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _loadGeneration++;
+    _page = PageResult.empty(pageSize: _pageSize);
+    _loading = false;
+    _loadNotice = null;
+    _busy = false;
   }
 
   @override
@@ -92,8 +105,7 @@ class AppointmentsProvider extends DbBoundProvider {
     } catch (error) {
       if (generation != _loadGeneration) return;
       _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.appointments;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
+      _page = PageResult.empty(pageSize: _pageSize);
       notifyListeners();
     }
   }
@@ -133,7 +145,7 @@ class AppointmentsProvider extends DbBoundProvider {
   }
 
   void clearFilters() {
-    _filter = AppointmentFilter(query: _filter.query);
+    _filter = const AppointmentFilter();
     _pageNumber = 1;
     load();
   }
@@ -178,6 +190,7 @@ class AppointmentsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.create(appointment);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -190,6 +203,7 @@ class AppointmentsProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.update(appointment);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -197,16 +211,19 @@ class AppointmentsProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason}) async {
-    await _repository.changeStatus(appointment, status, reason: reason);
+  Future<void> changeStatus(Appointment appointment, AppointmentStatus status, {String? reason, String? operationType}) async {
+    await _repository.changeStatus(appointment, status, reason: reason, operationType: operationType);
+    await load();
   }
 
   Future<void> reschedule(Appointment appointment, DateTime newStart) async {
     await _repository.reschedule(appointment, newStart);
+    await load();
   }
 
   Future<void> delete(String id) async {
     await _repository.delete(id);
+    await load();
   }
 
   Future<List<Appointment>> forCustomer(String customerId) => _repository.fetchForCustomer(customerId);
@@ -216,8 +233,12 @@ class AppointmentsProvider extends DbBoundProvider {
 
   Future<Appointment?> byId(String id) => _repository.findById(id);
 
-  /// یافتن همگام (برای فرم‌ها).
-  Appointment? appointmentById(String id) => db.appointmentById(id);
+  Appointment? appointmentById(String id) {
+    for (final item in _page.items) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
 
-  List<Appointment> get allAppointments => db.appointments;
+  List<Appointment> get allAppointments => _page.items;
 }

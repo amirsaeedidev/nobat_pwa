@@ -21,7 +21,6 @@ import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_sections.dart';
 import '../widgets/performance_chart.dart';
 import '../widgets/dashboard_insights.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 
 /// پیشخوان مدیریت — بازسازی صفحه مرجع DateTime.
 class DashboardPage extends StatelessWidget {
@@ -32,11 +31,6 @@ class DashboardPage extends StatelessWidget {
     final provider = context.watch<DashboardProvider>();
     final activity = context.watch<ActivityProvider>();
     final stats = provider.stats;
-    final business = context.watch<SettingsProvider>().settings;
-    final website = business?.website.trim() ?? '';
-    final slug = business?.publicSlug.trim() ?? '';
-    final baseUrl = website.endsWith('/') ? website.substring(0, website.length - 1) : website;
-    final publicUrl = baseUrl.isEmpty || slug.isEmpty ? '' : '$baseUrl/book/$slug';
     return PageScaffold(
       title: 'پیشخوان',
       subtitle: 'نمای کلی عملکرد مجموعه',
@@ -47,7 +41,6 @@ class DashboardPage extends StatelessWidget {
       onProfile: () => context.push('/settings'),
       actions: [
         SoftButton(label: 'گزارش‌ها', icon: Icons.insights_rounded, onTap: () => context.push('/reports')),
-        SoftButton(label: 'صفحه رزرو', icon: Icons.public_rounded, onTap: () => context.push('/book')),
       ],
       scrollable: true,
       child: provider.loading && stats == null
@@ -91,7 +84,6 @@ class DashboardPage extends StatelessWidget {
                   Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: OutlinedButton.icon(
                     onPressed: provider.load, icon: const Icon(Icons.refresh_rounded), label: const Text('بارگذاری دوباره آمار مالی'))),
                 const SizedBox(height: 8),
-                _PublicBookingLinkCard(url: publicUrl),
               ],
             ),
     );
@@ -372,7 +364,7 @@ class _HeroStatsCard extends StatelessWidget {
                 ],
               );
 
-              if (constraints.maxWidth < 390) {
+              if (constraints.maxWidth < 440) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -540,44 +532,3 @@ class _DashboardDayPicker extends StatelessWidget {
 }
 
 /// لینک رزرو عمومی در انتهای پیشخوان؛ مقدار از تنظیمات واقعی مجموعه می‌آید.
-class _PublicBookingLinkCard extends StatelessWidget {
-  const _PublicBookingLinkCard({required this.url});
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.pal;
-    final available = url.isNotEmpty;
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(children: [
-        Icon(Icons.link_rounded, color: pal.primaryBright, size: 20),
-        const SizedBox(width: 8),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('لینک رزرو عمومی', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pal.textPrimary)),
-          const SizedBox(height: 3),
-          InkWell(
-            onTap: !available ? null : () async {
-              await Clipboard.setData(ClipboardData(text: url));
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('لینک رزرو کپی شد'), duration: Duration(seconds: 2)));
-            },
-            child: Text(available ? url : 'لینک رزرو هنوز در تنظیمات ثبت نشده است',
-              textDirection: TextDirection.ltr, textAlign: TextAlign.right, maxLines: 1,
-              overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: pal.textMuted)),
-          ),
-        ])),
-        IconButton(
-          tooltip: 'کپی لینک',
-          visualDensity: VisualDensity.compact,
-          onPressed: !available ? null : () async {
-            await Clipboard.setData(ClipboardData(text: url));
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('لینک رزرو کپی شد'), duration: Duration(seconds: 2)));
-          },
-          icon: Icon(Icons.copy_rounded, color: available ? pal.primaryBright : pal.textMuted, size: 19),
-        ),
-      ]),
-    );
-  }
-}

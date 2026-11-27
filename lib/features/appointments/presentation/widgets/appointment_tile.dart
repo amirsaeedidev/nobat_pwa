@@ -42,89 +42,110 @@ class AppointmentTile extends StatelessWidget {
       accentColor: accent,
       accentWidth: 4,
       radius: AppRadius.lg,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _TimeChip(time: Fmt.time(appointment.startAt.hour, appointment.startAt.minute), accent: accent, dense: dense),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  appointment.customerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: dense ? 13 : 14,
-                    fontWeight: FontWeight.w700,
-                    color: pal.textPrimary,
-                    height: 1.5,
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                appointment.customerName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: dense ? 13 : 14,
+                  fontWeight: FontWeight.w700,
+                  color: pal.textPrimary,
+                  height: 1.5,
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      _serviceIcon(appointment.serviceName),
-                      size: 12,
-                      color: pal.textMuted,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        appointment.serviceName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: dense ? 10.5 : 11.5,
-                          color: pal.textSecondary,
-                          fontWeight: FontWeight.w400,
-                        ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(_serviceIcon(appointment.serviceName), size: 12, color: pal.textMuted),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      appointment.serviceName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: dense ? 10.5 : 11.5,
+                        color: pal.textSecondary,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                  ],
-                ),
-                if (showReference) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'کد پیگیری: ${FaNum.convert(appointment.reference)}',
-                    style: TextStyle(fontSize: 10, color: pal.textMuted),
                   ),
                 ],
+              ),
+              if (showReference) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'کد پیگیری: ${FaNum.convert(appointment.reference)}',
+                  style: TextStyle(fontSize: 10, color: pal.textMuted),
+                ),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (trailingAction != null)
-            trailingAction!
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                StatusBadge.appointment(appointment.status, dense: true),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      dateLabel,
-                      style: TextStyle(fontSize: 10, color: pal.textMuted, fontWeight: FontWeight.w500),
-                    ),
-                    if (onMore != null) ...[
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: onMore,
-                        child: Icon(Icons.more_vert_rounded, size: 15, color: pal.textMuted),
+            ],
+          );
+          final meta = trailingAction ??
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  StatusBadge.appointment(appointment.status, dense: true),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        dateLabel,
+                        style: TextStyle(fontSize: 10, color: pal.textMuted, fontWeight: FontWeight.w500),
                       ),
+                      if (onMore != null) ...[
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: onMore,
+                          child: Icon(Icons.more_vert_rounded, size: 15, color: pal.textMuted),
+                        ),
+                      ],
                     ],
+                  ),
+                ],
+              );
+
+          if (constraints.maxWidth < 420) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    _TimeChip(time: Fmt.time(appointment.startAt.hour, appointment.startAt.minute), accent: accent, dense: dense),
+                    const SizedBox(width: 12),
+                    Expanded(child: details),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    const Spacer(),
+                    meta,
                   ],
                 ),
               ],
-            ),
-        ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _TimeChip(time: Fmt.time(appointment.startAt.hour, appointment.startAt.minute), accent: accent, dense: dense),
+              const SizedBox(width: 12),
+              Expanded(child: details),
+              const SizedBox(width: 8),
+              meta,
+            ],
+          );
+        },
       ),
     );
   }

@@ -25,8 +25,24 @@ class SensitiveOperationPreview {
   final String? warning;
 }
 
+/// قرارداد قابل تزریق برای عملیات Undo؛ پیاده‌سازی تولیدی از RPC سرور استفاده می‌کند.
+abstract class ActivityOperationsRepository {
+  bool canUndoActivityLog(ActivityLog log);
+  Future<bool> undoActivityEvent(String activityLogId);
+}
+
+/// Production-safe fallback: without a server operation gateway Undo is disabled.
+class UnavailableActivityOperationsRepository implements ActivityOperationsRepository {
+  @override
+  bool canUndoActivityLog(ActivityLog log) => false;
+
+  @override
+  Future<bool> undoActivityEvent(String activityLogId) =>
+      Future.error(StateError('بازگردانی فقط با اتصال معتبر به سرور امکان‌پذیر است.'));
+}
+
 /// نقطه ورود واحد عملیات حساس؛ تمام تغییرات از مسیر AppDatabase و Audit Log می‌گذرند.
-class OperationsRepository {
+class OperationsRepository implements ActivityOperationsRepository {
   OperationsRepository(this._db);
 
   final AppDatabase _db;
@@ -453,7 +469,7 @@ class OperationsRepository {
       operationType: 'financial_expense_create',
       entityName: 'هزینه مجموعه',
       entityId: expense.id,
-      description: 'ثبت هزینه ${expense.amount} با سند ${expense.sourceDocumentId}.',
+      description: 'ثبت هزینه ${expense.amount} با مرجع ${expense.sourceDocumentId}.',
       reversible: false,
       action: () => _db.addBusinessExpense(expense),
     );
@@ -487,6 +503,12 @@ class OperationsRepository {
   bool canUndo(String activityLogId) => _db.canUndoLog(activityLogId);
 
   bool undo(String activityLogId) => _db.undoLog(activityLogId);
+
+  @override
+  bool canUndoActivityLog(ActivityLog log) => canUndo(log.id);
+
+  @override
+  Future<bool> undoActivityEvent(String activityLogId) async => undo(activityLogId);
 
   bool undoLatestForEntity(String entityId) {
     final entry = latestUndoableLogFor(entityId);

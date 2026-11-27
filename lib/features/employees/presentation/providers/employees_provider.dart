@@ -1,13 +1,16 @@
+import 'dart:async';
 import '../../../../core/providers/db_bound_provider.dart';
+import '../../../../core/services/supabase_auth_state_notifier.dart';
 import '../../../../core/models/app_failure.dart';
 import '../../../../core/utils/fa_num.dart';
 import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/employee_schedule.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
-/// مدیریت پرسنل و برنامه کاری در دیتابیس محلی Datamonck.
+/// مدیریت پرسنل و برنامه کاری از طریق مخزن داده فعال.
 class EmployeesProvider extends DbBoundProvider {
-  EmployeesProvider(this._repository, AppDatabase db) : super(db) {
+  EmployeesProvider(this._repository, AppDatabase? db, {SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier, testOnlyLocalChanges: db) {
     load();
   }
 
@@ -36,7 +39,7 @@ class EmployeesProvider extends DbBoundProvider {
       _items = await _repository.fetchEmployees();
       _loadNotice = null;
     } catch (error) {
-      _items = db.employees;
+      _items = const [];
       _error = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
       _loadNotice = _error;
     } finally {
@@ -46,14 +49,48 @@ class EmployeesProvider extends DbBoundProvider {
   }
 
   @override
-  void onDatabaseChanged() {
-    _items = db.employees;
+  void onAuthenticatedTenantChanged() => unawaited(load());
+
+  @override
+  void onTenantContextCleared() {
+    _items = const [];
+    _loading = false;
     _error = null;
-    notifyListeners();
+    _loadNotice = null;
+  }
+
+  @override
+  void onDatabaseChanged() {
+    unawaited(load());
   }
 
   Future<List<Employee>> forService(String serviceId) => _repository.fetchEmployees(onlyActive: true, serviceId: serviceId);
   Future<Employee?> byId(String id) => _repository.findById(id);
+
+  Future<List<EmployeeScheduleException>> fetchScheduleExceptions({
+    required String employeeId,
+    required DateTime from,
+    required DateTime to,
+  }) => _repository.fetchScheduleExceptions(employeeId: employeeId, from: from, to: to);
+
+  Future<void> saveScheduleException(EmployeeScheduleException exception) =>
+      _repository.saveScheduleException(exception);
+
+  Future<void> deleteScheduleException(String employeeId, String dateKey) =>
+      _repository.deleteScheduleException(employeeId, dateKey);
+
+  Future<List<EmployeeLeave>> fetchLeaves(String employeeId) =>
+      _repository.fetchLeaves(employeeId);
+
+  Future<void> createLeave(EmployeeLeave leave) async {
+    await _repository.createLeave(leave);
+    notifyListeners();
+  }
+
+  Future<void> reviewLeave(EmployeeLeave leave) async {
+    await _repository.reviewLeave(leave);
+    notifyListeners();
+  }
 
   Employee? byIdSync(String id) {
     for (final employee in _items) {
@@ -71,17 +108,20 @@ class EmployeesProvider extends DbBoundProvider {
   Future<bool> create(Employee employee) async {
     if (phoneExists(employee.phone)) return false;
     await _repository.create(employee);
+    await load();
     return true;
   }
 
   Future<bool> update(Employee employee) async {
     if (phoneExists(employee.phone, excludingId: employee.id)) return false;
     await _repository.update(employee);
+    await load();
     return true;
   }
 
   Future<bool> remove(String id) async {
     await _repository.delete(id);
+    await load();
     return true;
   }
 

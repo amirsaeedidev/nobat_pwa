@@ -49,6 +49,28 @@ void main() {
       expect(db.customers.any((c) => c.id == target.id), isFalse);
       expect(provider.items.any((c) => c.id == target.id), isFalse);
     });
+
+    test('پروفایل مشتری فقط نوبت‌های مرتبط را تجمیع می‌کند', () async {
+      final target = db.customers.first;
+      final profile = await provider.fetchProfile(target.id);
+      expect(profile, isNotNull);
+      expect(profile!.appointments.every((item) => item.customerId == target.id), isTrue);
+      expect(profile.completedVisits, profile.customer.visitCount);
+      expect(profile.cancelledAppointments, profile.customer.cancelCount);
+    });
+
+    test('بایگانی و بازیابی مشتری از فهرست‌های جداگانه', () async {
+      final target = db.customers.first;
+      await provider.update(target.copyWith(isArchived: true));
+      await provider.toggleArchived();
+      expect(provider.items.any((item) => item.id == target.id && item.isArchived), isTrue);
+
+      final archived = await provider.byId(target.id);
+      await provider.update(archived!.copyWith(isArchived: false));
+      await provider.toggleArchived();
+      final activeCustomers = await provider.fetchAll();
+      expect(activeCustomers.any((item) => item.id == target.id && !item.isArchived), isTrue);
+    });
   });
 
   group('خدمات', () {

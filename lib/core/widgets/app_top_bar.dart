@@ -42,7 +42,7 @@ class AppTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final compactLogoHeader = MediaQuery.sizeOf(context).width < 400;
+    final compactActions = MediaQuery.sizeOf(context).width < 480;
     final narrowHeader = MediaQuery.sizeOf(context).width < 360;
     return LiquidGlassLayer(
       settings: LiquidGlassSettings.ios27Regular(
@@ -83,8 +83,8 @@ class AppTopBar extends StatelessWidget {
                       if (onSearch != null && !narrowHeader) ...[
                         HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                       ],
-                      if (!compactLogoHeader) ...actions,
-                      if (!compactLogoHeader && actions.isNotEmpty) const SizedBox(width: 8),
+                      if (!compactActions) ...actions,
+                      if (!compactActions && actions.isNotEmpty) const SizedBox(width: 8),
                       if (onBell != null) ...[
                         CircleIconButton(
                           icon: Icons.notifications_none_rounded,
@@ -154,9 +154,9 @@ class AppTopBar extends StatelessWidget {
                       )
                     else
                       const Spacer(),
-                    ...actions,
-                    if (actions.isNotEmpty) const SizedBox(width: 8),
-                    if (onSearch != null) ...[
+                    if (!compactActions) ...actions,
+                    if (!compactActions && actions.isNotEmpty) const SizedBox(width: 8),
+                    if (onSearch != null && !narrowHeader) ...[
                       HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                     ],
                     if (onBell != null) ...[
@@ -184,6 +184,19 @@ class AppTopBar extends StatelessWidget {
                       ),
                   ],
                 ),
+              if (actions.isNotEmpty && compactActions) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: actions,
+                  ),
+                ),
+              ],
               if (bottom != null) ...[
                 const SizedBox(height: 10),
                 bottom!,

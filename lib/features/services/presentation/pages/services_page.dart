@@ -14,8 +14,6 @@ import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
 import '../../../../data/models/service.dart';
-import '../../../../data/mock/app_database.dart';
-import '../../../../data/repositories/operations_repository.dart';
 import '../providers/services_provider.dart';
 
 /// مدیریت خدمات — بازسازی صفحه «مدیریت خدمات» تصویر مرجع.
@@ -44,12 +42,41 @@ class ServicesPage extends StatelessWidget {
         ),
         CircleIconButton(icon: Icons.settings_rounded, size: 38, onTap: () => context.push('/settings')),
       ],
-      mobileActions: [
-        CircleIconButton(icon: Icons.category_outlined, size: 38, onTap: () => _manageCategories(context)),
-        CircleIconButton(icon: Icons.refresh_rounded, size: 38, onTap: provider.load),
-        CircleIconButton(icon: Icons.add_rounded, size: 38, onTap: () => context.push('/services/new')),
-      ],
-      leading: CircleIconButton(icon: Icons.settings_rounded, size: 40, onTap: () => context.push('/settings')),
+      mobileHeader: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: SolidButton(
+              label: 'خدمت جدید',
+              icon: Icons.add_rounded,
+              height: 40,
+              onPressed: () => context.push('/services/new'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SoftButton(
+                label: 'دسته‌بندی‌ها',
+                icon: Icons.category_outlined,
+                dense: true,
+                expanded: true,
+                onTap: () => _manageCategories(context),
+              ),
+              const SizedBox(height: 8),
+              SoftButton(
+                label: 'بازآوری',
+                icon: Icons.refresh_rounded,
+                dense: true,
+                expanded: true,
+                onTap: provider.load,
+              ),
+            ],
+          ),
+        ],
+      ),
       child: provider.loading
           ? const LoadingState(kind: SkeletonKind.services)
           : Column(
@@ -214,13 +241,21 @@ class ServicesPage extends StatelessWidget {
         ])),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('بستن')),
-          TextButton(onPressed: () {
-            try { provider.addCategory(controller.text); Navigator.pop(dialogContext); }
-            catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
+          TextButton(onPressed: () async {
+            try {
+              await provider.addCategory(controller.text);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            } catch (error) {
+              if (context.mounted) AppToast.show(context, error.toString(), success: false);
+            }
           }, child: const Text('افزودن')),
-          TextButton(onPressed: selected == null ? null : () {
-            try { provider.renameCategory(selected!, controller.text); Navigator.pop(dialogContext); }
-            catch (error) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()))); }
+          TextButton(onPressed: selected == null ? null : () async {
+            try {
+              await provider.renameCategory(selected!, controller.text);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            } catch (error) {
+              if (context.mounted) AppToast.show(context, error.toString(), success: false);
+            }
           }, child: const Text('تغییر نام')),
           TextButton(onPressed: selected == null ? null : () async {
             final category = selected!;
@@ -228,13 +263,13 @@ class ServicesPage extends StatelessWidget {
             final confirmed = await showSensitiveOperationDialog(
               context,
               title: 'حذف دسته‌بندی خدمات',
-              description: 'دسته‌بندی حذف می‌شود. خدمات وابسته باید به دسته‌بندی دیگری منتقل شوند؛ تغییرات قابل بازگردانی هستند.',
+              description: 'دسته‌بندی در Supabase حذف می‌شود. خدمات وابسته در همان عملیات به دسته‌بندی مقصد منتقل خواهند شد.',
               recordDetails: {
                 'دسته‌بندی': category,
                 'خدمات وابسته': count.toString(),
                 'دسته‌بندی مقصد': moveTo ?? (count == 0 ? 'ندارد' : 'انتخاب نشده'),
               },
-              isReversible: true,
+              isReversible: false,
               confirmLabel: 'حذف دسته‌بندی',
             );
             if (!confirmed || !context.mounted) return;
@@ -242,19 +277,7 @@ class ServicesPage extends StatelessWidget {
               await provider.deleteCategory(category, moveServicesTo: moveTo);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               if (context.mounted) {
-                final operations = OperationsRepository(context.read<AppDatabase>());
-                final undoLog = operations.latestUndoableLogFor(category);
-                if (undoLog != null) {
-                  showUndoableOperationSnackBarForLog(
-                    context,
-                    message: 'دسته‌بندی «$category» حذف شد.',
-                    activityLogId: undoLog.id,
-                    undo: operations.undo,
-                    onUndoSuccess: provider.load,
-                  );
-                } else {
-                  AppToast.show(context, 'دسته‌بندی حذف شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
-                }
+                AppToast.show(context, 'دسته‌بندی و ارتباط خدمات در Supabase به‌روزرسانی شد.');
               }
             } catch (error) {
               if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -270,7 +293,7 @@ class ServicesPage extends StatelessWidget {
     final confirmed = await showSensitiveOperationDialog(
       context,
       title: 'حذف یا بایگانی خدمت',
-      description: 'اگر خدمت در سوابق نوبت یا اسناد مالی استفاده شده باشد، به‌جای حذف دائمی بایگانی می‌شود. در غیر این صورت حذف قابل بازگردانی است.',
+      description: 'خدمت در Supabase غیرفعال و بایگانی می‌شود. سوابق نوبت و ارتباط‌های تاریخی آن حفظ خواهند شد.',
       recordDetails: {
         'نام خدمت': service.title,
         'دسته‌بندی': service.category,
@@ -285,19 +308,7 @@ class ServicesPage extends StatelessWidget {
     try {
       await context.read<ServicesProvider>().remove(service.id);
       if (context.mounted) {
-        final operations = OperationsRepository(context.read<AppDatabase>());
-        final undoLog = operations.latestUndoableLogFor(service.id);
-        if (undoLog != null) {
-          showUndoableOperationSnackBarForLog(
-            context,
-            message: 'عملیات خدمت «${service.title}» انجام شد.',
-            activityLogId: undoLog.id,
-            undo: operations.undo,
-            onUndoSuccess: context.read<ServicesProvider>().load,
-          );
-        } else {
-          AppToast.show(context, 'عملیات خدمت انجام شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
-        }
+        AppToast.show(context, 'خدمت در Supabase بایگانی شد؛ تاریخچهٔ نوبت‌ها حفظ شد.');
       }
     } catch (error) {
       if (context.mounted) AppToast.show(context, '$error', success: false);
@@ -325,62 +336,51 @@ class ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final db = context.watch<AppDatabase>();
-    final bookingCount = db.appointments.where((item) => item.serviceIds.contains(service.id)).length;
-    final serviceRevenue = db.employeeFinanceEntries.where((item) => item.serviceId == service.id).fold<int>(0, (sum, item) => sum + item.receivedAmount);
     return AppCard(
       radius: AppRadius.xl,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconTile(icon: Icons.content_cut_rounded, color: pal.primary, size: 46, radius: 15),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      service.title,
-                      style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: pal.textPrimary),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
-                      children: [
-                        _MetaItem(
-                          icon: Icons.sell_outlined,
-                          label: Fmt.money(service.priceAt(DateTime.now())),
-                          color: pal.primaryBright,
-                        ),
-                        _MetaItem(
-                          icon: Icons.timelapse_rounded,
-                          label: Fmt.duration(service.durationMinutes),
-                          color: pal.textSecondary,
-                        ),
-                        _MetaItem(
-                          icon: Icons.category_outlined,
-                          label: service.category,
-                          color: pal.textMuted,
-                        ),
-                        _MetaItem(icon: Icons.event_available_outlined, label: FaNum.ofInt(bookingCount) + ' نوبت', color: pal.textSecondary),
-                        _MetaItem(icon: Icons.account_balance_wallet_outlined, label: Fmt.money(serviceRevenue), color: pal.success),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final details = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    service.title,
+                    style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: pal.textPrimary),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    children: [
+                      _MetaItem(
+                        icon: Icons.sell_outlined,
+                        label: Fmt.money(service.priceAt(DateTime.now())),
+                        color: pal.primaryBright,
+                      ),
+                      _MetaItem(
+                        icon: Icons.timelapse_rounded,
+                        label: Fmt.duration(service.durationMinutes),
+                        color: pal.textSecondary,
+                      ),
+                      _MetaItem(
+                        icon: Icons.category_outlined,
+                        label: service.category,
+                        color: pal.textMuted,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+              final toggle = InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: onToggle,
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: pal.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -392,8 +392,32 @@ class ServiceCard extends StatelessWidget {
                     color: pal.primaryBright,
                   ),
                 ),
-              ),
-            ],
+              );
+              final information = Row(
+                children: [
+                  IconTile(icon: Icons.content_cut_rounded, color: pal.primary, size: 42, radius: 14),
+                  const SizedBox(width: 8),
+                  Expanded(child: details),
+                ],
+              );
+              if (constraints.maxWidth < 300) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    information,
+                    Align(alignment: AlignmentDirectional.centerEnd, child: toggle),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: information),
+                  const SizedBox(width: 8),
+                  toggle,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           Divider(color: pal.border.withValues(alpha: 0.8), height: 1),
@@ -414,10 +438,10 @@ class ServiceCard extends StatelessWidget {
                 onTap: onDelete,
               ),
               StatusBadge(
-                label: service.isActive ? 'فعال' : 'غیرفعال',
-                color: service.isActive ? pal.success : pal.textMuted,
+                label: service.archivedAt != null ? 'بایگانی' : (service.isActive ? 'فعال' : 'غیرفعال'),
+                color: service.archivedAt != null ? pal.textMuted : (service.isActive ? pal.success : pal.textMuted),
                 dense: true,
-                icon: service.isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                icon: service.archivedAt != null ? Icons.archive_outlined : (service.isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded),
               ),
             ],
           ),

@@ -5,10 +5,11 @@ import '../../../../core/utils/fa_num.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/badges.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_service_config.dart';
 import '../../../../data/models/service.dart';
+import '../../../services/presentation/providers/services_provider.dart';
+import '../providers/employees_provider.dart';
 
 class EmployeeServicesPanel extends StatelessWidget {
   const EmployeeServicesPanel({super.key, required this.employee});
@@ -16,14 +17,14 @@ class EmployeeServicesPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final db = context.watch<AppDatabase>();
-    final configs = db.employeeServiceConfigsFor(employee.id);
+    final servicesProvider = context.watch<ServicesProvider>();
+    final configs = servicesProvider.allEmployeeConfigs.where((item) => item.employeeId == employee.id).toList();
     final pal = context.pal;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Expanded(child: Text('خدمات قابل ارائه', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800))),
-          TextButton.icon(onPressed: () => _editService(context, db, employee, null), icon: const Icon(Icons.add, size: 17), label: const Text('افزودن خدمت')),
+          TextButton.icon(onPressed: () => _editService(context, employee, null), icon: const Icon(Icons.add, size: 17), label: const Text('افزودن خدمت')),
         ]),
         Text(FaNum.ofInt(configs.where((item) => item.active).length) + ' خدمت فعال از ' + FaNum.ofInt(configs.length) + ' خدمت اختصاص‌یافته',
           style: TextStyle(fontSize: 10.5, color: pal.textMuted)),
@@ -32,8 +33,8 @@ class EmployeeServicesPanel extends StatelessWidget {
           Text('هنوز خدمتی به این پرسنل اختصاص داده نشده است.', style: TextStyle(fontSize: 11, color: pal.textMuted))
         else
           for (final config in configs) ...[
-            _ServiceConfigTile(service: db.serviceById(config.serviceId), config: config,
-              onEdit: () => _editService(context, db, employee, config)),
+            _ServiceConfigTile(service: servicesProvider.items.where((item) => item.id == config.serviceId).firstOrNull, config: config,
+              onEdit: () => _editService(context, employee, config)),
             const Divider(height: 14),
           ],
       ])),
@@ -41,7 +42,7 @@ class EmployeeServicesPanel extends StatelessWidget {
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Expanded(child: Text('تخصص‌ها و مهارت‌ها', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800))),
-          TextButton.icon(onPressed: () => _editSpecialties(context, db, employee), icon: const Icon(Icons.edit_outlined, size: 16), label: const Text('ویرایش')),
+          TextButton.icon(onPressed: () => _editSpecialties(context, employee), icon: const Icon(Icons.edit_outlined, size: 16), label: const Text('ویرایش')),
         ]),
         if (employee.specialties.isEmpty)
           Text('تخصصی ثبت نشده است.', style: TextStyle(fontSize: 11, color: pal.textMuted))
@@ -53,10 +54,11 @@ class EmployeeServicesPanel extends StatelessWidget {
     ]);
   }
 
-  Future<void> _editService(BuildContext context, AppDatabase db, Employee employee, EmployeeServiceConfig? current) async {
-    final available = db.services.where((item) => item.isActive &&
-      (current != null ? item.id == current.serviceId : db.employeeServiceConfig(employee.id, item.id) == null)).toList();
-    Service? selected = current == null ? (available.isEmpty ? null : available.first) : db.serviceById(current.serviceId);
+  Future<void> _editService(BuildContext context, Employee employee, EmployeeServiceConfig? current) async {
+    final servicesProvider = context.read<ServicesProvider>();
+    final available = servicesProvider.items.where((item) => item.isActive &&
+      (current != null ? item.id == current.serviceId : servicesProvider.employeeServiceConfig(employee.id, item.id) == null)).toList();
+    Service? selected = current == null ? (available.isEmpty ? null : available.first) : servicesProvider.items.where((item) => item.id == current.serviceId).firstOrNull;
     if (selected == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خدمت جدیدی برای اختصاص وجود ندارد.')));
       return;
@@ -89,10 +91,10 @@ class EmployeeServicesPanel extends StatelessWidget {
       ])))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('انصراف')),
-        FilledButton(onPressed: () {
+        FilledButton(onPressed: () async {
           if (!formKey.currentState!.validate() || selected == null) return;
           final rateValue = rate.text.trim().isEmpty ? null : (double.parse(FaNum.toLatin(rate.text).replaceAll(',', '.')) * 100).round();
-          db.saveEmployeeServiceConfig(EmployeeServiceConfig(
+          await servicesProvider.saveEmployeeServiceConfig(EmployeeServiceConfig(
             employeeId: employee.id, serviceId: selected!.id, active: active,
             customPrice: price.text.trim().isEmpty ? null : int.parse(FaNum.toLatin(price.text)),
             customDurationMinutes: duration.text.trim().isEmpty ? null : int.parse(FaNum.toLatin(duration.text)),
@@ -100,14 +102,16 @@ class EmployeeServicesPanel extends StatelessWidget {
             fixedCommissionAmount: fixed.text.trim().isEmpty ? null : int.parse(FaNum.toLatin(fixed.text)),
             specialtyNote: note.text.trim(),
           ));
-          Navigator.pop(dialogContext);
+          await context.read<EmployeesProvider>().load();
+          await servicesProvider.load();
+          if (dialogContext.mounted) Navigator.pop(dialogContext);
         }, child: const Text('ذخیره')),
       ],
     )));
     price.dispose(); duration.dispose(); rate.dispose(); fixed.dispose(); note.dispose();
   }
 
-  Future<void> _editSpecialties(BuildContext context, AppDatabase db, Employee employee) async {
+  Future<void> _editSpecialties(BuildContext context, Employee employee) async {
     final controller = TextEditingController(text: employee.specialties.join('، '));
     final result = await showDialog<String>(context: context, builder: (context) => AlertDialog(
       title: const Text('تخصص‌ها و مهارت‌ها'),
@@ -119,7 +123,7 @@ class EmployeeServicesPanel extends StatelessWidget {
     ));
     if (result != null) {
       final specialties = result.split(RegExp(r'[,،]')).map((item) => item.trim()).where((item) => item.isNotEmpty).toSet().toList();
-      db.updateEmployee(employee.copyWith(specialties: specialties));
+      await context.read<EmployeesProvider>().update(employee.copyWith(specialties: specialties));
     }
     controller.dispose();
   }

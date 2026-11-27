@@ -45,8 +45,28 @@ jobs:
       - name: Generate app icons from Iconapp asset
         run: dart run flutter_launcher_icons
 
+      - name: Validate Supabase release configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_URL}" || -z "${SUPABASE_PUBLISHABLE_KEY}" ]]; then
+            echo "::error::Configure SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY repository secrets before building a connected APK."
+            exit 1
+          fi
+          [[ "${SUPABASE_URL}" == https://* ]]
+          [[ "${SUPABASE_PUBLISHABLE_KEY}" == sb_publishable_* ]]
+
       - name: Build release APK
-        run: flutter build apk --release
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_ENABLED=true \
+            --dart-define=SUPABASE_URL="${SUPABASE_URL}" \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
 
       - name: Verify APK package, size and signature
         shell: bash

@@ -13,80 +13,110 @@ import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/badges.dart';
 import '../../../../core/widgets/feedback.dart';
 import '../../../../core/widgets/sensitive_operation_dialog.dart';
-import '../../../../data/mock/app_database.dart';
 import '../../../../data/models/customer.dart';
-import '../../../../data/models/enums.dart';
-import '../../../../data/repositories/operations_repository.dart';
-import '../../../appointments/presentation/providers/appointments_provider.dart';
 import '../../../appointments/presentation/widgets/appointment_tile.dart';
 import '../providers/customers_provider.dart';
 
 /// پروفایل حرفه‌ای مشتری با تاریخچه، آمار و شاخص پایبندی.
-class CustomerProfilePage extends StatelessWidget {
+class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key, required this.customerId});
 
   final String customerId;
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<CustomersProvider>();
-    final appointmentsProvider = context.watch<AppointmentsProvider>();
-    final pal = context.pal;
-    final customer = provider.findById(customerId);
+  State<CustomerProfilePage> createState() => _CustomerProfilePageState();
+}
 
-    if (customer == null) {
-      return PageScaffold(
-        title: 'پروفایل مشتری',
-        showBackButton: true,
-        child: const EmptyState(title: 'مشتری یافت نشد', description: 'این مشتری حذف شده یا وجود ندارد.'),
-      );
+class _CustomerProfilePageState extends State<CustomerProfilePage> {
+  late Future<CustomerProfile?> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId);
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomerProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.customerId != widget.customerId) {
+      _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId);
     }
+  }
 
-    final appointments = appointmentsProvider.allAppointments
-        .where((a) => a.customerId == customer.id)
-        .toList()
-      ..sort((a, b) => b.startAt.compareTo(a.startAt));
-    final completed = appointments.where((a) => a.status == AppointmentStatus.completed).toList();
-    final services = completed.map((a) => a.serviceName).toSet().toList();
-    final upcoming = appointments.where((a) => a.status.isActive && a.startAt.isAfter(DateTime.now())).toList();
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<CustomerProfile?>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return PageScaffold(
+            title: 'پروفایل مشتری',
+            showBackButton: true,
+            child: const LoadingState(kind: SkeletonKind.customers),
+          );
+        }
+        if (snapshot.hasError) {
+          return PageScaffold(
+            title: 'پروفایل مشتری',
+            showBackButton: true,
+            child: ErrorStateView(
+              description: 'دریافت پروفایل از Supabase ناموفق بود. اطلاعات محلی جایگزین نمی‌شود.',
+              onRetry: () => setState(() {
+                _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId);
+              }),
+            ),
+          );
+        }
+        final profile = snapshot.data;
+        if (profile == null) {
+          return PageScaffold(
+            title: 'پروفایل مشتری',
+            showBackButton: true,
+            child: const EmptyState(title: 'مشتری یافت نشد', description: 'این مشتری در مجموعه فعلی وجود ندارد یا قابل مشاهده نیست.'),
+          );
+        }
+        final pal = context.pal;
+        final customer = profile.customer;
+        final appointments = profile.appointments;
+        final services = profile.services;
+        final upcoming = appointments.where((a) => a.status.isActive && a.startAt.isAfter(DateTime.now())).toList();
 
     Future<void> deleteCustomer() async {
       final confirmed = await showSensitiveOperationDialog(
         context,
         title: 'حذف یا بایگانی مشتری',
-        description: 'اگر مشتری سابقه نوبت یا دریافت مالی داشته باشد، پروفایل بایگانی می‌شود تا پیوند سوابق حفظ شود؛ در غیر این صورت حذف قابل بازگردانی انجام می‌شود.',
+        description: 'پروفایل مشتری در Supabase بایگانی می‌شود و سوابق نوبت و پرداخت‌های مرتبط حفظ می‌شوند. هر زمان امکان بازیابی وجود دارد.',
         recordDetails: {
           'نام مشتری': customer.fullName,
           'شماره تماس': customer.phone,
           'تعداد سوابق نوبت': appointments.length.toString(),
-          'مجموع خرید': '${FaNum.ofInt(customer.totalSpent.round())} تومان',
+          'مجموع خرید': profile.financeVisible ? '${FaNum.ofInt(customer.totalSpent.round())} تومان' : 'بدون مجوز مشاهده مالی',
         },
         isReversible: true,
         confirmLabel: 'ادامه عملیات',
       );
       if (!confirmed || !context.mounted) return;
-      final db = context.read<AppDatabase>();
       final customersProvider = context.read<CustomersProvider>();
       try {
         await customersProvider.delete(customer.id);
         if (context.mounted) {
-          final operations = OperationsRepository(db);
-          final undoLog = operations.latestUndoableLogFor(customer.id);
-          if (undoLog != null) {
-            showUndoableOperationSnackBarForLog(
-              context,
-              message: 'عملیات مشتری «${customer.fullName}» انجام شد.',
-              activityLogId: undoLog.id,
-              undo: operations.undo,
-              onUndoSuccess: customersProvider.load,
-            );
-          } else {
-            AppToast.show(context, 'عملیات مشتری انجام شد؛ بازگردانی به‌دلیل تغییرات وابسته ممکن نیست.');
-          }
+          AppToast.show(context, 'پروفایل مشتری در Supabase بایگانی شد.');
           context.pop();
         }
       } catch (error) {
         if (context.mounted) AppToast.show(context, '$error', success: false);
+      }
+    }
+
+    Future<void> restoreCustomer() async {
+      try {
+        await context.read<CustomersProvider>().update(customer.copyWith(isArchived: false));
+        if (!context.mounted) return;
+        AppToast.show(context, 'مشتری از بایگانی بازیابی شد.');
+        setState(() => _profileFuture = context.read<CustomersProvider>().fetchProfile(widget.customerId));
+      } catch (error) {
+        if (context.mounted) AppToast.show(context, 'بازیابی مشتری انجام نشد: $error', success: false);
       }
     }
 
@@ -96,7 +126,10 @@ class CustomerProfilePage extends StatelessWidget {
       icon: Icons.person_rounded,
       showBackButton: true,
       actions: [
-        SoftButton(label: 'حذف / بایگانی', color: pal.danger, onTap: deleteCustomer),
+        if (customer.isArchived)
+          SoftButton(label: 'بازیابی از بایگانی', icon: Icons.unarchive_rounded, onTap: restoreCustomer)
+        else
+          SoftButton(label: 'حذف / بایگانی', color: pal.danger, onTap: deleteCustomer),
         SoftButton(label: 'ویرایش', icon: Icons.edit_rounded, onTap: () => context.push('/customers/${customer.id}/edit')),
         SolidButton(
           label: 'نوبت جدید',
@@ -106,7 +139,10 @@ class CustomerProfilePage extends StatelessWidget {
         ),
       ],
       mobileActions: [
-        TextButton(onPressed: deleteCustomer, child: const Text('حذف')),
+        if (customer.isArchived)
+          TextButton(onPressed: restoreCustomer, child: const Text('بازیابی'))
+        else
+          TextButton(onPressed: deleteCustomer, child: const Text('بایگانی')),
         CircleIconButton(icon: Icons.edit_rounded, size: 38, onTap: () => context.push('/customers/${customer.id}/edit')),
       ],
       child: Column(
@@ -173,7 +209,7 @@ class CustomerProfilePage extends StatelessWidget {
                     Expanded(
                       child: _Stat(
                         label: 'خرید کل',
-                        value: Fmt.compactMoney(customer.totalSpent).replaceAll(' تومان', ''),
+                        value: profile.financeVisible ? Fmt.compactMoney(customer.totalSpent).replaceAll(' تومان', '') : '—',
                         color: pal.success,
                       ),
                     ),
@@ -233,6 +269,28 @@ class CustomerProfilePage extends StatelessWidget {
                           value: customer.lastVisitAt == null ? 'ندارد' : JalaliDate.fromDateTime(customer.lastVisitAt!).long,
                           icon: Icons.history_rounded,
                         ),
+                        if (profile.financeVisible) ...[
+                          InfoRow(
+                            label: 'مبلغ خدمات انجام‌شده',
+                            value: '${FaNum.ofInt((profile.totalBilled ?? 0).round())} تومان',
+                            icon: Icons.receipt_long_rounded,
+                          ),
+                          InfoRow(
+                            label: 'دریافتی خالص',
+                            value: '${FaNum.ofInt((profile.totalPaid ?? 0).round())} تومان',
+                            icon: Icons.payments_outlined,
+                          ),
+                          InfoRow(
+                            label: 'مانده حساب',
+                            value: '${FaNum.ofInt((profile.outstanding ?? 0).round())} تومان',
+                            icon: Icons.account_balance_wallet_outlined,
+                          ),
+                        ] else
+                          const InfoRow(
+                            label: 'اطلاعات مالی',
+                            value: 'دسترسی مشاهده مالی ندارید',
+                            icon: Icons.lock_outline_rounded,
+                          ),
                         InfoRow(
                           label: 'نوبت آینده',
                           value: upcoming.isEmpty ? 'ندارد' : upcoming.first.jalali.long,
@@ -302,6 +360,8 @@ class CustomerProfilePage extends StatelessWidget {
           ),
         ],
       ),
+    );
+      },
     );
   }
 }

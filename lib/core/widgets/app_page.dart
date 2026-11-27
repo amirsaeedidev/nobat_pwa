@@ -23,7 +23,7 @@ class PageScaffold extends StatelessWidget {
     this.bottomBar,
     this.scrollable = true,
     this.padding,
-    this.bottomContentPadding = 28,
+    this.bottomContentPadding = 132,
     this.header,
     this.floatingAction,
     this.mobileHeader,
@@ -109,7 +109,7 @@ class PageScaffold extends StatelessWidget {
                     thickness: 3,
                     radius: const Radius.circular(4),
                     child: SingleChildScrollView(
-                    padding: EdgeInsets.only(top: isDesktop ? 22 : 16, bottom: bottomContentPadding),
+                    padding: EdgeInsets.only(top: isDesktop ? 22 : 16, bottom: isDesktop ? 32 : bottomContentPadding),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: Breakpoints.contentMaxWidth(width)),

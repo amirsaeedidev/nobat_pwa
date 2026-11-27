@@ -134,7 +134,6 @@ class NotificationSettings {
 /// قواعد رزرو، لغو و جابه‌جایی.
 class BookingRules {
   const BookingRules({
-    this.allowOnlineBooking = true,
     this.allowCustomerCancel = true,
     this.allowReschedule = true,
     this.maxReschedules = 1,
@@ -146,7 +145,6 @@ class BookingRules {
     this.cancelPenaltyCount = 3,
   });
 
-  final bool allowOnlineBooking;
   final bool allowCustomerCancel;
   final bool allowReschedule;
   final int maxReschedules;
@@ -158,7 +156,6 @@ class BookingRules {
   final int cancelPenaltyCount;
 
   BookingRules copyWith({
-    bool? allowOnlineBooking,
     bool? allowCustomerCancel,
     bool? allowReschedule,
     int? maxReschedules,
@@ -170,7 +167,6 @@ class BookingRules {
     int? cancelPenaltyCount,
   }) {
     return BookingRules(
-      allowOnlineBooking: allowOnlineBooking ?? this.allowOnlineBooking,
       allowCustomerCancel: allowCustomerCancel ?? this.allowCustomerCancel,
       allowReschedule: allowReschedule ?? this.allowReschedule,
       maxReschedules: maxReschedules ?? this.maxReschedules,
@@ -190,22 +186,23 @@ class BusinessSettings {
     this.name = 'سالن زیبایی DateTime',
     this.slogan = 'مدیریت هوشمند نوبت‌ها',
     this.description = 'مجموعه تخصصی زیبایی و آرایش با تیمی از متخصصان حرفه‌ای.',
-    this.phone = '02188776655',
+    this.phone = '',
     this.mobile = '09121234567',
-    this.email = 'info@datetime.app',
-    this.province = 'تهران',
-    this.city = 'تهران',
-    this.address = 'خیابان ولیعصر، بالاتر از پارک ساعی، پلاک ۱۲۴، طبقه ۳',
-    this.postalCode = '1968913751',
+    this.email = '',
+    this.province = '',
+    this.city = '',
+    this.address = '',
+    this.postalCode = '',
     this.latitude = 35.7448,
     this.longitude = 51.4099,
-    this.instagram = 'https://instagram.com/datetime.salon',
-    this.telegram = 'https://t.me/datetime_salon',
-    this.whatsapp = 'https://wa.me/989121234567',
-    this.website = 'https://datetime.app',
-    this.publicSlug = 'datetime-salon',
+    this.mapApps = const [],
+    this.instagram = '',
+    this.telegram = '',
+    this.whatsapp = '',
+    this.website = '',
     this.currency = 'تومان',
     this.logoText = 'DT',
+    this.publicSlug = '',
     this.workingHours = const {},
     this.holidays = const [],
     this.smsProvider = const SmsProviderSettings(),
@@ -227,13 +224,17 @@ class BusinessSettings {
   final String postalCode;
   final double latitude;
   final double longitude;
+  final List<String> mapApps;
   final String instagram;
   final String telegram;
   final String whatsapp;
   final String website;
-  final String publicSlug;
   final String currency;
   final String logoText;
+  final String publicSlug;
+  String get publicUrl => publicSlug.trim().isEmpty
+      ? ''
+      : '/book?slug=${Uri.encodeQueryComponent(publicSlug.trim())}';
 
   /// ساعات کاری مجموعه (کلید = روز هفته، ۰ = شنبه).
   final Map<int, List<Shift>> workingHours;
@@ -251,9 +252,6 @@ class BusinessSettings {
   final NotificationSettings notifications;
   final BookingRules bookingRules;
 
-  String get publicUrl => 'datetime.app/book/$publicSlug';
-  String get fullUrl => 'https://datetime.app/book/$publicSlug';
-
   BusinessSettings copyWith({
     String? name,
     String? slogan,
@@ -267,13 +265,14 @@ class BusinessSettings {
     String? postalCode,
     double? latitude,
     double? longitude,
+    List<String>? mapApps,
     String? instagram,
     String? telegram,
     String? whatsapp,
     String? website,
-    String? publicSlug,
     String? currency,
     String? logoText,
+    String? publicSlug,
     Map<int, List<Shift>>? workingHours,
     List<int>? holidays,
     Map<int, List<Shift>>? workSchedules,
@@ -295,13 +294,14 @@ class BusinessSettings {
       postalCode: postalCode ?? this.postalCode,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      mapApps: mapApps ?? this.mapApps,
       instagram: instagram ?? this.instagram,
       telegram: telegram ?? this.telegram,
       whatsapp: whatsapp ?? this.whatsapp,
       website: website ?? this.website,
-      publicSlug: publicSlug ?? this.publicSlug,
       currency: currency ?? this.currency,
       logoText: logoText ?? this.logoText,
+      publicSlug: publicSlug ?? this.publicSlug,
       workingHours: workingHours ?? this.workingHours,
       holidays: holidays ?? this.holidays,
       workSchedules: workSchedules ?? this.workSchedules,
