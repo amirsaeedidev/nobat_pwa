@@ -5,10 +5,15 @@ import '../services/supabase_auth_state_notifier.dart';
 /// Base for data providers. The authenticated tenant context is supplied by
 /// Supabase and is never inferred from a local/demo account.
 abstract class DbBoundProvider extends ChangeNotifier {
-  DbBoundProvider({this.authStateNotifier}) {
+  DbBoundProvider({
+    this.authStateNotifier,
+    @visibleForTesting Listenable? testOnlyLocalChanges,
+  }) : _testOnlyLocalChanges = testOnlyLocalChanges {
+    _testOnlyLocalChanges?.addListener(_handleTestOnlyLocalChange);
     authStateNotifier?.addListener(_handleAuthContextChange);
   }
 
+  final Listenable? _testOnlyLocalChanges;
   final SupabaseAuthStateNotifier? authStateNotifier;
 
   String? get authUserId => authStateNotifier?.userId;
@@ -21,6 +26,11 @@ abstract class DbBoundProvider extends ChangeNotifier {
 
   bool _disposed = false;
   String? _lastAuthContext;
+
+  void _handleTestOnlyLocalChange() {
+    if (_disposed) return;
+    onDatabaseChanged();
+  }
 
   void _handleAuthContextChange() {
     if (_disposed) return;
@@ -69,6 +79,7 @@ abstract class DbBoundProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _testOnlyLocalChanges?.removeListener(_handleTestOnlyLocalChange);
     authStateNotifier?.removeListener(_handleAuthContextChange);
     super.dispose();
   }
