@@ -209,7 +209,7 @@ class _EmployeeWalletPageState extends State<EmployeeWalletPage> {
           : const EmptyState(title: 'پرسنل پیدا نشد'));
     }
     _snapshot ??= _load(repository);
-    final canView = _can(auth, 'finance.view') || _can(auth, 'finance.payroll.view') ||
+    final canView = _can(auth, 'finance.view') ||
         auth?.permissions['finance.wallet.view_self'] == true;
     if (!canView) {
       return PageScaffold(title: 'کیف پول و تسویه', subtitle: employee.fullName, showBackButton: true,
