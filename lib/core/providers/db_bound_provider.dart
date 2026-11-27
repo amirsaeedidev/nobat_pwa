@@ -1,21 +1,13 @@
 import 'package:flutter/foundation.dart';
 
-import '../../data/mock/app_database.dart';
 import '../services/supabase_auth_state_notifier.dart';
 
 /// Base for data providers. The authenticated tenant context is supplied by
 /// Supabase and is never inferred from a local/demo account.
 abstract class DbBoundProvider extends ChangeNotifier {
-  DbBoundProvider(
-    this.db, {
-    this.authStateNotifier,
-  }) {
-    db?.addListener(_handleDbChange);
+  DbBoundProvider({this.authStateNotifier}) {
     authStateNotifier?.addListener(_handleAuthContextChange);
   }
-
-  @protected
-  final AppDatabase? db;
 
   final SupabaseAuthStateNotifier? authStateNotifier;
 
@@ -29,11 +21,6 @@ abstract class DbBoundProvider extends ChangeNotifier {
 
   bool _disposed = false;
   String? _lastAuthContext;
-
-  void _handleDbChange() {
-    if (_disposed) return;
-    onDatabaseChanged();
-  }
 
   void _handleAuthContextChange() {
     if (_disposed) return;
@@ -82,7 +69,6 @@ abstract class DbBoundProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    db?.removeListener(_handleDbChange);
     authStateNotifier?.removeListener(_handleAuthContextChange);
     super.dispose();
   }
