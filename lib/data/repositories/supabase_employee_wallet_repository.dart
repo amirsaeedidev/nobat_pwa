@@ -206,8 +206,9 @@ class SupabaseEmployeeWalletRepository {
     required String transactionId,
   }) async {
     final entries = await fetchTransactions(employeeId);
-    final original = entries.where((entry) => entry.id == transactionId).firstOrNull;
-    if (original == null) throw StateError('سند دفتر کل پیدا نشد.');
+    final matches = entries.where((entry) => entry.id == transactionId);
+    if (matches.isEmpty) throw StateError('سند دفتر کل پیدا نشد.');
+    final original = matches.first;
     if (original.status != EmployeeWalletTransactionStatus.posted) {
       throw StateError('فقط سند قطعی قابل برگشت است.');
     }
