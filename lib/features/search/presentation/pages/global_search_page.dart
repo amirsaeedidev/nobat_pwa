@@ -34,6 +34,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
   GlobalSearchType? _filter;
   bool _loading = false;
   bool _initialized = false;
+  bool _searchUnavailable = false;
   int _requestId = 0;
 
   @override
@@ -41,11 +42,18 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     super.didChangeDependencies();
     if (_initialized) return;
     _initialized = true;
-    _database = context.read<AppDatabase>();
-    _accountId = _database!.currentAccessAccount.id;
-    _database!.addListener(_handleDatabaseChanged);
+    _database = context.read<AppDatabase?>();
+    final database = _database;
+    if (database == null) {
+      // Production currently has no normalized global-search repository.
+      // Keep the route usable without inventing local/demo results.
+      _searchUnavailable = true;
+      return;
+    }
+    _accountId = database.currentAccessAccount.id;
+    database.addListener(_handleDatabaseChanged);
     _repository = GlobalSearchRepository(
-      _database!,
+      database,
       customerRepository: context.read<CustomerRepository>(),
       employeeRepository: context.read<EmployeeRepository>(),
       serviceRepository: context.read<ServiceRepository>(),
@@ -187,7 +195,17 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       icon: Icons.search_rounded,
       showGlobalSearch: false,
       scrollable: false,
-      child: Column(
+      child: _searchUnavailable
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'جست‌وجوی سراسری در این نسخه به مخزن داده آنلاین متصل نشده است. برای جلوگیری از نمایش اطلاعات ساختگی، نتیجه آزمایشی نمایش داده نمی‌شود.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppCard(
