@@ -42,7 +42,7 @@ class AppTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final compactLogoHeader = MediaQuery.sizeOf(context).width < 400;
+    final compactLogoHeader = MediaQuery.sizeOf(context).width < 440;
     final narrowHeader = MediaQuery.sizeOf(context).width < 360;
     return LiquidGlassLayer(
       settings: LiquidGlassSettings.ios27Regular(
