@@ -42,7 +42,6 @@ class AppTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
-    final compactLogoHeader = MediaQuery.sizeOf(context).width < 440;
     final compactActions = MediaQuery.sizeOf(context).width < 480;
     final narrowHeader = MediaQuery.sizeOf(context).width < 360;
     return LiquidGlassLayer(
@@ -84,7 +83,7 @@ class AppTopBar extends StatelessWidget {
                       if (onSearch != null && !narrowHeader) ...[
                         HugeIconCircleButton(icon: HugeIcons.strokeRoundedSearch01, size: 30, tooltip: 'جست‌وجوی سراسری', onTap: onSearch),
                       ],
-                      if (!compactLogoHeader) ...actions,
+                      if (!compactActions) ...actions,
                       if (!compactLogoHeader && actions.isNotEmpty) const SizedBox(width: 8),
                       if (onBell != null) ...[
                         CircleIconButton(
@@ -185,7 +184,7 @@ class AppTopBar extends StatelessWidget {
                       ),
                   ],
                 ),
-              if (actions.isNotEmpty && ((showLogo && compactLogoHeader) || (!showLogo && compactActions))) ...[
+              if (actions.isNotEmpty && compactActions) ...[
                 const SizedBox(height: 8),
                 Align(
                   alignment: AlignmentDirectional.centerEnd,
