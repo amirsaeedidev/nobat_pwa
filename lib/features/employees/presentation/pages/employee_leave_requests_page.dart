@@ -119,8 +119,8 @@ class _EmployeeLeaveRequestsPageState extends State<EmployeeLeaveRequestsPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
-    final auth = context.watch<SupabaseAuthStateNotifier>();
-    final canApprove = auth.role == 'owner' || auth.permissions['employees.leave.manage'] == true;
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    final canApprove = auth?.role == 'owner' || auth?.permissions['employees.leave.manage'] == true;
     final employee = provider.byIdSync(widget.employeeId);
     if (employee == null) {
       return PageScaffold(title: 'درخواست‌های مرخصی', showBackButton: true,
