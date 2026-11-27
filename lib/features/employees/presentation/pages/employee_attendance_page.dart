@@ -19,6 +19,7 @@ class EmployeeAttendancePage extends StatefulWidget {
 
 class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
   int _reloadKey = 0;
+  int _policyKey = 0;
   bool _busy = false;
 
   bool _hasOpenSession(List<EmployeeAttendanceRecord> records, DateTime today) {
@@ -200,6 +201,82 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     }
   }
 
+  Future<void> _editPayrollPolicy(
+    SupabaseEmployeeAttendanceRepository repository,
+    EmployeeAttendancePayrollPolicy current,
+  ) async {
+    final late = TextEditingController(text: current.lateDeductionPerMinute.toString());
+    final absence = TextEditingController(text: current.absenceDeductionPerDay.toString());
+    final overtime = TextEditingController(text: current.overtimePaymentPerMinute.toString());
+    final early = TextEditingController(text: current.earlyLeaveDeductionPerMinute.toString());
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('قانون مالی حضور و غیاب'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: late, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'کسر هر دقیقه تأخیر (تومان)')),
+          TextField(controller: absence, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'کسر هر روز غیبت (تومان)')),
+          TextField(controller: overtime, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'پرداخت هر دقیقه اضافه‌کاری (تومان)')),
+          TextField(controller: early, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'کسر هر دقیقه خروج زودهنگام (تومان)')),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('انصراف')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ذخیره نرخ‌ها')),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      final values = [late.text, absence.text, overtime.text, early.text]
+          .map((value) => int.tryParse(value) ?? 0).toList();
+      if (values.any((value) => value < 0)) {
+        AppToast.show(context, 'نرخ‌ها نمی‌توانند منفی باشند.', success: false);
+      } else {
+        setState(() => _busy = true);
+        try {
+          await repository.savePayrollPolicy(EmployeeAttendancePayrollPolicy(
+            enabled: current.enabled,
+            lateDeductionPerMinute: values[0],
+            absenceDeductionPerDay: values[1],
+            overtimePaymentPerMinute: values[2],
+            earlyLeaveDeductionPerMinute: values[3],
+          ));
+          if (mounted) {
+            AppToast.show(context, 'قانون مالی در Supabase ذخیره شد.');
+            setState(() => _policyKey++);
+          }
+        } catch (error) {
+          if (mounted) AppToast.show(context, 'ذخیره قانون ناموفق بود: $error', success: false);
+        } finally {
+          if (mounted) setState(() => _busy = false);
+        }
+      }
+    }
+    late.dispose(); absence.dispose(); overtime.dispose(); early.dispose();
+  }
+
+  Future<void> _setPolicyEnabled(
+    SupabaseEmployeeAttendanceRepository repository,
+    EmployeeAttendancePayrollPolicy current,
+    bool enabled,
+  ) async {
+    try {
+      await repository.savePayrollPolicy(EmployeeAttendancePayrollPolicy(
+        enabled: enabled,
+        lateDeductionPerMinute: current.lateDeductionPerMinute,
+        absenceDeductionPerDay: current.absenceDeductionPerDay,
+        overtimePaymentPerMinute: current.overtimePaymentPerMinute,
+        earlyLeaveDeductionPerMinute: current.earlyLeaveDeductionPerMinute,
+      ));
+      if (mounted) setState(() => _policyKey++);
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره وضعیت قانون ناموفق بود: $error', success: false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final employees = context.watch<EmployeesProvider>();
@@ -311,6 +388,56 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
               ])),
             ],
             const SizedBox(height: 12),
+            FutureBuilder<EmployeeAttendancePayrollPolicy>(
+              key: ValueKey('attendance-policy-$_policyKey'),
+              future: repository.fetchPayrollPolicy(),
+              builder: (context, policySnapshot) {
+                if (policySnapshot.hasError) {
+                  return ErrorStateView(
+                    description: 'دریافت قانون مالی حضور و غیاب از Supabase ناموفق بود: ${policySnapshot.error}',
+                    onRetry: () => setState(() => _policyKey++),
+                  );
+                }
+                if (!policySnapshot.hasData) {
+                  return const LoadingState(compact: true, kind: SkeletonKind.finance);
+                }
+                final policy = policySnapshot.data!;
+                final lateCost = summary.lateMinutes * policy.lateDeductionPerMinute;
+                final absenceCost = summary.absentDays * policy.absenceDeductionPerDay;
+                final overtimePay = summary.overtimeMinutes * policy.overtimePaymentPerMinute;
+                final earlyCost = summary.earlyLeaveMinutes * policy.earlyLeaveDeductionPerMinute;
+                final net = overtimePay - lateCost - absenceCost - earlyCost;
+                return AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const SectionHeader(title: 'پیش‌نمایش اثر مالی حضور و غیاب'),
+                  if (canManage)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('فعال‌سازی قانون محاسبه مالی'),
+                      subtitle: const Text('این گزینه فقط پیش‌نمایش را فعال می‌کند و تراکنش خودکار ثبت نمی‌کند.'),
+                      value: policy.enabled,
+                      onChanged: _busy ? null : (value) => _setPolicyEnabled(repository, policy, value),
+                    )
+                  else
+                    Text(policy.enabled ? 'قانون محاسبه مالی فعال است.' : 'قانون محاسبه مالی غیرفعال است.',
+                      style: Theme.of(context).textTheme.bodySmall),
+                  if (canManage)
+                    Align(alignment: Alignment.centerRight, child: TextButton.icon(
+                      onPressed: _busy ? null : () => _editPayrollPolicy(repository, policy),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('تنظیم نرخ‌ها'),
+                    )),
+                  if (policy.enabled) ...[
+                    _policyMetric('کسر تأخیر', lateCost),
+                    _policyMetric('کسر غیبت', absenceCost),
+                    _policyMetric('پرداخت اضافه‌کاری', overtimePay),
+                    _policyMetric('کسر خروج زودهنگام', earlyCost),
+                    const Divider(),
+                    _policyMetric('خالص پیش‌نمایش', net),
+                  ],
+                ]));
+              },
+            ),
+            const SizedBox(height: 12),
             AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const SectionHeader(title: 'سوابق ماه جاری'),
               if (records.isEmpty) const EmptyState(title: 'در این بازه سابقه‌ای ثبت نشده است'),
@@ -331,6 +458,14 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       ),
     );
   }
+
+  Widget _policyMetric(String label, int amount) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Expanded(child: Text(label, style: const TextStyle(fontSize: 11))),
+      Text('${amount.toString()} تومان', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+    ]),
+  );
 
   Widget _metric(String label, String value) => AppCard(
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
