@@ -185,10 +185,11 @@ class _BookingRulesPageState extends State<BookingRulesPage> {
                   style: TextStyle(fontSize: 11, color: pal.textSecondary, height: 1.8),
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     SoftButton(label: 'تاریخچه لغوها', icon: Icons.history_rounded, dense: true, onTap: () {}),
-                    const SizedBox(width: 8),
                     SoftButton(label: 'گزارش مشتریان', icon: Icons.people_rounded, dense: true, onTap: () {}),
                   ],
                 ),
