@@ -60,9 +60,9 @@ class AppearanceSettingsPage extends StatelessWidget {
                       Text(palette.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
                         color: palette.textPrimary)),
                       const SizedBox(height: 7),
-                      Row(children: [for (final color in [palette.primary, palette.primaryBright,
+                      Wrap(spacing: 5, runSpacing: 4, children: [for (final color in [palette.primary, palette.primaryBright,
                         palette.accentGlow, palette.surfaceAlt, palette.background])
-                        Container(width: 22, height: 17, margin: const EdgeInsets.only(left: 5),
+                        Container(width: 22, height: 17,
                           decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5),
                             border: Border.all(color: palette.borderStrong)))])
                     ])),
