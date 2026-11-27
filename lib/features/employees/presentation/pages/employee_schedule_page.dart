@@ -331,8 +331,8 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EmployeesProvider>();
-    final auth = context.watch<SupabaseAuthStateNotifier>();
-    final canManageSchedule = auth.role == 'owner' || auth.permissions['employees.schedule.manage'] == true;
+    final auth = context.watch<SupabaseAuthStateNotifier?>();
+    final canManageSchedule = auth?.role == 'owner' || auth?.permissions['employees.schedule.manage'] == true;
     final employee = provider.byIdSync(widget.employeeId);
     final pal = context.pal;
     if (employee == null) {
