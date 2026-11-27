@@ -352,7 +352,7 @@ class _EmployeeSchedulePageState extends State<EmployeeSchedulePage> {
           return PageScaffold(title: 'برنامه کاری پرسنل', subtitle: employee.fullName, showBackButton: true,
             child: ErrorStateView(description: snapshot.error.toString(), onRetry: () => setState(() => _dataFuture = _loadData())));
         }
-        final exceptions = snapshot.data!.exceptions..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+        final exceptions = [...snapshot.data!.exceptions]..sort((a, b) => a.dateKey.compareTo(b.dateKey));
         final leaves = snapshot.data!.leaves;
         return PageScaffold(
           title: 'برنامه کاری پرسنل',
