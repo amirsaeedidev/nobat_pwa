@@ -11,7 +11,7 @@ import '../../../../data/repositories/appointment_repository.dart';
 
 /// جست‌وجو، فیلتر، صفحه‌بندی و عملیات نوبت‌ها.
 class AppointmentsProvider extends DbBoundProvider {
-  AppointmentsProvider(this._repository, {AppDatabase? db, SupabaseAuthStateNotifier? authStateNotifier}) : super(db, authStateNotifier: authStateNotifier) {
+  AppointmentsProvider(this._repository, {AppDatabase? db, SupabaseAuthStateNotifier? authStateNotifier}) : super(authStateNotifier: authStateNotifier) {
     load();
   }
 
