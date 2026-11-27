@@ -133,6 +133,11 @@ void main() {
         final exception = tester.takeException();
         if (exception != null) {
           final details = exception is FlutterError ? exception.toStringDeep() : exception.toString();
+          if (exception is FlutterError && details.contains('RenderFlex')) {
+            debugPrint('RESPONSIVE_RENDER_TREE_START');
+            debugDumpRenderTree();
+            debugPrint('RESPONSIVE_RENDER_TREE_END');
+          }
           debugPrint('Responsive route failure at ${width.toInt()}px $path');
           fail('Responsive route failure at ${width.toInt()}px $path: $details');
         }
