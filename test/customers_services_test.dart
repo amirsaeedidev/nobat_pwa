@@ -62,14 +62,12 @@ void main() {
     test('بایگانی و بازیابی مشتری از فهرست‌های جداگانه', () async {
       final target = db.customers.first;
       await provider.update(target.copyWith(isArchived: true));
-      provider.toggleArchived();
-      await provider.load();
+      await provider.toggleArchived();
       expect(provider.items.any((item) => item.id == target.id && item.isArchived), isTrue);
 
       final archived = await provider.byId(target.id);
       await provider.update(archived!.copyWith(isArchived: false));
-      provider.toggleArchived();
-      await provider.load();
+      await provider.toggleArchived();
       expect(provider.items.any((item) => item.id == target.id && !item.isArchived), isTrue);
     });
   });
