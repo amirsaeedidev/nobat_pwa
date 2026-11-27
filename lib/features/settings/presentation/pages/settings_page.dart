@@ -20,7 +20,7 @@ class SettingsPage extends StatelessWidget {
     final business = settings.settings;
     final pal = context.pal;
     final authRepository = context.read<SupabaseAuthRepository?>();
-    final authSession = context.watch<SupabaseAuthStateNotifier>();
+    final authSession = context.watch<SupabaseAuthStateNotifier?>();
     final cloudUser = authRepository?.currentUser;
 
     final items = <_SettingEntry>[
@@ -59,11 +59,11 @@ class SettingsPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        authSession.businessName ?? business?.name ?? 'مجموعه',
+                        authSession?.businessName ?? business?.name ?? 'مجموعه',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: pal.textPrimary),
                       ),
                       Text(
-                        '${cloudUser?.email ?? settings.ownerName} • ${cloudUser != null ? authSession.roleLabel : settings.ownerRole}',
+                        '${cloudUser?.email ?? settings.ownerName} • ${cloudUser != null ? authSession?.roleLabel ?? settings.ownerRole : settings.ownerRole}',
                         style: TextStyle(fontSize: 11, color: pal.textMuted),
                       ),
                       const SizedBox(height: 6),
@@ -115,7 +115,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${authSession.businessName ?? 'مجموعه'} • ${authSession.roleLabel}',
+                    '${authSession?.businessName ?? 'مجموعه'} • ${authSession.roleLabel}',
                     style: TextStyle(fontSize: 11, color: pal.textMuted),
                   ),
                   const SizedBox(height: 10),
