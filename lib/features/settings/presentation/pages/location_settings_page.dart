@@ -129,28 +129,31 @@ class _LocationSettingsPageState extends State<LocationSettingsPage> {
                 Text('برنامه‌هایی را که مشتری برای مسیریابی استفاده می‌کند انتخاب کنید. جای تصویر هر برنامه برای بارگذاری لوگوی اصلی آماده است.', style: TextStyle(fontSize: 10, height: 1.7, color: pal.textMuted)),
                 const SizedBox(height: 12),
                 for (final app in _mapApps)
-                  CheckboxListTile(
-                    value: _selectedApps.contains(app.$1),
-                    onChanged: (value) => setState(() {
-                      if (value == true) {
-                        _selectedApps.add(app.$1);
-                      } else {
-                        _selectedApps.remove(app.$1);
-                      }
-                    }),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: Row(children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(color: pal.surfaceAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: pal.border)),
-                        child: Icon(app.$3, color: pal.primaryBright, size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(app.$2, style: TextStyle(fontWeight: FontWeight.w700, color: pal.textPrimary)),
-                    ]),
+                  Material(
+                    color: Colors.transparent,
+                    child: CheckboxListTile(
+                      value: _selectedApps.contains(app.$1),
+                      onChanged: (value) => setState(() {
+                        if (value == true) {
+                          _selectedApps.add(app.$1);
+                        } else {
+                          _selectedApps.remove(app.$1);
+                        }
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Row(children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: pal.surfaceAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: pal.border)),
+                          child: Icon(app.$3, color: pal.primaryBright, size: 22),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(app.$2, style: TextStyle(fontWeight: FontWeight.w700, color: pal.textPrimary)),
+                      ]),
+                    ),
                   ),
               ],
             ),
