@@ -7,7 +7,7 @@ import '../services/supabase_auth_state_notifier.dart';
 abstract class DbBoundProvider extends ChangeNotifier {
   DbBoundProvider({
     this.authStateNotifier,
-    @visibleForTesting Listenable? testOnlyLocalChanges,
+    Listenable? testOnlyLocalChanges,
   }) : _testOnlyLocalChanges = testOnlyLocalChanges {
     _testOnlyLocalChanges?.addListener(_handleTestOnlyLocalChange);
     authStateNotifier?.addListener(_handleAuthContextChange);
