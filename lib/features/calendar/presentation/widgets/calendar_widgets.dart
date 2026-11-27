@@ -352,57 +352,58 @@ class _AppointmentRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(color: pal.border),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    appointment.customerName,
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      StatusBadge(
-                        label: appointment.status.label,
-                        color: appointment.status.color,
-                        dense: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final serviceWidth = (constraints.maxWidth * 0.58).clamp(0.0, 220.0);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.68),
+                      child: Text(
+                        appointment.customerName,
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: pal.textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          appointment.serviceName,
-                          style: TextStyle(fontSize: 10, color: pal.textMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    ),
+                    Text(
+                      Fmt.time(appointment.startAt.hour, appointment.startAt.minute),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: pal.textPrimary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    StatusBadge(
+                      label: appointment.status.label,
+                      color: appointment.status.color,
+                      dense: true,
+                    ),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: serviceWidth),
+                      child: Text(
+                        appointment.serviceName,
+                        style: TextStyle(fontSize: 10, color: pal.textMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              Fmt.time(appointment.startAt.hour, appointment.startAt.minute),
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: pal.textPrimary),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: pal.success.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: pal.success.withValues(alpha: 0.3)),
-              ),
-              child: Icon(Icons.access_time_rounded, size: 15, color: pal.success),
-            ),
-          ],
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
