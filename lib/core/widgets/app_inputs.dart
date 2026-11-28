@@ -97,7 +97,7 @@ class AppTextField extends StatelessWidget {
                 : Padding(padding: const EdgeInsetsDirectional.only(end: 6), child: suffix),
             suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             helperText: helper,
-            helperStyle: TextStyle(fontSize: 10.5, color: pal.textMuted, fontFamily: 'Vazirmatn'),
+            helperStyle: TextStyle(fontSize: 10.5, color: pal.textMuted, fontFamily: 'Lalezar'),
           ),
         ),
       ],
