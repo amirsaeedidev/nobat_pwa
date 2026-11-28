@@ -12,6 +12,7 @@ import 'data/mock/app_database.dart';
 import 'data/repositories/activity_repository.dart';
 import 'data/repositories/appointment_repository.dart';
 import 'data/repositories/customer_repository.dart';
+import 'data/repositories/supabase_customer_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/service_repository.dart';
@@ -87,7 +88,12 @@ Future<void> main() async {
   final database = AppDatabase();
 
   final appointmentRepository = MockAppointmentRepository(database);
-  final customerRepository = MockCustomerRepository(database);
+  final CustomerRepository customerRepository = SupabaseService.client == null
+      ? UnavailableCustomerRepository()
+      : SupabaseCustomerRepository(
+          SupabaseService.client!,
+          SupabaseCustomerTenantScope(SupabaseService.client!),
+        );
   final serviceRepository = MockServiceRepository(database);
   final employeeRepository = MockEmployeeRepository(database);
   final smsRepository = MockSmsRepository(database);
