@@ -16,6 +16,8 @@ import 'data/repositories/dashboard_repository.dart';
 import 'data/repositories/employee_repository.dart';
 import 'data/repositories/service_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/business_settings_repository.dart';
+import 'data/repositories/supabase_settings_repository.dart';
 import 'data/repositories/sms_repository.dart';
 import 'features/activity_logs/presentation/providers/activity_provider.dart';
 import 'features/appointments/presentation/providers/appointments_provider.dart';
@@ -27,6 +29,7 @@ import 'features/employees/presentation/providers/employees_provider.dart';
 import 'features/reports/presentation/providers/reports_provider.dart';
 import 'features/services/presentation/providers/services_provider.dart';
 import 'features/settings/presentation/providers/settings_provider.dart';
+import 'features/settings/presentation/providers/business_settings_provider.dart';
 import 'features/sms/presentation/providers/sms_provider.dart';
 
 Future<void> main() async {
@@ -89,6 +92,9 @@ Future<void> main() async {
   final employeeRepository = MockEmployeeRepository(database);
   final smsRepository = MockSmsRepository(database);
   final settingsRepository = MockSettingsRepository(database);
+  final BusinessSettingsRepository businessSettingsRepository = SupabaseService.client == null
+      ? UnavailableBusinessSettingsRepository()
+      : SupabaseSettingsRepository(SupabaseService.client!);
   final dashboardRepository = MockDashboardRepository(database);
   final activityRepository = MockActivityRepository(database);
 
@@ -112,9 +118,11 @@ Future<void> main() async {
         Provider<EmployeeRepository>.value(value: employeeRepository),
         Provider<SmsRepository>.value(value: smsRepository),
         Provider<SettingsRepository>.value(value: settingsRepository),
+        Provider<BusinessSettingsRepository>.value(value: businessSettingsRepository),
         Provider<DashboardRepository>.value(value: dashboardRepository),
         Provider<ActivityRepository>.value(value: activityRepository),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepository, database)),
+        ChangeNotifierProvider(create: (_) => BusinessSettingsProvider(businessSettingsRepository)),
         ChangeNotifierProvider(create: (_) => DashboardProvider(dashboardRepository, database, appointmentRepository: appointmentRepository)),
         ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointmentRepository, database)),
         ChangeNotifierProvider(
