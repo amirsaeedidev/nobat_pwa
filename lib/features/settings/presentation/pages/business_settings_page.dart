@@ -8,7 +8,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_inputs.dart';
 import '../../../../core/widgets/app_page.dart';
 import '../../../../core/widgets/feedback.dart';
-import '../providers/settings_provider.dart';
+import '../providers/business_settings_provider.dart';
 
 /// اطلاعات مجموعه: نام، تماس، آدرس و شبکه‌های اجتماعی.
 class BusinessSettingsPage extends StatefulWidget {
@@ -34,21 +34,22 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   final _website = TextEditingController();
   final _slug = TextEditingController();
 
-  String _province = 'تهران';
-  String _city = 'تهران';
+  String _province = 'انتخاب نشده';
+  String _city = 'انتخاب نشده';
   bool _saving = false;
   bool _prefilled = false;
 
-  static const _provinces = ['تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
-  static const _cities = ['تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
+  static const _provinces = ['انتخاب نشده', 'تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
+  static const _cities = ['انتخاب نشده', 'تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
     _prefilled = true;
-    final settings = context.read<SettingsProvider>().settings;
-    if (settings == null) return;
+    final provider = context.watch<BusinessSettingsProvider>();
+    if (provider.loading || provider.settings == null) return;
+    final settings = provider.settings!;
     _name.text = settings.name;
     _slogan.text = settings.slogan;
     _description.text = settings.description;
@@ -62,8 +63,8 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
     _whatsapp.text = settings.whatsapp;
     _website.text = settings.website;
     _slug.text = settings.publicSlug;
-    _province = settings.province;
-    _city = settings.city;
+    _province = settings.province.isEmpty ? 'انتخاب نشده' : settings.province;
+    _city = settings.city.isEmpty ? 'انتخاب نشده' : settings.city;
   }
 
   @override
@@ -79,40 +80,46 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
-    final provider = context.read<SettingsProvider>();
+    final provider = context.read<BusinessSettingsProvider>();
     final current = provider.settings;
-    if (current == null) return;
-    await provider.saveBusiness(
-      current.copyWith(
-        name: _name.text.trim(),
-        slogan: _slogan.text.trim(),
-        description: _description.text.trim(),
-        phone: _phone.text.trim(),
-        mobile: _mobile.text.trim(),
-        email: _email.text.trim(),
-        address: _address.text.trim(),
-        postalCode: _postal.text.trim(),
-        province: _province,
-        city: _city,
-        instagram: _instagram.text.trim(),
-        telegram: _telegram.text.trim(),
-        whatsapp: _whatsapp.text.trim(),
-        website: _website.text.trim(),
-        publicSlug: _slug.text.trim(),
-        logoText: _name.text.trim().isEmpty ? 'OT' : _name.text.trim().substring(0, 2),
-      ),
-      logTitle: 'ویرایش اطلاعات مجموعه',
-      logDescription: 'اطلاعات پایه مجموعه به‌روزرسانی شد.',
-    );
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppToast.show(context, 'اطلاعات مجموعه ذخیره شد');
+    if (current == null) {
+      AppToast.show(context, provider.loadError ?? 'تنظیمات واقعی مجموعه بارگذاری نشده است.');
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await provider.saveBusiness(
+        current.copyWith(
+          name: _name.text.trim(),
+          slogan: _slogan.text.trim(),
+          description: _description.text.trim(),
+          phone: _phone.text.trim(),
+          mobile: _mobile.text.trim(),
+          email: _email.text.trim(),
+          address: _address.text.trim(),
+          postalCode: _postal.text.trim(),
+          province: _province == 'انتخاب نشده' ? '' : _province,
+          city: _city == 'انتخاب نشده' ? '' : _city,
+          instagram: _instagram.text.trim(),
+          telegram: _telegram.text.trim(),
+          whatsapp: _whatsapp.text.trim(),
+          website: _website.text.trim(),
+          publicSlug: _slug.text.trim(),
+          logoText: _name.text.trim().isEmpty ? '' : _name.text.trim().substring(0, 2),
+        ),
+      );
+      if (mounted) AppToast.show(context, 'اطلاعات مجموعه در Supabase ذخیره شد');
+    } catch (error) {
+      if (mounted) AppToast.show(context, 'ذخیره اطلاعات مجموعه ناموفق بود: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final pal = context.pal;
+    final provider = context.watch<BusinessSettingsProvider>();
     return PageScaffold(
       title: 'اطلاعات مجموعه',
       subtitle: 'پروفایل عمومی و اطلاعات تماس',
@@ -267,7 +274,10 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
               ),
             ),
             const SizedBox(height: 14),
-            SolidButton(label: 'ذخیره تغییرات', icon: Icons.save_rounded, loading: _saving, onPressed: _save),
+            SolidButton(label: 'ذخیره تغییرات', icon: Icons.save_rounded, loading: _saving, onPressed: _saving ? null : _save),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
