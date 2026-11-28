@@ -15,6 +15,7 @@ import 'package:datetime/data/repositories/settings_repository.dart';
 import 'package:datetime/data/repositories/sms_repository.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/data/repositories/supabase_repository.dart';
+import 'package:datetime/data/repositories/business_settings_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
 import 'package:datetime/features/appointments/presentation/providers/appointments_provider.dart';
 import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
@@ -25,6 +26,7 @@ import 'package:datetime/features/employees/presentation/providers/employees_pro
 import 'package:datetime/features/reports/presentation/providers/reports_provider.dart';
 import 'package:datetime/features/services/presentation/providers/services_provider.dart';
 import 'package:datetime/features/settings/presentation/providers/settings_provider.dart';
+import 'package:datetime/features/settings/presentation/providers/business_settings_provider.dart';
 import 'package:datetime/features/sms/presentation/providers/sms_provider.dart';
 
 void main() {
@@ -35,6 +37,7 @@ void main() {
     final services = MockServiceRepository(db);
     final employees = MockEmployeeRepository(db);
     final settings = MockSettingsRepository(db);
+    final businessSettings = UnavailableBusinessSettingsRepository();
 
     tester.view.physicalSize = const Size(320, 844);
     tester.view.devicePixelRatio = 1;
@@ -49,7 +52,9 @@ void main() {
           Provider<EmployeeRepository>.value(value: employees),
           Provider<ServiceRepository>.value(value: services),
           Provider<SupabaseRepository?>.value(value: null),
+          Provider<BusinessSettingsRepository>.value(value: businessSettings),
           ChangeNotifierProvider(create: (_) => SettingsProvider(settings, db)),
+          ChangeNotifierProvider(create: (_) => BusinessSettingsProvider(businessSettings)),
           ChangeNotifierProvider(create: (_) => DashboardProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointments, db)),
           ChangeNotifierProvider(create: (_) => CalendarProvider(appointments, employees, services, db)),
