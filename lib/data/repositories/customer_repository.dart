@@ -1,6 +1,7 @@
 import '../../core/models/page_result.dart';
 import '../../core/models/app_failure.dart';
 import '../mock/app_database.dart';
+import '../models/appointment.dart';
 import '../models/customer.dart';
 import 'operations_repository.dart';
 
@@ -17,6 +18,10 @@ abstract class CustomerRepository {
   Future<Customer?> findById(String id);
 
   Future<void> create(Customer customer);
+
+  Future<Customer> createAndReturn(Customer customer);
+
+  Future<List<Appointment>> fetchAppointmentsForCustomer(Customer customer);
 
   Future<void> update(Customer customer);
 
@@ -96,6 +101,22 @@ class MockCustomerRepository implements CustomerRepository {
       await _db.delay(220);
       _db.addCustomer(customer);
     }, fallback: AppErrorKind.save);
+  }
+
+  @override
+  Future<Customer> createAndReturn(Customer customer) async {
+    await create(customer);
+    return customer;
+  }
+
+  @override
+  Future<List<Appointment>> fetchAppointmentsForCustomer(Customer customer) async {
+    _db.requirePermission('customers.history');
+    final appointments = _db.appointments
+        .where((appointment) => appointment.customerId == customer.id)
+        .toList()
+      ..sort((a, b) => b.startAt.compareTo(a.startAt));
+    return appointments;
   }
 
   @override
