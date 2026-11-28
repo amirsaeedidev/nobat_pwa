@@ -46,9 +46,9 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_prefilled) return;
-    _prefilled = true;
     final provider = context.watch<BusinessSettingsProvider>();
     if (provider.loading || provider.settings == null) return;
+    _prefilled = true;
     final settings = provider.settings!;
     _name.text = settings.name;
     _slogan.text = settings.slogan;
@@ -130,6 +130,26 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (provider.loading && provider.settings == null)
+              const LinearProgressIndicator(),
+            if (provider.loadError != null)
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'تنظیمات واقعی مجموعه از Supabase دریافت نشد. داده آزمایشی جایگزین نمی‌شود. ${provider.loadError}',
+                      style: TextStyle(color: pal.danger, height: 1.6),
+                    ),
+                    const SizedBox(height: 10),
+                    SoftButton(
+                      label: 'تلاش دوباره',
+                      icon: Icons.refresh_rounded,
+                      onTap: provider.load,
+                    ),
+                  ],
+                ),
+              ),
             AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -274,10 +294,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
               ),
             ),
             const SizedBox(height: 14),
-            SolidButton(label: 'ذخیره تغییرات', icon: Icons.save_rounded, loading: _saving, onPressed: _saving ? null : _save),
-                  ],
-                ),
-              ),
+            SolidButton(label: 'ذخیره تغییرات', icon: Icons.save_rounded, loading: _saving, onPressed: _saving || provider.settings == null ? null : _save),
           ],
         ),
       ),
