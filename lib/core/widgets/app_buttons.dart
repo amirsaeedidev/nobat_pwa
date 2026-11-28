@@ -362,6 +362,7 @@ class SolidButton extends StatelessWidget {
       );
     }
     return Row(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (icon != null) ...[

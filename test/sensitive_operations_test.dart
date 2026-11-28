@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:datetime/app/theme/app_palette.dart';
+import 'package:datetime/app/theme/app_theme.dart';
 import 'package:datetime/core/widgets/sensitive_operation_dialog.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
@@ -650,7 +651,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData(extensions: const [AppPalette.pastelPink]),
+        theme: AppTheme.build(AppPalette.pastelPink),
         home: ActivityLogsPageWithProvider(provider: provider),
       ),
     );
