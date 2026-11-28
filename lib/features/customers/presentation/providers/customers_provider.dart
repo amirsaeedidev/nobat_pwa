@@ -1,13 +1,25 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/models/page_result.dart';
-import '../../../../core/providers/db_bound_provider.dart';
 import '../../../../core/models/app_failure.dart';
-import '../../../../data/mock/app_database.dart';
+import '../../../../data/models/appointment.dart';
 import '../../../../data/models/customer.dart';
 import '../../../../data/repositories/customer_repository.dart';
 
-/// مدیریت فهرست مشتریان، جست‌وجو و CRUD.
-class CustomersProvider extends DbBoundProvider {
-  CustomersProvider(this._repository, AppDatabase db) : super(db) {
+class CustomerProfileData {
+  const CustomerProfileData({
+    required this.customer,
+    required this.appointments,
+  });
+
+  final Customer customer;
+  final List<Appointment> appointments;
+}
+
+/// مدیریت فهرست، جست‌وجو، صفحه‌بندی و پروفایل مشتریان.
+/// خطای شبکه یا Supabase هرگز با داده محلی جایگزین نمی‌شود.
+class CustomersProvider extends ChangeNotifier {
+  CustomersProvider(this._repository, [Object? _legacyDatabase]) {
     load();
   }
 
@@ -20,6 +32,7 @@ class CustomersProvider extends DbBoundProvider {
   bool _loading = true;
   String? _loadNotice;
   bool _busy = false;
+  int _loadGeneration = 0;
 
   PageResult<Customer> get page => _page;
   List<Customer> get items => _page.items;
@@ -29,54 +42,86 @@ class CustomersProvider extends DbBoundProvider {
   String? get loadNotice => _loadNotice;
   bool get busy => _busy;
   int get total => _page.total;
+  List<Customer> get all => _page.items;
 
-  List<Customer> get all => db.customers;
-
-  Future<void> load() async {
-    _loading = true;
-    notifyListeners();
-    try {
-      _loadNotice = null;
-      _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-    } catch (error) {
-      _loadNotice = AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
-      final all = db.customers;
-      _page = PageResult(items: all, total: all.length, page: 1, pageSize: _pageSize);
-    } finally {
-      _loading = false;
-      notifyListeners();
-    }
-  }
-
-  @override
-  void onDatabaseChanged() {
-    _refresh();
-  }
-
-  Future<void> _refresh() async {
-    _page = await _repository.fetchCustomers(query: _query, page: _pageNumber, pageSize: _pageSize);
-    notifyListeners();
-  }
-
-  void search(String query) {
-    _query = query;
+  void search(String value) {
+    _query = value;
     _pageNumber = 1;
     load();
   }
 
   void goToPage(int page) {
-    _pageNumber = page.clamp(1, _page.totalPages == 0 ? 1 : _page.totalPages);
+    final maxPage = _page.totalPages == 0 ? 1 : _page.totalPages;
+    _pageNumber = page.clamp(1, maxPage);
     load();
   }
 
+  Customer? findById(String id) {
+    for (final customer in _page.items) {
+      if (customer.id == id) return customer;
+    }
+    return null;
+  }
+
   Future<Customer?> byId(String id) => _repository.findById(id);
+
+  Future<CustomerProfileData?> profileById(String id) async {
+    final customer = await _repository.findById(id);
+    if (customer == null) return null;
+    final appointments =
+        await _repository.fetchAppointmentsForCustomer(customer);
+    return CustomerProfileData(
+      customer: customer,
+      appointments: appointments,
+    );
+  }
+
+  Future<void> load() async {
+    final generation = ++_loadGeneration;
+    _loading = true;
+    notifyListeners();
+    try {
+      _loadNotice = null;
+      final result = await _repository.fetchCustomers(
+        query: _query,
+        page: _pageNumber,
+        pageSize: _pageSize,
+      );
+      if (generation != _loadGeneration) return;
+      _page = result;
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _loadNotice =
+          AppFailure.from(error, fallback: AppErrorKind.fetch).persianMessage;
+      _page = PageResult.empty(pageSize: _pageSize);
+    } finally {
+      if (generation == _loadGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
+    }
+  }
 
   Future<bool> create(Customer customer) async {
     _busy = true;
     notifyListeners();
     try {
       await _repository.create(customer);
+      await load();
       return true;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Customer> createAndReturn(Customer customer) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      final saved = await _repository.createAndReturn(customer);
+      await load();
+      return saved;
     } finally {
       _busy = false;
       notifyListeners();
@@ -88,6 +133,7 @@ class CustomersProvider extends DbBoundProvider {
     notifyListeners();
     try {
       await _repository.update(customer);
+      await load();
       return true;
     } finally {
       _busy = false;
@@ -95,18 +141,22 @@ class CustomersProvider extends DbBoundProvider {
     }
   }
 
-  Future<void> delete(String id) => _repository.delete(id);
+  Future<void> delete(String id) async {
+    await _repository.delete(id);
+    await load();
+  }
 
-  Customer? findById(String id) {
-    for (final c in db.customers) {
-      if (c.id == id) return c;
+  Customer? findByPhone(String phone) {
+    for (final customer in _page.items) {
+      if (customer.phone == phone) return customer;
     }
     return null;
   }
 
-  Customer? findByPhone(String phone) {
-    for (final c in db.customers) {
-      if (c.phone == phone) return c;
+  Future<Customer?> findByPhoneRemote(String phone) async {
+    final rows = await _repository.fetchAll(query: phone);
+    for (final customer in rows) {
+      if (customer.phone == phone) return customer;
     }
     return null;
   }
