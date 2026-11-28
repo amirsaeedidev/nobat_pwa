@@ -29,6 +29,7 @@ class BusinessSettingsProvider extends ChangeNotifier {
   Future<void> load() async {
     final generation = ++_generation;
     _loading = true;
+    _settings = null; // Never expose a previous tenant while another session is loading.
     _loadError = null;
     notifyListeners();
     try {
