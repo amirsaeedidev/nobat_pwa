@@ -7,7 +7,7 @@ import 'app_tokens.dart';
 class AppTheme {
   const AppTheme._();
 
-  static const String fontFamily = 'Vazirmatn';
+  static const String fontFamily = 'Lalezar';
 
   static ThemeData build(AppPalette palette, {Color? formAccentColor}) {
     final formAccent = formAccentColor ?? palette.primary;
