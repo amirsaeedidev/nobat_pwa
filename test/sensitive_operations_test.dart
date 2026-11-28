@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:datetime/app/theme/app_palette.dart';
+import 'package:datetime/app/theme/app_theme.dart';
 import 'package:datetime/core/widgets/sensitive_operation_dialog.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
@@ -650,7 +651,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData(extensions: const [AppPalette.pastelPink]),
+        theme: AppTheme.build(AppPalette.pastelPink),
         home: ActivityLogsPageWithProvider(provider: provider),
       ),
     );
@@ -667,7 +668,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('تأیید بازگردانی تغییر'), findsOneWidget);
-    expect(find.text('customer-ui-undo-customer'), findsOneWidget);
+    expect(find.text('activity-ui-undo-customer'), findsOneWidget);
     await tester.tap(find.text('بازگردانی واقعی'));
     // Wait for the async local undo + repository refresh without waiting for
     // the perpetual skeleton animation to become idle.

@@ -14,6 +14,7 @@ import 'package:datetime/data/repositories/service_repository.dart';
 import 'package:datetime/data/repositories/settings_repository.dart';
 import 'package:datetime/data/repositories/sms_repository.dart';
 import 'package:datetime/data/repositories/activity_repository.dart';
+import 'package:datetime/data/repositories/supabase_repository.dart';
 import 'package:datetime/features/activity_logs/presentation/providers/activity_provider.dart';
 import 'package:datetime/features/appointments/presentation/providers/appointments_provider.dart';
 import 'package:datetime/features/booking/presentation/providers/booking_provider.dart';
@@ -43,6 +44,11 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AppDatabase>.value(value: db),
+          Provider<AppointmentRepository>.value(value: appointments),
+          Provider<CustomerRepository>.value(value: customers),
+          Provider<EmployeeRepository>.value(value: employees),
+          Provider<ServiceRepository>.value(value: services),
+          Provider<SupabaseRepository?>.value(value: null),
           ChangeNotifierProvider(create: (_) => SettingsProvider(settings, db)),
           ChangeNotifierProvider(create: (_) => DashboardProvider(MockDashboardRepository(db), db)),
           ChangeNotifierProvider(create: (_) => AppointmentsProvider(appointments, db)),

@@ -34,6 +34,10 @@ flutter:
   assets:
     - assets/image/
   fonts:
+    - family: Lalezar
+      fonts:
+        - asset: assets/fonts/Lalezar-Regular.ttf
+          weight: 400
     - family: Vazirmatn
       fonts:
         - asset: assets/fonts/Vazirmatn-Regular.ttf
