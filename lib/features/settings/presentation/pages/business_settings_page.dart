@@ -165,7 +165,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
-                          _name.text.isEmpty ? 'OT' : _name.text.substring(0, _name.text.length > 1 ? 2 : 1),
+                          _name.text.isEmpty ? 'DT' : _name.text.substring(0, _name.text.length > 1 ? 2 : 1),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
                         ),
                       ),
@@ -241,7 +241,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                       Expanded(
                         child: AppDropdown<String>(
                           label: 'استان',
-                          items: _provinces,
+                          items: _provinces.contains(_province) ? _provinces : [..._provinces, _province],
                           value: _province,
                           onChanged: (v) => setState(() => _province = v ?? _province),
                         ),
@@ -250,7 +250,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
                       Expanded(
                         child: AppDropdown<String>(
                           label: 'شهر',
-                          items: _cities,
+                          items: _cities.contains(_city) ? _cities : [..._cities, _city],
                           value: _city,
                           onChanged: (v) => setState(() => _city = v ?? _city),
                         ),
