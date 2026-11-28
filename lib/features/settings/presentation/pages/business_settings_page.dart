@@ -37,7 +37,7 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   String _province = 'انتخاب نشده';
   String _city = 'انتخاب نشده';
   bool _saving = false;
-  bool _prefilled = false;
+  Object? _lastPrefilledSettings;
 
   static const _provinces = ['انتخاب نشده', 'تهران', 'البرز', 'اصفهان', 'فارس', 'خراسان رضوی', 'آذربایجان شرقی', 'گیلان', 'یزد'];
   static const _cities = ['انتخاب نشده', 'تهران', 'کرج', 'اصفهان', 'شیراز', 'مشهد', 'تبریز', 'رشت', 'یزد'];
@@ -45,10 +45,10 @@ class _BusinessSettingsPageState extends State<BusinessSettingsPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_prefilled) return;
     final provider = context.watch<BusinessSettingsProvider>();
-    if (provider.loading || provider.settings == null) return;
-    _prefilled = true;
+    if (provider.loading || provider.settings == null ||
+        identical(_lastPrefilledSettings, provider.settings)) return;
+    _lastPrefilledSettings = provider.settings;
     final settings = provider.settings!;
     _name.text = settings.name;
     _slogan.text = settings.slogan;
